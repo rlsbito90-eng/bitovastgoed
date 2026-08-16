@@ -490,6 +490,10 @@ export default function FocusModus({
       <BulkKadasterWizard
         open={bulkKadasterOpen}
         onClose={() => setBulkKadasterOpen(false)}
+        onResultaatClose={() => {
+          setBulkKadasterOpen(false);
+          sluitEnBewaar();
+        }}
         signalen={bulkKadasterSignalen}
       />
     </>

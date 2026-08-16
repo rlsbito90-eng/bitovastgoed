@@ -8,6 +8,7 @@ import { useKadasterObjectinformatie, KadasterApiError } from '@/hooks/useKadast
 import { useKadasterProductCatalogus } from '@/hooks/useKadasterProductCatalogus';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import { formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
+import KadasterBerichtOpenKnop from './KadasterBerichtOpenKnop';
 import {
   bouwBulkKadasterPreflightMetBag,
   type BulkKadasterBestaandDocument,
@@ -15,7 +16,13 @@ import {
   type BulkKadasterPreflightRij,
 } from '@/lib/offMarket/acquisitie/bulkKadaster';
 
-interface Props { open: boolean; onClose: () => void; signalen: OffMarketSignaal[]; }
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  /** Na een afgeronde batch terug naar Acquisitieselectie in plaats van de onderliggende Focus-kaart. */
+  onResultaatClose?: () => void;
+  signalen: OffMarketSignaal[];
+}
 type Fase = 'preflight' | 'bevestigen' | 'uitvoeren' | 'resultaat';
 type UitvoerStatus = 'wacht' | 'bezig' | 'geslaagd' | 'waarschuwing' | 'overgeslagen' | 'mislukt' | 'onzeker';
 interface UitvoerRij { signaalId: string; adres: string; status: UitvoerStatus; melding: string; }
@@ -63,7 +70,7 @@ function uitvoerLabel(status: UitvoerStatus) {
   }
 }
 
-export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
+export default function BulkKadasterWizard({ open, onClose, onResultaatClose, signalen }: Props) {
   const [fase, setFase] = useState<Fase>('preflight');
   const [preflight, setPreflight] = useState<BulkKadasterPreflightRij[]>([]);
   const [preflightBezig, setPreflightBezig] = useState(false);
@@ -93,7 +100,17 @@ export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
   };
 
   useEffect(() => { if (open) void doePreflight(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, signaalIds.join('|')]);
-  const sluit = () => { if (fase === 'uitvoeren') return; setFase('preflight'); setPreflight([]); setUitvoer([]); setStopReden(null); onClose(); };
+
+  const reset = () => {
+    setFase('preflight'); setPreflight([]); setUitvoer([]); setStopReden(null);
+  };
+  const sluit = (afgerondResultaat = false) => {
+    if (fase === 'uitvoeren') return;
+    reset();
+    if (afgerondResultaat && onResultaatClose) onResultaatClose();
+    else onClose();
+  };
+
   const verversEnCheckOfAlAanwezig = async (signaal: OffMarketSignaal) => {
     const bestaand = await laadBestaandeData([signaal.id]);
     return (await bouwBulkKadasterPreflightMetBag([signaal], bestaand.records, bestaand.documenten))[0];
@@ -178,7 +195,7 @@ export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
     onzeker: uitvoer.filter(r => r.status === 'onzeker').length,
   }), [uitvoer]);
 
-  return <Dialog open={open} onOpenChange={(v) => { if (!v) sluit(); }}>
+  return <Dialog open={open} onOpenChange={(v) => { if (!v) sluit(fase === 'resultaat'); }}>
     <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="bulk-kadaster-wizard">
       <DialogHeader><DialogTitle className="flex items-center gap-2"><FileSearch className="h-4 w-4" /> Bulk Kadaster — Rechten</DialogTitle><DialogDescription>Eerst gratis preflight. Alleen na de tweede, expliciete bevestiging worden betaalde Kadasteraanvragen uitgevoerd.</DialogDescription></DialogHeader>
       {(fase === 'preflight' || fase === 'bevestigen') && <div className="space-y-4">
@@ -189,8 +206,8 @@ export default function BulkKadasterWizard({ open, onClose, signalen }: Props) {
         <div className="space-y-2">{preflight.map(r => <div key={r.signaal.id} className="rounded-md border border-border p-3 text-xs space-y-1"><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium text-foreground">{formatSignaalAdres(r.signaal) || r.signaal.titel || '—'}</span><span className="text-muted-foreground">{statusLabel(r.status)}</span></div>{r.zoekadresLabel && <p className="font-mono-data text-muted-foreground">Zoekadres: {r.zoekadresLabel}</p>}<p className={r.status === 'geblokkeerd' ? 'text-destructive' : 'text-muted-foreground'}>{r.reden}</p></div>)}</div>
         {fase === 'bevestigen' && <div className="rounded-md border border-amber-300 bg-amber-50/60 p-3 text-sm space-y-2"><div className="flex items-start gap-2 text-amber-950"><ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" /><div><p className="font-semibold">Definitieve verwerkingsbevestiging</p><p className="text-xs">{aanvragen.length > 0 ? `Je start maximaal ${aanvragen.length} nieuwe Rechten-aanvragen. ` : 'Er worden geen nieuwe betaalde Kadasteraanvragen gestart. '}{bestaandeEigenaarverwerking.length > 0 ? `${bestaandeEigenaarverwerking.length} al opgeslagen Kadasterbericht(en) worden gebruikt voor eigenaarverwerking.` : ''}</p></div></div><p className="text-xs text-amber-950">Bij een onzekere netwerk- of opslaguitkomst stopt de betaalde batch onmiddellijk. De wizard doet nooit automatisch een betaalde retry.</p></div>}
       </div>}
-      {(fase === 'uitvoeren' || fase === 'resultaat') && <div className="space-y-4"><div className="rounded-md border border-border bg-muted/20 p-3 text-xs"><div className="flex flex-wrap gap-x-4 gap-y-1"><span>Geslaagd: <strong>{resultaatTellingen.geslaagd}</strong></span><span>Controle: <strong>{resultaatTellingen.waarschuwing}</strong></span><span>Overgeslagen: <strong>{resultaatTellingen.overgeslagen}</strong></span><span>Mislukt: <strong>{resultaatTellingen.mislukt}</strong></span><span>Onzeker: <strong>{resultaatTellingen.onzeker}</strong></span></div></div>{stopReden && <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive flex items-start gap-2"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /><span>{stopReden}</span></div>}<div className="space-y-2">{uitvoer.map(r => <div key={r.signaalId} className="rounded-md border border-border p-3 text-xs"><div className="flex items-center justify-between gap-2"><span className="font-medium">{r.adres}</span><span className="flex items-center gap-1 text-muted-foreground">{r.status === 'bezig' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{r.status === 'geslaagd' && <CheckCircle2 className="h-3.5 w-3.5" />}{uitvoerLabel(r.status)}</span></div><p className="mt-1 text-muted-foreground">{r.melding}</p></div>)}</div></div>}
-      <DialogFooter>{(fase === 'preflight' || fase === 'bevestigen') && <><Button variant="ghost" onClick={sluit} disabled={preflightBezig}>Annuleren</Button><Button variant="outline" onClick={() => void doePreflight()} disabled={preflightBezig}>Preflight opnieuw</Button>{fase === 'preflight' ? <Button onClick={() => setFase('bevestigen')} disabled={preflightBezig || !!preflightFout || !heeftWerk || (aanvragen.length > 0 && !rechtenProduct)}>{aanvragen.length > 0 ? <Coins className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}{aanvragen.length > 0 ? 'Naar betaalbevestiging' : 'Bestaande eigenaargegevens verwerken'}</Button> : <Button onClick={() => void startUitvoering()} disabled={!heeftWerk || mutation.isPending}>{aanvragen.length > 0 ? <Coins className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}{aanvragen.length > 0 ? `Definitief ${aanvragen.length} Rechten aanvragen` : `Verwerk ${bestaandeEigenaarverwerking.length} opgeslagen Kadasterbericht(en)`}</Button>}</>}{fase === 'uitvoeren' && <Button disabled><Loader2 className="h-4 w-4 animate-spin" /> Batch uitvoeren…</Button>}{fase === 'resultaat' && <Button onClick={sluit}>Sluiten</Button>}</DialogFooter>
+      {(fase === 'uitvoeren' || fase === 'resultaat') && <div className="space-y-4"><div className="rounded-md border border-border bg-muted/20 p-3 text-xs"><div className="flex flex-wrap gap-x-4 gap-y-1"><span>Geslaagd: <strong>{resultaatTellingen.geslaagd}</strong></span><span>Controle: <strong>{resultaatTellingen.waarschuwing}</strong></span><span>Overgeslagen: <strong>{resultaatTellingen.overgeslagen}</strong></span><span>Mislukt: <strong>{resultaatTellingen.mislukt}</strong></span><span>Onzeker: <strong>{resultaatTellingen.onzeker}</strong></span></div></div>{stopReden && <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive flex items-start gap-2"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /><span>{stopReden}</span></div>}<div className="space-y-2">{uitvoer.map(r => <div key={r.signaalId} className="rounded-md border border-border p-3 text-xs"><div className="flex items-center justify-between gap-2"><span className="font-medium">{r.adres}</span><span className="flex items-center gap-1 text-muted-foreground">{r.status === 'bezig' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{r.status === 'geslaagd' && <CheckCircle2 className="h-3.5 w-3.5" />}{uitvoerLabel(r.status)}</span></div><p className="mt-1 text-muted-foreground">{r.melding}</p>{fase === 'resultaat' && (r.status === 'geslaagd' || r.status === 'waarschuwing' || r.status === 'overgeslagen') && <div className="mt-2"><KadasterBerichtOpenKnop signaalId={r.signaalId} hideWhenMissing /></div>}</div>)}</div></div>}
+      <DialogFooter>{(fase === 'preflight' || fase === 'bevestigen') && <><Button variant="ghost" onClick={() => sluit(false)} disabled={preflightBezig}>Annuleren</Button><Button variant="outline" onClick={() => void doePreflight()} disabled={preflightBezig}>Preflight opnieuw</Button>{fase === 'preflight' ? <Button onClick={() => setFase('bevestigen')} disabled={preflightBezig || !!preflightFout || !heeftWerk || (aanvragen.length > 0 && !rechtenProduct)}>{aanvragen.length > 0 ? <Coins className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}{aanvragen.length > 0 ? 'Naar betaalbevestiging' : 'Bestaande eigenaargegevens verwerken'}</Button> : <Button onClick={() => void startUitvoering()} disabled={!heeftWerk || mutation.isPending}>{aanvragen.length > 0 ? <Coins className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}{aanvragen.length > 0 ? `Definitief ${aanvragen.length} Rechten aanvragen` : `Verwerk ${bestaandeEigenaarverwerking.length} opgeslagen Kadasterbericht(en)`}</Button>}</>}{fase === 'uitvoeren' && <Button disabled><Loader2 className="h-4 w-4 animate-spin" /> Batch uitvoeren…</Button>}{fase === 'resultaat' && <Button onClick={() => sluit(true)}>Sluiten en terug naar selectie</Button>}</DialogFooter>
     </DialogContent>
   </Dialog>;
 }
