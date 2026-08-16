@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PackageCheck, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { maakStandaardProductiekernBrowserLeesSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserClient';
 import { maakStandaardProductiekernBrowserWriteSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserWriteClient';
 import { bouwProductiekernBatchProductiepakket } from '@/lib/offMarket/acquisitie/productiekernBatchProductiepakket';
+import { laadProductiekernBatch } from '@/lib/offMarket/acquisitie/productiekernBatchLezer';
 import type { PrintbatchContract } from '@/lib/offMarket/acquisitie/productiekernContract';
 import type { ProductiekernProductiepakketPayload } from '@/lib/offMarket/acquisitie/productiekernProductiepakketSamenstelling';
 import { startProductiekernPrintbatch, type ProductiekernBatchBrief } from '@/lib/offMarket/acquisitie/productiekernPrintbatch';
@@ -30,6 +31,8 @@ function lokaleDatum(): string {
 /** Volledige expliciete BAT-keten: maken → vastleggen → print bevestigen → post bevestigen. */
 export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: Props) {
   const [bezig, setBezig] = useState(false);
+  const [herstelBezig, setHerstelBezig] = useState(true);
+  const [herstelFout, setHerstelFout] = useState<string | null>(null);
   const [pakket, setPakket] = useState<ProductiekernProductiepakketPayload | null>(null);
   const [batch, setBatch] = useState<PrintbatchContract | null>(null);
   const [batchBrieven, setBatchBrieven] = useState<ProductiekernBatchBrief[]>([]);
@@ -37,11 +40,84 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
   const writes = useMemo(() => maakStandaardProductiekernBrowserWriteSamenstelling(), []);
   const lezen = useMemo(() => maakStandaardProductiekernBrowserLeesSamenstelling(), []);
   const ids = useMemo(() => [...new Set(briefIds)].sort(), [briefIds]);
+  const idsSleutel = ids.join('|');
+  const actief = writes.activatie.schrijvenActief && lezen.activatie.lezenActief && ids.length > 0;
 
-  if (!writes.activatie.schrijvenActief || !lezen.activatie.lezenActief || ids.length === 0) return null;
+  useEffect(() => {
+    if (!actief) {
+      setHerstelBezig(false);
+      return;
+    }
+    if (batch) {
+      setHerstelBezig(false);
+      return;
+    }
+
+    let geannuleerd = false;
+    const herstel = async () => {
+      setHerstelBezig(true);
+      setHerstelFout(null);
+      try {
+        const versiesVoorScope: string[] = [];
+        for (const briefId of ids) {
+          const [brief, versies] = await Promise.all([
+            lezen.repository.haalBrief(briefId),
+            lezen.repository.haalBriefversies(briefId),
+          ]);
+          if (!brief) throw new Error(`Definitieve Productiekern-brief ${briefId} ontbreekt.`);
+          if (brief.signaalId !== signaalId) throw new Error('Brief hoort bij een ander acquisitiesignaal.');
+          if (brief.status !== 'definitief' || !brief.briefnummer?.trim() || !brief.actieveVersie) {
+            throw new Error(`Brief ${briefId} is niet definitief of mist een actuele versie.`);
+          }
+          const versie = versies.find((item) =>
+            item.versienummer === brief.actieveVersie
+            && (item.status === 'actief' || item.status === 'verzonden'));
+          if (!versie) throw new Error(`Actuele immutable versie voor ${brief.briefnummer} ontbreekt.`);
+          versiesVoorScope.push(versie.id);
+        }
+
+        const bestaandBatchId = await lezen.repository.haalActievePrintbatchIdVoorBriefversies(versiesVoorScope);
+        if (!bestaandBatchId) return;
+
+        const geladen = await laadProductiekernBatch(bestaandBatchId, lezen.repository);
+        const geladenBriefIds = geladen.brieven.map((item) => item.brief.id).sort();
+        if (geladen.brieven.some((item) => item.brief.signaalId !== signaalId)) {
+          throw new Error('Bestaande printbatch bevat een brief uit een ander acquisitiesignaal.');
+        }
+        if (JSON.stringify(geladenBriefIds) !== JSON.stringify(ids)) {
+          throw new Error('Bestaande printbatch wijkt af van de definitieve brieven in dit dossier.');
+        }
+
+        if (geannuleerd) return;
+        setBatch(geladen.batch);
+        setBatchBrieven(geladen.brieven);
+        // Alleen een nog niet formeel vastgelegde concept-BAT mag opnieuw worden
+        // gerenderd. Vanaf documenten_gegenereerd is de Storage-set het bewijs.
+        if (geladen.batch.status === 'concept') {
+          setPakket(bouwProductiekernBatchProductiepakket({
+            batch: geladen.batch,
+            brieven: geladen.brieven,
+          }));
+        }
+      } catch (error) {
+        if (!geannuleerd) {
+          setHerstelFout(error instanceof Error ? error.message : 'Bestaande printbatch kon niet veilig worden hersteld.');
+        }
+      } finally {
+        if (!geannuleerd) setHerstelBezig(false);
+      }
+    };
+
+    void herstel();
+    return () => { geannuleerd = true; };
+  // idsSleutel maakt de inhoudelijke scope stabiel; `ids` zelf kan vanuit de parent een nieuwe arrayreferentie krijgen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actief, batch, idsSleutel, signaalId, lezen.repository]);
+
+  if (!actief) return null;
 
   const maakBatch = async () => {
-    if (bezig || pakket || batch) return;
+    if (bezig || herstelBezig || herstelFout || pakket || batch) return;
     setBezig(true);
     try {
       const auth = await supabase.auth.getUser();
@@ -86,7 +162,16 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
 
   return (
     <div className="rounded-md border bg-muted/20 p-2.5 space-y-2" data-testid="productiekern-printbatch-acties">
-      {!pakket || !batch ? (
+      {herstelBezig ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="productiekern-batch-herstellen">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Bestaande printbatch controleren…
+        </div>
+      ) : herstelFout ? (
+        <div className="text-xs text-destructive" role="alert" data-testid="productiekern-batch-herstel-fout">
+          Printbatch geblokkeerd: {herstelFout}
+        </div>
+      ) : !batch ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs">
             <p className="font-medium">{ids.length} definitieve {ids.length === 1 ? 'brief' : 'brieven'} klaar voor BAT</p>
@@ -101,12 +186,14 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <span>Printbatch</span>
-            <span className="font-mono-data font-semibold">{pakket.manifest.batchnummer}</span>
+            <span className="font-mono-data font-semibold">{batch.batchnummer}</span>
           </div>
 
-          {batch.status === 'concept' ? (
+          {batch.status === 'concept' && pakket && (
             <ProductiekernProductiepakketVastleggen batch={batch} pakket={pakket} onVastgelegd={setBatch} />
-          ) : (
+          )}
+
+          {batch.status !== 'concept' && pakket && (
             <ProductiekernProductiepakketDownload
               manifest={pakket.manifest}
               voorblad={pakket.voorblad}
@@ -127,7 +214,9 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
           <p className="text-[11px] text-muted-foreground">
             {batch.status === 'concept'
               ? 'Eerst worden de vier artifacts duurzaam en append-only opgeslagen; pas daarna is deze BAT printgereed.'
-              : 'Downloaden verandert geen fysieke status. Print en post worden uitsluitend via de afzonderlijke bevestigingen geregistreerd.'}
+              : pakket
+                ? 'Downloaden verandert geen fysieke status. Print en post worden uitsluitend via de afzonderlijke bevestigingen geregistreerd.'
+                : 'Deze BAT is uit de Productiekern hersteld. De formeel vastgelegde documentset wordt niet stil opnieuw gerenderd.'}
           </p>
         </div>
       )}
