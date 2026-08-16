@@ -1,11 +1,11 @@
 import { bouwBatchDocumentPlan, type BatchBriefInvoer, type BatchDocumentPlan } from './batchDocumentPlan';
+import type { AtomischePrintbatchRepository } from './atomischePrintbatchSupabaseRepository';
 import type {
   BatchdocumentContract,
   BriefContract,
   BriefversieContract,
   PrintbatchContract,
 } from './productiekernContract';
-import type { VroegeProductieWriteRepository } from './vroegeProductieSupabaseRepository';
 import type { AcquisitieProductieTransactieRepository } from './productieTransactieRepository';
 
 export interface ProductiekernBatchBrief {
@@ -37,44 +37,43 @@ function sorteerBrieven(brieven: ProductiekernBatchBrief[]): ProductiekernBatchB
 }
 
 /**
- * Maakt één BAT aan en koppelt exact de opgegeven, reeds definitieve immutable
- * briefversies. Documenten worden hier nog niet geregistreerd: de caller moet
- * eerst alle vier artifacts succesvol genereren/opslaan.
+ * Maakt één BAT plus alle koppelingen in één database-transactie. Hierdoor kan
+ * een netwerkfout nooit een half gekoppelde conceptbatch achterlaten.
+ * Documenten worden hier nog niet geregistreerd: eerst moeten alle vier
+ * artifacts succesvol gegenereerd én duurzaam opgeslagen zijn.
  */
 export async function startProductiekernPrintbatch(input: {
   brieven: ProductiekernBatchBrief[];
   actorId: string;
   datum: string;
   operationScope: string;
-}, vroeg: VroegeProductieWriteRepository): Promise<ProductiekernBatchStartResultaat> {
+}, atomisch: AtomischePrintbatchRepository): Promise<ProductiekernBatchStartResultaat> {
   if (!input.actorId.trim()) throw new Error('Actor is verplicht.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.datum)) throw new Error('Batchdatum moet YYYY-MM-DD zijn.');
   if (!input.operationScope.trim()) throw new Error('Operation scope is verplicht.');
   if (input.brieven.length === 0) throw new Error('Een printbatch vereist minimaal één definitieve brief.');
+  if (input.brieven.length > 1000) throw new Error('Een printbatch mag maximaal 1000 definitieve brieven bevatten.');
 
+  const uniekeBrieven = new Set<string>();
   const uniekeVersies = new Set<string>();
   for (const item of input.brieven) {
     bewaakBatchBrief(item);
+    if (uniekeBrieven.has(item.brief.id)) throw new Error(`Brief dubbel in batch: ${item.brief.id}.`);
     if (uniekeVersies.has(item.versie.id)) throw new Error(`Briefversie dubbel in batch: ${item.versie.id}.`);
+    uniekeBrieven.add(item.brief.id);
     uniekeVersies.add(item.versie.id);
   }
 
   const brieven = sorteerBrieven(input.brieven);
-  const batch = await vroeg.maakPrintbatch({
+  const batch = await atomisch.maakPrintbatchMetBrieven({
     actorId: input.actorId,
     operationKey: `printbatch:${input.operationScope}`,
     datum: input.datum,
-  });
-
-  for (const item of brieven) {
-    await vroeg.voegBriefversieToeAanBatch({
-      batchId: batch.id,
+    brieven: brieven.map((item) => ({
       briefId: item.brief.id,
       briefVersieId: item.versie.id,
-      actorId: input.actorId,
-      operationKey: `printbatch:${batch.id}:briefversie:${item.versie.id}`,
-    });
-  }
+    })),
+  });
 
   const planInvoer: BatchBriefInvoer[] = brieven.map((item) => ({
     briefnummer: item.brief.briefnummer!,
