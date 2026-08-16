@@ -6,12 +6,12 @@ import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesl
 const actief: ProductiekernActivatieBesluit = {
   lezenActief: true,
   schrijvenActief: true,
-  reden: 'test',
+  ontbrekendBewijs: [],
 };
 const dicht: ProductiekernActivatieBesluit = {
   lezenActief: false,
   schrijvenActief: false,
-  reden: 'test-dicht',
+  ontbrekendBewijs: ['test-dicht'],
 };
 
 describe('atomische printbatch Supabase repository', () => {
