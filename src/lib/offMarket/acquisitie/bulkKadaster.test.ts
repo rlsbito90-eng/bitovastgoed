@@ -91,7 +91,7 @@ describe('bouwBulkKadasterPreflight', () => {
       [],
     );
     expect(r.status).toBe('aanvragen');
-    expect(r.zoekadresLabel).toBe('1013RW 189H');
+    expect(r.zoekadresLabel).toBe('1013RW 189 H');
   });
 
   it('markeert een dossier zonder bestaand Rechten-record voor aanvraag', () => {
