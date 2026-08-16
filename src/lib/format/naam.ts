@@ -9,6 +9,8 @@
 //   - Tussenvoegsels blijven voluit.
 //   - Koppelteken-voornamen worden apart afgekort ("A.M. de Vries").
 //   - Reeds-afgekorte namen blijven ongemoeid ("P.J. Achternaam").
+//   - Kadaster-biografieregels zoals "Geboren 29-04-1959 te AMSTERDAM"
+//     horen nooit bij de briefnaam en worden defensief verwijderd.
 //   - Lege/onzekere input crasht niet en retourneert origineel.
 
 const TUSSENVOEGSELS = new Set([
@@ -45,6 +47,20 @@ const RECHTSVORM_PATRONEN: RegExp[] = [
 ];
 
 /**
+ * Verwijdert uitsluitend het herkenbare Kadaster-biografiesuffix uit een
+ * natuurlijk-persoonsnaam. Andere tekst blijft onaangeroerd.
+ */
+export function verwijderKadasterGeboorteSuffix(
+  naam: string | null | undefined,
+): string {
+  if (!naam) return naam ?? '';
+  return naam
+    .replace(/\s+Geboren\s+\d{1,2}[-/.]\d{1,2}[-/.]\d{4}(?:\s+te\s+.+)?$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Herkent of een naam (zeer waarschijnlijk) een rechtspersoon/bedrijf is
  * en dus niet door de voorletters-helper mag. Conservatief: false-negatives
  * zijn acceptabel, false-positives op echte personen moeten zeldzaam zijn.
@@ -66,11 +82,10 @@ export function naarVoorlettersAchternaam(
   naam: string | null | undefined,
 ): string {
   if (!naam) return naam ?? '';
-  const trimmed = naam.trim();
+  const trimmed = verwijderKadasterGeboorteSuffix(naam);
   if (!trimmed) return '';
   if (isAlAfgkort(trimmed)) return trimmed;
   if (isRechtspersoonNaam(trimmed)) return trimmed;
-
 
   const parts = trimmed.split(/\s+/);
   if (parts.length === 1) return trimmed;
