@@ -11,6 +11,7 @@ import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { isVolledigPostadres as isVolledigPostadresCentraal } from '@/lib/offMarket/acquisitie/postadres';
+import { isAdresControleReden } from '@/lib/offMarket/acquisitie/rechtenbewusteEigenaar';
 
 // ---------------------------------------------------------------------
 // Fases
@@ -57,14 +58,14 @@ const FASE_DEFS: Record<ReadinessFase, ReadinessFaseInfo> = {
     fase: 'eigenaar_controleren',
     label: 'Eigenaar controleren',
     reden: 'Eigenaar/recht vraagt handmatige controle.',
-    volgendeActie: 'Controleer eigenaar, recht en adres op het signaal',
+    volgendeActie: 'Controleer eigenaar en recht op het signaal',
     status: 'geblokkeerd',
   },
   adres_ontbreekt: {
     fase: 'adres_ontbreekt',
-    label: 'Adres ontbreekt',
-    reden: 'Postadres van de geadresseerde is onvolledig.',
-    volgendeActie: 'Vul verzendadres aan',
+    label: 'Adres achterhalen',
+    reden: 'Eigenaar/geadresseerde is bekend, maar het postadres is onvolledig.',
+    volgendeActie: 'Achterhaal en vul het verzendadres aan',
     status: 'geblokkeerd',
   },
   brief_voorbereiden: {
@@ -304,7 +305,6 @@ export function geadresseerdenVoorSignaal(
     });
   }
 
-
   if (out.length === 0) {
     const a = signaal as any;
     const naam = (a.eigenaar_naam ?? '').toString().trim();
@@ -388,6 +388,12 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
   const status = (signaal.status ?? '') as string;
   const geadresseerden = geadresseerdenVoorSignaal(signaal, brieven);
   const telling = tellGeadresseerden(geadresseerden);
+  const eigenaarControleReden = (typeof a.eigenaar_controle_reden === 'string'
+    && a.eigenaar_controle_reden.trim())
+    ? a.eigenaar_controle_reden.trim()
+    : null;
+  const alleenAdresAchterhalen = a.eigenaar_controle_nodig === true
+    && isAdresControleReden(eigenaarControleReden);
 
   // Waarschuwingen — nooit blokkerend.
   const waarschuwingen: ReadinessWaarschuwing[] = [];
@@ -410,13 +416,10 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
 
   if (AFGEROND_SIGNAAL_STATUS.has(status)) {
     fase = 'afgerond';
-  } else if (a.eigenaar_controle_nodig === true) {
-    // Expliciete eigenaar-/rechtenexceptie gaat vóór adres- en brieflogica.
+  } else if (a.eigenaar_controle_nodig === true && !alleenAdresAchterhalen) {
+    // Alleen echte identiteit-/rechtenambiguïteit blijft Eigenaar controleren.
     fase = 'eigenaar_controleren';
-    blokkadeReden = (typeof a.eigenaar_controle_reden === 'string'
-      && a.eigenaar_controle_reden.trim())
-      ? a.eigenaar_controle_reden.trim()
-      : 'Eigenaar/recht vraagt handmatige controle.';
+    blokkadeReden = eigenaarControleReden ?? 'Eigenaar/recht vraagt handmatige controle.';
   } else if (geadresseerden.length === 0) {
     if (status === 'te_onderzoeken' || status === 'nieuw_signaal' || status === 'twijfel') {
       fase = 'onderzoek_nodig';
@@ -425,11 +428,11 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
       fase = 'eigenaar_ontbreekt';
       blokkadeReden = 'Geen geadresseerde gevonden.';
     }
-  } else if (geadresseerden.every(g =>
+  } else if (alleenAdresAchterhalen || geadresseerden.every(g =>
     !g.volledigPostadres && !g.heeftActiefConcept && !g.heeftVerstuurd && !g.heeftEmailVerzonden
   )) {
     fase = 'adres_ontbreekt';
-    blokkadeReden = 'Geen geadresseerde heeft een volledig postadres.';
+    blokkadeReden = eigenaarControleReden ?? 'Geen geadresseerde heeft een volledig postadres.';
   } else if (geadresseerden.every(g => g.responsBinnen && (g.heeftVerstuurd || g.heeftEmailVerzonden))) {
     fase = 'afgerond';
   } else if (geadresseerden.some(g => g.opvolgingOpen)) {
