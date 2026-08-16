@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { bouwBatchAdreslabelRijen } from './batchAdreslabelRijen';
-import { bouwBatchControlelijst } from './batchControlelijst';
-import { bouwBatchDocumentPlan } from './batchDocumentPlan';
-import { bouwBatchProductiepakketManifest } from './batchProductiepakket';
-import { bouwBatchVoorbladModel } from './batchVoorblad';
-import { bouwBriefRenderInvoer } from './briefRenderInvoer';
 import type { BriefContract, BriefversieContract, PrintbatchContract } from './productiekernContract';
-import { bouwProductiekernProductiepakketPayload } from './productiekernProductiepakketSamenstelling';
+import { bouwProductiekernBatchProductiepakket } from './productiekernBatchProductiepakket';
 
 const batch: PrintbatchContract = {
   id: 'batch-1',
@@ -69,39 +63,20 @@ const versie: BriefversieContract = {
 };
 
 describe('Productiekern productiepakket uit immutable snapshots', () => {
-  it('bouwt een volledig rendergereed vierbestandenpakket zonder individuele opgeslagen brief-PDF', () => {
-    const plan = bouwBatchDocumentPlan({
+  it('bouwt centraal een volledig rendergereed vierbestandenpakket zonder individuele opgeslagen brief-PDF', () => {
+    const payload = bouwProductiekernBatchProductiepakket({
       batch,
-      brieven: [{ briefnummer: brief.briefnummer!, versie }],
-    });
-    const controlelijst = bouwBatchControlelijst({
-      batch,
-      brieven: [{ briefnummer: brief.briefnummer!, versie }],
-    });
-    const voorblad = bouwBatchVoorbladModel(batch, controlelijst);
-    const labels = bouwBatchAdreslabelRijen([{
-      briefnummer: brief.briefnummer!,
-      briefVersieId: versie.id,
-      geadresseerde: versie.geadresseerde,
-    }]);
-    const manifest = bouwBatchProductiepakketManifest({ plan, controlelijst, voorblad, labels });
-    const renderBrief = bouwBriefRenderInvoer({ brief, versie });
-    const payload = bouwProductiekernProductiepakketPayload({
-      manifest,
-      voorblad,
-      controlelijst,
-      labels,
-      brieven: [renderBrief],
+      brieven: [{ brief, versie, geadresseerdeKey: 'signaal-1|es-blok' }],
     });
 
-    expect(controlelijst.pdfOntbreekt).toBe(0);
-    expect(controlelijst.rijen[0]).toMatchObject({
+    expect(payload.controlelijst.pdfOntbreekt).toBe(0);
+    expect(payload.controlelijst.rijen[0]).toMatchObject({
       pdfBeschikbaar: true,
       pdfBron: 'immutable_snapshot',
     });
-    expect(voorblad.gereedVoorPrint).toBe(true);
-    expect(manifest.gereedVoorRender).toBe(true);
-    expect(manifest.documentBestanden).toEqual([
+    expect(payload.voorblad.gereedVoorPrint).toBe(true);
+    expect(payload.manifest.gereedVoorRender).toBe(true);
+    expect(payload.manifest.documentBestanden).toEqual([
       'BAT2026081601-v1-voorblad.pdf',
       'BAT2026081601-v1-controlelijst.pdf',
       'BAT2026081601-v1-brieven.pdf',
@@ -112,5 +87,16 @@ describe('Productiekern productiepakket uit immutable snapshots', () => {
       briefVersieId: 'versie-1',
       brieftekst: versie.inhoud.brieftekst,
     });
+  });
+
+  it('blokkeert versie-drift vóór een pakket wordt samengesteld', () => {
+    expect(() => bouwProductiekernBatchProductiepakket({
+      batch,
+      brieven: [{
+        brief: { ...brief, actieveVersie: 2 },
+        versie,
+        geadresseerdeKey: 'signaal-1|es-blok',
+      }],
+    })).toThrow('Actieve versie');
   });
 });
