@@ -1,5 +1,6 @@
 import type {
   AcquisitiedossierContract,
+  BatchdocumentContract,
   BriefContract,
   BriefversieContract,
   PrintbatchBriefContract,
@@ -26,6 +27,7 @@ import {
 import { bewaakBriefversieSnapshotLimiet } from './productiekernSnapshotLeesLimiet';
 import {
   mapAcquisitiedossierRij,
+  mapBatchdocumentRij,
   mapBriefRij,
   mapBriefversieRij,
   mapPrintbatchBriefRij,
@@ -103,6 +105,19 @@ export class SupabaseProductiekernLeesRepository implements AcquisitieProductiek
       bewaakGevraagdeLeesIdentiteit('Printbatchbrief', batchId, koppeling.batchId);
     }
     return koppelingen.filter((koppeling) => koppeling.verwijderdOp === null);
+  }
+
+  async haalBatchdocumenten(batchId: string): Promise<BatchdocumentContract[]> {
+    const rijen = await this.transport.haalMeerdere(
+      'off_market_batchdocumenten',
+      { batch_id: batchId },
+      { kolom: 'created_at', oplopend: true },
+    );
+    const documenten = rijen.map(mapBatchdocumentRij);
+    for (const document of documenten) {
+      bewaakGevraagdeLeesIdentiteit('Batchdocument', batchId, document.batchId);
+    }
+    return documenten;
   }
 
   async haalActievePrintbatchIdVoorBriefversies(briefVersieIds: readonly string[]): Promise<string | null> {
