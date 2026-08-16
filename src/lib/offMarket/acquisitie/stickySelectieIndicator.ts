@@ -4,6 +4,7 @@ const BAR_ID = 'acquisitie-sticky-selectieteller';
 
 let observer: MutationObserver | null = null;
 let gebruikers = 0;
+let synchronisatieGepland = false;
 
 export function leesAantalGeselecteerdUitBulkTekst(tekst: string | null | undefined): number {
   const match = String(tekst ?? '').trim().match(/^(\d+)\s+signalen\b/i);
@@ -77,7 +78,17 @@ export function synchroniseerStickySelectieIndicator(root: ParentNode = document
   const zichtbaar = leesAantalZichtbaar(root);
   const bar = maakBar();
   const tekst = bar.querySelector<HTMLElement>('[data-role="telling"]');
-  if (tekst) tekst.textContent = `${geselecteerd} geselecteerd · ${zichtbaar} zichtbaar`;
+  const nieuweTekst = `${geselecteerd} geselecteerd · ${zichtbaar} zichtbaar`;
+  if (tekst && tekst.textContent !== nieuweTekst) tekst.textContent = nieuweTekst;
+}
+
+function planSynchronisatie() {
+  if (synchronisatieGepland) return;
+  synchronisatieGepland = true;
+  queueMicrotask(() => {
+    synchronisatieGepland = false;
+    synchroniseerStickySelectieIndicator();
+  });
 }
 
 export function activeerStickySelectieIndicator(): () => void {
@@ -85,7 +96,15 @@ export function activeerStickySelectieIndicator(): () => void {
 
   gebruikers += 1;
   if (!observer) {
-    observer = new MutationObserver(() => synchroniseerStickySelectieIndicator());
+    observer = new MutationObserver((mutaties) => {
+      const alleenEigenBar = mutaties.every((mutatie) => {
+        const target = mutatie.target instanceof Element
+          ? mutatie.target
+          : mutatie.target.parentElement;
+        return target?.closest(`#${BAR_ID}`) != null;
+      });
+      if (!alleenEigenBar) planSynchronisatie();
+    });
     observer.observe(document.body, {
       subtree: true,
       childList: true,
@@ -101,6 +120,7 @@ export function activeerStickySelectieIndicator(): () => void {
     if (gebruikers === 0) {
       observer?.disconnect();
       observer = null;
+      synchronisatieGepland = false;
       verwijderBar();
     }
   };
