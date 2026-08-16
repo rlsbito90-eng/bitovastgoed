@@ -13,7 +13,7 @@
 //     en gedocumenteerd als open punt in .lovable/plan.md.
 //   - Bron-vermelding "Kadaster Objectinformatie API" altijd zichtbaar.
 import { useMemo, useState } from 'react';
-import { FileSearch, ExternalLink, ArrowDownToLine } from 'lucide-react';
+import { FileSearch, ExternalLink, ArrowDownToLine, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { supabase } from '@/integrations/supabase/client';
 import type {
   KadasterDeliverStatus, KadasterPreview, KadasterProductResult,
 } from '@/lib/kadaster/types';
@@ -572,6 +573,33 @@ function ProductCard({
 export default function KadasterPreviewDialog({
   open, onOpenChange, preview, gebiedsVariant, objectVelden, onOvernemen,
 }: Props) {
+  const [pdfOpenen, setPdfOpenen] = useState(false);
+  const pdfInfo = preview?.persist?.pdf ?? null;
+  const kanPdfOpenen = !!pdfInfo?.ok && !!pdfInfo.storage_path;
+
+  async function openKadasterbericht() {
+    const storagePath = pdfInfo?.storage_path;
+    if (!storagePath || pdfOpenen) return;
+    setPdfOpenen(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('bito-objecten')
+        .createSignedUrl(storagePath, 60 * 5);
+      if (error || !data?.signedUrl) {
+        throw new Error(error?.message ?? 'Kon Kadasterbericht niet openen.');
+      }
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : '';
+      toast.error(
+        'Kadasterbericht bestaat, maar kon tijdelijk niet worden geopend. ' +
+        'Probeer opnieuw of controleer opslagrechten.' + (detail ? ` (${detail})` : ''),
+      );
+    } finally {
+      setPdfOpenen(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -649,6 +677,20 @@ export default function KadasterPreviewDialog({
         )}
 
         <DialogFooter>
+          {kanPdfOpenen && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { void openKadasterbericht(); }}
+              disabled={pdfOpenen}
+              data-testid="kadaster-preview-open-pdf"
+            >
+              {pdfOpenen
+                ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                : <FileText className="h-4 w-4 mr-2" />}
+              Kadasterbericht openen
+            </Button>
+          )}
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Sluiten</Button>
         </DialogFooter>
       </DialogContent>
