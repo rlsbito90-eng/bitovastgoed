@@ -20,6 +20,7 @@ export interface AcquisitieProductiekernRepository {
   haalBriefversies(briefId: string): Promise<BriefversieContract[]>;
   haalPrintbatch(batchId: string): Promise<PrintbatchContract | null>;
   haalPrintbatchBrieven(batchId: string): Promise<PrintbatchBriefContract[]>;
+  haalActievePrintbatchIdVoorBriefversies(briefVersieIds: readonly string[]): Promise<string | null>;
 
   startVerwerking(input: {
     selectieId: string;
@@ -114,6 +115,10 @@ implements AcquisitieProductiekernRepository {
 
   haalPrintbatchBrieven(): Promise<PrintbatchBriefContract[]> {
     return this.geblokkeerd('haalPrintbatchBrieven');
+  }
+
+  haalActievePrintbatchIdVoorBriefversies(): Promise<string | null> {
+    return this.geblokkeerd('haalActievePrintbatchIdVoorBriefversies');
   }
 
   startVerwerking(): Promise<AcquisitiedossierContract> {
