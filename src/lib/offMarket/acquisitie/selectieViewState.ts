@@ -19,7 +19,8 @@ export const LEGACY_FILTER_KEY = 'off-market-acq:filter';
 
 const GELDIGE_WERKBAK: WerkbakView[] = ['actie', 'wachten', 'afgehandeld', 'alles'];
 const GELDIG_SUBFILTER: ActieSubfilter[] = [
-  'alle', 'onderzoeken', 'brief_voorbereiden', 'printen_posten', 'opvolgen',
+  'alle', 'onderzoeken', 'eigenaar_controleren', 'brief_voorbereiden',
+  'printen_posten', 'opvolgen',
 ];
 
 /** Vertaal de oude filterchip-waarde naar (werkbak, subfilter). */

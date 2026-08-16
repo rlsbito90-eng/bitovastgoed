@@ -58,6 +58,7 @@ export function bepaalOperationeleWerkbak(
   switch (fase) {
     case 'onderzoek_nodig':
     case 'eigenaar_ontbreekt':
+    case 'eigenaar_controleren':
     case 'adres_ontbreekt':
       return 'eigenaar_achterhalen';
 

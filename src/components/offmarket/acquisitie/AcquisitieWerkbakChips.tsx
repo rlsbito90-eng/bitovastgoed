@@ -5,7 +5,8 @@ import { ACTIE_SUBFILTER_LABEL, WERKBAK_LABEL } from '@/lib/offMarket/acquisitie
 
 const HOOFD_VOLGORDE: WerkbakView[] = ['actie', 'wachten', 'afgehandeld', 'alles'];
 const SUB_VOLGORDE: ActieSubfilter[] = [
-  'alle', 'onderzoeken', 'brief_voorbereiden', 'printen_posten', 'opvolgen',
+  'alle', 'onderzoeken', 'eigenaar_controleren', 'brief_voorbereiden',
+  'printen_posten', 'opvolgen',
 ];
 
 export interface AcquisitieWerkbakChipsProps {

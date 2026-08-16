@@ -18,6 +18,7 @@ import { isVolledigPostadres as isVolledigPostadresCentraal } from '@/lib/offMar
 export type ReadinessFase =
   | 'onderzoek_nodig'
   | 'eigenaar_ontbreekt'
+  | 'eigenaar_controleren'
   | 'adres_ontbreekt'
   | 'brief_voorbereiden'
   | 'concept_gereed'
@@ -50,6 +51,13 @@ const FASE_DEFS: Record<ReadinessFase, ReadinessFaseInfo> = {
     label: 'Eigenaar ontbreekt',
     reden: 'Geen geldige eigenaar/geadresseerde gekoppeld.',
     volgendeActie: 'Vul eigenaar in op het signaal',
+    status: 'geblokkeerd',
+  },
+  eigenaar_controleren: {
+    fase: 'eigenaar_controleren',
+    label: 'Eigenaar controleren',
+    reden: 'Eigenaar/recht vraagt handmatige controle.',
+    volgendeActie: 'Controleer eigenaar, recht en adres op het signaal',
     status: 'geblokkeerd',
   },
   adres_ontbreekt: {
@@ -118,7 +126,7 @@ const FASE_DEFS: Record<ReadinessFase, ReadinessFaseInfo> = {
 };
 
 export const FASE_VOLGORDE: ReadinessFase[] = [
-  'onderzoek_nodig', 'eigenaar_ontbreekt', 'adres_ontbreekt',
+  'onderzoek_nodig', 'eigenaar_ontbreekt', 'eigenaar_controleren', 'adres_ontbreekt',
   'brief_voorbereiden', 'concept_gereed', 'gereed_voor_print',
   'geprint', 'gepost', 'email_verzonden', 'opvolging_open', 'afgerond',
 ];
@@ -402,6 +410,13 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
 
   if (AFGEROND_SIGNAAL_STATUS.has(status)) {
     fase = 'afgerond';
+  } else if (a.eigenaar_controle_nodig === true) {
+    // Expliciete eigenaar-/rechtenexceptie gaat vóór adres- en brieflogica.
+    fase = 'eigenaar_controleren';
+    blokkadeReden = (typeof a.eigenaar_controle_reden === 'string'
+      && a.eigenaar_controle_reden.trim())
+      ? a.eigenaar_controle_reden.trim()
+      : 'Eigenaar/recht vraagt handmatige controle.';
   } else if (geadresseerden.length === 0) {
     if (status === 'te_onderzoeken' || status === 'nieuw_signaal' || status === 'twijfel') {
       fase = 'onderzoek_nodig';
