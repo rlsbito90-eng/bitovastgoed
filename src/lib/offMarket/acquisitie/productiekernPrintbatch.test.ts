@@ -29,11 +29,9 @@ const batch: PrintbatchContract = {
   aanvullingOpBatchId: null, printdatum: null, verzenddatum: null, geannuleerdOp: null, annuleringsreden: null,
 };
 
-function vroeg() {
+function atomisch() {
   return {
-    startVerwerking: vi.fn(), reserveerBrief: vi.fn(), maakBriefversie: vi.fn(),
-    maakPrintbatch: vi.fn(async () => batch),
-    voegBriefversieToeAanBatch: vi.fn(async () => undefined),
+    maakPrintbatchMetBrieven: vi.fn(async () => batch),
   };
 }
 function transacties() {
@@ -54,26 +52,27 @@ function docs(): BatchdocumentContract[] {
 }
 
 describe('Productiekern printbatch', () => {
-  it('reserveert één BAT, koppelt immutable versie en bouwt exact vier documenttypen', async () => {
-    const repo = vroeg();
+  it('reserveert één BAT plus alle immutable koppelingen in één repositorycall en bouwt vier documenttypen', async () => {
+    const repo = atomisch();
     const resultaat = await startProductiekernPrintbatch({
       brieven: [{ brief, versie, geadresseerdeKey: 'sig-1|es-blok' }],
       actorId: 'actor-1', datum: '2026-08-16', operationScope: 'selectie-abc',
     }, repo);
 
-    expect(repo.maakPrintbatch).toHaveBeenCalledWith({
-      actorId: 'actor-1', operationKey: 'printbatch:selectie-abc', datum: '2026-08-16',
+    expect(repo.maakPrintbatchMetBrieven).toHaveBeenCalledTimes(1);
+    expect(repo.maakPrintbatchMetBrieven).toHaveBeenCalledWith({
+      actorId: 'actor-1',
+      operationKey: 'printbatch:selectie-abc',
+      datum: '2026-08-16',
+      brieven: [{ briefId: 'brief-1', briefVersieId: 'versie-1' }],
     });
-    expect(repo.voegBriefversieToeAanBatch).toHaveBeenCalledWith(expect.objectContaining({
-      batchId: 'batch-1', briefId: 'brief-1', briefVersieId: 'versie-1',
-    }));
     expect(resultaat.plan.documenten.map(d => d.documenttype).sort()).toEqual(
       ['adreslabels', 'batchvoorblad', 'brieven_pdf', 'controlelijst'],
     );
   });
 
-  it('weigert conceptbrief, verlopen versie en dubbele versie vóór BAT-reservering', async () => {
-    const repo = vroeg();
+  it('weigert conceptbrief, verlopen versie en dubbele brief/versie vóór de atomische BAT-call', async () => {
+    const repo = atomisch();
     await expect(startProductiekernPrintbatch({
       brieven: [{ brief: { ...brief, status: 'concept', briefnummer: null }, versie, geadresseerdeKey: 'x' }],
       actorId: 'actor', datum: '2026-08-16', operationScope: 'x',
@@ -88,12 +87,12 @@ describe('Productiekern printbatch', () => {
         { brief, versie, geadresseerdeKey: 'x' },
       ], actorId: 'actor', datum: '2026-08-16', operationScope: 'x',
     }, repo)).rejects.toThrow('dubbel');
-    expect(repo.maakPrintbatch).not.toHaveBeenCalled();
+    expect(repo.maakPrintbatchMetBrieven).not.toHaveBeenCalled();
   });
 
   it('registreert documenten pas als exact vier actieve opgeslagen artifacts voor dezelfde BAT/v1 aanwezig zijn', async () => {
     const tx = transacties();
-    const repo = vroeg();
+    const repo = atomisch();
     const gestart = await startProductiekernPrintbatch({
       brieven: [{ brief, versie, geadresseerdeKey: 'x' }], actorId: 'actor', datum: '2026-08-16', operationScope: 'x',
     }, repo);
