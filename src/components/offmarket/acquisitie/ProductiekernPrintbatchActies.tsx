@@ -7,13 +7,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { maakStandaardProductiekernBrowserLeesSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserClient';
 import { maakStandaardProductiekernBrowserWriteSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserWriteClient';
 import { bouwProductiekernBatchProductiepakket } from '@/lib/offMarket/acquisitie/productiekernBatchProductiepakket';
+import { bepaalActieveProductiekernBatchdocumenten } from '@/lib/offMarket/acquisitie/productiekernBatchdocumentHerstel';
 import { laadProductiekernBatch } from '@/lib/offMarket/acquisitie/productiekernBatchLezer';
-import type { PrintbatchContract } from '@/lib/offMarket/acquisitie/productiekernContract';
+import type { BatchdocumentContract, PrintbatchContract } from '@/lib/offMarket/acquisitie/productiekernContract';
 import type { ProductiekernProductiepakketPayload } from '@/lib/offMarket/acquisitie/productiekernProductiepakketSamenstelling';
 import { startProductiekernPrintbatch, type ProductiekernBatchBrief } from '@/lib/offMarket/acquisitie/productiekernPrintbatch';
 import ProductiekernPrintPostBevestiging from './ProductiekernPrintPostBevestiging';
-import ProductiekernProductiepakketDownload from './ProductiekernProductiepakketDownload';
 import ProductiekernProductiepakketVastleggen from './ProductiekernProductiepakketVastleggen';
+import ProductiekernVastgelegdeDocumentenDownload from './ProductiekernVastgelegdeDocumentenDownload';
 
 interface Props {
   signaalId: string;
@@ -33,9 +34,12 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
   const [bezig, setBezig] = useState(false);
   const [herstelBezig, setHerstelBezig] = useState(true);
   const [herstelFout, setHerstelFout] = useState<string | null>(null);
+  const [documentenBezig, setDocumentenBezig] = useState(false);
+  const [documentenFout, setDocumentenFout] = useState<string | null>(null);
   const [pakket, setPakket] = useState<ProductiekernProductiepakketPayload | null>(null);
   const [batch, setBatch] = useState<PrintbatchContract | null>(null);
   const [batchBrieven, setBatchBrieven] = useState<ProductiekernBatchBrief[]>([]);
+  const [batchDocumenten, setBatchDocumenten] = useState<BatchdocumentContract[]>([]);
 
   const writes = useMemo(() => maakStandaardProductiekernBrowserWriteSamenstelling(), []);
   const lezen = useMemo(() => maakStandaardProductiekernBrowserLeesSamenstelling(), []);
@@ -43,6 +47,8 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
   const idsSleutel = ids.join('|');
   const actief = writes.activatie.schrijvenActief && lezen.activatie.lezenActief && ids.length > 0;
 
+  // Herstel eerst de canonieke BAT. Hierdoor kan refresh/navigatie nooit stil
+  // leiden tot een tweede batch voor reeds gekoppelde immutable briefversies.
   useEffect(() => {
     if (!actief) {
       setHerstelBezig(false);
@@ -91,13 +97,8 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
         if (geannuleerd) return;
         setBatch(geladen.batch);
         setBatchBrieven(geladen.brieven);
-        // Alleen een nog niet formeel vastgelegde concept-BAT mag opnieuw worden
-        // gerenderd. Vanaf documenten_gegenereerd is de Storage-set het bewijs.
         if (geladen.batch.status === 'concept') {
-          setPakket(bouwProductiekernBatchProductiepakket({
-            batch: geladen.batch,
-            brieven: geladen.brieven,
-          }));
+          setPakket(bouwProductiekernBatchProductiepakket({ batch: geladen.batch, brieven: geladen.brieven }));
         }
       } catch (error) {
         if (!geannuleerd) {
@@ -110,9 +111,42 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
 
     void herstel();
     return () => { geannuleerd = true; };
-  // idsSleutel maakt de inhoudelijke scope stabiel; `ids` zelf kan vanuit de parent een nieuwe arrayreferentie krijgen.
+  // idsSleutel maakt de inhoudelijke scope stabiel; ids zelf kan een nieuwe arrayreferentie krijgen.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actief, batch, idsSleutel, signaalId, lezen.repository]);
+
+  // Vanaf documenten_gegenereerd is niet een nieuwe render, maar exact de vier
+  // geregistreerde private Storage-objecten het productiebewijs. Die set wordt
+  // opnieuw gelezen en gevalideerd vóór fysieke print/postacties zichtbaar zijn.
+  useEffect(() => {
+    if (!actief || !batch || batch.status === 'concept') {
+      setDocumentenBezig(false);
+      setDocumentenFout(null);
+      setBatchDocumenten([]);
+      return;
+    }
+
+    let geannuleerd = false;
+    const laadDocumenten = async () => {
+      setDocumentenBezig(true);
+      setDocumentenFout(null);
+      try {
+        const alleDocumenten = await lezen.repository.haalBatchdocumenten(batch.id);
+        const actueel = bepaalActieveProductiekernBatchdocumenten({ batch, documenten: alleDocumenten });
+        if (!geannuleerd) setBatchDocumenten(actueel);
+      } catch (error) {
+        if (!geannuleerd) {
+          setBatchDocumenten([]);
+          setDocumentenFout(error instanceof Error ? error.message : 'Geregistreerde BAT-documenten konden niet veilig worden hersteld.');
+        }
+      } finally {
+        if (!geannuleerd) setDocumentenBezig(false);
+      }
+    };
+
+    void laadDocumenten();
+    return () => { geannuleerd = true; };
+  }, [actief, batch?.id, batch?.status, batch?.documentversie, lezen.repository]);
 
   if (!actief) return null;
 
@@ -160,6 +194,8 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
     }
   };
 
+  const documentenGeldig = !!batch && batch.status !== 'concept' && batchDocumenten.length === 4 && !documentenBezig && !documentenFout;
+
   return (
     <div className="rounded-md border bg-muted/20 p-2.5 space-y-2" data-testid="productiekern-printbatch-acties">
       {herstelBezig ? (
@@ -193,17 +229,24 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
             <ProductiekernProductiepakketVastleggen batch={batch} pakket={pakket} onVastgelegd={setBatch} />
           )}
 
-          {batch.status !== 'concept' && pakket && (
-            <ProductiekernProductiepakketDownload
-              manifest={pakket.manifest}
-              voorblad={pakket.voorblad}
-              controlelijst={pakket.controlelijst}
-              labels={pakket.labels}
-              brieven={pakket.brieven}
-            />
+          {batch.status !== 'concept' && documentenBezig && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="productiekern-documenten-herstellen">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Geregistreerde productiebestanden controleren…
+            </div>
           )}
 
-          {batch.status !== 'concept' && (
+          {batch.status !== 'concept' && documentenFout && (
+            <div className="text-xs text-destructive" role="alert" data-testid="productiekern-documenten-fout">
+              Print/post geblokkeerd: {documentenFout}
+            </div>
+          )}
+
+          {documentenGeldig && (
+            <ProductiekernVastgelegdeDocumentenDownload documenten={batchDocumenten} />
+          )}
+
+          {documentenGeldig && (
             <ProductiekernPrintPostBevestiging
               batch={batch}
               brieven={batchBrieven}
@@ -214,9 +257,9 @@ export default function ProductiekernPrintbatchActies({ signaalId, briefIds }: P
           <p className="text-[11px] text-muted-foreground">
             {batch.status === 'concept'
               ? 'Eerst worden de vier artifacts duurzaam en append-only opgeslagen; pas daarna is deze BAT printgereed.'
-              : pakket
-                ? 'Downloaden verandert geen fysieke status. Print en post worden uitsluitend via de afzonderlijke bevestigingen geregistreerd.'
-                : 'Deze BAT is uit de Productiekern hersteld. De formeel vastgelegde documentset wordt niet stil opnieuw gerenderd.'}
+              : documentenGeldig
+                ? 'Dit zijn exact de formeel geregistreerde Storage-bestanden. Downloaden verandert geen fysieke status; print en post vereisen afzonderlijke bevestiging.'
+                : 'Fysieke print- en postbevestiging blijft gesloten totdat de formele geregistreerde documentset volledig is gevalideerd.'}
           </p>
         </div>
       )}
