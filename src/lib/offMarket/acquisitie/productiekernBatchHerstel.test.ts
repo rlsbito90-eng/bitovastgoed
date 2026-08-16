@@ -21,9 +21,10 @@ function koppeling(versieId: string, batchId: string, verwijderdOp: string | nul
 function repositoryVoor(perVersie: Record<string, Record<string, unknown>[]>): SupabaseProductiekernLeesRepository {
   const transport: ProductiekernSupabaseLeesTransport = {
     haalEen: vi.fn(async () => null),
-    haalMeerdere: vi.fn(async (tabel, filters) => {
+    haalMeerdere: vi.fn(async () => []),
+    haalMeerdereOpIds: vi.fn(async (tabel, ids) => {
       if (tabel !== 'off_market_printbatch_brieven') return [];
-      return perVersie[filters.brief_versie_id] ?? [];
+      return ids.flatMap((id) => perVersie[id] ?? []);
     }),
   };
   return new SupabaseProductiekernLeesRepository(transport);
