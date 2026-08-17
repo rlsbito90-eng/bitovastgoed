@@ -27,7 +27,7 @@ describe('AcquisitieDossierRij', () => {
     );
 
     expect(screen.getByText('Voorbeeldstraat 10')).toBeInTheDocument();
-    expect(screen.getByText('Mevrouw Voorbeeld')).toBeInTheDocument();
+    expect(screen.getByText('M. Voorbeeld')).toBeInTheDocument();
     expect(screen.getByText(/Dorpsstraat 1 5061 AA Oisterwijk/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Voorbeeldstraat 10'));
