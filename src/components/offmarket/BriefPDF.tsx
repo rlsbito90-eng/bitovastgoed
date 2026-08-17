@@ -22,6 +22,19 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     lineHeight: 1.4,
   },
+  watermark: {
+    position: 'absolute',
+    top: '42%',
+    left: '12%',
+    width: '76%',
+    textAlign: 'center',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 58,
+    letterSpacing: 8,
+    color: '#A0A0A0',
+    opacity: 0.18,
+    transform: 'rotate(-32deg)',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -85,6 +98,8 @@ export type BriefLogoOptie =
 export interface BriefPaginaProps {
   vm: BriefViewModel;
   logo?: BriefLogoOptie;
+  /** Optioneel zichtbaar watermerk, uitsluitend voor niet-formele conceptoutput. */
+  watermerk?: string | null;
 }
 
 /**
@@ -93,7 +108,7 @@ export interface BriefPaginaProps {
  * Mag binnen `<Document>` als sibling-`<Page>` worden geplaatst — iedere
  * brief begint dan automatisch op een nieuwe pagina.
  */
-export function BriefPagina({ vm, logo }: BriefPaginaProps) {
+export function BriefPagina({ vm, logo, watermerk = null }: BriefPaginaProps) {
   const alineas = (vm.brieftekst ?? '')
     .replace(/\r\n/g, '\n')
     .split(/\n\s*\n/)
@@ -115,6 +130,8 @@ export function BriefPagina({ vm, logo }: BriefPaginaProps) {
 
   return (
     <Page size="A4" style={styles.page} wrap>
+      {watermerk ? <Text style={styles.watermark} fixed>{watermerk}</Text> : null}
+
       <View style={styles.header} fixed>
         <View style={styles.brandRow}>
           {iconSrc ? (
@@ -164,12 +181,14 @@ export interface BriefPDFProps {
    * "BITO VASTGOED" lockup.
    */
   logo?: BriefLogoOptie;
+  /** Optioneel zichtbaar watermerk, bijvoorbeeld `CONCEPT`. */
+  watermerk?: string | null;
 }
 
-export default function BriefPDF({ vm, logo }: BriefPDFProps) {
+export default function BriefPDF({ vm, logo, watermerk = null }: BriefPDFProps) {
   return (
     <Document title={`Brief — ${vm.contact.bedrijf} — ${vm.onderwerp}`}>
-      <BriefPagina vm={vm} logo={logo} />
+      <BriefPagina vm={vm} logo={logo} watermerk={watermerk} />
     </Document>
   );
 }

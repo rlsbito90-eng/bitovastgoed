@@ -19,15 +19,17 @@ export interface GecombineerdeBrievenPDFProps {
   items: GecombineerdeBriefItem[];
   /** Titel van het PDF-document (metadata). */
   title?: string;
+  /** Optioneel watermerk op iedere pagina, bijvoorbeeld `CONCEPT`. */
+  watermerk?: string | null;
 }
 
 export default function GecombineerdeBrievenPDF({
-  items, title,
+  items, title, watermerk = null,
 }: GecombineerdeBrievenPDFProps) {
   return (
     <Document title={title ?? 'Bito Vastgoed — gecombineerde brieven'}>
       {items.map((it) => (
-        <BriefPagina key={it.key} vm={it.vm} logo={it.logo} />
+        <BriefPagina key={it.key} vm={it.vm} logo={it.logo} watermerk={watermerk} />
       ))}
     </Document>
   );
