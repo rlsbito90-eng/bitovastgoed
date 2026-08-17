@@ -151,7 +151,8 @@ export default function FocusModus({
 
     const opgeslagen = leesWerkronde();
     const aangevraagdeIds = focusScopeIds?.length ? focusScopeIds : beschikbareIds;
-    const ronde = opgeslagen && kanHervatten(opgeslagen, aangevraagdeIds)
+    const hervatOpgeslagen = Boolean(opgeslagen && kanHervatten(opgeslagen, aangevraagdeIds));
+    const ronde = hervatOpgeslagen && opgeslagen
       ? opgeslagen
       : startWerkronde({
           bron: selectedIds?.length ? 'handmatig' : 'werkbak',
@@ -162,10 +163,19 @@ export default function FocusModus({
         });
 
     const rondeIds = beschikbareIds.filter((id) => ronde.scopeIds.includes(id));
-    const volgendeId = eerstVolgendeId(ronde, rondeIds)
-      ?? (ronde.huidigeId && rondeIds.includes(ronde.huidigeId) ? ronde.huidigeId : null)
-      ?? rondeIds[0]
-      ?? beschikbareIds[0];
+    const explicietGekozenId = beschikbareIds[veiligIndex] ?? null;
+    const volgendeId = hervatOpgeslagen
+      ? (
+          eerstVolgendeId(ronde, rondeIds)
+          ?? (ronde.huidigeId && rondeIds.includes(ronde.huidigeId) ? ronde.huidigeId : null)
+          ?? rondeIds[0]
+          ?? beschikbareIds[0]
+        )
+      : (
+          explicietGekozenId && rondeIds.includes(explicietGekozenId)
+            ? explicietGekozenId
+            : (rondeIds[0] ?? beschikbareIds[0])
+        );
     const volgendeIndex = Math.max(0, beschikbareIds.indexOf(volgendeId));
     const bijgewerkt = zetPositie(ronde, volgendeId);
 
