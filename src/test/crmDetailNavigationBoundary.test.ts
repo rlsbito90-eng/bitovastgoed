@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bepaalCrmDetailNavigationAction,
   getCrmDetailModule,
+  isCrmTerugKnopTekst,
 } from '@/components/CrmDetailNavigationBoundary';
 
 describe('CrmDetailNavigationBoundary', () => {
@@ -49,5 +50,13 @@ describe('CrmDetailNavigationBoundary', () => {
       fallbackPath: '/objecten',
       hasReturnContext: true,
     })).toBe('normal');
+  });
+
+  it('herkent programmatische terugknoppen maar niet terugzet-acties', () => {
+    expect(isCrmTerugKnopTekst('Terug')).toBe(true);
+    expect(isCrmTerugKnopTekst('Terug naar signalen')).toBe(true);
+    expect(isCrmTerugKnopTekst('  TERUG NAAR TAKEN  ')).toBe(true);
+    expect(isCrmTerugKnopTekst('Terugzetten naar actief')).toBe(false);
+    expect(isCrmTerugKnopTekst('Vorige')).toBe(false);
   });
 });
