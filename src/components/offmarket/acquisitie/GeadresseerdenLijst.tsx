@@ -1,6 +1,6 @@
 import { naarVoorlettersAchternaam } from '@/lib/format/naam';
 
-interface GeadresseerdeVoorLijst {
+export interface GeadresseerdeVoorLijst {
   key: string;
   naam?: string | null;
   bedrijfsnaam?: string | null;
@@ -12,13 +12,13 @@ interface GeadresseerdenLijstProps {
   geadresseerden: GeadresseerdeVoorLijst[];
 }
 
-function weergavenaam(geadresseerde: GeadresseerdeVoorLijst): string {
+export function weergavenaamGeadresseerde(geadresseerde: GeadresseerdeVoorLijst): string {
   if (geadresseerde.bedrijfsnaam?.trim()) return geadresseerde.bedrijfsnaam.trim();
   if (geadresseerde.naam?.trim()) return naarVoorlettersAchternaam(geadresseerde.naam.trim());
   return '(zonder naam)';
 }
 
-function weergaveadres(adres: string | null | undefined): string | null {
+export function weergaveadresGeadresseerde(adres: string | null | undefined): string | null {
   const schoon = adres?.replace(/\s+/g, ' ').trim();
   return schoon || null;
 }
@@ -45,7 +45,7 @@ export default function GeadresseerdenLijst({
       </p>
       <ul className="space-y-1.5 text-[11px] text-muted-foreground">
         {geadresseerden.map((geadresseerde) => {
-          const adres = weergaveadres(geadresseerde.verzendadres);
+          const adres = weergaveadresGeadresseerde(geadresseerde.verzendadres);
           return (
             <li
               key={geadresseerde.key}
@@ -53,7 +53,7 @@ export default function GeadresseerdenLijst({
               className="min-w-0 break-words"
             >
               <div className="font-medium text-foreground" data-testid="acquisitie-rij-geadresseerde-naam">
-                {weergavenaam(geadresseerde)}
+                {weergavenaamGeadresseerde(geadresseerde)}
               </div>
               {adres ? (
                 <div data-testid="acquisitie-rij-geadresseerde-adres">
