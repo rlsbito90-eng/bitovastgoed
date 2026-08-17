@@ -10,10 +10,7 @@ import { maakStandaardProductiekernBrowserWriteSamenstelling } from '@/lib/offMa
 import type { PrintbatchContract } from '@/lib/offMarket/acquisitie/productiekernContract';
 import type { ProductiekernProductiepakketPayload } from '@/lib/offMarket/acquisitie/productiekernProductiepakketSamenstelling';
 import { registreerProductiekernBatchdocumenten } from '@/lib/offMarket/acquisitie/productiekernPrintbatch';
-import {
-  downloadProductiekernBestand,
-  genereerProductiekernProductiepakketBestanden,
-} from './productiekernProductiepakketBestanden';
+import { genereerProductiekernProductiepakketBestanden } from './productiekernProductiepakketBestanden';
 
 interface Props {
   batch: PrintbatchContract;
@@ -23,8 +20,12 @@ interface Props {
 
 /**
  * Eén expliciete gebruikersactie: render → private append-only Storage →
- * transactionele registratie → lokale download. Alleen als alle vier uploads
- * en de RPC slagen wordt de BAT formeel `documenten_gegenereerd`.
+ * transactionele registratie. Alleen als alle vier uploads en de RPC slagen
+ * wordt de BAT formeel `documenten_gegenereerd`.
+ *
+ * Lokale downloads zijn bewust een aparte read-only vervolgstap. Daardoor is
+ * server-side productiebewijs nooit afhankelijk van browserdownloadgedrag en
+ * kunnen Safari/WebKit-downloads via expliciete gebruikerslinks verlopen.
  */
 export default function ProductiekernProductiepakketVastleggen({
   batch,
@@ -90,11 +91,8 @@ export default function ProductiekernProductiepakketVastleggen({
         uitgevoerdOp: aangemaaktOp,
       }, writes.transactieRepository);
 
-      // Pas na duurzame opslag + transactionele registratie krijgen de lokale
-      // bestanden hun normale download. Een download is dus nooit het bewijs.
-      for (const bestand of bestanden) downloadProductiekernBestand(bestand);
       onVastgelegd({ ...batch, status: 'documenten_gegenereerd' });
-      toast.success(`Productiepakket ${batch.batchnummer} duurzaam vastgelegd en gedownload.`);
+      toast.success(`Productiepakket ${batch.batchnummer} duurzaam vastgelegd. Downloaden is nu afzonderlijk beschikbaar.`);
     } catch (error) {
       console.error('Productiekern productiepakket vastleggen mislukt', error);
       toast.error(error instanceof Error ? error.message : 'Productiepakket vastleggen is mislukt.');
@@ -110,10 +108,10 @@ export default function ProductiekernProductiepakketVastleggen({
       onClick={() => void vastleggen()}
       disabled={bezig || !pakket.manifest.gereedVoorRender}
       data-testid="productiekern-productiepakket-vastleggen"
-      title="Slaat de vier productiebestanden private en append-only op, registreert ze daarna bij de BAT en downloadt ze lokaal."
+      title="Slaat de vier productiebestanden private en append-only op en registreert ze bij de BAT. Downloaden volgt als afzonderlijke read-only stap."
     >
       {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArchiveRestore className="h-4 w-4" />}
-      Productiepakket vastleggen & downloaden
+      Productiepakket vastleggen
     </Button>
   );
 }
