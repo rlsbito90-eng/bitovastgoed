@@ -21,4 +21,11 @@ describe('Kadaster-persoonsnamen voor briefproductie', () => {
   it('laat rechtspersonen ongemoeid', () => {
     expect(naarVoorlettersAchternaam('Voorbeeld Vastgoed B.V.')).toBe('Voorbeeld Vastgoed B.V.');
   });
+
+  it('laat Luxemburgse S.à r.l.-rechtspersonen ongemoeid', () => {
+    expect(naarVoorlettersAchternaam('Spring Properties F S.à r.l.'))
+      .toBe('Spring Properties F S.à r.l.');
+    expect(naarVoorlettersAchternaam('Lux Real Estate Sàrl'))
+      .toBe('Lux Real Estate Sàrl');
+  });
 });
