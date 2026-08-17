@@ -44,6 +44,10 @@ const RECHTSVORM_PATRONEN: RegExp[] = [
   /\bgmbh\b/i,
   /\bltd\b/i,
   /\bs\.?a\.?\b/i,
+  // Luxemburg: société à responsabilité limitée. Kadaster kan dit o.a.
+  // als "S.à r.l.", "S.à r.l" of "Sàrl" aanleveren.
+  /(?:^|\s)s\.?\s*à?\s*r\.?\s*l\.?(?=\s|$)/i,
+  /\bsàrl\b/i,
 ];
 
 /**
