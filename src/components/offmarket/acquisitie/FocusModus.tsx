@@ -52,7 +52,7 @@ interface Props {
   items: FocusItem[];
   index: number;
   onIndexChange: (i: number) => void;
-  /** Scope-IDs van de actieve verwerk-sessie. `null` = volledige lijst. */
+  /** Scope-IDs van de actieve verwerk-sessie. `null` = expliciet gekozen huidig item. */
   focusScopeIds?: string[] | null;
   /** IDs die in Acquisitieselectie aangevinkt zijn. */
   selectedIds?: string[];
@@ -92,29 +92,35 @@ export default function FocusModus({
     [items],
   );
 
-  const bulkKadasterSignalen = useMemo(() => {
-    const doelIds = selectedIds?.length
-      ? new Set(selectedIds)
-      : focusScopeIds?.length
-        ? new Set(focusScopeIds)
-        : new Set(beschikbareIds);
-    return items
-      .filter((item) => doelIds.has(item.signaal.id))
-      .map((item) => item.signaal);
-  }, [items, selectedIds, focusScopeIds, beschikbareIds]);
-
-  const werkrondeBeschikbareIds = useMemo(() => {
-    if (!werkronde) return beschikbareIds;
-    const scope = new Set(werkronde.scopeIds);
-    return beschikbareIds.filter((id) => scope.has(id));
-  }, [beschikbareIds, werkronde]);
-
   const veiligIndex = useMemo(() => {
     if (items.length === 0) return 0;
     if (index < 0) return 0;
     if (index >= items.length) return items.length - 1;
     return index;
   }, [items.length, index]);
+
+  const explicietGekozenId = beschikbareIds[veiligIndex] ?? null;
+  const aangevraagdeScopeIds = useMemo(
+    () => focusScopeIds?.length
+      ? focusScopeIds
+      : (explicietGekozenId ? [explicietGekozenId] : beschikbareIds),
+    [focusScopeIds, explicietGekozenId, beschikbareIds],
+  );
+
+  const bulkKadasterSignalen = useMemo(() => {
+    const doelIds = selectedIds?.length
+      ? new Set(selectedIds)
+      : new Set(aangevraagdeScopeIds);
+    return items
+      .filter((item) => doelIds.has(item.signaal.id))
+      .map((item) => item.signaal);
+  }, [items, selectedIds, aangevraagdeScopeIds]);
+
+  const werkrondeBeschikbareIds = useMemo(() => {
+    if (!werkronde) return aangevraagdeScopeIds;
+    const scope = new Set(werkronde.scopeIds);
+    return beschikbareIds.filter((id) => scope.has(id));
+  }, [beschikbareIds, werkronde, aangevraagdeScopeIds]);
 
   const huidigVoorFase = items[veiligIndex] ?? null;
   const huidigVoorFaseId = huidigVoorFase?.signaal.id ?? null;
@@ -147,23 +153,21 @@ export default function FocusModus({
   };
 
   useEffect(() => {
-    if (!open || beschikbareIds.length === 0) return;
+    if (!open || beschikbareIds.length === 0 || aangevraagdeScopeIds.length === 0) return;
 
     const opgeslagen = leesWerkronde();
-    const aangevraagdeIds = focusScopeIds?.length ? focusScopeIds : beschikbareIds;
-    const hervatOpgeslagen = Boolean(opgeslagen && kanHervatten(opgeslagen, aangevraagdeIds));
+    const hervatOpgeslagen = Boolean(opgeslagen && kanHervatten(opgeslagen, aangevraagdeScopeIds));
     const ronde = hervatOpgeslagen && opgeslagen
       ? opgeslagen
       : startWerkronde({
           bron: selectedIds?.length ? 'handmatig' : 'werkbak',
           naam: selectedIds?.length
-            ? `Geselecteerde signalen (${aangevraagdeIds.length})`
-            : `Verwerk selectie (${aangevraagdeIds.length})`,
-          scopeIds: aangevraagdeIds,
+            ? `Geselecteerde signalen (${aangevraagdeScopeIds.length})`
+            : `Verwerk selectie (${aangevraagdeScopeIds.length})`,
+          scopeIds: aangevraagdeScopeIds,
         });
 
     const rondeIds = beschikbareIds.filter((id) => ronde.scopeIds.includes(id));
-    const explicietGekozenId = beschikbareIds[veiligIndex] ?? null;
     const volgendeId = hervatOpgeslagen
       ? (
           eerstVolgendeId(ronde, rondeIds)
@@ -182,7 +186,7 @@ export default function FocusModus({
     bewaarWerkronde(bijgewerkt);
     if (volgendeIndex !== index) onIndexChange(volgendeIndex);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, beschikbareIds.join('|')]);
+  }, [open, beschikbareIds.join('|'), aangevraagdeScopeIds.join('|')]);
 
   const vorigeLengte = useRef(items.length);
   useEffect(() => {
@@ -275,7 +279,7 @@ export default function FocusModus({
         state: {
           fromAcquisitieFocus: true,
           focusIndex: veiligIndex,
-          focusScopeIds: werkronde?.scopeIds ?? focusScopeIds ?? null,
+          focusScopeIds: werkronde?.scopeIds ?? aangevraagdeScopeIds,
           selectedIds: selectedIds ?? [],
           focusTab: tab,
         },
