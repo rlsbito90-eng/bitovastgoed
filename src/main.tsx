@@ -4,6 +4,7 @@ import App from "./App.tsx";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import { installGlobalAppRecovery, markAppBootSuccessful } from "./lib/appRecovery";
 import { installNotificationStateSync } from "./lib/notificationStateSync";
+import { registerBitoServiceWorker } from "./lib/pwa/serviceWorker";
 import "./index.css";
 import "./mobile-foundation.css";
 import "./mobile-polish.css";
@@ -13,6 +14,7 @@ globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
 installGlobalAppRecovery();
 installNotificationStateSync();
+void registerBitoServiceWorker();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("App-root ontbreekt");
