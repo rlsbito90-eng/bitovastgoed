@@ -162,6 +162,23 @@ using (
 
 grant select on public.notification_deliveries to authenticated;
 
+-- Realtime is nodig zodat gelezen/opgelost op één device direct op andere
+-- actieve clients zichtbaar wordt. Guard voorkomt dubbel toevoegen bij herstel/replay.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1
+       from pg_publication_tables
+       where pubname = 'supabase_realtime'
+         and schemaname = 'public'
+         and tablename = 'notification_events'
+     ) then
+    alter publication supabase_realtime add table public.notification_events;
+  end if;
+end
+$$;
+
 comment on table public.notification_events is
   'Gebruikersbrede logische notificaties; read/dismiss/resolve synchroniseren over alle apparaten.';
 
