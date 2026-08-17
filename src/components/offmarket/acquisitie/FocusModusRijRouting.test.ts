@@ -9,7 +9,7 @@ const bron = readFileSync(
 
 describe('FocusModus rij-routing', () => {
   it('behoudt bij een nieuwe Focus-sessie de expliciet aangevraagde index', () => {
-    expect(bron).toContain('const hervatOpgeslagen = Boolean(opgeslagen && kanHervatten(opgeslagen, aangevraagdeIds));');
+    expect(bron).toContain('const hervatOpgeslagen = Boolean(opgeslagen && kanHervatten(opgeslagen, aangevraagdeScopeIds));');
     expect(bron).toContain('const explicietGekozenId = beschikbareIds[veiligIndex] ?? null;');
     expect(bron).toMatch(/const volgendeId = hervatOpgeslagen[\s\S]*explicietGekozenId && rondeIds\.includes\(explicietGekozenId\)[\s\S]*\? explicietGekozenId/);
   });
