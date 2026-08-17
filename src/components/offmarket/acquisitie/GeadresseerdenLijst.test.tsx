@@ -26,10 +26,10 @@ describe('GeadresseerdenLijst', () => {
       />,
     );
 
-    expect(screen.getByText('Mevrouw Jansen')).toBeVisible();
+    expect(screen.getByText('M. Jansen')).toBeVisible();
     expect(screen.getByText('Voorbeeld B.V.')).toBeVisible();
     expect(screen.getByText(/Straat 1 1234 AB Plaats/)).toBeVisible();
-    expect(screen.getByText(/adres onvolledig/)).toBeVisible();
+    expect(screen.getByText('Postadres ontbreekt')).toBeVisible();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
