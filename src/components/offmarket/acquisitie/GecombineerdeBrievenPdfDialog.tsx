@@ -1,4 +1,4 @@
-// V2 — "Gecombineerde brief-PDF" voor de Off-Market Acquisitieselectie.
+// V2 — "Gecombineerde conceptbrieven-PDF" voor de Off-Market Acquisitieselectie.
 // Volledig mutatievrij: previewen of downloaden creëert geen briefrecord,
 // geen printbatchrecord, geen event en wijzigt geen verzendstatus.
 
@@ -83,7 +83,7 @@ export default function GecombineerdeBrievenPdfDialog({
     return sorteerPrintItems(items).map(i => i.payload as Kandidaat);
   }, [kandidaten]);
 
-  // Selectie van brief-IDs voor de bundel (default: alle printbare).
+  // Selectie van brief-IDs voor de bundel (default: alle controleerbare concepten).
   const [selectie, setSelectie] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (!open) return;
@@ -124,7 +124,7 @@ export default function GecombineerdeBrievenPdfDialog({
 
   async function download() {
     if (teGenereren.length === 0) {
-      toast.error('Geen printbare brieven geselecteerd.');
+      toast.error('Geen controleerbare conceptbrieven geselecteerd.');
       return;
     }
     setBezig(true);
@@ -141,19 +141,25 @@ export default function GecombineerdeBrievenPdfDialog({
         });
         return { key: b.id, vm };
       });
-      // GEEN database-mutatie — alleen blob bouwen en downloaden.
-      const blob = await pdf(<GecombineerdeBrievenPDF items={items} />).toBlob();
+      // GEEN database-mutatie — alleen controle-PDF bouwen en downloaden.
+      const blob = await pdf(
+        <GecombineerdeBrievenPDF
+          items={items}
+          title="Bito Vastgoed — conceptbrieven"
+          watermerk="CONCEPT"
+        />,
+      ).toBlob();
       const datum = new Date().toISOString().slice(0, 10);
-      const filename = `bito-vastgoed-brieven-${datum}.pdf`;
+      const filename = `bito-vastgoed-CONCEPT-brieven-${datum}.pdf`;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url; link.download = filename;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast.success(`Gecombineerde PDF gegenereerd (${items.length} brieven).`);
+      toast.success(`Concept-PDF gegenereerd (${items.length} brieven).`);
     } catch (e: any) {
-      console.error('Gecombineerde PDF mislukt', e);
-      toast.error(`PDF genereren mislukt: ${e?.message ?? 'onbekend'}`);
+      console.error('Concept-PDF mislukt', e);
+      toast.error(`Concept-PDF genereren mislukt: ${e?.message ?? 'onbekend'}`);
     } finally {
       setBezig(false);
     }
@@ -167,10 +173,10 @@ export default function GecombineerdeBrievenPdfDialog({
       >
         <div className="flex flex-col max-h-[90vh]">
           <DialogHeader className="p-5 pb-3 border-b">
-            <DialogTitle>Gecombineerde brief-PDF</DialogTitle>
+            <DialogTitle>Conceptbrieven downloaden</DialogTitle>
             <DialogDescription>
-              Bundel printklare conceptbrieven in één PDF in vaste printvolgorde.
-              Genereren wijzigt niets in de database.
+              Controlebundel van de geselecteerde conceptbrieven. Iedere pagina krijgt het watermerk “CONCEPT”.
+              Deze download wijzigt niets en is niet de formele printversie.
             </DialogDescription>
           </DialogHeader>
 
@@ -193,7 +199,7 @@ export default function GecombineerdeBrievenPdfDialog({
                     checked={selectie.has(k.brief.id)}
                     disabled={!k.printbaar}
                     onCheckedChange={() => toggle(k.brief.id)}
-                    aria-label="Selecteer brief voor bundel"
+                    aria-label="Selecteer conceptbrief voor controlebundel"
                   />
                   <div className="min-w-0 flex-1 space-y-0.5">
                     <p className="font-medium break-words">
@@ -218,7 +224,7 @@ export default function GecombineerdeBrievenPdfDialog({
 
             {overgeslagen.length > 0 && (
               <p className="text-[11px] text-muted-foreground">
-                {overgeslagen.length} brieven worden overgeslagen omdat adres of naam ontbreekt.
+                {overgeslagen.length} conceptbrieven worden overgeslagen omdat adres of naam ontbreekt.
               </p>
             )}
           </div>
@@ -233,7 +239,7 @@ export default function GecombineerdeBrievenPdfDialog({
                 data-testid="combined-pdf-download"
               >
                 {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                Download gecombineerde PDF
+                Conceptbrieven downloaden
               </Button>
             }
           />
