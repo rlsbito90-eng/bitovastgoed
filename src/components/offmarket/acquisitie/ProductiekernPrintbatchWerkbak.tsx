@@ -1,3 +1,6 @@
+import { ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
 import type {
   BriefContract,
   BriefversieContract,
@@ -118,12 +121,20 @@ export default function ProductiekernPrintbatchWerkbak({
 
           <div className="mt-3 divide-y divide-border/70 rounded-md border" data-testid={`productiekern-printbatch-${model.batch.batchnummer}`}>
             {model.regels.map((regel) => (
-              <div key={regel.briefVersieId} className="grid gap-1 px-3 py-2 text-xs sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-x-3">
+              <div key={regel.briefVersieId} className="grid gap-1 px-3 py-2 text-xs sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-3">
                 <span className="font-mono-data font-medium text-foreground">{regel.briefnummer}</span>
                 <div className="min-w-0">
                   <p className="break-words font-medium text-foreground">{regel.geadresseerde || 'Geadresseerde ontbreekt'}</p>
                   <p className="break-words text-muted-foreground">{regel.objectLabel}</p>
                 </div>
+                <Link
+                  to={`/off-market/${regel.signaalId}`}
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-accent hover:bg-accent/10"
+                  aria-label={`Open signaal voor ${regel.briefnummer}`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open signaal
+                </Link>
               </div>
             ))}
           </div>
