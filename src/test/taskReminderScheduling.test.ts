@@ -12,11 +12,13 @@ function read(rel: string): string {
 }
 
 const migration = read('supabase/migrations/20260818120500_task_reminder_scheduling.sql');
+const deliveryMigration = read('supabase/migrations/20260818120600_notification_delivery_scheduling.sql');
 const engine = read('supabase/functions/notification-engine-tick/index.ts');
+const sender = read('supabase/functions/notification-push-send/index.ts');
 const repository = read('src/lib/notifications/repository.ts');
 const taskForm = read('src/components/forms/TaakFormDialog.tsx');
 
- describe('task reminder scheduling', () => {
+describe('task reminder scheduling', () => {
   it('ondersteunt default, geen en expliciete offsets', () => {
     expect(reminderSelectionToDb('default')).toEqual({ reminder_policy: 'default', reminder_offset_minutes: null });
     expect(reminderSelectionToDb('none')).toEqual({ reminder_policy: 'none', reminder_offset_minutes: null });
@@ -39,10 +41,13 @@ const taskForm = read('src/components/forms/TaakFormDialog.tsx');
     expect(migration).toContain("e.event_type in ('task_due_today', 'task_overdue', 'high_priority_task')");
   });
 
-  it('dispatcht alleen events waarvan scheduled_at is bereikt', () => {
-    expect(engine).toContain('scheduled_at.lte');
-    expect(engine).toContain('const effectiveAt = new Date(e.scheduled_at ?? e.created_at).getTime()');
+  it('prequeued device-deliveries wachten server-side tot hun beschikbare moment', () => {
+    expect(deliveryMigration).toContain('available_at timestamptz');
+    expect(engine).toContain('available_at: effectiveAtIso');
+    expect(engine).toContain('const effectiveAtIso = e.scheduled_at ?? e.created_at');
     expect(engine).toContain("task_reminder: 'task_due_enabled'");
+    expect(sender).toContain(".lte('available_at', nowIso)");
+    expect(sender).toContain(".order('available_at', { ascending: true })");
     expect(repository).toContain('scheduled_at.lte');
   });
 
