@@ -242,9 +242,12 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const handleToevoegen = async () => {
     if (geselecteerd.size === 0 || !object) return;
     setBezig(true);
-    let ok = 0, fout = 0;
+    const resultaten: KandidaatResultaat[] = [];
     for (const id of geselecteerd) {
       const item = verrijkt.find(v => v.relatie.id === id);
+      const naam = item
+        ? getRelatieDropdownLabel(item.relatie, contactpersonen)
+        : 'Onbekende relatie';
       try {
         await addPipelineKandidaat({
           objectId,
@@ -259,19 +262,28 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           informatieGedeeld: false,
           feeAkkoord: false,
         });
-        ok++;
-      } catch {
-        fout++;
+        resultaten.push({ relatieId: id, naam });
+      } catch (err) {
+        // Technisch detail alleen naar console; UI krijgt een veilige reden.
+        console.error('Kandidaat toevoegen mislukt', { objectId, relatieId: id, err });
+        resultaten.push({ relatieId: id, naam, fout: beschrijfKandidaatFout(err) });
       }
     }
     setBezig(false);
-    if (ok > 0) {
-      toast.success(`${ok} kandida${ok === 1 ? 'at' : 'ten'} toegevoegd`);
+
+    const samenvatting = vatKandidaatResultatenSamen(resultaten);
+    if (samenvatting.successTekst) {
+      toast.success(samenvatting.successTekst);
       onToegevoegd?.();
-      onOpenChange(false);
     }
-    if (fout > 0) toast.error(`${fout} kandida${fout === 1 ? 'at' : 'ten'} niet toegevoegd`);
+    if (samenvatting.foutTekst) {
+      toast.error(samenvatting.foutTekst);
+      // Mislukte kandidaten blijven geselecteerd zodat opnieuw proberen kan.
+      setGeselecteerd(new Set(samenvatting.mislukteIds));
+    }
+    if (samenvatting.magSluiten) onOpenChange(false);
   };
+
 
   const handleQuickCreated = (r: Relatie) => {
     // Voeg nieuwe relatie toe aan selectie; behoud bestaande selectie.
