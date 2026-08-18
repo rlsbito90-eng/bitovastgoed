@@ -80,12 +80,15 @@ Deno.serve(async (req: Request) => {
       secrets.vapid_private_key,
     );
 
+    const nowIso = new Date().toISOString();
     const { data: pending, error: pendingError } = await supabase
       .from('notification_deliveries')
-      .select('id, notification_event_id, subscription_id, retry_count')
+      .select('id, notification_event_id, subscription_id, retry_count, available_at')
       .is('sent_at', null)
       .is('failed_at', null)
       .lt('retry_count', 3)
+      .lte('available_at', nowIso)
+      .order('available_at', { ascending: true })
       .order('queued_at', { ascending: true })
       .limit(100);
     if (pendingError) throw pendingError;
@@ -96,7 +99,7 @@ Deno.serve(async (req: Request) => {
     const { data: events, error: eventsError } = eventIds.length
       ? await supabase
           .from('notification_events')
-          .select('id, user_id, title, body, href, priority, occurrence_key, resolved_at, dismissed_at')
+          .select('id, user_id, title, body, href, priority, occurrence_key, scheduled_at, resolved_at, dismissed_at')
           .in('id', eventIds)
       : { data: [], error: null } as any;
     if (eventsError) throw eventsError;
@@ -139,6 +142,13 @@ Deno.serve(async (req: Request) => {
           .update({ failed_at: new Date().toISOString(), failure_code: 'inactive_source_or_subscription', updated_at: new Date().toISOString() })
           .eq('id', d.id);
         permanentlyFailed++;
+        continue;
+      }
+
+      // Defense in depth: available_at is leidend, maar een event met een latere
+      // scheduled_at mag nooit door een inconsistente delivery te vroeg worden verzonden.
+      if (event.scheduled_at && new Date(event.scheduled_at).getTime() > Date.now()) {
+        deferred++;
         continue;
       }
 
