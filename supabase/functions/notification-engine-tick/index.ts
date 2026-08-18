@@ -8,6 +8,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 const EVENT_PREF_FIELD: Record<string, string> = {
+  task_reminder: 'task_due_enabled',
   task_due_today: 'task_due_enabled',
   task_overdue: 'task_overdue_enabled',
   high_priority_task: 'high_priority_task_enabled',
@@ -72,12 +73,13 @@ Deno.serve(async (req: Request) => {
       resolvedEvents += Number(row?.resolved_count ?? 0);
     }
 
+    const nowIso = new Date().toISOString();
     const { data: events, error: eventsError } = await supabase
       .from('notification_events')
       .select('id, user_id, event_type, scheduled_at, created_at')
       .is('resolved_at', null)
       .is('dismissed_at', null)
-      .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`);
+      .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso}`);
 
     if (eventsError) throw eventsError;
 
@@ -118,9 +120,11 @@ Deno.serve(async (req: Request) => {
       if (prefField && pref && pref[prefField] === false) continue;
 
       for (const subscription of subsByUser.get(e.user_id) ?? []) {
-        // Anti-backlog: een device ontvangt uitsluitend events die zijn ontstaan
-        // nadat dit specifieke push-endpoint is geregistreerd.
-        if (new Date(e.created_at).getTime() < new Date(subscription.created_at).getTime()) continue;
+        // Anti-backlog op het moment waarop een event werkelijk relevant wordt.
+        // Een toekomstig gepland event mag dus wél naar een device dat ná event-creatie,
+        // maar vóór scheduled_at is geregistreerd.
+        const effectiveAt = new Date(e.scheduled_at ?? e.created_at).getTime();
+        if (effectiveAt < new Date(subscription.created_at).getTime()) continue;
         deliveries.push({
           notification_event_id: e.id,
           subscription_id: subscription.id,
