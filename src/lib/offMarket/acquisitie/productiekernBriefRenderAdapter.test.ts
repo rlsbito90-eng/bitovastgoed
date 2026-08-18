@@ -9,7 +9,7 @@ import {
 function maakInvoer(overrides: Partial<BriefRenderInvoer> = {}): BriefRenderInvoer {
   return {
     briefId: 'brief-1',
-    briefnummer: 'BR-2026-0001',
+    briefnummer: 'BR2026000001',
     briefVersieId: 'versie-1',
     versienummer: 1,
     onderwerp: 'Interesse in uw pand',
@@ -28,23 +28,38 @@ function maakInvoer(overrides: Partial<BriefRenderInvoer> = {}): BriefRenderInvo
 }
 
 describe('productiekernBriefRenderAdapter', () => {
-  it('hergebruikt het bestaande brief-viewmodel zonder database-effecten', () => {
-    const vm = mapProductiekernBriefNaarViewModel(maakInvoer());
+  it('normaliseert een natuurlijke persoon en houdt de naam uit de adresregels', () => {
+    const vm = mapProductiekernBriefNaarViewModel(maakInvoer({
+      naam: 'Evelyn Sabine Blok Geboren 29-04-1959 te AMSTERDAM',
+    }));
 
-    expect(vm).toBeTruthy();
-    expect(JSON.stringify(vm)).toContain('Jan Jansen');
-    expect(JSON.stringify(vm)).toContain('Kerkstraat 2');
-    expect(JSON.stringify(vm)).toContain('Dorpsstraat 1 te Oisterwijk');
+    expect(vm.geadresseerdeNaam).toBe('E.S. Blok');
+    expect(vm.bedrijfsnaam).toBe('');
+    expect(vm.verzendadresRegels).toEqual(['Kerkstraat 2', '5061 AB Oisterwijk']);
+    expect(vm.verzendadresRegels.join(' ')).not.toContain('Geboren');
+    expect(vm.verzendadresRegels).not.toContain('E.S. Blok');
+  });
+
+  it('rendert een rechtspersoon precies één keer als naam en niet opnieuw in verzendadres', () => {
+    const vm = mapProductiekernBriefNaarViewModel(maakInvoer({
+      naam: 'Bloemgracht 24 B.V.',
+      bedrijfsnaam: 'Bloemgracht 24 B.V.',
+    }));
+
+    expect(vm.bedrijfsnaam).toBe('Bloemgracht 24 B.V.');
+    expect(vm.geadresseerdeNaam).toBe('');
+    expect(vm.verzendadresRegels).toEqual(['Kerkstraat 2', '5061 AB Oisterwijk']);
+    expect(vm.verzendadresRegels).not.toContain('Bloemgracht 24 B.V.');
   });
 
   it('behoudt de aangeleverde batchvolgorde en stabiele versie-keys', () => {
     const items = bouwProductiekernBriefRenderItems([
-      maakInvoer({ briefVersieId: 'versie-b', briefnummer: 'BR-2' }),
-      maakInvoer({ briefVersieId: 'versie-a', briefnummer: 'BR-1' }),
+      maakInvoer({ briefVersieId: 'versie-b', briefnummer: 'BR2026000002' }),
+      maakInvoer({ briefVersieId: 'versie-a', briefnummer: 'BR2026000001' }),
     ]);
 
     expect(items.map((item) => item.key)).toEqual(['versie-b', 'versie-a']);
-    expect(items.map((item) => item.briefnummer)).toEqual(['BR-2', 'BR-1']);
+    expect(items.map((item) => item.briefnummer)).toEqual(['BR2026000002', 'BR2026000001']);
   });
 
   it('weigert een dubbele briefversie in dezelfde renderbatch', () => {
