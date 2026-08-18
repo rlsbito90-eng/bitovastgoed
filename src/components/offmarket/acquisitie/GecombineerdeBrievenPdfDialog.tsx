@@ -1,4 +1,4 @@
-// V3 — conceptcontrole + formele productiewerkbank voor de Acquisitieselectie.
+// V4 — conceptcontrole + formele productiewerkbank voor de Acquisitieselectie.
 // Conceptdownload blijft mutatievrij; BR/BAT zijn afzonderlijke expliciete stappen.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -83,9 +83,9 @@ export default function GecombineerdeBrievenPdfDialog({
     return sorteerPrintItems(items).map(i => i.payload as Kandidaat);
   }, [kandidaten]);
 
-  // Deze scope blijft tijdens de hele modal stabiel. Na BR-finalisering verdwijnen
-  // de betreffende records uit de conceptlijst, maar blijven hun IDs bewust in de
-  // productiescope zodat dezelfde selectie meteen door kan naar BAT.
+  // De formele scope is de unie van controleerbare concepten én reeds definitieve
+  // postbrieven binnen de geselecteerde signalen. Daardoor verdwijnen definitieve
+  // brieven in een gemengde selectie nooit uit de preflight/BAT-route.
   const [selectie, setSelectie] = useState<Set<string>>(new Set());
   const scopeGeinitialiseerd = useRef(false);
   useEffect(() => {
@@ -95,12 +95,18 @@ export default function GecombineerdeBrievenPdfDialog({
       return;
     }
     if (scopeGeinitialiseerd.current) return;
+
     const conceptIds = gesorteerd.filter(k => k.printbaar).map(k => k.brief.id);
-    const fallbackDefinitief = brieven
-      .filter((b) => !b.archived_at && (b.kanaal ?? 'post') === 'post' && b.status === 'definitief' && signaalIndex.has(b.signaal_id))
+    const definitieveIds = brieven
+      .filter((b) => !b.archived_at
+        && (b.kanaal ?? 'post') === 'post'
+        && b.status === 'definitief'
+        && signaalIndex.has(b.signaal_id))
       .map((b) => b.id);
-    if (conceptIds.length === 0 && fallbackDefinitief.length === 0 && gesorteerd.length === 0) return;
-    setSelectie(new Set(conceptIds.length > 0 ? conceptIds : fallbackDefinitief));
+    const formeleScope = [...new Set([...conceptIds, ...definitieveIds])];
+
+    if (formeleScope.length === 0 && gesorteerd.length === 0) return;
+    setSelectie(new Set(formeleScope));
     scopeGeinitialiseerd.current = true;
   }, [open, gesorteerd, brieven, signaalIndex]);
 
@@ -138,6 +144,10 @@ export default function GecombineerdeBrievenPdfDialog({
       .filter((b) => (b.kanaal ?? 'post') === 'post' && b.status === 'definitief')
       .map((b) => b.id)
       .sort(),
+    [productieScopeBrieven],
+  );
+  const definitieveSignalen = useMemo(
+    () => new Set(productieScopeBrieven.filter((b) => b.status === 'definitief').map((b) => b.signaal_id)).size,
     [productieScopeBrieven],
   );
 
@@ -186,28 +196,35 @@ export default function GecombineerdeBrievenPdfDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-4xl max-w-[95vw] p-0 overflow-hidden" data-testid="combined-pdf-dialog">
         <div className="flex flex-col max-h-[92vh]">
-          <DialogHeader className="p-5 pb-3 border-b">
+          <DialogHeader className="p-4 pr-10 sm:p-5 sm:pr-10 pb-3 border-b">
             <DialogTitle>Conceptbrieven & productie</DialogTitle>
             <DialogDescription>
               Controleer eerst de conceptbrieven met zichtbaar “CONCEPT”-watermerk. Definitief maken, BAT, print en post zijn daarna afzonderlijke formele stappen.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-4">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-4">
             <section className="space-y-3" aria-label="Conceptcontrole">
-              <div className="flex items-center justify-between gap-2">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold">1. Concept controleren</p>
                   <p className="text-[11px] text-muted-foreground">Conceptbestanden zijn uitsluitend voor controle en nooit de officiële printbron.</p>
                 </div>
-                <Button type="button" size="sm" onClick={download} disabled={bezig || teGenereren.length === 0} data-testid="combined-pdf-download">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={download}
+                  disabled={bezig || teGenereren.length === 0}
+                  data-testid="combined-pdf-download"
+                  className="w-full shrink-0 sm:w-auto"
+                >
                   {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
                   Conceptbrieven downloaden
                 </Button>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                <Stat label="Brieven" value={teGenereren.length} />
+                <Stat label="Conceptbrieven" value={teGenereren.length} />
                 <Stat label="Signalen" value={uniekeSignalen} />
                 <Stat label="Geadresseerden" value={uniekeGeadresseerden} />
               </div>
@@ -221,10 +238,15 @@ export default function GecombineerdeBrievenPdfDialog({
                       onCheckedChange={() => toggle(k.brief.id)}
                       aria-label="Selecteer conceptbrief voor controle en productie"
                     />
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <p className="font-medium break-words">
-                        {k.brief.eigenaar_bedrijfsnaam ?? k.brief.eigenaar_naam ?? '(zonder naam)'}
-                      </p>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-700 dark:text-amber-300">
+                          CONCEPT
+                        </span>
+                        <p className="min-w-0 font-medium break-words">
+                          {k.brief.eigenaar_bedrijfsnaam ?? k.brief.eigenaar_naam ?? '(zonder naam)'}
+                        </p>
+                      </div>
                       <p className="text-[11px] text-muted-foreground break-words">
                         Object: {k.signaal.adres ?? k.signaal.titel ?? '—'}
                         {k.brief.campagne_stap ? ` · ${k.brief.campagne_stap}` : ''}
@@ -235,40 +257,54 @@ export default function GecombineerdeBrievenPdfDialog({
                 ))}
                 {gesorteerd.length === 0 && (
                   <li className="p-6 text-center text-sm text-muted-foreground">
-                    Geen nieuwe postconcepten in deze scope. Eventuele reeds definitieve brieven worden hieronder als formele productie hersteld.
+                    Geen nieuwe postconcepten in deze scope. Reeds definitieve brieven blijven hieronder zichtbaar in de formele productiescope.
                   </li>
                 )}
               </ul>
-              {overgeslagen.length > 0 && (
-                <p className="text-[11px] text-muted-foreground">
-                  {overgeslagen.length} conceptbrieven vereisen aandacht omdat adres of naam ontbreekt.
-                </p>
-              )}
+
+              <div className="space-y-1 text-[11px] text-muted-foreground">
+                {overgeslagen.length > 0 && (
+                  <p>{overgeslagen.length} conceptbrief{overgeslagen.length === 1 ? '' : 'ven'} vereisen aandacht en zijn niet geselecteerd voor productie.</p>
+                )}
+                {definitieveBriefIds.length > 0 && (
+                  <p>
+                    Daarnaast bevat deze scope {definitieveBriefIds.length} reeds definitieve {definitieveBriefIds.length === 1 ? 'brief' : 'brieven'} uit {definitieveSignalen} {definitieveSignalen === 1 ? 'signaal' : 'signalen'}; die worden niet als concept geteld maar blijven wél in preflight en BAT zichtbaar.
+                  </p>
+                )}
+              </div>
             </section>
 
-            {productieScopeBrieven.length > 0 && (
-              <section className="space-y-3 border-t pt-4" aria-label="Formaliseren">
-                <div>
-                  <p className="text-sm font-semibold">2. Definitief maken</p>
-                  <p className="text-[11px] text-muted-foreground">Preflight bepaalt per brief wat gereed is, wat aandacht vereist en wat al verwerkt is.</p>
-                </div>
+            <section className="space-y-3 border-t pt-4" aria-label="Formaliseren">
+              <div>
+                <p className="text-sm font-semibold">2. Definitief maken</p>
+                <p className="text-[11px] text-muted-foreground">Preflight bepaalt per brief wat gereed is, wat aandacht vereist en wat al verwerkt is.</p>
+              </div>
+              {productieScopeBrieven.length > 0 ? (
                 <ProductiewerkbankBulkPane
                   geselecteerdeSignaalIds={productieScopeSignaalIds}
                   selecties={acquisitieSelecties}
                   brieven={productieScopeBrieven}
                 />
-              </section>
-            )}
+              ) : (
+                <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  Geen formele briefscope beschikbaar. Los eerst de aandachtspunten bij de concepten op.
+                </p>
+              )}
+            </section>
 
-            {definitieveBriefIds.length > 0 && (
-              <section className="space-y-3 border-t pt-4" aria-label="Printproductie">
-                <div>
-                  <p className="text-sm font-semibold">3. Formele printbatch</p>
-                  <p className="text-[11px] text-muted-foreground">BAT en productiebestanden ontstaan uitsluitend uit definitieve BR-brieven.</p>
-                </div>
+            <section className="space-y-3 border-t pt-4" aria-label="Printproductie">
+              <div>
+                <p className="text-sm font-semibold">3. Formele printbatch</p>
+                <p className="text-[11px] text-muted-foreground">BAT en productiebestanden ontstaan uitsluitend uit definitieve BR-brieven.</p>
+              </div>
+              {definitieveBriefIds.length > 0 ? (
                 <ProductiewerkbankBulkPrintbatchActies briefIds={definitieveBriefIds} />
-              </section>
-            )}
+              ) : (
+                <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground" data-testid="productiewerkbank-geen-definitieve-brieven">
+                  Nog geen definitieve BR-brieven in deze scope. Deze fase wordt pas actief nadat een brief definitief is gemaakt.
+                </p>
+              )}
+            </section>
           </div>
 
           <ModalActionBar onCancel={onClose} cancelLabel="Sluiten" />
