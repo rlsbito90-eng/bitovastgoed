@@ -10,24 +10,25 @@ describe('BUILD 2.0C — Vastgoedkansen in iCal', () => {
     expect(bron).toContain(".from('vastgoedkansen')");
     expect(bron).toContain('volgende_actie_datum');
     expect(bron).toContain('opvolgdatum');
-    expect(bron).toContain(".is('archived_at', null)");
     expect(bron).toContain('.or(`volgende_actie_datum.gte.${vanafDate},opvolgdatum.gte.${vanafDate}`)');
+    expect(bron).toContain("const CLOSED_VASTGOEDKANS_STATUSES = new Set(['afgevallen', 'gepromoveerd'])");
+    expect(bron).not.toContain(".is('archived_at', null)");
     expect(bron).not.toContain('workflowReadModel');
     expect(bron).not.toContain('bouwVastgoedkansWorkflowReadModel');
   });
 
   it('geeft de expliciete commerciële actiedatum voorrang op legacy opvolging', () => {
+    expect(bron).toContain('if (CLOSED_VASTGOEDKANS_STATUSES.has(k.status)) continue');
     expect(bron).toContain('const explicieteDatum = k.volgende_actie_datum ?? null');
-    expect(bron).toContain("const isAfgesloten = k.status === 'afgevallen' || k.status === 'gepromoveerd'");
-    expect(bron).toContain('const legacyDatum = !explicieteDatum && !isAfgesloten ? (k.opvolgdatum ?? null) : null');
+    expect(bron).toContain('const legacyDatum = !explicieteDatum ? (k.opvolgdatum ?? null) : null');
     expect(bron).toContain('const actieDatum = explicieteDatum ?? legacyDatum');
   });
 
-  it('voorkomt een dubbel agenda-item als dezelfde Vastgoedkans-datum al als open taak bestaat', () => {
-    expect(bron).toContain('deal_id, vastgoedkans_id');
-    expect(bron).toContain('const taakDeadlineSleutels = new Set');
-    expect(bron).toContain('`${t.vastgoedkans_id}|${t.deadline}`');
-    expect(bron).toContain('if (taakDeadlineSleutels.has(`${k.id}|${actieDatum}`)) continue');
+  it('laat de canonieke centrale taak winnen van Vastgoedkans-fallbacks', () => {
+    expect(bron).toContain('deal_id, vastgoedkans_id, source_kind, source_id, source_slot');
+    expect(bron).toContain('const canonicalSourceSlots = new Set');
+    expect(bron).toContain("hasCanonical('vastgoedkans', k.id, 'volgende_actie')");
+    expect(bron).toContain('(taken as any[]).some((t) => t.vastgoedkans_id === k.id && t.deadline === actieDatum)');
   });
 
   it('maakt een stabiel all-day event dat teruglinkt naar het Vastgoedkans-dossier', () => {
