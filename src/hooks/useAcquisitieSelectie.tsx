@@ -2,7 +2,7 @@
 // Eén tabel: off_market_acquisitie_selectie. Soft-remove via archived_at.
 // Hergebruikt patroon: heractiveer bestaand record bij dubbele toevoeging.
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AcquisitieSelectieItem {
@@ -17,19 +17,22 @@ export interface AcquisitieSelectieItem {
 
 const TABLE = 'off_market_acquisitie_selectie';
 const LIST_KEY = ['off-market-acquisitie-selectie'] as const;
+const SIGNALEN_KEY = ['off-market-signalen'] as const;
+const BRIEVEN_BULK_KEY = ['off-market-brieven-bulk'] as const;
 const VERZONDEN_BRIEVEN_KEY = ['off-market-acquisitie-selectie', 'verzonden-brieven'] as const;
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>, signaalId?: string) {
   qc.invalidateQueries({ queryKey: LIST_KEY });
   qc.invalidateQueries({ queryKey: VERZONDEN_BRIEVEN_KEY });
-  qc.invalidateQueries({ queryKey: ['off-market-signalen'] });
+  qc.invalidateQueries({ queryKey: SIGNALEN_KEY });
   qc.invalidateQueries({ queryKey: ['off-market-kpi'] });
   if (signaalId) qc.invalidateQueries({ queryKey: ['off-market-signaal', signaalId] });
 }
 
 /** Alle actieve (niet-gearchiveerde) selectie-items. */
 export function useAcquisitieSelectie() {
-  return useQuery({
+  const qc = useQueryClient();
+  const query = useQuery({
     queryKey: LIST_KEY,
     queryFn: async (): Promise<AcquisitieSelectieItem[]> => {
       const { data, error } = await (supabase as any)
@@ -41,6 +44,42 @@ export function useAcquisitieSelectie() {
       return (data ?? []) as AcquisitieSelectieItem[];
     },
   });
+
+  // AcquisitieSelectieTab bouwt de zichtbare waarheid uit drie asynchrone bronnen:
+  // selectie + signalen + brieven. De tab gebruikte historisch alleen deze query's
+  // `isLoading`, waardoor na refresh eerst een lege/partiële toestand kon renderen.
+  // Zodra de signalenquery in dezelfde view actief is, verlengen we daarom alleen
+  // de loading-semantiek tot de exact bij de geselecteerde signalen horende
+  // bulkbriefquery óók succesvol geladen is. Data en querykeys zelf veranderen niet.
+  const signalenFetching = useIsFetching({ queryKey: SIGNALEN_KEY, exact: true });
+  const signalenState = qc.getQueryState(SIGNALEN_KEY);
+  const signalen = qc.getQueryData<Array<{ id: string }>>(SIGNALEN_KEY) ?? [];
+  const selectieSignaalIds = new Set(
+    (query.data ?? [])
+      .map((item) => item.signaal_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0),
+  );
+  const geselecteerdeSignaalIds = signalen
+    .map((signaal) => signaal.id)
+    .filter((id) => selectieSignaalIds.has(id))
+    .sort();
+  const brievenQueryKey = [...BRIEVEN_BULK_KEY, geselecteerdeSignaalIds] as const;
+  const brievenFetching = useIsFetching({ queryKey: brievenQueryKey, exact: true });
+  const brievenState = geselecteerdeSignaalIds.length > 0
+    ? qc.getQueryState(brievenQueryKey)
+    : null;
+  const acquisitieHydratatieActief = Boolean(signalenState);
+  const afhankelijkhedenLaden = acquisitieHydratatieActief && (
+    signalenFetching > 0
+    || signalenState?.status !== 'success'
+    || (geselecteerdeSignaalIds.length > 0
+      && (brievenFetching > 0 || brievenState?.status !== 'success'))
+  );
+
+  return {
+    ...query,
+    isLoading: query.isLoading || afhankelijkhedenLaden,
+  };
 }
 
 /** Set van signaal-ids in de actieve selectie. */
