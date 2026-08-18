@@ -2,7 +2,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const INTERNAL_CRON_SECRET = Deno.env.get('NOTIFICATION_CRON_SECRET') ?? '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -17,12 +16,23 @@ const EVENT_PREF_FIELD: Record<string, string> = {
   data_quality: 'data_quality_enabled',
 };
 
-function isAuthorized(req: Request): boolean {
-  if (!INTERNAL_CRON_SECRET) return false;
+async function getRuntimeSecret(key: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('notification_runtime_secrets')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.value?.trim() ?? '';
+}
+
+async function isAuthorized(req: Request): Promise<boolean> {
+  const expected = await getRuntimeSecret('cron_secret');
+  if (!expected) return false;
   const auth = req.headers.get('authorization') ?? '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   const explicit = req.headers.get('x-cron-secret') ?? '';
-  return bearer === INTERNAL_CRON_SECRET || explicit === INTERNAL_CRON_SECRET;
+  return bearer === expected || explicit === expected;
 }
 
 Deno.serve(async (req: Request) => {
@@ -38,9 +48,10 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-  if (!isAuthorized(req)) return new Response('Unauthorized', { status: 401 });
 
   try {
+    if (!(await isAuthorized(req))) return new Response('Unauthorized', { status: 401 });
+
     const { data: taskOwners, error: ownersError } = await supabase
       .from('taken')
       .select('owner_user_id')
@@ -63,7 +74,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: events, error: eventsError } = await supabase
       .from('notification_events')
-      .select('id, user_id, event_type, scheduled_at')
+      .select('id, user_id, event_type, scheduled_at, created_at')
       .is('resolved_at', null)
       .is('dismissed_at', null)
       .or(`scheduled_at.is.null,scheduled_at.lte.${new Date().toISOString()}`);
@@ -82,18 +93,19 @@ Deno.serve(async (req: Request) => {
     const { data: subscriptions, error: subsError } = eventUserIds.length
       ? await supabase
           .from('push_subscriptions')
-          .select('id, user_id')
+          .select('id, user_id, created_at')
           .in('user_id', eventUserIds)
           .eq('push_enabled', true)
           .is('revoked_at', null)
       : { data: [], error: null } as any;
     if (subsError) throw subsError;
 
-    const subsByUser = new Map<string, Array<{ id: string }>>();
+    const subsByUser = new Map<string, Array<{ id: string; created_at: string }>>();
     for (const s of subscriptions ?? []) {
-      const arr = subsByUser.get((s as any).user_id) ?? [];
-      arr.push({ id: (s as any).id });
-      subsByUser.set((s as any).user_id, arr);
+      const row = s as any;
+      const arr = subsByUser.get(row.user_id) ?? [];
+      arr.push({ id: row.id, created_at: row.created_at });
+      subsByUser.set(row.user_id, arr);
     }
 
     const deliveries: Array<{ notification_event_id: string; subscription_id: string }> = [];
@@ -101,13 +113,14 @@ Deno.serve(async (req: Request) => {
     for (const event of events ?? []) {
       const e = event as any;
       const pref = prefMap.get(e.user_id);
-      // Geen preference-row betekent productdefaults: push aan; sterke match is de
-      // enige huidige opt-in trigger en wordt niet door deze taakgenerator gemaakt.
       if (pref && pref.push_enabled === false) continue;
       const prefField = EVENT_PREF_FIELD[e.event_type];
       if (prefField && pref && pref[prefField] === false) continue;
 
       for (const subscription of subsByUser.get(e.user_id) ?? []) {
+        // Anti-backlog: een device ontvangt uitsluitend events die zijn ontstaan
+        // nadat dit specifieke push-endpoint is geregistreerd.
+        if (new Date(e.created_at).getTime() < new Date(subscription.created_at).getTime()) continue;
         deliveries.push({
           notification_event_id: e.id,
           subscription_id: subscription.id,
