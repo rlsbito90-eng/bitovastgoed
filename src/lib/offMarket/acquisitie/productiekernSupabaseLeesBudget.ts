@@ -9,14 +9,24 @@ export class ProductiekernLeesBudgetOverschredenError extends Error {
   }
 }
 
+/**
+ * Harde bovengrens voor één samengestelde Productiekern-readworkflow.
+ *
+ * De BAT-herstelroute valideert bewust iedere gekoppelde immutable brief en
+ * versie opnieuw. Voor batches met tientallen brieven is de eerdere grens van
+ * 100 te krap voor die fail-closed validatie. De bovengrens blijft daarom
+ * expliciet en eindig, maar laat een normale bulkproductieronde wel toe.
+ */
+export const MAX_PRODUCTIEKERN_LEESBUDGET = 200;
+
 export function metProductiekernLeesBudget(
   uitvoerder: ProductiekernSupabaseQueryUitvoerder,
-  maximaalAantalQueries = 25,
+  maximaalAantalQueries = 100,
 ): ProductiekernSupabaseQueryUitvoerder {
   if (!Number.isInteger(maximaalAantalQueries)
       || maximaalAantalQueries < 1
-      || maximaalAantalQueries > 100) {
-    throw new Error('Productiekern-leesbudget moet tussen 1 en 100 queries liggen.');
+      || maximaalAantalQueries > MAX_PRODUCTIEKERN_LEESBUDGET) {
+    throw new Error(`Productiekern-leesbudget moet tussen 1 en ${MAX_PRODUCTIEKERN_LEESBUDGET} queries liggen.`);
   }
   let gebruikt = 0;
   const reserveer = () => {
