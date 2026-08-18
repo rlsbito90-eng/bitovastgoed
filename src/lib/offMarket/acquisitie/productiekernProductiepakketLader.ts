@@ -13,7 +13,7 @@ import type { ProductiekernBulkLeesRepository } from './productiekernSupabaseBul
 
 export interface ProductiekernProductiepakketLeesbron {
   repository: Pick<AcquisitieProductiekernRepository, 'haalPrintbatch' | 'haalPrintbatchBrieven'>;
-  bulkRepository: ProductiekernBulkLeesRepository;
+  bulkRepository: Pick<ProductiekernBulkLeesRepository, 'haalBrievenOpIds' | 'haalBriefversiesOpIds'>;
 }
 
 /**

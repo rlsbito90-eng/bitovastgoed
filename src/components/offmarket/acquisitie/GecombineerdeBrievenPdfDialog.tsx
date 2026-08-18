@@ -1,8 +1,7 @@
-// V2 — "Gecombineerde conceptbrieven-PDF" voor de Off-Market Acquisitieselectie.
-// Volledig mutatievrij: previewen of downloaden creëert geen briefrecord,
-// geen printbatchrecord, geen event en wijzigt geen verzendstatus.
+// V3 — conceptcontrole + formele productiewerkbank voor de Acquisitieselectie.
+// Conceptdownload blijft mutatievrij; BR/BAT zijn afzonderlijke expliciete stappen.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { pdf } from '@react-pdf/renderer';
 import {
@@ -14,19 +13,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { FileDown, Loader2 } from 'lucide-react';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
+import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import { buildBriefViewModel } from '@/lib/offMarket/brief';
 import { sorteerPrintItems } from '@/lib/offMarket/acquisitie/printVolgorde';
 import GecombineerdeBrievenPDF from '@/components/offmarket/GecombineerdeBrievenPDF';
 import { isVolledigPostadres } from '@/lib/offMarket/acquisitie/readiness';
+import ProductiewerkbankBulkPane from './ProductiewerkbankBulkPane';
+import ProductiewerkbankBulkPrintbatchActies from './ProductiewerkbankBulkPrintbatchActies';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Geselecteerde signalen in vaste volgorde. */
   signalen: OffMarketSignaal[];
-  /** ISO-toegevoegd_op per signaal (uit acquisitieselectie). */
   toegevoegdOpPerSignaal: Map<string, string | null>;
-  /** Alle actieve brieven van die signalen. */
   brieven: OffMarketBrief[];
 }
 
@@ -41,13 +40,13 @@ interface Kandidaat {
 export default function GecombineerdeBrievenPdfDialog({
   open, onClose, signalen, toegevoegdOpPerSignaal, brieven,
 }: Props) {
+  const { data: acquisitieSelecties = [] } = useAcquisitieSelectie();
   const signaalIndex = useMemo(() => {
     const m = new Map<string, OffMarketSignaal>();
     for (const s of signalen) m.set(s.id, s);
     return m;
   }, [signalen]);
 
-  /** Alleen actieve postconcepten met geldig adres komen in aanmerking. */
   const kandidaten = useMemo<Kandidaat[]>(() => {
     const out: Kandidaat[] = [];
     for (const b of brieven) {
@@ -62,7 +61,8 @@ export default function GecombineerdeBrievenPdfDialog({
         : !heeftNaam ? 'Geen naam of bedrijfsnaam.'
         : null;
       out.push({
-        brief: b, signaal: s,
+        brief: b,
+        signaal: s,
         toegevoegdOp: toegevoegdOpPerSignaal.get(b.signaal_id) ?? null,
         printbaar: reden === null,
         reden,
@@ -83,12 +83,26 @@ export default function GecombineerdeBrievenPdfDialog({
     return sorteerPrintItems(items).map(i => i.payload as Kandidaat);
   }, [kandidaten]);
 
-  // Selectie van brief-IDs voor de bundel (default: alle controleerbare concepten).
+  // Deze scope blijft tijdens de hele modal stabiel. Na BR-finalisering verdwijnen
+  // de betreffende records uit de conceptlijst, maar blijven hun IDs bewust in de
+  // productiescope zodat dezelfde selectie meteen door kan naar BAT.
   const [selectie, setSelectie] = useState<Set<string>>(new Set());
+  const scopeGeinitialiseerd = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    setSelectie(new Set(gesorteerd.filter(k => k.printbaar).map(k => k.brief.id)));
-  }, [open, gesorteerd]);
+    if (!open) {
+      scopeGeinitialiseerd.current = false;
+      setSelectie(new Set());
+      return;
+    }
+    if (scopeGeinitialiseerd.current) return;
+    const conceptIds = gesorteerd.filter(k => k.printbaar).map(k => k.brief.id);
+    const fallbackDefinitief = brieven
+      .filter((b) => !b.archived_at && (b.kanaal ?? 'post') === 'post' && b.status === 'definitief' && signaalIndex.has(b.signaal_id))
+      .map((b) => b.id);
+    if (conceptIds.length === 0 && fallbackDefinitief.length === 0 && gesorteerd.length === 0) return;
+    setSelectie(new Set(conceptIds.length > 0 ? conceptIds : fallbackDefinitief));
+    scopeGeinitialiseerd.current = true;
+  }, [open, gesorteerd, brieven, signaalIndex]);
 
   function toggle(id: string) {
     setSelectie(prev => {
@@ -102,26 +116,32 @@ export default function GecombineerdeBrievenPdfDialog({
     () => gesorteerd.filter(k => selectie.has(k.brief.id) && k.printbaar),
     [gesorteerd, selectie],
   );
+  const overgeslagen = useMemo(() => gesorteerd.filter(k => !k.printbaar), [gesorteerd]);
 
-  const overgeslagen = useMemo(
-    () => gesorteerd.filter(k => !k.printbaar),
-    [gesorteerd],
-  );
-
-  const uniekeSignalen = useMemo(() => {
-    const s = new Set<string>();
-    for (const k of teGenereren) s.add(k.signaal.id);
-    return s.size;
-  }, [teGenereren]);
-
+  const uniekeSignalen = useMemo(() => new Set(teGenereren.map(k => k.signaal.id)).size, [teGenereren]);
   const uniekeGeadresseerden = useMemo(() => {
     const s = new Set<string>();
     for (const k of teGenereren) s.add(`${k.signaal.id}|${k.brief.geadresseerde_key ?? k.brief.id}`);
     return s.size;
   }, [teGenereren]);
 
-  const [bezig, setBezig] = useState(false);
+  const productieScopeBrieven = useMemo(
+    () => brieven.filter((b) => !b.archived_at && selectie.has(b.id)),
+    [brieven, selectie],
+  );
+  const productieScopeSignaalIds = useMemo(
+    () => new Set(productieScopeBrieven.map((b) => b.signaal_id)),
+    [productieScopeBrieven],
+  );
+  const definitieveBriefIds = useMemo(
+    () => productieScopeBrieven
+      .filter((b) => (b.kanaal ?? 'post') === 'post' && b.status === 'definitief')
+      .map((b) => b.id)
+      .sort(),
+    [productieScopeBrieven],
+  );
 
+  const [bezig, setBezig] = useState(false);
   async function download() {
     if (teGenereren.length === 0) {
       toast.error('Geen controleerbare conceptbrieven geselecteerd.');
@@ -141,20 +161,17 @@ export default function GecombineerdeBrievenPdfDialog({
         });
         return { key: b.id, vm };
       });
-      // GEEN database-mutatie — alleen controle-PDF bouwen en downloaden.
       const blob = await pdf(
-        <GecombineerdeBrievenPDF
-          items={items}
-          title="Bito Vastgoed — conceptbrieven"
-          watermerk="CONCEPT"
-        />,
+        <GecombineerdeBrievenPDF items={items} title="Bito Vastgoed — conceptbrieven" watermerk="CONCEPT" />,
       ).toBlob();
       const datum = new Date().toISOString().slice(0, 10);
-      const filename = `bito-vastgoed-CONCEPT-brieven-${datum}.pdf`;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url; link.download = filename;
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      link.href = url;
+      link.download = `bito-vastgoed-CONCEPT-brieven-${datum}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
       toast.success(`Concept-PDF gegenereerd (${items.length} brieven).`);
     } catch (e: any) {
@@ -167,82 +184,94 @@ export default function GecombineerdeBrievenPdfDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent
-        className="sm:max-w-3xl max-w-[95vw] p-0 overflow-hidden"
-        data-testid="combined-pdf-dialog"
-      >
-        <div className="flex flex-col max-h-[90vh]">
+      <DialogContent className="sm:max-w-4xl max-w-[95vw] p-0 overflow-hidden" data-testid="combined-pdf-dialog">
+        <div className="flex flex-col max-h-[92vh]">
           <DialogHeader className="p-5 pb-3 border-b">
-            <DialogTitle>Conceptbrieven downloaden</DialogTitle>
+            <DialogTitle>Conceptbrieven & productie</DialogTitle>
             <DialogDescription>
-              Controlebundel van de geselecteerde conceptbrieven. Iedere pagina krijgt het watermerk “CONCEPT”.
-              Deze download wijzigt niets en is niet de formele printversie.
+              Controleer eerst de conceptbrieven met zichtbaar “CONCEPT”-watermerk. Definitief maken, BAT, print en post zijn daarna afzonderlijke formele stappen.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-3">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-              <Stat label="Brieven" value={teGenereren.length} />
-              <Stat label="Signalen" value={uniekeSignalen} />
-              <Stat label="Geadresseerden" value={uniekeGeadresseerden} />
-            </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-4">
+            <section className="space-y-3" aria-label="Conceptcontrole">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">1. Concept controleren</p>
+                  <p className="text-[11px] text-muted-foreground">Conceptbestanden zijn uitsluitend voor controle en nooit de officiële printbron.</p>
+                </div>
+                <Button type="button" size="sm" onClick={download} disabled={bezig || teGenereren.length === 0} data-testid="combined-pdf-download">
+                  {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  Conceptbrieven downloaden
+                </Button>
+              </div>
 
-            <ul className="rounded-md border divide-y text-sm" data-testid="combined-pdf-lijst">
-              {gesorteerd.map((k) => (
-                <li
-                  key={k.brief.id}
-                  className="p-3 flex items-start gap-3"
-                  data-printbaar={k.printbaar}
-                  data-testid="combined-pdf-rij"
-                >
-                  <Checkbox
-                    checked={selectie.has(k.brief.id)}
-                    disabled={!k.printbaar}
-                    onCheckedChange={() => toggle(k.brief.id)}
-                    aria-label="Selecteer conceptbrief voor controlebundel"
-                  />
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <p className="font-medium break-words">
-                      {k.brief.eigenaar_naam ?? k.brief.eigenaar_bedrijfsnaam ?? '(zonder naam)'}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground break-words">
-                      Object: {k.signaal.adres ?? k.signaal.titel ?? '—'}
-                      {k.brief.campagne_stap ? ` · ${k.brief.campagne_stap}` : ''}
-                    </p>
-                    {k.reden && (
-                      <p className="text-[11px] text-destructive">⚠ {k.reden}</p>
-                    )}
-                  </div>
-                </li>
-              ))}
-              {gesorteerd.length === 0 && (
-                <li className="p-6 text-center text-sm text-muted-foreground">
-                  Geen postconcepten beschikbaar voor de geselecteerde signalen.
-                </li>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                <Stat label="Brieven" value={teGenereren.length} />
+                <Stat label="Signalen" value={uniekeSignalen} />
+                <Stat label="Geadresseerden" value={uniekeGeadresseerden} />
+              </div>
+
+              <ul className="rounded-md border divide-y text-sm" data-testid="combined-pdf-lijst">
+                {gesorteerd.map((k) => (
+                  <li key={k.brief.id} className="p-3 flex items-start gap-3" data-printbaar={k.printbaar} data-testid="combined-pdf-rij">
+                    <Checkbox
+                      checked={selectie.has(k.brief.id)}
+                      disabled={!k.printbaar}
+                      onCheckedChange={() => toggle(k.brief.id)}
+                      aria-label="Selecteer conceptbrief voor controle en productie"
+                    />
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="font-medium break-words">
+                        {k.brief.eigenaar_bedrijfsnaam ?? k.brief.eigenaar_naam ?? '(zonder naam)'}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground break-words">
+                        Object: {k.signaal.adres ?? k.signaal.titel ?? '—'}
+                        {k.brief.campagne_stap ? ` · ${k.brief.campagne_stap}` : ''}
+                      </p>
+                      {k.reden && <p className="text-[11px] text-destructive">⚠ {k.reden}</p>}
+                    </div>
+                  </li>
+                ))}
+                {gesorteerd.length === 0 && (
+                  <li className="p-6 text-center text-sm text-muted-foreground">
+                    Geen nieuwe postconcepten in deze scope. Eventuele reeds definitieve brieven worden hieronder als formele productie hersteld.
+                  </li>
+                )}
+              </ul>
+              {overgeslagen.length > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  {overgeslagen.length} conceptbrieven vereisen aandacht omdat adres of naam ontbreekt.
+                </p>
               )}
-            </ul>
+            </section>
 
-            {overgeslagen.length > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                {overgeslagen.length} conceptbrieven worden overgeslagen omdat adres of naam ontbreekt.
-              </p>
+            {productieScopeBrieven.length > 0 && (
+              <section className="space-y-3 border-t pt-4" aria-label="Formaliseren">
+                <div>
+                  <p className="text-sm font-semibold">2. Definitief maken</p>
+                  <p className="text-[11px] text-muted-foreground">Preflight bepaalt per brief wat gereed is, wat aandacht vereist en wat al verwerkt is.</p>
+                </div>
+                <ProductiewerkbankBulkPane
+                  geselecteerdeSignaalIds={productieScopeSignaalIds}
+                  selecties={acquisitieSelecties}
+                  brieven={productieScopeBrieven}
+                />
+              </section>
+            )}
+
+            {definitieveBriefIds.length > 0 && (
+              <section className="space-y-3 border-t pt-4" aria-label="Printproductie">
+                <div>
+                  <p className="text-sm font-semibold">3. Formele printbatch</p>
+                  <p className="text-[11px] text-muted-foreground">BAT en productiebestanden ontstaan uitsluitend uit definitieve BR-brieven.</p>
+                </div>
+                <ProductiewerkbankBulkPrintbatchActies briefIds={definitieveBriefIds} />
+              </section>
             )}
           </div>
 
-          <ModalActionBar
-            onCancel={onClose}
-            cancelLabel="Sluiten"
-            primary={
-              <Button
-                type="button" size="sm" onClick={download}
-                disabled={bezig || teGenereren.length === 0}
-                data-testid="combined-pdf-download"
-              >
-                {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                Conceptbrieven downloaden
-              </Button>
-            }
-          />
+          <ModalActionBar onCancel={onClose} cancelLabel="Sluiten" />
         </div>
       </DialogContent>
     </Dialog>

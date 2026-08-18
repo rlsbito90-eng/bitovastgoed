@@ -42,7 +42,12 @@ export interface ProductiekernSupabaseLeesTransport {
     volgorde?: Readonly<{ kolom: string; oplopend: boolean }>,
   ): Promise<Record<string, unknown>[]>;
   haalMeerdereOpIds?(
-    tabel: 'off_market_brieven' | 'off_market_brief_versies' | 'off_market_printbatch_brieven',
+    tabel: 'off_market_acquisitie_dossiers' | 'off_market_brieven' | 'off_market_brief_versies' | 'off_market_printbatch_brieven',
+    ids: readonly string[],
+  ): Promise<Record<string, unknown>[]>;
+  haalMeerdereOpKolomIds?(
+    tabel: 'off_market_brief_versies',
+    kolom: 'brief_id',
     ids: readonly string[],
   ): Promise<Record<string, unknown>[]>;
 }
