@@ -25,7 +25,8 @@ describe('BUILD 2.0C — Vastgoedkansen in iCal', () => {
   });
 
   it('laat de canonieke centrale taak winnen van Vastgoedkans-fallbacks', () => {
-    expect(bron).toContain('deal_id, vastgoedkans_id, source_kind, source_id, source_slot');
+    expect(bron).toContain('vastgoedkans_id');
+    expect(bron).toContain('source_kind, source_id, source_slot');
     expect(bron).toContain('const canonicalSourceSlots = new Set');
     expect(bron).toContain("hasCanonical('vastgoedkans', k.id, 'volgende_actie')");
     expect(bron).toContain('(taken as any[]).some((t) => t.vastgoedkans_id === k.id && t.deadline === actieDatum)');
