@@ -71,7 +71,6 @@ const emptyForm = {
   offMarketSignaalId: '',
   followUpRequired: false,
   followUpDate: '',
-  // taak
   makeTaak: false,
   taakTitel: '',
   taakDeadline: '',
@@ -128,7 +127,6 @@ export default function ContactMomentFormDialog({
     }
   }, [contactMoment, open, defaultType, defaultRelatieId, defaultObjectId, defaultDealId, defaultAcquisitieTargetId, defaultOffMarketSignaalId]);
 
-  // ---- Picker items ----
   const relatieItems = useMemo<EntityPickerItem[]>(() => store.relaties.map(r => {
     const { primair, secundair } = getRelatieNamen(r, store.contactpersonen);
     const cps = store.contactpersonen.filter(c => c.relatieId === r.id);
@@ -194,7 +192,11 @@ export default function ContactMomentFormDialog({
   }, [store.deals, form.dealId, form.objectId]);
 
   const set = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
-    setForm(prev => ({ ...prev, [key]: val }));
+    setForm(prev => ({
+      ...prev,
+      [key]: val,
+      ...(key === 'taakDeadline' && !val ? { taakTijd: '' } : {}),
+    }));
 
   const handleDealChange = (id: string) => {
     setForm(prev => {
@@ -215,7 +217,6 @@ export default function ContactMomentFormDialog({
     if (bezig) return;
     setBezig(true);
     try {
-      // Auto-titel als gebruiker niets invult
       let titel = form.title.trim();
       if (!titel) {
         const typeLabel = CONTACT_MOMENT_TYPE_LABELS[form.type];
@@ -237,8 +238,10 @@ export default function ContactMomentFormDialog({
         dealId: form.dealId || undefined,
         acquisitieTargetId: form.acquisitieTargetId || undefined,
         offMarketSignaalId: form.offMarketSignaalId || undefined,
-        followUpRequired: isEdit ? form.followUpRequired : form.makeTaak,
-        followUpDate: isEdit ? (form.followUpDate || undefined) : (form.makeTaak ? (form.taakDeadline || undefined) : undefined),
+        // Legacy follow-upvelden blijven alleen bij bestaande records behouden/bewerkbaar.
+        // Nieuwe vervolgacties leven uitsluitend als centrale taak.
+        followUpRequired: isEdit ? form.followUpRequired : false,
+        followUpDate: isEdit ? (form.followUpDate || undefined) : undefined,
       };
 
       if (isEdit && contactMoment) {
@@ -249,7 +252,6 @@ export default function ContactMomentFormDialog({
         toast.success('Contactmoment gelogd');
       }
 
-      // Optioneel: vervolgtaak aanmaken
       if (!isEdit && form.makeTaak) {
         try {
           const rel = form.relatieId ? store.getRelatieById(form.relatieId) : null;
@@ -258,8 +260,8 @@ export default function ContactMomentFormDialog({
           await store.addTaak({
             titel: form.taakTitel.trim() || fallbackTaakTitel,
             type: form.taakType,
-            deadline: form.taakDeadline || form.momentDate,
-            deadlineTijd: form.taakTijd || undefined,
+            deadline: form.taakDeadline || '',
+            deadlineTijd: form.taakDeadline ? (form.taakTijd || undefined) : undefined,
             prioriteit: form.taakPrioriteit,
             status: 'open',
             relatieId: form.relatieId || undefined,
@@ -293,7 +295,6 @@ export default function ContactMomentFormDialog({
           <DialogTitle>{isEdit ? 'Tijdlijnitem bewerken' : 'Contactmoment loggen'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* BASIS */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basis</h3>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -337,7 +338,6 @@ export default function ContactMomentFormDialog({
             </div>
           </section>
 
-          {/* DETAILS */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Details</h3>
             <div className="space-y-1.5">
@@ -350,7 +350,6 @@ export default function ContactMomentFormDialog({
             </div>
           </section>
 
-          {/* KOPPELINGEN */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
             <EntityPicker
@@ -379,10 +378,12 @@ export default function ContactMomentFormDialog({
             />
           </section>
 
-          {/* VERVOLGTAAK */}
           {!isEdit && (
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vervolg</h3>
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vervolg</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Het contactmoment blijft registratie. Een vervolgactie wordt als aparte centrale taak aangemaakt.</p>
+              </div>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={form.makeTaak} onCheckedChange={(v) => set('makeTaak', !!v)} />
                 Vervolgtaak aanmaken
@@ -398,12 +399,12 @@ export default function ContactMomentFormDialog({
                       <Label>Deadline (optioneel)</Label>
                       <Input type="date" value={form.taakDeadline} onChange={e => set('taakDeadline', e.target.value)} />
                       {!form.taakDeadline && (
-                        <p className="text-[11px] text-muted-foreground">Zonder deadline staat de taak op vandaag.</p>
+                        <p className="text-[11px] text-muted-foreground">Zonder gekozen datum heeft de vervolgtaak geen deadline.</p>
                       )}
                     </div>
                     <div className="space-y-1.5">
                       <Label>Tijd (optioneel)</Label>
-                      <Input type="time" value={form.taakTijd} onChange={e => set('taakTijd', e.target.value)} />
+                      <Input type="time" value={form.taakTijd} onChange={e => set('taakTijd', e.target.value)} disabled={!form.taakDeadline} />
                     </div>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
