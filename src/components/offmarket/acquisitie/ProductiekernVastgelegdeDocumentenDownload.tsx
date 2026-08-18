@@ -37,7 +37,7 @@ function pakketBestandsnaam(documenten: readonly BatchdocumentContract[], bestan
  * en als echte `Content-Disposition: attachment` response teruggegeven.
  *
  * De browser ontvangt die attachment rechtstreeks vanuit de gebruikersklik;
- * er is geen `blob:`/ObjectURL en ook geen verborgen iframe dat een PWA/in-app
+ * er is geen client-side ObjectURL en ook geen verborgen iframe dat een PWA/in-app
  * browser kan beletten de download als lokaal bestand te behandelen.
  * Er wordt niets opnieuw geregistreerd of gemuteerd.
  */
