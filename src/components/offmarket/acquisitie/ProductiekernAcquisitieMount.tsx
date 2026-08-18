@@ -68,6 +68,10 @@ function pasProductiekernToolbarSemantiekToe() {
     const knop = document.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`);
     if (!knop) continue;
     knop.hidden = true;
+    // Tailwind's author-level `inline-flex` kan de browser-default voor [hidden]
+    // overrulen. Een inline author-style met important maakt de Productiekern-
+    // grens daarom daadwerkelijk visueel afdwingbaar.
+    knop.style.setProperty('display', 'none', 'important');
     knop.setAttribute('aria-hidden', 'true');
     knop.tabIndex = -1;
   }
