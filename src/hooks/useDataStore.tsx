@@ -60,9 +60,16 @@ const throwIfError = (error: any) => {
   if (error) {
     // Log volledige fout naar console voor debugging — UI krijgt generieke melding
     console.error('Database-bewerking mislukt:', error);
-    throw new Error(error.message || 'De bewerking kon niet worden voltooid. Probeer het opnieuw.');
+    const err = new Error(error.message || 'De bewerking kon niet worden voltooid. Probeer het opnieuw.');
+    // Behoud de Supabase/Postgres-context op de Error zodat aanroepers
+    // specifieke gevallen (bv. 23505 unique conflict) kunnen herkennen.
+    (err as any).code = error.code;
+    (err as any).details = error.details;
+    (err as any).hint = error.hint;
+    throw err;
   }
 };
+
 
 
 // =====================================================================
