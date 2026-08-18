@@ -39,7 +39,7 @@ function bouwLeesKeten(
 ) {
   const gebudgetteerdeUitvoerder = metProductiekernLeesBudget(
     uitvoerder,
-    opties.maximaalAantalQueries ?? 25,
+    opties.maximaalAantalQueries ?? 100,
   );
   const weerbareUitvoerder = maakWeerbareProductiekernLeesUitvoerder(
     gebudgetteerdeUitvoerder,
