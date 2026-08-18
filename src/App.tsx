@@ -121,12 +121,33 @@ const App = () => (
                           <Route path="/pipeline" element={<PipelinePage />} />
                           <Route path="/acquisitie" element={<AcquisitiePage />} />
                           <Route path="/acquisitie/funnel" element={<AcquisitieFunnelMetPrestatiesPage />} />
-                          <Route path="/acquisitie/targets/:id" element={<AcquisitieTargetDetailPage />} />
-                          <Route path="/acquisitie/campagnes/:id" element={<AcquisitieCampagneDetailPage />} />
+                          <Route
+                            path="/acquisitie/targets/:id"
+                            element={
+                              <CrmDetailNavigationBoundary fallbackPath="/acquisitie" fallbackLabel="Acquisitie" source="acquisitie-target-detail">
+                                <AcquisitieTargetDetailPage />
+                              </CrmDetailNavigationBoundary>
+                            }
+                          />
+                          <Route
+                            path="/acquisitie/campagnes/:id"
+                            element={
+                              <CrmDetailNavigationBoundary fallbackPath="/acquisitie" fallbackLabel="Acquisitie" source="acquisitie-campagne-detail">
+                                <AcquisitieCampagneDetailPage />
+                              </CrmDetailNavigationBoundary>
+                            }
+                          />
                           <Route path="/vastgoedkansen" element={<VastgoedkansenPage />} />
                           <Route path="/vastgoedkansen/vinden" element={<VastgoedkansenVindenPage />} />
                           <Route path="/vastgoedkansen/pandcheck" element={<SnellePandcheckPage />} />
-                          <Route path="/vastgoedkansen/:id" element={<VastgoedkansDetailPage />} />
+                          <Route
+                            path="/vastgoedkansen/:id"
+                            element={
+                              <CrmDetailNavigationBoundary fallbackPath="/vastgoedkansen" fallbackLabel="Vastgoedkansen" source="vastgoedkans-detail">
+                                <VastgoedkansDetailPage />
+                              </CrmDetailNavigationBoundary>
+                            }
+                          />
                           <Route path="/off-market" element={<OffMarketPage />} />
                           <Route
                             path="/off-market/:id"
