@@ -13,6 +13,7 @@ function read(rel: string): string {
 
 const migration = read('supabase/migrations/20260818120500_task_reminder_scheduling.sql');
 const deliveryMigration = read('supabase/migrations/20260818120600_notification_delivery_scheduling.sql');
+const rescheduleMigration = read('supabase/migrations/20260818120700_notification_delivery_reschedule_sync.sql');
 const engine = read('supabase/functions/notification-engine-tick/index.ts');
 const sender = read('supabase/functions/notification-push-send/index.ts');
 const repository = read('src/lib/notifications/repository.ts');
@@ -49,6 +50,13 @@ describe('task reminder scheduling', () => {
     expect(sender).toContain(".lte('available_at', nowIso)");
     expect(sender).toContain(".order('available_at', { ascending: true })");
     expect(repository).toContain('scheduled_at.lte');
+  });
+
+  it('schuift een nog niet verzonden delivery mee als scheduled_at wijzigt', () => {
+    expect(rescheduleMigration).toContain('after update of scheduled_at on public.notification_events');
+    expect(rescheduleMigration).toContain('set available_at = coalesce(new.scheduled_at, new.created_at)');
+    expect(rescheduleMigration).toContain('and sent_at is null');
+    expect(rescheduleMigration).toContain('and failed_at is null');
   });
 
   it('slaat taak en reminder in één databasewrite op', () => {
