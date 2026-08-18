@@ -81,7 +81,7 @@ describe('ProductiekernDossierProjectie', () => {
     );
   });
 
-  it('toont tijdens laden geen actieve telling of pariteit', () => {
+  it('toont tijdens laden uitsluitend de uniforme laadstatus en geen partiële werkbakdata', () => {
     render(
       <ProductiekernDossierProjectie
         totaalSelecties={2}
@@ -101,8 +101,11 @@ describe('ProductiekernDossierProjectie', () => {
     );
 
     expect(screen.getByText('Laden…')).toBeInTheDocument();
+    expect(screen.getByTestId('productiekern-dossier-projectie')).toHaveAttribute('aria-busy', 'true');
     expect(screen.queryByTestId('productiekern-workflowpariteit')).not.toBeInTheDocument();
     expect(screen.queryByTestId('productiekern-actieve-werkbak-telling')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('productiekern-werkbakken')).not.toBeInTheDocument();
+    expect(screen.queryByText('1/2 formele dossiers')).not.toBeInTheDocument();
   });
 
   it('presenteert een readfout fail-closed en toont geen werkbakbediening', () => {

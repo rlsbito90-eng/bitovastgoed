@@ -29,6 +29,8 @@ function legeTellingen(): Record<OperationeleWerkbak, number> {
  * acquisitiedossiers. Zij leidt `nieuwe_selectie` dus nooit af uit legacydata,
  * datums of een ontbrekend dossier. Een readmodel-fout wordt expliciet
  * fail-closed weergegeven en produceert geen misleidende werkbaktellingen.
+ * Tijdens laden blijft ook de werkbaknavigatie gesloten zodat nooit partiële
+ * aantallen uit verschillende asynchrone reads worden getoond.
  */
 export default function ProductiekernDossierProjectie({
   dossiers,
@@ -40,7 +42,7 @@ export default function ProductiekernDossierProjectie({
   fout = false,
 }: ProductiekernDossierProjectieProps) {
   const tellingen = legeTellingen();
-  if (!fout) {
+  if (!fout && !laden) {
     for (const dossier of dossiers) {
       tellingen[dossier.primaireWerkbak] += 1;
     }
@@ -57,6 +59,7 @@ export default function ProductiekernDossierProjectie({
       className="space-y-3 rounded-lg border bg-card px-4 py-3"
       data-testid="productiekern-dossier-projectie"
       aria-label="Productiekern operationele werkbakken"
+      aria-busy={laden || undefined}
     >
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">Acquisitieproductiekern</span>
@@ -81,7 +84,7 @@ export default function ProductiekernDossierProjectie({
         )}
       </div>
 
-      {!fout && (
+      {!fout && !laden && (
         <ProductiekernWerkbakChips
           actief={actieveWerkbak}
           counts={tellingen}
