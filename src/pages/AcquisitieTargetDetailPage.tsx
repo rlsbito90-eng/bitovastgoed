@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAcquisitie } from '@/hooks/useAcquisitie';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useContextueleTerugnavigatie } from '@/hooks/useContextueleTerugnavigatie';
 import { targetTitel } from '@/lib/acquisitie';
 import AcquisitieStatusBadge from '@/components/acquisitie/AcquisitieStatusBadge';
 import AcquisitieTargetFormDialog from '@/components/forms/AcquisitieTargetFormDialog';
@@ -21,6 +22,7 @@ import { getListNavigation } from '@/lib/listNavigation';
 export default function AcquisitieTargetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const contextueelTerug = useContextueleTerugnavigatie('/acquisitie');
   const { targets, campagnes, deleteTarget } = useAcquisitie();
   const { getRelatieById, contactpersonen } = useDataStore();
   const [editOpen, setEditOpen] = useState(false);
@@ -31,9 +33,9 @@ export default function AcquisitieTargetDetailPage() {
   if (!target) {
     return (
       <div className="px-6 py-10">
-        <Link to="/acquisitie" className="text-sm text-muted-foreground inline-flex items-center gap-1">
+        <button type="button" onClick={contextueelTerug} className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Terug naar acquisitie
-        </Link>
+        </button>
         <p className="mt-6 text-sm text-muted-foreground">Target niet gevonden.</p>
       </div>
     );
@@ -55,9 +57,9 @@ export default function AcquisitieTargetDetailPage() {
   return (
     <div className="page-shell-detail">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <Link to="/acquisitie" className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
+        <button type="button" onClick={contextueelTerug} className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Terug naar acquisitie
-        </Link>
+        </button>
         <ListNavigator
           info={getListNavigation('acquisitie-targets', target.id, targets.map(t => t.id))}
           buildHref={(id) => `/acquisitie/targets/${id}`}
