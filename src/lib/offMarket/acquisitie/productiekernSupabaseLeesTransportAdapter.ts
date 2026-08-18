@@ -69,8 +69,19 @@ export function maakProductiekernSupabaseLeesTransport(uitvoerder: Productiekern
       const resultaat = await voerQueryUit(queryNaam, query.filterWaarde); if (!Array.isArray(resultaat)) throw new Error(`Cardinaliteitscontract voor ${queryNaam} wijkt af.`); return resultaat;
     },
     async haalMeerdereOpIds(tabel, ids) {
-      const mapping: Record<string, BulkQueryNaam> = { off_market_acquisitie_dossiers:'haal_dossiers_op_selectie_ids', off_market_brieven:'haal_brieven_op_ids', off_market_brief_versies:'haal_briefversies_op_ids', off_market_printbatch_brieven:'haal_printbatch_brieven_op_versie_ids' };
+      const mapping: Record<string, BulkQueryNaam> = {
+        off_market_acquisitie_dossiers:'haal_dossiers_op_selectie_ids',
+        off_market_brieven:'haal_brieven_op_ids',
+        off_market_brief_versies:'haal_briefversies_op_ids',
+        off_market_printbatch_brieven:'haal_printbatch_brieven_op_versie_ids',
+      };
       const queryNaam = mapping[tabel]; if (!queryNaam) throw new Error(`Niet-toegestane productiekern-bulkleestabel: ${tabel}.`); return voerBulkQueryUit(queryNaam, ids);
+    },
+    async haalMeerdereOpKolomIds(tabel, kolom, ids) {
+      if (tabel !== 'off_market_brief_versies' || kolom !== 'brief_id') {
+        throw new Error(`Niet-toegestane productiekern-bulkfilter: ${tabel}.${kolom}.`);
+      }
+      return voerBulkQueryUit('haal_briefversies_op_brief_ids', ids);
     },
   };
 }
