@@ -22,6 +22,8 @@ import {
   vatKandidaatResultatenSamen,
   type KandidaatResultaat,
 } from '@/lib/pipeline/kandidaatFouten';
+import { kiesBesteZoekprofielMatch } from '@/lib/pipeline/zoekprofielKeuze';
+
 
 interface Props {
   open: boolean;
