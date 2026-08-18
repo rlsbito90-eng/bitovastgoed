@@ -16,18 +16,19 @@ const counts: Record<OperationeleWerkbak, number> = {
 };
 
 describe('ProductiekernWerkbakChips', () => {
-  it('toont alle acht formele werkbakken in vaste procesvolgorde plus Alles', () => {
+  it('toont de acht dossierwerkbakken plus de formele Printbatches-dwarsdoorsnede en Alles', () => {
     render(
       <ProductiekernWerkbakChips
         actief="nieuwe_selectie"
         counts={counts}
+        printbatchAantal={2}
         totaal={36}
         onChange={() => undefined}
       />,
     );
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs).toHaveLength(9);
+    expect(tabs).toHaveLength(10);
     expect(PRODUCTIEKERN_WERKBAK_VOLGORDE).toEqual([
       'nieuwe_selectie',
       'eigenaar_achterhalen',
@@ -43,6 +44,7 @@ describe('ProductiekernWerkbakChips', () => {
       'Eigenaar achterhalen3',
       'Brief opstellen2',
       'Printklaar1',
+      'Printbatches2',
       'Geprint / posten5',
       'Opvolgen6',
       'Wachten7',
@@ -51,18 +53,19 @@ describe('ProductiekernWerkbakChips', () => {
     ]);
   });
 
-  it('geeft de gekozen formele werkbak terug zonder legacy-subfiltervertaling', () => {
+  it('geeft Printbatches als eigen read-only view terug', () => {
     const onChange = vi.fn();
     render(
       <ProductiekernWerkbakChips
         actief="alles"
         counts={counts}
+        printbatchAantal={2}
         totaal={36}
         onChange={onChange}
       />,
     );
 
-    fireEvent.click(screen.getByTestId('productiekern-werkbak-geprint_posten'));
-    expect(onChange).toHaveBeenCalledWith('geprint_posten');
+    fireEvent.click(screen.getByTestId('productiekern-werkbak-printbatches'));
+    expect(onChange).toHaveBeenCalledWith('printbatches');
   });
 });
