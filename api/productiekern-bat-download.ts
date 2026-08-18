@@ -1,4 +1,4 @@
-import { bouwProductiekernZip } from '../src/lib/offMarket/acquisitie/productiekernZip';
+import { bouwProductiekernZip } from '../src/lib/offMarket/acquisitie/productiekernZip.js';
 
 interface DownloadBestand {
   naam: string;
