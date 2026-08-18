@@ -45,6 +45,28 @@ describe('bouwBatchControlelijst', () => {
     expect(lijst.rijen.every((rij) => rij.pdfBeschikbaar)).toBe(true);
   });
 
+  it('neemt geen Kadaster-biografie op in de formele controlelijst', () => {
+    const natuurlijkePersoon = versie('v5', 'geverifieerd', null);
+    natuurlijkePersoon.geadresseerde.naam = 'Piet Adriaan Johan Geluk Geboren 20-01-1980 te WINSCHOTEN';
+    const lijst = bouwBatchControlelijst({
+      batch,
+      brieven: [{ briefnummer: 'BR2026000007', versie: natuurlijkePersoon }],
+    });
+    expect(lijst.rijen[0].geadresseerde).toBe('P.A.J. Geluk');
+    expect(lijst.rijen[0].geadresseerde).not.toContain('Geboren');
+  });
+
+  it('behoudt rechtspersonen volledig intact', () => {
+    const rechtspersoon = versie('v8', 'geverifieerd', null);
+    rechtspersoon.geadresseerde.naam = 'Paul Vismans Projecten Beheer Twee B.V.';
+    rechtspersoon.geadresseerde.bedrijfsnaam = 'Paul Vismans Projecten Beheer Twee B.V.';
+    const lijst = bouwBatchControlelijst({
+      batch,
+      brieven: [{ briefnummer: 'BR2026000008', versie: rechtspersoon }],
+    });
+    expect(lijst.rijen[0].geadresseerde).toBe('Paul Vismans Projecten Beheer Twee B.V.');
+  });
+
   it('weigert dubbele briefnummers en niet-actieve versies vóór renderbaarheid wordt aangenomen', () => {
     expect(() => bouwBatchControlelijst({
       batch,
