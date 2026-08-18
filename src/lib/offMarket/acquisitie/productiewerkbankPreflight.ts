@@ -61,15 +61,64 @@ function heeftGeadresseerde(brief: ProductiePreflightBrief): boolean {
   return Boolean(brief.eigenaarBedrijfsnaam?.trim() || brief.eigenaarNaam?.trim());
 }
 
+function maakRegelVoorBrief(
+  signaalId: string,
+  selectieId: string,
+  brief: ProductiePreflightBrief,
+  invoer: ProductiePreflightInvoer,
+): ProductiePreflightRegel {
+  if (brief.status === 'definitief') {
+    return {
+      signaalId,
+      selectieId,
+      status: 'verwerkt',
+      reden: 'al_definitief',
+      briefId: brief.id,
+    };
+  }
+
+  if (!heeftGeadresseerde(brief)) {
+    return {
+      signaalId,
+      selectieId,
+      status: 'aandacht',
+      reden: 'geadresseerde_ontbreekt',
+      briefId: brief.id,
+    };
+  }
+
+  if (!invoer.isVolledigPostadres(brief.verzendadres)) {
+    return {
+      signaalId,
+      selectieId,
+      status: 'aandacht',
+      reden: 'postadres_onvolledig',
+      briefId: brief.id,
+    };
+  }
+
+  return {
+    signaalId,
+    selectieId,
+    status: 'gereed',
+    reden: null,
+    briefId: brief.id,
+  };
+}
+
 /**
  * Read-only classificatie voor de formele productiewerkbank.
  *
- * Volgorde is bewust fail-closed:
- * 1. geen selectierecord / formeel dossier -> aandacht;
- * 2. reeds definitieve postbrief -> verwerkt;
- * 3. geen actief postconcept -> aandacht;
- * 4. adres/naam incompleet -> aandacht;
- * 5. anders gereed voor formele BR-finalisering.
+ * De classificatie is bewust per actieve postbrief, niet alleen per signaal.
+ * Eén object kan immers meerdere eigenaren/geadresseerden en dus meerdere
+ * afzonderlijke brieven hebben. Een reeds definitieve brief mag daardoor nooit
+ * een tweede conceptbrief van hetzelfde signaal als "verwerkt" verbergen.
+ *
+ * Fail-closed volgorde per geselecteerd signaal:
+ * 1. geen selectierecord / formeel dossier -> alle actieve postbrieven aandacht;
+ * 2. actieve definitieve postbrief -> verwerkt;
+ * 3. actief postconcept -> individueel naam/adres controleren;
+ * 4. geen actieve postbrief -> één signaalregel aandacht.
  *
  * Deze functie voert geen mutaties uit en kent geen BR/BAT toe.
  */
@@ -87,71 +136,52 @@ export function bepaalProductiePreflight(
     brievenPerSignaal.set(brief.signaalId, lijst);
   }
 
-  const regels: ProductiePreflightRegel[] = invoer.geselecteerdeSignaalIds.map((signaalId) => {
+  const regels: ProductiePreflightRegel[] = [];
+
+  for (const signaalId of invoer.geselecteerdeSignaalIds) {
     const selectie = selectiePerSignaal.get(signaalId) ?? null;
-    if (!selectie || !invoer.formeleDossierSelectieIds.has(selectie.selectieId)) {
-      return {
-        signaalId,
-        selectieId: selectie?.selectieId ?? null,
-        status: 'aandacht',
-        reden: 'productiedossier_niet_gestart',
-        briefId: null,
-      };
-    }
-
     const actievePostbrieven = (brievenPerSignaal.get(signaalId) ?? [])
-      .filter((brief) => isPost(brief) && isActief(brief));
+      .filter((brief) => isPost(brief) && isActief(brief))
+      .filter((brief) => brief.status === 'concept' || brief.status === 'definitief');
 
-    const definitief = actievePostbrieven.find((brief) => brief.status === 'definitief');
-    if (definitief) {
-      return {
-        signaalId,
-        selectieId: selectie.selectieId,
-        status: 'verwerkt',
-        reden: 'al_definitief',
-        briefId: definitief.id,
-      };
+    if (!selectie || !invoer.formeleDossierSelectieIds.has(selectie.selectieId)) {
+      if (actievePostbrieven.length === 0) {
+        regels.push({
+          signaalId,
+          selectieId: selectie?.selectieId ?? null,
+          status: 'aandacht',
+          reden: 'productiedossier_niet_gestart',
+          briefId: null,
+        });
+      } else {
+        for (const brief of actievePostbrieven) {
+          regels.push({
+            signaalId,
+            selectieId: selectie?.selectieId ?? null,
+            status: 'aandacht',
+            reden: 'productiedossier_niet_gestart',
+            briefId: brief.id,
+          });
+        }
+      }
+      continue;
     }
 
-    const concept = actievePostbrieven.find((brief) => brief.status === 'concept');
-    if (!concept) {
-      return {
+    if (actievePostbrieven.length === 0) {
+      regels.push({
         signaalId,
         selectieId: selectie.selectieId,
         status: 'aandacht',
         reden: 'geen_actief_postconcept',
         briefId: null,
-      };
+      });
+      continue;
     }
 
-    if (!heeftGeadresseerde(concept)) {
-      return {
-        signaalId,
-        selectieId: selectie.selectieId,
-        status: 'aandacht',
-        reden: 'geadresseerde_ontbreekt',
-        briefId: concept.id,
-      };
+    for (const brief of actievePostbrieven) {
+      regels.push(maakRegelVoorBrief(signaalId, selectie.selectieId, brief, invoer));
     }
-
-    if (!invoer.isVolledigPostadres(concept.verzendadres)) {
-      return {
-        signaalId,
-        selectieId: selectie.selectieId,
-        status: 'aandacht',
-        reden: 'postadres_onvolledig',
-        briefId: concept.id,
-      };
-    }
-
-    return {
-      signaalId,
-      selectieId: selectie.selectieId,
-      status: 'gereed',
-      reden: null,
-      briefId: concept.id,
-    };
-  });
+  }
 
   return {
     regels,
