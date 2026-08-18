@@ -140,29 +140,88 @@ function taakTijdLabel(task: any, event: any, timeZone: string): string | null {
   return tijd ? `${datumLabel} om ${tijd}` : datumLabel;
 }
 
+function taakIsTeLaat(task: any, event: any, timeZone: string): boolean {
+  const deadline = schoon(task?.deadline) || schoon(event?.metadata?.deadline);
+  if (!deadline) return schoon(event?.event_type) === 'task_overdue';
+  return schoon(event?.event_type) === 'task_overdue' || deadline < datumSleutel(new Date(), timeZone);
+}
+
+function compacteTaakCategorie(task: any, event: any, timeZone: string): string {
+  const titel = (schoon(task?.titel) || schoon(event?.title) || '').toLocaleLowerCase('nl-NL');
+  const type = (schoon(task?.type) || '').toLocaleLowerCase('nl-NL');
+  const samen = `${type} ${titel}`.trim();
+
+  const isBrief = /\bbrief\b/.test(samen);
+  const isOpvolging = /opvolg|follow[- ]?up/.test(samen);
+  if (isBrief && isOpvolging) return 'Brief opvolgen';
+  if (isBrief) return 'Brief voorbereiden';
+  if (/\bbel(?:len|afspraak)?\b|telefoon|telefonisch|\bcall\b/.test(samen)) return 'Bellen';
+  if (isOpvolging) return 'Opvolging';
+
+  if (taakIsTeLaat(task, event, timeZone)) return 'Taak te laat';
+
+  const deadline = schoon(task?.deadline) || schoon(event?.metadata?.deadline);
+  if (deadline) {
+    const today = datumSleutel(new Date(), timeZone);
+    if (deadline === today) return 'Taak vandaag';
+    const tomorrowDate = new Date();
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    if (deadline === datumSleutel(tomorrowDate, timeZone)) return 'Taak morgen';
+  }
+
+  return 'Taak';
+}
+
+function verkortPushRegel(value: string, max = 76): string {
+  const schoonValue = value.replace(/\s+/g, ' ').trim();
+  if (schoonValue.length <= max) return schoonValue;
+  return `${schoonValue.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
+}
+
 function taakPushPresentatie(
   event: any,
   task: any,
   context: { relatie?: any; object?: any; signaal?: any },
   timeZone: string,
 ): { title: string; body: string } {
-  const title = schoon(task?.titel) || schoon(event?.title) || 'Taak';
+  const bronTitel = schoon(task?.titel) || schoon(event?.title) || 'Taak';
+  const title = compacteTaakCategorie(task, event, timeZone);
   const contextParts: string[] = [];
   const pand = signaalLabel(context.signaal) || objectLabel(context.object);
   const relatie = relatieLabel(context.relatie);
   if (pand) contextParts.push(pand);
-  if (relatie && !contextParts.includes(relatie)) contextParts.push(relatie);
+  if (relatie && !contextParts.some((deel) => deel.toLocaleLowerCase('nl-NL') === relatie.toLocaleLowerCase('nl-NL'))) {
+    contextParts.push(relatie);
+  }
 
   const tijdLabel = taakTijdLabel(task, event, timeZone);
-  const regels = [] as string[];
-  if (contextParts.length) regels.push(contextParts.join(' · '));
+  const regels: string[] = [];
+  const isSpecialeCategorie = title === 'Brief opvolgen'
+    || title === 'Brief voorbereiden'
+    || title === 'Bellen'
+    || title === 'Opvolging';
+
+  if (!isSpecialeCategorie) {
+    regels.push(verkortPushRegel(bronTitel));
+  }
+
+  if (contextParts.length) {
+    const briefNummer = isSpecialeCategorie && title.startsWith('Brief')
+      ? bronTitel.match(/\bbrief\s*(\d+)/i)?.[1]
+      : null;
+    const contextRegel = contextParts.join(' · ');
+    regels.push(verkortPushRegel(briefNummer ? `Brief ${briefNummer} · ${contextRegel}` : contextRegel, 96));
+  } else if (isSpecialeCategorie) {
+    regels.push(verkortPushRegel(bronTitel));
+  }
+
   if (tijdLabel) regels.push(tijdLabel);
 
-  // Geen technische/Engelse fallback als er task-context beschikbaar is.
-  // Alleen bij ontbrekende brondata gebruiken we de bestaande eventtekst.
+  // Push is een compacte samenvatting van de CRM-taak, niet een letterlijke kopie.
+  // Alleen wanneer de taakbron volledig ontbreekt gebruiken we nog de bestaande eventtekst.
   return {
     title,
-    body: regels.join('\n') || schoon(event?.body) || '',
+    body: regels.filter(Boolean).join('\n') || schoon(event?.body) || '',
   };
 }
 
@@ -244,7 +303,7 @@ Deno.serve(async (req: Request) => {
     const { data: tasks, error: taskError } = taakIds.length
       ? await supabase
           .from('taken')
-          .select('id, titel, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')
+          .select('id, titel, type, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')
           .in('id', taakIds)
       : { data: [], error: null } as any;
     if (taskError) throw taskError;
