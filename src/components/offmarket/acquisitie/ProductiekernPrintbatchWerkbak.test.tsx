@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
@@ -39,7 +39,7 @@ const signaal = {
 } as OffMarketSignaal;
 
 describe('ProductiekernPrintbatchWerkbak', () => {
-  it('groepeert formele BR en signaal onder de BAT en normaliseert de naam', () => {
+  it('houdt batches standaard compact en toont BR/signaal pas na uitklappen', () => {
     const modellen = bouwProductiekernPrintbatchModellen({
       batches: [batch], koppelingen: [koppeling], brieven: [brief], versies: [versie], signalen: [signaal],
     });
@@ -57,9 +57,21 @@ describe('ProductiekernPrintbatchWerkbak', () => {
         <ProductiekernPrintbatchWerkbak modellen={modellen} />
       </MemoryRouter>,
     );
+
+    const toggle = screen.getByTestId('productiekern-printbatch-toggle-BAT2026081801');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByText('BAT2026081801')).toBeInTheDocument();
+    expect(screen.getByText(/1 brief · 1 signaal · documentversie 1/)).toBeInTheDocument();
+    expect(screen.queryByText('BR2026000005')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('BR2026000005')).toBeInTheDocument();
     expect(screen.getByText('E.S. Blok')).toBeInTheDocument();
     expect(screen.queryByText(/Geboren/)).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('BR2026000005')).not.toBeInTheDocument();
   });
 });
