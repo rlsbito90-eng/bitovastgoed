@@ -75,20 +75,24 @@ function pasProductiekernToolbarSemantiekToe() {
 
 /**
  * Zodra de formele Productiekern actief is, is er nog maar één primaire
- * productieroute vanuit de Acquisitieselectie. De oude losse label/print/post-
- * snelwegen blijven tijdelijk in legacycode aanwezig voor rollback, maar worden
- * in de actieve Productiekern-UI bewust niet aangeboden.
+ * productieroute vanuit de Acquisitieselectie. De Acquisitieselectie rendert
+ * vóór de Productiekern soms nog niet volledig; daarom observeren we de pagina
+ * totdat de toolbar verschijnt, in plaats van alleen de toolbar te observeren
+ * als die toevallig al bij de eerste effect-run aanwezig is.
  */
 function useConsolideerProductiekernToolbar(actief: boolean) {
   useEffect(() => {
     if (!actief) return;
 
     pasProductiekernToolbarSemantiekToe();
-    const toolbar = document.querySelector('[data-testid="acquisitie-bulk-toolbar"]');
-    if (!toolbar || typeof MutationObserver === 'undefined') return;
+    if (typeof MutationObserver === 'undefined' || !document.body) return;
 
     const observer = new MutationObserver(() => pasProductiekernToolbarSemantiekToe());
-    observer.observe(toolbar, { subtree: true, childList: true, characterData: true });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
     return () => observer.disconnect();
   }, [actief]);
 }
