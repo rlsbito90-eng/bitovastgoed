@@ -37,11 +37,16 @@ declare
   v_count integer;
   v_user_id uuid;
 begin
-  select count(*), min(id)
-    into v_count, v_user_id
+  select count(*)
+    into v_count
   from auth.users;
 
   if v_count = 1 then
+    select id
+      into v_user_id
+    from auth.users
+    limit 1;
+
     update public.taken
        set owner_user_id = v_user_id
      where owner_user_id is null;
