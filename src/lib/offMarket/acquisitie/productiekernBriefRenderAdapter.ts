@@ -1,3 +1,4 @@
+import { isRechtspersoonNaam } from '@/lib/format/naam';
 import { buildBriefViewModel, type BriefViewModel } from '@/lib/offMarket/brief';
 
 import type { BriefRenderInvoer } from './briefRenderInvoer';
@@ -16,7 +17,7 @@ export function mapProductiekernBriefNaarViewModel(
     bedrijfsnaam: invoer.bedrijfsnaam,
   });
   const isBedrijf = Boolean(invoer.bedrijfsnaam?.trim())
-    || (Boolean(invoer.naam?.trim()) && geadresseerde === invoer.naam?.trim());
+    || isRechtspersoonNaam(invoer.naam);
 
   // Het verzendadres bevat hier bewust alleen adresregels. De bestaande
   // BriefPagina rendert de geadresseerdenaam zelf al boven deze regels.
