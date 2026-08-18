@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArchiveRestore, Download, ExternalLink, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArchiveRestore, Download, ExternalLink, Loader2, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -32,16 +32,25 @@ function pakketBestandsnaam(documenten: readonly BatchdocumentContract[], bestan
 }
 
 /**
- * Downloadt exact de vier reeds geregistreerde private Storage-objecten als één
- * browser-lokale ZIP. Er wordt geen nieuwe BAT, documentversie of Storage-object
- * aangemaakt. Downloaden verandert evenmin print- of poststatus.
+ * Bereidt exact de vier reeds geregistreerde private Storage-objecten voor als
+ * één browser-lokale ZIP. De feitelijke download blijft bewust een afzonderlijke,
+ * expliciete gebruikersklik op een normale <a download>-link. Daarmee blijft de
+ * bekende Safari/WebKit-grens intact: nooit programmatisch klikken nadat async
+ * Storage-fetches zijn afgerond.
  *
- * Losse tijdelijke links blijven alleen als secundaire herstelroute beschikbaar.
+ * Er wordt geen nieuwe BAT, documentversie of Storage-object aangemaakt en
+ * voorbereiden/downloaden verandert geen print- of poststatus.
  */
 export default function ProductiekernVastgelegdeDocumentenDownload({ documenten, disabled = false }: Props) {
   const [bezig, setBezig] = useState(false);
   const [voorbereid, setVoorbereid] = useState<VoorbereidBestand[]>([]);
+  const [pakketUrl, setPakketUrl] = useState<string | null>(null);
+  const [pakketNaam, setPakketNaam] = useState<string | null>(null);
   const [toonLosseBestanden, setToonLosseBestanden] = useState(false);
+
+  useEffect(() => () => {
+    if (pakketUrl) URL.revokeObjectURL(pakketUrl);
+  }, [pakketUrl]);
 
   async function maakSignedBestanden(): Promise<VoorbereidBestand[]> {
     if (documenten.length !== 4) throw new Error('De formele documentset is niet volledig.');
@@ -63,7 +72,7 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
     return nieuw;
   }
 
-  async function downloadPakket() {
+  async function voorbereidenPakket() {
     if (disabled || bezig) return;
     setBezig(true);
     try {
@@ -80,18 +89,14 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
       }));
 
       const zip = bouwProductiekernZip(zipBestanden);
-      const url = URL.createObjectURL(zip);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = pakketBestandsnaam(documenten, nieuw);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      // Safari kan de blob-URL nog kort na de synthetische klik nodig hebben.
-      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      toast.success('Productiebestanden als één ZIP gedownload. De fysieke status is niet gewijzigd.');
+      if (pakketUrl) URL.revokeObjectURL(pakketUrl);
+      setPakketUrl(URL.createObjectURL(zip));
+      setPakketNaam(pakketBestandsnaam(documenten, nieuw));
+      toast.success('Productiepakket is klaar. Download het nu als één ZIP-bestand.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Productiebestanden downloaden is mislukt.');
+      setPakketUrl(null);
+      setPakketNaam(null);
+      toast.error(error instanceof Error ? error.message : 'Productiepakket voorbereiden is mislukt.');
     } finally {
       setBezig(false);
     }
@@ -119,18 +124,43 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
   return (
     <div className="space-y-2" data-testid="productiekern-vastgelegde-documenten-download">
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={() => void downloadPakket()}
-          disabled={disabled || bezig || documenten.length !== 4}
-          title="Download de vier reeds geregistreerde BAT-productiebestanden samen als één ZIP."
-          data-testid="productiekern-productiebestanden-downloaden"
-        >
-          {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Productiebestanden downloaden (4)
-        </Button>
+        {pakketUrl && pakketNaam ? (
+          <a
+            href={pakketUrl}
+            download={pakketNaam}
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-secondary px-3 text-sm font-medium text-secondary-foreground shadow-sm hover:bg-secondary/80"
+            data-testid="productiekern-productiebestanden-downloaden"
+          >
+            <Download className="h-4 w-4" />
+            Productiebestanden downloaden (4)
+          </a>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => void voorbereidenPakket()}
+            disabled={disabled || bezig || documenten.length !== 4}
+            title="Bereid de vier reeds geregistreerde BAT-productiebestanden voor als één ZIP."
+            data-testid="productiekern-productiebestanden-voorbereiden"
+          >
+            {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+            Productiepakket voorbereiden
+          </Button>
+        )}
+        {pakketUrl && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => void voorbereidenPakket()}
+            disabled={disabled || bezig}
+            className="h-8 px-2 text-xs"
+          >
+            <ArchiveRestore className="h-3.5 w-3.5" />
+            Pakket vernieuwen
+          </Button>
+        )}
         <Button
           type="button"
           size="sm"
@@ -144,7 +174,7 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
         </Button>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Eén pakketdownload van de bestaande BAT-bestanden. Downloaden wijzigt geen print- of verzendstatus.
+        De vier bestaande BAT-bestanden worden één pakket. De uiteindelijke download is een expliciete klik en wijzigt geen print- of verzendstatus.
       </p>
 
       {toonLosseBestanden && voorbereid.length === 4 && (
