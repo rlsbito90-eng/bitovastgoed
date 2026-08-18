@@ -26,6 +26,11 @@ export class GepoorteProductiekernBulkLeesRepository implements ProductiekernBul
     this.eisLeestoegang('haalBriefversiesOpIds');
     return this.achterliggend.haalBriefversiesOpIds(ids);
   }
+
+  haalBriefversiesOpBriefIds(briefIds: readonly string[]) {
+    this.eisLeestoegang('haalBriefversiesOpBriefIds');
+    return this.achterliggend.haalBriefversiesOpBriefIds(briefIds);
+  }
 }
 
 export function maakGepoorteProductiekernBulkLeesRepository(
