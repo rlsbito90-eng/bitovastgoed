@@ -1502,15 +1502,42 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // -------- PIPELINE (object × relatie) --------
+  // `object_pipeline` heeft UNIQUE (object_id, relatie_id) en verwijdert soft.
+  // Daarom eerst een soft-deleted rij reactiveren, anders pas invoegen.
   const addPipelineKandidaat = useCallback(async (input: Omit<PipelineKandidaat, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const { data, error } = await supabase.from('object_pipeline' as any)
-      .insert(pipelineToDb(input) as any).select().single();
-    throwIfError(error);
-    if (!data) return null;
-    const nieuw = pipelineFromDb(data);
-    setPipelineKandidaten(prev => [nieuw, ...prev]);
-    return nieuw;
+    const payload = pipelineToDb(input) as Record<string, unknown>;
+
+    const { rij } = await voerKandidaatToevoegingUit<PipelineKandidaat | null>({
+      vindBestaande: async () => {
+        const { data, error } = await supabase.from('object_pipeline' as any)
+          .select('id, soft_deleted_at')
+          .eq('object_id', input.objectId)
+          .eq('relatie_id', input.relatieId)
+          .limit(1)
+          .maybeSingle();
+        throwIfError(error);
+        return (data as any) ?? null;
+      },
+      reactiveer: async (id: string) => {
+        const { data, error } = await supabase.from('object_pipeline' as any)
+          .update(bouwReactivatiePayload(payload) as any)
+          .eq('id', id).select().single();
+        throwIfError(error);
+        return data ? pipelineFromDb(data) : null;
+      },
+      insert: async () => {
+        const { data, error } = await supabase.from('object_pipeline' as any)
+          .insert(payload as any).select().single();
+        throwIfError(error);
+        return data ? pipelineFromDb(data) : null;
+      },
+    });
+
+    if (!rij) return null;
+    setPipelineKandidaten(prev => mergeKandidaatInState(prev, rij));
+    return rij;
   }, []);
+
 
   const updatePipelineKandidaat = useCallback(async (id: string, patch: Partial<PipelineKandidaat>) => {
     const { data, error } = await supabase.from('object_pipeline' as any)
