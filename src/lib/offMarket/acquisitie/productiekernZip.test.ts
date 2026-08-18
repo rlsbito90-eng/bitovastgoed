@@ -4,6 +4,15 @@ import { bouwProductiekernZip } from './productiekernZip';
 
 const encoder = new TextEncoder();
 
+function leesBlobAlsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error('Blob lezen mislukt.'));
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 describe('bouwProductiekernZip', () => {
   it('bouwt één ZIP met alle vier formele BAT-bestanden', async () => {
     const namen = [
@@ -18,7 +27,7 @@ describe('bouwProductiekernZip', () => {
     );
 
     expect(blob.type).toBe('application/zip');
-    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const bytes = new Uint8Array(await leesBlobAlsArrayBuffer(blob));
     expect(Array.from(bytes.slice(0, 4))).toEqual([0x50, 0x4b, 0x03, 0x04]);
     const tekst = new TextDecoder().decode(bytes);
     for (const naam of namen) expect(tekst).toContain(naam);
