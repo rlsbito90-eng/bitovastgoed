@@ -45,6 +45,11 @@ function transport(): ProductiekernSupabaseLeesTransport {
       if (tabel === 'off_market_brieven') return ids.map(briefRij);
       return ids.map((id, index) => versieRij(id, `brief-${index + 1}`));
     }),
+    haalMeerdereOpKolomIds: vi.fn(async (_tabel, _kolom, ids) =>
+      ids.flatMap((briefId, index) => [
+        versieRij(`versie-${index + 1}`, briefId),
+        { ...versieRij(`versie-oud-${index + 1}`, briefId), versienummer: 0, status: 'vervallen', vervallen_op: '2026-08-08T11:00:00Z' },
+      ])),
   };
 }
 
@@ -94,6 +99,28 @@ describe('SupabaseProductiekernBulkLeesRepository', () => {
     const repository = new SupabaseProductiekernBulkLeesRepository(t);
     await expect(repository.haalBriefversiesOpIds(['versie-1', 'versie-2'])).resolves.toHaveLength(2);
     expect(t.haalMeerdereOpIds).toHaveBeenCalledWith('off_market_brief_versies', ['versie-1', 'versie-2']);
+  });
+
+  it('leest alle versies van een briefscope in één toegestane bulkcall', async () => {
+    const t = transport();
+    const repository = new SupabaseProductiekernBulkLeesRepository(t);
+    const versies = await repository.haalBriefversiesOpBriefIds(['brief-1', 'brief-2']);
+    expect(versies).toHaveLength(4);
+    expect(t.haalMeerdereOpKolomIds).toHaveBeenCalledTimes(1);
+    expect(t.haalMeerdereOpKolomIds).toHaveBeenCalledWith(
+      'off_market_brief_versies', 'brief_id', ['brief-1', 'brief-2'],
+    );
+    expect(new Set(versies.map((v) => v.briefId))).toEqual(new Set(['brief-1', 'brief-2']));
+  });
+
+  it('weigert een versie buiten de gevraagde briefscope', async () => {
+    const repository = new SupabaseProductiekernBulkLeesRepository({
+      haalEen: vi.fn(async () => null),
+      haalMeerdere: vi.fn(async () => []),
+      haalMeerdereOpKolomIds: vi.fn(async () => [versieRij('versie-x', 'brief-onverwacht')]),
+    });
+    await expect(repository.haalBriefversiesOpBriefIds(['brief-1']))
+      .rejects.toThrow('Briefversie-bulkread bevat een versie buiten de gevraagde briefscope.');
   });
 
   it('faalt gesloten als bulktransport ontbreekt', async () => {
