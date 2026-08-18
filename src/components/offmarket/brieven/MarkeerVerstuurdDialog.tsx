@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Send } from 'lucide-react';
 import { useMarkBriefVerstuurd, type OffMarketBrief } from '@/hooks/useOffMarketBrieven';
+import { useOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { logSystemContactMoment } from '@/lib/contactMoments';
 import { berekenFollowUpDeadline } from '@/lib/offMarket/brieven/markeerVerstuurd';
@@ -32,6 +33,7 @@ export default function MarkeerVerstuurdDialog({
   const [bezig, setBezig] = useState(false);
   const markeer = useMarkBriefVerstuurd();
   const { addTaak, taken } = useDataStore();
+  const { data: signaal } = useOffMarketSignaal(signaalId);
 
   const kanaal: Kanaal = ((brief?.kanaal as Kanaal | undefined) ?? 'post');
   const isEmail = kanaal === 'email';
@@ -44,12 +46,13 @@ export default function MarkeerVerstuurdDialog({
     try {
       const geadresseerdeLabel =
         brief.eigenaar_bedrijfsnaam || brief.eigenaar_naam || 'eigenaar';
+      const pandLabel = [signaal?.adres, signaal?.plaats].filter(Boolean).join(' · ');
       const stap = (brief.campagne_stap ?? '') as string;
       const stapNr = stap.endsWith('_2') ? 2 : stap.endsWith('_3') ? 3 : 1;
       const taakTitel = isEmail
-        ? `E-mail opvolgen — ${geadresseerdeLabel} — E-mail ${stapNr}`
-        : 'Brief 2 voorbereiden / opvolgen';
-      const taakRegex = isEmail ? /e-mail opvolgen/i : /brief\s*2|brief opvolgen/i;
+        ? `E-mail ${stapNr} opvolgen — ${geadresseerdeLabel}`
+        : `Brief 2 voorbereiden / opvolgen — ${geadresseerdeLabel}`;
+      const taakRegex = isEmail ? /e-mail opvolgen|e-mail\s*\d+\s*opvolgen/i : /brief\s*2|brief opvolgen/i;
 
       let taakId: string | null = null;
       const eigenaarKey = (brief.eigenaar_naam ?? brief.eigenaar_bedrijfsnaam ?? '').trim().toLowerCase();
@@ -64,6 +67,7 @@ export default function MarkeerVerstuurdDialog({
         taakId = (bestaande as any).id ?? null;
       } else {
         try {
+          const contextDelen = [pandLabel, geadresseerdeLabel].filter(Boolean);
           const nieuw = await addTaak({
             titel: taakTitel,
             type: 'Follow-up',
@@ -72,7 +76,7 @@ export default function MarkeerVerstuurdDialog({
             status: 'open',
             offMarketSignaalId: signaalId,
             relatieId: relatieId ?? undefined,
-            notities: `Opvolging voor ${isEmail ? 'e-mail' : 'brief'} aan ${geadresseerdeLabel} · ${isEmail ? 'verzenddatum' : 'post'} ${postdatum} · deadline ${followUp}.`,
+            notities: `${contextDelen.join(' · ')} · Opvolging voor ${isEmail ? 'e-mail' : 'brief'} · ${isEmail ? 'verzenddatum' : 'post'} ${postdatum} · opvolgen op ${followUp}.`,
           } as any);
           taakId = nieuw?.id ?? null;
         } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
