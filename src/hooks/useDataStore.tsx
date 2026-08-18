@@ -35,6 +35,12 @@ import type {
 } from '@/data/mock-data';
 import { deleteBestanden } from '@/lib/storage';
 import {
+  voerKandidaatToevoegingUit,
+  bouwReactivatiePayload,
+  mergeKandidaatInState,
+} from '@/lib/pipeline/kandidaatToevoegen';
+
+import {
   contactMomentFromDb,
   contactMomentToDb,
   logSystemContactMoment,
