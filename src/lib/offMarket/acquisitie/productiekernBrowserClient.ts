@@ -8,6 +8,7 @@ import {
   stelProductiekernBrowserLezenSamen,
   stelProductiekernBrowserLezenSamenMetBesluit,
 } from './productiekernBrowserLeesSamenstelling';
+import type { ProductiekernSupabaseClientOpties } from './productiekernSupabaseClientSamenstelling';
 import { bepaalProductieActivatie } from './productieActivatiePoort';
 import type { ProductiekernActivatieBesluit } from './productiekernActivatieBesluit';
 import { bepaalWerkCrmActivatie } from './werkCrmActivatiePoort';
@@ -158,8 +159,15 @@ export function bepaalBrowserWerkCrmActivatie() {
 /**
  * Huidige applicatiesamenstelling. Werk-CRM en productie hebben elk hun eigen
  * bewijsroute; alle andere configuraties blijven volledig gesloten.
+ *
+ * Een workflow mag uitsluitend binnen de bestaande harde bovengrens een eigen
+ * readbudget kiezen. Daarmee kan een grotere, expliciet begrensde BAT-herstelread
+ * meer dan de generieke 25 queries gebruiken zonder de globale fail-closed
+ * budgetbewaking uit te schakelen.
  */
-export function maakStandaardProductiekernBrowserLeesSamenstelling() {
+export function maakStandaardProductiekernBrowserLeesSamenstelling(
+  opties: ProductiekernSupabaseClientOpties = {},
+) {
   const env = viteOmgeving();
   const activatie = bepaalBrowserProductiekernActivatieUitOmgeving(env);
 
@@ -167,11 +175,13 @@ export function maakStandaardProductiekernBrowserLeesSamenstelling() {
     return stelProductiekernBrowserLezenSamenMetBesluit(
       productiekernBrowserSupabaseClient,
       activatie,
+      opties,
     );
   }
 
   return stelProductiekernBrowserLezenSamen(
     productiekernBrowserSupabaseClient,
     undefined,
+    opties,
   );
 }
