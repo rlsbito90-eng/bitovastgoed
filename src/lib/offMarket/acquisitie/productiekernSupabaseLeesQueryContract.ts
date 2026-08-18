@@ -8,6 +8,7 @@ export type ProductiekernLeesQueryNaam =
   | 'haal_dossiers_op_selectie_ids'
   | 'haal_brieven_op_ids'
   | 'haal_briefversies_op_ids'
+  | 'haal_briefversies_op_brief_ids'
   | 'haal_printbatch_brieven_op_versie_ids';
 
 export type ProductiekernBulkLeesQueryNaam = Extract<
@@ -15,6 +16,7 @@ export type ProductiekernBulkLeesQueryNaam = Extract<
   | 'haal_dossiers_op_selectie_ids'
   | 'haal_brieven_op_ids'
   | 'haal_briefversies_op_ids'
+  | 'haal_briefversies_op_brief_ids'
   | 'haal_printbatch_brieven_op_versie_ids'
 >;
 
@@ -51,6 +53,9 @@ export const PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN: Readonly<Record<Productie
   haal_dossiers_op_selectie_ids: { naam:'haal_dossiers_op_selectie_ids', tabel:'off_market_acquisitie_dossiers', filterKolom:'selectie_id', selectKolommen:DOSSIER_KOLOMMEN, cardinaliteit:'lijst', maximaalAantalRecords:1000, maximaalAantalFilterwaarden:1000 },
   haal_brieven_op_ids: { naam:'haal_brieven_op_ids', tabel:'off_market_brieven', filterKolom:'id', selectKolommen:BRIEF_KOLOMMEN, cardinaliteit:'lijst', maximaalAantalRecords:1000, maximaalAantalFilterwaarden:1000 },
   haal_briefversies_op_ids: { naam:'haal_briefversies_op_ids', tabel:'off_market_brief_versies', filterKolom:'id', selectKolommen:BRIEFVERSIE_KOLOMMEN, cardinaliteit:'lijst', maximaalAantalRecords:1000, maximaalAantalFilterwaarden:1000 },
+  // Eén bulkread voor alle versies van een briefscope. Dit voorkomt N+1-reads
+  // wanneer tientallen definitieve brieven samen naar één BAT gaan.
+  haal_briefversies_op_brief_ids: { naam:'haal_briefversies_op_brief_ids', tabel:'off_market_brief_versies', filterKolom:'brief_id', selectKolommen:BRIEFVERSIE_KOLOMMEN, cardinaliteit:'lijst', maximaalAantalRecords:5000, maximaalAantalFilterwaarden:1000 },
   haal_printbatch_brieven_op_versie_ids: { naam:'haal_printbatch_brieven_op_versie_ids', tabel:'off_market_printbatch_brieven', filterKolom:'brief_versie_id', selectKolommen:PRINTBATCH_BRIEF_KOLOMMEN, cardinaliteit:'lijst', maximaalAantalRecords:2000, maximaalAantalFilterwaarden:1000 },
 };
 
