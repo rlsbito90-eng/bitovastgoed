@@ -49,7 +49,7 @@ function ActieveProductiekernDossierProjectie({
   writeSamenstelling: ProductiekernBrowserWriteSamenstelling;
 }) {
   const { data: selectie = [], isLoading: selectieLaden } = useAcquisitieSelectie();
-  const { data: signalen = [] } = useOffMarketSignalen();
+  const { data: signalen = [], isLoading: signalenLaden } = useOffMarketSignalen();
   const selectieIds = useMemo(() => selectie.map((item) => item.id), [selectie]);
   const [actieveWerkbak, setActieveWerkbakState] = useState<ProductiekernWerkbakView>(
     leesInitieleProductiekernWerkbak,
@@ -143,7 +143,10 @@ function ActieveProductiekernDossierProjectie({
     [selectieIds, dossiers, legacyContextPerSelectieId, dossierQuery.isError],
   );
 
-  const laden = selectieLaden || brievenLaden || dossierQuery.isLoading;
+  // Eén uniforme laadgrens voor de volledige projectie. Met name de signalenread
+  // moet klaar zijn vóór `Nog niet gestart` labels worden opgebouwd; anders kan
+  // een refresh tijdelijk ruwe selectie-UUID's als gebruikerslabel tonen.
+  const laden = selectieLaden || signalenLaden || brievenLaden || dossierQuery.isLoading;
   const toonNogNietGestart = !laden
     && !dossierQuery.isError
     && (actieveWerkbak === 'nieuwe_selectie' || actieveWerkbak === 'alles');
