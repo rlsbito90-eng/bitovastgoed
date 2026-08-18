@@ -47,8 +47,14 @@ function transport(): ProductiekernSupabaseLeesTransport {
     }),
     haalMeerdereOpKolomIds: vi.fn(async (_tabel, _kolom, ids) =>
       ids.flatMap((briefId, index) => [
-        versieRij(`versie-${index + 1}`, briefId),
-        { ...versieRij(`versie-oud-${index + 1}`, briefId), versienummer: 0, status: 'vervallen', vervallen_op: '2026-08-08T11:00:00Z' },
+        { ...versieRij(`versie-${index + 1}`, briefId), versienummer: 2 },
+        {
+          ...versieRij(`versie-oud-${index + 1}`, briefId),
+          versienummer: 1,
+          status: 'vervallen',
+          created_at: '2026-08-08T10:00:00Z',
+          vervallen_op: '2026-08-08T11:00:00Z',
+        },
       ])),
   };
 }
