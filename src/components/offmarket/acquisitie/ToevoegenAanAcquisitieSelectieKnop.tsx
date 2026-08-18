@@ -32,16 +32,18 @@ interface Props {
   stopPropagation?: boolean;
 }
 
-export default function ToevoegenAanAcquisitieSelectieKnop({
+interface ToggleProps extends Omit<Props, 'isInSelectie'> {
+  inSelectie: boolean;
+}
+
+function AcquisitieSelectieToggle({
   signaalId,
   variant = 'default',
   labelMode,
-  isInSelectie,
+  inSelectie,
   className = '',
   stopPropagation = false,
-}: Props) {
-  const detected = useIsInAcquisitieSelectie(signaalId);
-  const inSelectie = isInSelectie ?? detected;
+}: ToggleProps) {
   const voegToe = useVoegToeAanAcquisitieSelectie();
   const verwijder = useVerwijderUitAcquisitieSelectie();
   const [localPending, setLocalPending] = useState(false);
@@ -134,4 +136,21 @@ export default function ToevoegenAanAcquisitieSelectieKnop({
       {label}
     </Button>
   );
+}
+
+function ZelfDetecterendeToggle(props: Omit<Props, 'isInSelectie'>) {
+  const detected = useIsInAcquisitieSelectie(props.signaalId);
+  return <AcquisitieSelectieToggle {...props} inSelectie={detected} />;
+}
+
+export default function ToevoegenAanAcquisitieSelectieKnop({ isInSelectie, ...props }: Props) {
+  // Grote lijsten, zoals de Off-Market signalenlijst, leveren de selectiestatus al
+  // centraal aan. Gebruik die status direct en voorkom dan per rij een extra
+  // useAcquisitieSelectie/useIsFetching-hookboom. Op iOS Safari kon die honderden
+  // keren worden opgebouwd en de webview uit het geheugen drukken.
+  if (isInSelectie !== undefined) {
+    return <AcquisitieSelectieToggle {...props} inSelectie={isInSelectie} />;
+  }
+
+  return <ZelfDetecterendeToggle {...props} />;
 }
