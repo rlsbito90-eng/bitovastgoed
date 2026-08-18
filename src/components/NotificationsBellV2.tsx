@@ -10,6 +10,7 @@ import {
   type ServerNotificationEvent,
 } from '@/lib/notifications/repository';
 import { enablePushForThisDevice, getPushCapability } from '@/lib/notifications/pushClient';
+import TaskReminderDefaultSetting from '@/components/notifications/TaskReminderDefaultSetting';
 import { toast } from 'sonner';
 
 function formatDateTime(value: string): string {
@@ -53,7 +54,14 @@ export default function NotificationsBellV2() {
     void reload();
     let unsubscribe: (() => void) | undefined;
     void subscribeToNotificationChanges(() => void reload()).then((fn) => { unsubscribe = fn; });
-    return () => unsubscribe?.();
+    // Geplande events bestaan al vóór scheduled_at en worden daarom niet opnieuw
+    // door Realtime gewijzigd op het activatiemoment. Een lichte minuutrefresh houdt
+    // de in-app bel gelijk aan de serverplanning; push blijft server-driven.
+    const timer = window.setInterval(() => void reload(), 60_000);
+    return () => {
+      unsubscribe?.();
+      window.clearInterval(timer);
+    };
   }, [reload]);
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read_at).length, [items]);
@@ -62,7 +70,9 @@ export default function NotificationsBellV2() {
     const rank: Record<string, number> = { kritiek: 4, hoog: 3, normaal: 2, laag: 1 };
     const prio = (rank[b.priority] ?? 0) - (rank[a.priority] ?? 0);
     if (prio !== 0) return prio;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    const aTime = a.scheduled_at ?? a.created_at;
+    const bTime = b.scheduled_at ?? b.created_at;
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
   }), [items]);
 
   async function readOne(id: string) {
@@ -161,6 +171,8 @@ export default function NotificationsBellV2() {
             )}
           </div>
 
+          <TaskReminderDefaultSetting />
+
           {loading ? (
             <div className="px-4 py-10 flex items-center justify-center text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -189,7 +201,7 @@ export default function NotificationsBellV2() {
                         )}
                       </div>
                       {n.body && <p className="mt-0.5 text-xs text-muted-foreground truncate">{n.body}</p>}
-                      <p className="mt-1 text-[10px] text-muted-foreground/70">{formatDateTime(n.created_at)}</p>
+                      <p className="mt-1 text-[10px] text-muted-foreground/70">{formatDateTime(n.scheduled_at ?? n.created_at)}</p>
                     </div>
                     <div className="flex shrink-0 items-start gap-0.5">
                       {!n.read_at && (

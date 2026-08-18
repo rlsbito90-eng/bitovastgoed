@@ -35,6 +35,7 @@ export interface NotificationPreferences {
   bid_expiry_enabled: boolean;
   strong_match_enabled: boolean;
   data_quality_enabled: boolean;
+  task_default_reminder_minutes: number | null;
 }
 
 export interface PushSubscriptionRecord {
@@ -75,10 +76,12 @@ export async function listNotificationEvents(options?: {
 }): Promise<ServerNotificationEvent[]> {
   const includeResolved = options?.includeResolved ?? false;
   const limit = options?.limit ?? 200;
+  const now = new Date().toISOString();
 
   let query = db
     .from('notification_events')
     .select('*')
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
     .order('created_at', { ascending: false })
     .limit(limit);
 

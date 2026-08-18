@@ -15,6 +15,15 @@ import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { TAAK_TYPES, TAAK_STATUSES } from '@/lib/taakHelpers';
+import { getNotificationPreferences } from '@/lib/notifications/repository';
+import {
+  TASK_REMINDER_OFFSETS,
+  createManualTaskWithReminder,
+  formatReminderOffset,
+  getTaskReminderSelection,
+  updateManualTaskWithReminder,
+  type TaskReminderSelection,
+} from '@/lib/tasks/reminders';
 import EntityPicker, { type EntityPickerItem } from './EntityPicker';
 
 interface Props {
@@ -69,8 +78,10 @@ const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
 export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities }: Props) {
-  const { addTaak, updateTaak, deleteTaak, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
+  const { deleteTaak, refresh, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
+  const [reminderSelection, setReminderSelection] = useState<TaskReminderSelection>('default');
+  const [defaultReminderMinutes, setDefaultReminderMinutes] = useState<number | null>(60);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
   const isEdit = !!taak;
@@ -103,8 +114,27 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         offMarketSignaalId: defaultOffMarketSignaalId || '',
         notities: defaultNotities || '',
       });
+      setReminderSelection('default');
     }
   }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const prefs = await getNotificationPreferences();
+        if (!cancelled) setDefaultReminderMinutes(prefs.task_default_reminder_minutes ?? null);
+        if (taak?.id) {
+          const selection = await getTaskReminderSelection(taak.id);
+          if (!cancelled) setReminderSelection(selection);
+        }
+      } catch (error) {
+        console.error('Taakherinnering laden mislukt', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, taak?.id]);
 
   const relatieItems = useMemo<EntityPickerItem[]>(() => {
     return relaties.map(r => {
@@ -214,28 +244,30 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
     setBezig(true);
 
-    const data: Omit<Taak, 'id'> = {
+    const data = {
       titel: form.titel.trim(),
       relatieId: form.relatieId || undefined,
       dealId: form.dealId || undefined,
       objectId: form.objectId || undefined,
       offMarketSignaalId: form.offMarketSignaalId || undefined,
       type: form.type,
-      deadline: form.deadline || '',
+      deadline: form.deadline || undefined,
       deadlineTijd: form.deadline ? (form.deadlineTijd || undefined) : undefined,
       prioriteit: form.prioriteit,
       status: form.status,
       notities: form.notities || undefined,
+      reminderSelection,
     };
 
     try {
       if (isEdit && taak) {
-        await updateTaak(taak.id, data);
+        await updateManualTaskWithReminder(taak.id, data);
         toast.success('Taak bijgewerkt');
       } else {
-        await addTaak(data);
+        await createManualTaskWithReminder(data);
         toast.success('Taak aangemaakt');
       }
+      await refresh();
       pushRecent('relatie', form.relatieId);
       pushRecent('object', form.objectId);
       pushRecent('deal', form.dealId);
@@ -268,7 +300,9 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     ...(key === 'deadline' && !val ? { deadlineTijd: '' } : {}),
   }));
 
-  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
+  const dirtyState = useMemo(() => ({ ...form, reminderSelection }), [form, reminderSelection]);
+  const { guardedOnOpenChange } = useFormDirtyGuard(open, dirtyState, onOpenChange);
+  const hasExactDeadline = Boolean(form.deadline && form.deadlineTijd);
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
@@ -311,7 +345,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
           <section className="space-y-3">
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Een deadline is optioneel. Alleen een expliciet gekozen datum kan agenda- of deadlineherinneringen activeren.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Deadline en herinnering zijn afzonderlijk. Met een tijdstip kan Bito CRM de melding vooraf exact server-side plannen.</p>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -322,6 +356,30 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
                 <Label>Tijd (optioneel)</Label>
                 <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} disabled={!form.deadline} />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Melding</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+                value={reminderSelection}
+                onChange={e => setReminderSelection(e.target.value as TaskReminderSelection)}
+                disabled={!form.deadline}
+              >
+                <option value="default">
+                  {hasExactDeadline ? `Standaard (${formatReminderOffset(defaultReminderMinutes)})` : 'Standaard (op de dag zelf)'}
+                </option>
+                <option value="none">Geen</option>
+                {hasExactDeadline && TASK_REMINDER_OFFSETS.map(minutes => (
+                  <option key={minutes} value={String(minutes)}>{formatReminderOffset(minutes)}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {!form.deadline
+                  ? 'Kies eerst een deadline.'
+                  : hasExactDeadline
+                    ? 'De server plant deze herinnering direct bij het opslaan; de deadline zelf verandert niet.'
+                    : 'Zonder tijdstip is alleen een dagmelding mogelijk. Kies een tijd om minuten/uren vooraf in te stellen.'}
+              </p>
             </div>
           </section>
 
