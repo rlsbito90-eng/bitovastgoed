@@ -13,7 +13,6 @@ import { maakStandaardProductiekernBrowserWriteSamenstelling } from '@/lib/offMa
 import {
   bepaalProductiePreflight,
   productiePreflightRedenLabel,
-  type ProductiePreflightRegel,
 } from '@/lib/offMarket/acquisitie/productiewerkbankPreflight';
 
 interface Props {
@@ -250,6 +249,7 @@ export default function ProductiewerkbankBulkPane({
   };
 
   const aandachtRegels = aandacht.slice(0, 8);
+  const verwerkteRegels = verwerkt.slice(0, 8);
 
   return (
     <section
@@ -258,9 +258,9 @@ export default function ProductiewerkbankBulkPane({
       aria-label="Productiewerkbank preflight"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">Productiewerkbank</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground break-words">
             Concept = controleren · Definitief = BR · printproductie volgt pas via een formele BAT.
           </p>
         </div>
@@ -302,16 +302,50 @@ export default function ProductiewerkbankBulkPane({
             <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
             Aandacht vereist ({aandacht.length})
           </div>
-          <ul className="space-y-1 text-muted-foreground">
+          <ul className="space-y-1.5 text-muted-foreground">
             {aandachtRegels.map((regel, index) => (
-              <li key={`${regel.signaalId}:${regel.briefId ?? index}`} className="flex gap-2">
-                <span className="min-w-0 flex-1 truncate">{briefLabel(regel.briefId ? briefPerId.get(regel.briefId) : undefined)}</span>
-                <span className="shrink-0">{productiePreflightRedenLabel(regel.reden)}</span>
+              <li
+                key={`${regel.signaalId}:${regel.briefId ?? index}`}
+                className="flex flex-col gap-0.5 rounded-sm py-0.5 sm:flex-row sm:items-start sm:gap-2"
+              >
+                <span className="min-w-0 flex-1 break-words text-foreground/80">
+                  {briefLabel(regel.briefId ? briefPerId.get(regel.briefId) : undefined)}
+                </span>
+                <span className="break-words sm:shrink-0 sm:text-right">
+                  {productiePreflightRedenLabel(regel.reden)}
+                </span>
               </li>
             ))}
           </ul>
           {aandacht.length > aandachtRegels.length && (
             <p className="mt-1.5 text-muted-foreground">+ {aandacht.length - aandachtRegels.length} meer</p>
+          )}
+        </div>
+      )}
+
+      {!dossierQuery.isLoading && !dossierQuery.isError && verwerkteRegels.length > 0 && (
+        <div className="rounded-md border bg-muted/20 px-3 py-2.5 text-xs" data-testid="productiewerkbank-al-verwerkt-lijst">
+          <div className="mb-1.5 flex items-center gap-2 font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Al verwerkt ({verwerkt.length})
+          </div>
+          <ul className="space-y-1.5 text-muted-foreground">
+            {verwerkteRegels.map((regel, index) => (
+              <li
+                key={`${regel.signaalId}:${regel.briefId ?? index}:verwerkt`}
+                className="flex flex-col gap-0.5 rounded-sm py-0.5 sm:flex-row sm:items-start sm:gap-2"
+              >
+                <span className="min-w-0 flex-1 break-words text-foreground/80">
+                  {briefLabel(regel.briefId ? briefPerId.get(regel.briefId) : undefined)}
+                </span>
+                <span className="break-words sm:shrink-0 sm:text-right">
+                  {productiePreflightRedenLabel(regel.reden) ?? 'Al verwerkt'}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {verwerkt.length > verwerkteRegels.length && (
+            <p className="mt-1.5 text-muted-foreground">+ {verwerkt.length - verwerkteRegels.length} meer</p>
           )}
         </div>
       )}
@@ -323,14 +357,14 @@ export default function ProductiewerkbankBulkPane({
             Laatste finalisatie: {laatsteResultaat.gelukt} gelukt · {laatsteResultaat.mislukt.length} aandacht
           </p>
           {laatsteResultaat.mislukt.slice(0, 3).map((fout) => (
-            <p key={fout.briefId} className="mt-1 text-muted-foreground">
+            <p key={fout.briefId} className="mt-1 break-words text-muted-foreground">
               {briefLabel(briefPerId.get(fout.briefId))}: {fout.melding}
             </p>
           ))}
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {teStartenSelectieIds.length > 0 && (
           <Button
             type="button"
@@ -339,6 +373,7 @@ export default function ProductiewerkbankBulkPane({
             onClick={() => void startProductiedossiers()}
             disabled={startBezig || dossierQuery.isLoading || dossierQuery.isError || !writes.activatie.schrijvenActief}
             data-testid="productiewerkbank-start-dossiers"
+            className="w-full sm:w-auto"
           >
             {startBezig ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-3.5 w-3.5" />}
             Productiedossiers starten ({teStartenSelectieIds.length})
@@ -351,13 +386,14 @@ export default function ProductiewerkbankBulkPane({
           onClick={() => void finaliseerGereed()}
           disabled={finaliseerBezig || gereed.length === 0 || dossierQuery.isLoading || dossierQuery.isError || !writes.activatie.schrijvenActief}
           data-testid="productiewerkbank-finaliseer-gereed"
+          className="w-full sm:w-auto"
         >
           {finaliseerBezig ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileCheck2 className="h-3.5 w-3.5" />}
           Brieven definitief maken ({gereed.length})
         </Button>
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground break-words">
         Geen enkele actie hierboven print of post automatisch. Definitieve brieven worden na BR apart klaargezet voor een formele printbatch.
       </p>
     </section>
