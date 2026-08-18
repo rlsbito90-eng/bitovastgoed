@@ -51,15 +51,6 @@ interface BulkResultaat {
   mislukt: Array<{ briefId: string; melding: string }>;
 }
 
-/**
- * Formele productiewerkbank voor een handmatige bulkselectie op het dashboard.
- *
- * - de preflight is read-only;
- * - ontbrekende Productiekern-dossiers worden alleen na expliciete bevestiging gestart;
- * - BR-finalisering gebeurt alleen na expliciete bevestiging en per brief atomisch;
- * - een fout in één brief rolt andere reeds geslaagde BR's niet terug;
- * - print/post hoort bewust niet in deze concept-/finalisatiefase.
- */
 export default function ProductiewerkbankBulkPane({
   geselecteerdeSignaalIds,
   selecties,
@@ -120,8 +111,6 @@ export default function ProductiewerkbankBulkPane({
       eigenaarBedrijfsnaam: brief.eigenaar_bedrijfsnaam,
       verzendadres: brief.verzendadres,
     })),
-    // Exact dezelfde parsergrens als de formele finalisatie, zodat een regel
-    // nooit groen kan zijn en vervolgens op adresvorm alsnog bij BR faalt.
     isVolledigPostadres: isFormeelFinaliseerbaarPostadres,
   }), [
     geselecteerdeIds,
@@ -157,7 +146,7 @@ export default function ProductiewerkbankBulkPane({
 
   const invalidereerProductie = async () => {
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ['off_market_brieven'] }),
+      qc.invalidateQueries({ queryKey: ['off-market-brieven-bulk'] }),
       qc.invalidateQueries({ queryKey: ['off-market-acquisitie-selectie'] }),
       qc.invalidateQueries({ queryKey: ['off-market-acquisitie-productiekern'] }),
       qc.invalidateQueries({ queryKey: ['off-market-kpi'] }),
@@ -216,8 +205,6 @@ export default function ProductiewerkbankBulkPane({
       const auth = await supabase.auth.getUser();
       if (auth.error || !auth.data.user?.id) throw new Error('Ingelogde gebruiker kon niet worden vastgesteld.');
 
-      // Bewust sequentieel: iedere brief heeft zijn eigen atomische/idempotente
-      // finalisatie. Een gedeeltelijke fout is zo exact rapporteerbaar en retrybaar.
       for (const regel of gereed) {
         if (!regel.briefId) continue;
         const brief = briefPerId.get(regel.briefId);
