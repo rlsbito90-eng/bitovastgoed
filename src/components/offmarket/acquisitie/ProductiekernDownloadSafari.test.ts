@@ -16,20 +16,26 @@ const vastlegBron = readFileSync(
 );
 
 describe('Productiekern downloadcontract voor Safari/WebKit', () => {
-  it('downloadt niet programmatisch na een async Storage-fetch', () => {
+  it('klikt nooit programmatisch nadat async Storage-fetches zijn afgerond', () => {
     expect(downloadBron).not.toContain('link.click()');
     expect(downloadBron).not.toContain('downloadBlob(');
-    expect(downloadBron).not.toContain('URL.createObjectURL');
     expect(vastlegBron).not.toContain('downloadProductiekernBestand');
   });
 
-  it('maakt voor geregistreerde private objecten kortlevende signed HTTPS-downloadlinks', () => {
+  it('maakt eerst het ZIP-pakket en laat de uiteindelijke download aan een expliciete ankerclick', () => {
+    expect(downloadBron).toContain('Productiepakket voorbereiden');
+    expect(downloadBron).toContain('href={pakketUrl}');
+    expect(downloadBron).toContain('download={pakketNaam}');
+    expect(downloadBron).toContain('Productiebestanden downloaden (4)');
+    expect(downloadBron).toContain('bouwProductiekernZip(zipBestanden)');
+  });
+
+  it('behoudt voor losse herstelbestanden kortlevende signed HTTPS-downloadlinks', () => {
     expect(storageBron).toContain('.createSignedUrl(veiligPad, verlooptNaSeconden, { download: true })');
     expect(downloadBron).toContain('maakProductiekernSignedDownloadUrl(pad)');
     expect(downloadBron).toContain('href={bestand.url}');
     expect(downloadBron).toContain('target="_blank"');
     expect(downloadBron).toContain('rel="noopener noreferrer"');
-    expect(downloadBron).toContain('Tijdelijke downloadlinks maken');
     expect(downloadBron).not.toContain('download={bestand.bestandsnaam}');
   });
 

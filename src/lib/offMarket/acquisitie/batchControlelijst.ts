@@ -1,5 +1,6 @@
 import type { BriefversieContract, PrintbatchContract } from './productiekernContract';
 import { valideerBriefversie, valideerPrintbatch } from './productiekernContract';
+import { productiekernGeadresseerdeNaam } from './productiekernGeadresseerdeNaam';
 
 export interface BatchControleInvoer {
   briefnummer: string;
@@ -66,9 +67,7 @@ export function bouwBatchControlelijst(input: {
         volgnummer: index + 1,
         briefnummer: item.briefnummer,
         briefVersieId: item.versie.id,
-        geadresseerde: item.versie.geadresseerde.bedrijfsnaam?.trim()
-          || item.versie.geadresseerde.naam?.trim()
-          || '',
+        geadresseerde: productiekernGeadresseerdeNaam(item.versie.geadresseerde),
         plaats: item.versie.geadresseerde.plaats.trim(),
         adresGeverifieerd:
           item.versie.geadresseerde.verificatiestatus !== 'onbekend'

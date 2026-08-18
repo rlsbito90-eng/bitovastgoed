@@ -1,5 +1,6 @@
 import type { GeadresseerdeSnapshot } from './productiekernContract';
 import { valideerGeadresseerdeSnapshot } from './productiekernContract';
+import { productiekernGeadresseerdeNaam } from './productiekernGeadresseerdeNaam';
 
 export interface BatchAdreslabelInvoer {
   briefnummer: string;
@@ -45,9 +46,7 @@ export function bouwBatchAdreslabelRijen(
     briefnummers.add(item.briefnummer);
     versieIds.add(item.briefVersieId);
 
-    const naamregel = item.geadresseerde.bedrijfsnaam?.trim()
-      || item.geadresseerde.naam?.trim()
-      || '';
+    const naamregel = productiekernGeadresseerdeNaam(item.geadresseerde);
     const land = item.geadresseerde.land.trim();
 
     return {

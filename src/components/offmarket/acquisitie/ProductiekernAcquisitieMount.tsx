@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
 import { useAcquisitieReadiness, useBrievenVoorSignalen } from '@/hooks/useAcquisitieReadiness';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
-import { productiekernStandaardUitgeschakeld } from '@/lib/offMarket/acquisitie/productieActivatiePoort';
 import { maakStandaardProductiekernBrowserLeesSamenstelling } from '@/lib/offMarket/acquisitie/productiekernBrowserClient';
 import {
   maakStandaardProductiekernBrowserWriteSamenstelling,
@@ -16,6 +15,9 @@ import { bepaalWerkbakContext, type WerkbakContext } from '@/lib/offMarket/acqui
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import ProductiekernDossierProjectie from './ProductiekernDossierProjectie';
 import ProductiekernNogNietGestart from './ProductiekernNogNietGestart';
+import ProductiekernPrintbatchWerkbak, {
+  bouwProductiekernPrintbatchModellen,
+} from './ProductiekernPrintbatchWerkbak';
 import ProductiekernProductiepakketZone from './ProductiekernProductiepakketZone';
 import type { ProductiekernWerkbakView } from './ProductiekernWerkbakChips';
 
@@ -26,6 +28,7 @@ const LEGACY_PRODUCTIE_ACTIE_TESTIDS = [
   'acquisitie-bulk-markeer-geprint',
   'acquisitie-bulk-markeer-gepost',
 ] as const;
+const MAX_BATCHES_IN_SELECTIE = 20;
 
 function leesInitieleProductiekernWerkbak(): ProductiekernWerkbakView {
   try {
@@ -35,6 +38,7 @@ function leesInitieleProductiekernWerkbak(): ProductiekernWerkbakView {
       || waarde === 'eigenaar_achterhalen'
       || waarde === 'brief_opstellen'
       || waarde === 'printklaar'
+      || waarde === 'printbatches'
       || waarde === 'geprint_posten'
       || waarde === 'opvolgen'
       || waarde === 'wachten'
@@ -68,22 +72,12 @@ function pasProductiekernToolbarSemantiekToe() {
     const knop = document.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`);
     if (!knop) continue;
     knop.hidden = true;
-    // Tailwind's author-level `inline-flex` kan de browser-default voor [hidden]
-    // overrulen. Een inline author-style met important maakt de Productiekern-
-    // grens daarom daadwerkelijk visueel afdwingbaar.
     knop.style.setProperty('display', 'none', 'important');
     knop.setAttribute('aria-hidden', 'true');
     knop.tabIndex = -1;
   }
 }
 
-/**
- * Zodra de formele Productiekern actief is, is er nog maar één primaire
- * productieroute vanuit de Acquisitieselectie. De Acquisitieselectie rendert
- * vóór de Productiekern soms nog niet volledig; daarom observeren we de pagina
- * totdat de toolbar verschijnt, in plaats van alleen de toolbar te observeren
- * als die toevallig al bij de eerste effect-run aanwezig is.
- */
 function useConsolideerProductiekernToolbar(actief: boolean) {
   useEffect(() => {
     if (!actief) return;
@@ -171,6 +165,96 @@ function ActieveProductiekernDossierProjectie({
     staleTime: 30_000,
   });
 
+  // Formele brieven leven bewust in dezelfde tabel als de legacy concepten.
+  // De Productiekern-identiteit wordt hier fail-closed herkend aan definitief +
+  // een formele selectie_id; daarna gaan alle reads via het Productiekern-contract.
+  const formeleBriefIds = useMemo(() => brieven
+    .filter((brief) => {
+      const formeel = brief as typeof brief & { status?: string; selectie_id?: string | null };
+      return formeel.status === 'definitief'
+        && typeof formeel.selectie_id === 'string'
+        && formeel.selectie_id.trim().length > 0;
+    })
+    .map((brief) => brief.id)
+    .sort(), [brieven]);
+
+  const formeleBrievenQuery = useQuery({
+    queryKey: ['off-market-acquisitie-productiekern', 'batch-brieven', formeleBriefIds],
+    enabled: formeleBriefIds.length > 0,
+    queryFn: () => samenstelling.bulkRepository.haalBrievenOpIds(formeleBriefIds),
+    staleTime: 30_000,
+  });
+
+  const formeleVersiesQuery = useQuery({
+    queryKey: ['off-market-acquisitie-productiekern', 'batch-briefversies', formeleBriefIds],
+    enabled: formeleBriefIds.length > 0,
+    queryFn: () => samenstelling.bulkRepository.haalBriefversiesOpBriefIds(formeleBriefIds),
+    staleTime: 30_000,
+  });
+  const actieveFormeleVersies = useMemo(() => {
+    const actiefPerBrief = new Map<string, number>();
+    const actief = (formeleVersiesQuery.data ?? []).filter((versie) => versie.status === 'actief');
+    for (const versie of actief) {
+      actiefPerBrief.set(versie.briefId, (actiefPerBrief.get(versie.briefId) ?? 0) + 1);
+    }
+    if ([...actiefPerBrief.values()].some((aantal) => aantal > 1)) {
+      return [];
+    }
+    return actief;
+  }, [formeleVersiesQuery.data]);
+  const actieveFormeleVersieIds = useMemo(
+    () => actieveFormeleVersies.map((versie) => versie.id).sort(),
+    [actieveFormeleVersies],
+  );
+
+  const batchKoppelingenQuery = useQuery({
+    queryKey: ['off-market-acquisitie-productiekern', 'batch-koppelingen', actieveFormeleVersieIds],
+    enabled: actieveFormeleVersieIds.length > 0,
+    queryFn: () => samenstelling.bulkRepository.haalPrintbatchBrievenOpBriefversieIds(actieveFormeleVersieIds),
+    staleTime: 30_000,
+  });
+  const batchIds = useMemo(() => [...new Set(
+    (batchKoppelingenQuery.data ?? []).map((koppeling) => koppeling.batchId),
+  )].sort(), [batchKoppelingenQuery.data]);
+
+  const batchesQuery = useQuery({
+    queryKey: ['off-market-acquisitie-productiekern', 'printbatches', batchIds],
+    enabled: batchIds.length > 0,
+    queryFn: async () => {
+      if (batchIds.length > MAX_BATCHES_IN_SELECTIE) {
+        throw new Error(`Te veel printbatches in één selectiescope (${batchIds.length}).`);
+      }
+      const batches = await Promise.all(batchIds.map((id) => samenstelling.repository.haalPrintbatch(id)));
+      if (batches.some((batch) => batch === null)) {
+        throw new Error('Een gekoppelde printbatch kon niet formeel worden gelezen.');
+      }
+      return batches.filter((batch): batch is NonNullable<typeof batch> => batch !== null);
+    },
+    staleTime: 30_000,
+  });
+
+  const batchModellen = useMemo(() => bouwProductiekernPrintbatchModellen({
+    batches: batchesQuery.data ?? [],
+    koppelingen: batchKoppelingenQuery.data ?? [],
+    brieven: formeleBrievenQuery.data ?? [],
+    versies: actieveFormeleVersies,
+    signalen: geselecteerdeSignalen,
+  }), [
+    batchesQuery.data,
+    batchKoppelingenQuery.data,
+    formeleBrievenQuery.data,
+    actieveFormeleVersies,
+    geselecteerdeSignalen,
+  ]);
+  const batchFout = formeleBrievenQuery.isError
+    || formeleVersiesQuery.isError
+    || batchKoppelingenQuery.isError
+    || batchesQuery.isError;
+  const batchLaden = formeleBrievenQuery.isLoading
+    || formeleVersiesQuery.isLoading
+    || batchKoppelingenQuery.isLoading
+    || batchesQuery.isLoading;
+
   const dossiers = dossierQuery.data ?? [];
   const dossierSelectieIds = useMemo(
     () => new Set(dossiers.map((dossier) => dossier.selectieId)),
@@ -203,7 +287,7 @@ function ActieveProductiekernDossierProjectie({
     [selectieIds, dossiers, legacyContextPerSelectieId, dossierQuery.isError],
   );
 
-  const laden = selectieLaden || signalenLaden || brievenLaden || dossierQuery.isLoading;
+  const laden = selectieLaden || signalenLaden || brievenLaden || dossierQuery.isLoading || batchLaden;
   const toonNogNietGestart = !laden
     && !dossierQuery.isError
     && (actieveWerkbak === 'nieuwe_selectie' || actieveWerkbak === 'alles');
@@ -215,10 +299,14 @@ function ActieveProductiekernDossierProjectie({
         totaalSelecties={selectieIds.length}
         actieveWerkbak={actieveWerkbak}
         onWerkbakChange={setActieveWerkbak}
+        printbatchAantal={batchFout ? 0 : batchModellen.length}
         pariteit={pariteit}
         laden={laden}
         fout={dossierQuery.isError}
       />
+      {actieveWerkbak === 'printbatches' && !laden && (
+        <ProductiekernPrintbatchWerkbak modellen={batchModellen} fout={batchFout} />
+      )}
       {toonNogNietGestart && (
         <ProductiekernNogNietGestart
           items={nogNietGestart}

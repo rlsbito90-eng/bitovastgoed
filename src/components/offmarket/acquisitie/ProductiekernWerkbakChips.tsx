@@ -3,7 +3,7 @@ import {
   type OperationeleWerkbak,
 } from '@/lib/offMarket/acquisitie/operationeleWerkbak';
 
-export type ProductiekernWerkbakView = OperationeleWerkbak | 'alles';
+export type ProductiekernWerkbakView = OperationeleWerkbak | 'printbatches' | 'alles';
 
 export const PRODUCTIEKERN_WERKBAK_VOLGORDE: readonly OperationeleWerkbak[] = [
   'nieuwe_selectie',
@@ -19,6 +19,7 @@ export const PRODUCTIEKERN_WERKBAK_VOLGORDE: readonly OperationeleWerkbak[] = [
 export interface ProductiekernWerkbakChipsProps {
   actief: ProductiekernWerkbakView;
   counts: Readonly<Record<OperationeleWerkbak, number>>;
+  printbatchAantal?: number;
   totaal: number;
   onChange: (werkbak: ProductiekernWerkbakView) => void;
 }
@@ -26,17 +27,18 @@ export interface ProductiekernWerkbakChipsProps {
 export default function ProductiekernWerkbakChips({
   actief,
   counts,
+  printbatchAantal = 0,
   totaal,
   onChange,
 }: ProductiekernWerkbakChipsProps) {
-  const opties: Array<{ id: ProductiekernWerkbakView; label: string; aantal: number }> = [
-    ...PRODUCTIEKERN_WERKBAK_VOLGORDE.map((id) => ({
-      id,
-      label: OPERATIONELE_WERKBAK_LABEL[id],
-      aantal: counts[id] ?? 0,
-    })),
-    { id: 'alles', label: 'Alles', aantal: totaal },
-  ];
+  const opties: Array<{ id: ProductiekernWerkbakView; label: string; aantal: number }> = [];
+  for (const id of PRODUCTIEKERN_WERKBAK_VOLGORDE) {
+    opties.push({ id, label: OPERATIONELE_WERKBAK_LABEL[id], aantal: counts[id] ?? 0 });
+    if (id === 'printklaar') {
+      opties.push({ id: 'printbatches', label: 'Printbatches', aantal: printbatchAantal });
+    }
+  }
+  opties.push({ id: 'alles', label: 'Alles', aantal: totaal });
 
   return (
     <div
