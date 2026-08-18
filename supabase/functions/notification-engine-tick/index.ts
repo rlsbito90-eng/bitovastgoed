@@ -73,13 +73,13 @@ Deno.serve(async (req: Request) => {
       resolvedEvents += Number(row?.resolved_count ?? 0);
     }
 
-    const nowIso = new Date().toISOString();
+    // Ook toekomstige scheduled events worden bewust meegenomen: hun device-deliveries
+    // worden vooraf klaargezet met available_at. De push-sender bewaakt het echte verzendmoment.
     const { data: events, error: eventsError } = await supabase
       .from('notification_events')
       .select('id, user_id, event_type, scheduled_at, created_at')
       .is('resolved_at', null)
-      .is('dismissed_at', null)
-      .or(`scheduled_at.is.null,scheduled_at.lte.${nowIso}`);
+      .is('dismissed_at', null);
 
     if (eventsError) throw eventsError;
 
@@ -110,7 +110,7 @@ Deno.serve(async (req: Request) => {
       subsByUser.set(row.user_id, arr);
     }
 
-    const deliveries: Array<{ notification_event_id: string; subscription_id: string }> = [];
+    const deliveries: Array<{ notification_event_id: string; subscription_id: string; available_at: string }> = [];
 
     for (const event of events ?? []) {
       const e = event as any;
@@ -119,15 +119,18 @@ Deno.serve(async (req: Request) => {
       const prefField = EVENT_PREF_FIELD[e.event_type];
       if (prefField && pref && pref[prefField] === false) continue;
 
+      const effectiveAtIso = e.scheduled_at ?? e.created_at;
+      const effectiveAt = new Date(effectiveAtIso).getTime();
+
       for (const subscription of subsByUser.get(e.user_id) ?? []) {
         // Anti-backlog op het moment waarop een event werkelijk relevant wordt.
         // Een toekomstig gepland event mag dus wél naar een device dat ná event-creatie,
         // maar vóór scheduled_at is geregistreerd.
-        const effectiveAt = new Date(e.scheduled_at ?? e.created_at).getTime();
         if (effectiveAt < new Date(subscription.created_at).getTime()) continue;
         deliveries.push({
           notification_event_id: e.id,
           subscription_id: subscription.id,
+          available_at: effectiveAtIso,
         });
       }
     }
