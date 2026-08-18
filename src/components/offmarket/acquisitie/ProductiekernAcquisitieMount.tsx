@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { useAcquisitieSelectie } from '@/hooks/useAcquisitieSelectie';
@@ -20,6 +20,12 @@ import ProductiekernProductiepakketZone from './ProductiekernProductiepakketZone
 import type { ProductiekernWerkbakView } from './ProductiekernWerkbakChips';
 
 const PRODUCTIEKERN_WERKBAK_KEY = 'off-market-acq:productiekern-werkbak';
+const PRODUCTIE_INGANG_TESTID = 'acquisitie-bulk-gecombineerde-pdf';
+const LEGACY_PRODUCTIE_ACTIE_TESTIDS = [
+  'acquisitie-bulk-adreslabels',
+  'acquisitie-bulk-markeer-geprint',
+  'acquisitie-bulk-markeer-gepost',
+] as const;
 
 function leesInitieleProductiekernWerkbak(): ProductiekernWerkbakView {
   try {
@@ -39,6 +45,52 @@ function leesInitieleProductiekernWerkbak(): ProductiekernWerkbakView {
     // Geen browserstorage beschikbaar: veilige standaard hieronder.
   }
   return 'nieuwe_selectie';
+}
+
+function pasProductiekernToolbarSemantiekToe() {
+  const ingang = document.querySelector<HTMLButtonElement>(
+    `[data-testid="${PRODUCTIE_INGANG_TESTID}"]`,
+  );
+  if (ingang) {
+    ingang.setAttribute('aria-label', 'Conceptbrieven & productie');
+    ingang.setAttribute(
+      'title',
+      'Conceptbrieven controleren, definitief maken en daarna formele BAT-productie uitvoeren.',
+    );
+    for (const node of Array.from(ingang.childNodes)) {
+      if (node.nodeType !== Node.TEXT_NODE) continue;
+      if (!node.textContent?.includes('Brieven-PDF')) continue;
+      node.textContent = ' Conceptbrieven & productie';
+    }
+  }
+
+  for (const testId of LEGACY_PRODUCTIE_ACTIE_TESTIDS) {
+    const knop = document.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`);
+    if (!knop) continue;
+    knop.hidden = true;
+    knop.setAttribute('aria-hidden', 'true');
+    knop.tabIndex = -1;
+  }
+}
+
+/**
+ * Zodra de formele Productiekern actief is, is er nog maar één primaire
+ * productieroute vanuit de Acquisitieselectie. De oude losse label/print/post-
+ * snelwegen blijven tijdelijk in legacycode aanwezig voor rollback, maar worden
+ * in de actieve Productiekern-UI bewust niet aangeboden.
+ */
+function useConsolideerProductiekernToolbar(actief: boolean) {
+  useEffect(() => {
+    if (!actief) return;
+
+    pasProductiekernToolbarSemantiekToe();
+    const toolbar = document.querySelector('[data-testid="acquisitie-bulk-toolbar"]');
+    if (!toolbar || typeof MutationObserver === 'undefined') return;
+
+    const observer = new MutationObserver(() => pasProductiekernToolbarSemantiekToe());
+    observer.observe(toolbar, { subtree: true, childList: true, characterData: true });
+    return () => observer.disconnect();
+  }, [actief]);
 }
 
 function ActieveProductiekernDossierProjectie({
@@ -143,9 +195,6 @@ function ActieveProductiekernDossierProjectie({
     [selectieIds, dossiers, legacyContextPerSelectieId, dossierQuery.isError],
   );
 
-  // Eén uniforme laadgrens voor de volledige projectie. Met name de signalenread
-  // moet klaar zijn vóór `Nog niet gestart` labels worden opgebouwd; anders kan
-  // een refresh tijdelijk ruwe selectie-UUID's als gebruikerslabel tonen.
   const laden = selectieLaden || signalenLaden || brievenLaden || dossierQuery.isLoading;
   const toonNogNietGestart = !laden
     && !dossierQuery.isError
@@ -172,22 +221,9 @@ function ActieveProductiekernDossierProjectie({
   );
 }
 
-/**
- * Fysieke frontendmount voor de nieuwe acquisitieproductiekern.
- *
- * De mount is aan de bestaande CRM-Supabase-client gekoppeld via de aparte
- * browsercompositie. Zonder volledig leesbewijs retourneert deze component vóór
- * de actieve child wordt gemount; daardoor worden ook selectie- en
- * productiekernreads voor deze projectie niet gestart.
- *
- * In een expliciet vrijgegeven werk-CRM toont de mount de formele acht
- * operationele werkbakken op basis van de Productiekern-dossiers. Selecties
- * zonder dossier worden apart als `Nog niet gestart` getoond en kunnen via de
- * fail-closed werk-CRM-writecompositie expliciet worden gestart. Legacydata
- * wordt alleen voor pariteitsobservatie gebruikt.
- */
 export default function ProductiekernAcquisitieMount() {
   const leesSamenstelling = maakStandaardProductiekernBrowserLeesSamenstelling();
+  useConsolideerProductiekernToolbar(leesSamenstelling.activatie.lezenActief);
 
   if (!leesSamenstelling.activatie.lezenActief) return null;
 

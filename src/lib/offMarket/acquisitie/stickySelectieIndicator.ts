@@ -1,6 +1,8 @@
 const BULK_TELLING_SELECTOR = '[data-testid="acquisitie-bulk-telling"]';
 const LIJST_SELECTOR = '[data-testid="acquisitie-selectie-lijst"]';
+const SELECTIE_TAB_SELECTOR = '[data-testid="acquisitie-selectie-tab"]';
 const BAR_ID = 'acquisitie-sticky-selectieteller';
+const SAFE_SPACE_ID = 'acquisitie-sticky-selectieteller-ruimte';
 const OPEN_DIALOG_SELECTOR = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
 
 let observer: MutationObserver | null = null;
@@ -30,8 +32,27 @@ function verwijderBar() {
   document.getElementById(BAR_ID)?.remove();
 }
 
+function verwijderVeiligeRuimte() {
+  document.getElementById(SAFE_SPACE_ID)?.remove();
+}
+
 function heeftOpenModal(root: ParentNode = document): boolean {
   return root.querySelector(OPEN_DIALOG_SELECTOR) != null;
+}
+
+function maakVeiligeRuimte(root: ParentNode = document) {
+  const bestaande = document.getElementById(SAFE_SPACE_ID);
+  if (bestaande) return;
+
+  const selectieTab = root.querySelector(SELECTIE_TAB_SELECTOR);
+  const container = selectieTab?.parentElement;
+  if (!container) return;
+
+  const ruimte = document.createElement('div');
+  ruimte.id = SAFE_SPACE_ID;
+  ruimte.setAttribute('aria-hidden', 'true');
+  ruimte.className = 'h-24 sm:h-20';
+  container.appendChild(ruimte);
 }
 
 function maakBar(): HTMLDivElement {
@@ -78,6 +99,7 @@ export function synchroniseerStickySelectieIndicator(root: ParentNode = document
 
   if (heeftOpenModal(root)) {
     verwijderBar();
+    verwijderVeiligeRuimte();
     return;
   }
 
@@ -85,11 +107,13 @@ export function synchroniseerStickySelectieIndicator(root: ParentNode = document
   const geselecteerd = leesAantalGeselecteerdUitBulkTekst(telling);
   if (geselecteerd <= 0) {
     verwijderBar();
+    verwijderVeiligeRuimte();
     return;
   }
 
   const zichtbaar = leesAantalZichtbaar(root);
   const bar = maakBar();
+  maakVeiligeRuimte(root);
   const tekst = bar.querySelector<HTMLElement>('[data-role="telling"]');
   const nieuweTekst = `${geselecteerd} geselecteerd · ${zichtbaar} zichtbaar`;
   if (tekst && tekst.textContent !== nieuweTekst) tekst.textContent = nieuweTekst;
@@ -114,7 +138,7 @@ export function activeerStickySelectieIndicator(): () => void {
         const target = mutatie.target instanceof Element
           ? mutatie.target
           : mutatie.target.parentElement;
-        return target?.closest(`#${BAR_ID}`) != null;
+        return target?.closest(`#${BAR_ID}`) != null || target?.closest(`#${SAFE_SPACE_ID}`) != null;
       });
       if (!alleenEigenBar) planSynchronisatie();
     });
@@ -135,6 +159,7 @@ export function activeerStickySelectieIndicator(): () => void {
       observer = null;
       synchronisatieGepland = false;
       verwijderBar();
+      verwijderVeiligeRuimte();
     }
   };
 }
