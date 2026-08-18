@@ -19,11 +19,12 @@ describe('productiekern Supabase leesquerycontracten', () => {
     ]);
   });
 
-  it('beperkt bulk reads tot vier vaste ID-setcontracten', () => {
+  it('beperkt bulk reads tot vijf vaste ID-setcontracten', () => {
     expect(Object.keys(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN)).toEqual([
       'haal_dossiers_op_selectie_ids',
       'haal_brieven_op_ids',
       'haal_briefversies_op_ids',
+      'haal_briefversies_op_brief_ids',
       'haal_printbatch_brieven_op_versie_ids',
     ]);
     expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_dossiers_op_selectie_ids).toMatchObject({
@@ -33,6 +34,10 @@ describe('productiekern Supabase leesquerycontracten', () => {
     expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_brieven_op_ids).toMatchObject({
       tabel: 'off_market_brieven', filterKolom: 'id', cardinaliteit: 'lijst',
       maximaalAantalRecords: 1000, maximaalAantalFilterwaarden: 1000,
+    });
+    expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_briefversies_op_brief_ids).toMatchObject({
+      tabel: 'off_market_brief_versies', filterKolom: 'brief_id', cardinaliteit: 'lijst',
+      maximaalAantalRecords: 5000, maximaalAantalFilterwaarden: 1000,
     });
     expect(PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_printbatch_brieven_op_versie_ids).toMatchObject({
       tabel: 'off_market_printbatch_brieven', filterKolom: 'brief_versie_id', cardinaliteit: 'lijst',
@@ -80,6 +85,15 @@ describe('productiekern Supabase leesquerycontracten', () => {
     expect(() => bouwProductiekernBulkLeesQuery(
       'haal_briefversies_op_ids', Array.from({ length: 1001 }, (_, index) => `versie-${index}`),
     )).toThrow('Te veel filterwaarden voor haal_briefversies_op_ids.');
+  });
+
+  it('bouwt briefscope bulkquery zonder dynamische tabel- of kolomnamen', () => {
+    expect(bouwProductiekernBulkLeesQuery(
+      'haal_briefversies_op_brief_ids', ['brief-2', ' brief-1 ', 'brief-2'],
+    )).toEqual({
+      ...PRODUCTIEKERN_BULK_LEES_QUERY_CONTRACTEN.haal_briefversies_op_brief_ids,
+      filterWaarden: ['brief-2', 'brief-1'],
+    });
   });
 
   it('bouwt een query zonder dynamische tabel- of kolomnamen', () => {
