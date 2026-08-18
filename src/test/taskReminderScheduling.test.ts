@@ -11,9 +11,9 @@ function read(rel: string): string {
   return fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
 }
 
-const migration = read('supabase/migrations/20260818120500_task_reminder_scheduling.sql');
-const deliveryMigration = read('supabase/migrations/20260818120600_notification_delivery_scheduling.sql');
-const rescheduleMigration = read('supabase/migrations/20260818120700_notification_delivery_reschedule_sync.sql');
+const migration = read('supabase/migrations/20260818102143_task_reminder_scheduling.sql');
+const deliveryMigration = read('supabase/migrations/20260818102153_notification_delivery_scheduling.sql');
+const rescheduleMigration = read('supabase/migrations/20260818102202_notification_delivery_reschedule_sync.sql');
 const engine = read('supabase/functions/notification-engine-tick/index.ts');
 const sender = read('supabase/functions/notification-push-send/index.ts');
 const repository = read('src/lib/notifications/repository.ts');
