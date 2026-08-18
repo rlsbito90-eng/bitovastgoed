@@ -36,9 +36,10 @@ function pakketBestandsnaam(documenten: readonly BatchdocumentContract[], bestan
  * na de expliciete downloadklik door een same-origin Vercel Function opgebouwd
  * en als echte `Content-Disposition: attachment` response teruggegeven.
  *
- * Daarmee is de primaire route niet afhankelijk van `blob:`/ObjectURL-downloads,
- * die in iOS-PWA's, Safari en ingesloten browsers niet betrouwbaar lokaal worden
- * opgeslagen. Er wordt niets opnieuw geregistreerd of gemuteerd.
+ * De browser ontvangt die attachment rechtstreeks vanuit de gebruikersklik;
+ * er is geen `blob:`/ObjectURL en ook geen verborgen iframe dat een PWA/in-app
+ * browser kan beletten de download als lokaal bestand te behandelen.
+ * Er wordt niets opnieuw geregistreerd of gemuteerd.
  */
 export default function ProductiekernVastgelegdeDocumentenDownload({ documenten, disabled = false }: Props) {
   const [bezig, setBezig] = useState(false);
@@ -116,18 +117,11 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
 
   return (
     <div className="space-y-2" data-testid="productiekern-vastgelegde-documenten-download">
-      <iframe
-        name="productiekern-bat-download-frame"
-        title="BAT download"
-        className="hidden"
-        aria-hidden="true"
-      />
       <div className="flex flex-wrap items-center gap-2">
         {downloadManifest && pakketNaam ? (
           <form
             action="/api/productiekern-bat-download"
             method="post"
-            target="productiekern-bat-download-frame"
             data-testid="productiekern-productiebestanden-form"
           >
             <input type="hidden" name="manifest" value={downloadManifest} />
