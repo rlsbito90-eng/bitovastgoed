@@ -51,6 +51,121 @@ function inQuietHours(pref: any): boolean {
   return start < end ? now >= start && now < end : now >= start || now < end;
 }
 
+function schoon(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const result = value.trim();
+  return result || null;
+}
+
+function relatieLabel(row: any): string | null {
+  if (!row) return null;
+  const bedrijf = schoon(row.bedrijfsnaam) || schoon(row.organisatie_naam) || schoon(row.naam);
+  if (bedrijf) return bedrijf;
+  const persoon = [row.voornaam, row.tussenvoegsel, row.achternaam]
+    .map(schoon)
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  return persoon || null;
+}
+
+function objectLabel(row: any): string | null {
+  if (!row) return null;
+  return schoon(row.titel)
+    || schoon(row.adres)
+    || [row.straat, row.huisnummer, row.toevoeging].map(schoon).filter(Boolean).join(' ').trim()
+    || null;
+}
+
+function signaalLabel(row: any): string | null {
+  if (!row) return null;
+  const adres = schoon(row.adres) || schoon(row.titel);
+  const plaats = schoon(row.plaats);
+  if (adres && plaats && !adres.toLocaleLowerCase('nl-NL').includes(plaats.toLocaleLowerCase('nl-NL'))) {
+    return `${adres} · ${plaats}`;
+  }
+  return adres || plaats || null;
+}
+
+function datumSleutel(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function lokaleDatumTijd(deadline: string, deadlineTijd: string | null, timeZone: string): Date | null {
+  if (!deadline) return null;
+  const tijd = deadlineTijd ? deadlineTijd.slice(0, 5) : '12:00';
+  // CRM is momenteel Europe/Amsterdam-gecentreerd. Voor presentatielabels is de bronwaarde
+  // leidend; de datumvergelijking gebruikt Intl in de ingestelde timezone.
+  const parsed = new Date(`${deadline}T${tijd}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function taakTijdLabel(task: any, event: any, timeZone: string): string | null {
+  const deadline = schoon(task?.deadline) || schoon(event?.metadata?.deadline);
+  const deadlineTijd = schoon(task?.deadline_tijd) || schoon(event?.metadata?.deadline_tijd);
+  if (!deadline) return null;
+
+  const today = datumSleutel(new Date(), timeZone);
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrow = datumSleutel(tomorrowDate, timeZone);
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = datumSleutel(yesterdayDate, timeZone);
+
+  const tijd = deadlineTijd ? deadlineTijd.slice(0, 5) : null;
+  const eventType = schoon(event?.event_type);
+  const isOverdue = eventType === 'task_overdue' || deadline < today;
+
+  if (deadline === today) {
+    if (isOverdue) return tijd ? `Vandaag sinds ${tijd} te laat` : 'Vandaag te laat';
+    return tijd ? `Vandaag om ${tijd}` : 'Vandaag';
+  }
+  if (deadline === tomorrow) return tijd ? `Morgen om ${tijd}` : 'Morgen';
+  if (deadline === yesterday) return tijd ? `Gisteren sinds ${tijd} te laat` : 'Sinds gisteren te laat';
+
+  const parsed = lokaleDatumTijd(deadline, deadlineTijd, timeZone);
+  if (!parsed) return tijd ? `${deadline} om ${tijd}` : deadline;
+  const datumLabel = new Intl.DateTimeFormat('nl-NL', {
+    timeZone,
+    day: 'numeric',
+    month: 'short',
+  }).format(parsed);
+  if (isOverdue) return tijd ? `Sinds ${datumLabel} ${tijd} te laat` : `Sinds ${datumLabel} te laat`;
+  return tijd ? `${datumLabel} om ${tijd}` : datumLabel;
+}
+
+function taakPushPresentatie(
+  event: any,
+  task: any,
+  context: { relatie?: any; object?: any; signaal?: any },
+  timeZone: string,
+): { title: string; body: string } {
+  const title = schoon(task?.titel) || schoon(event?.title) || 'Taak';
+  const contextParts: string[] = [];
+  const pand = signaalLabel(context.signaal) || objectLabel(context.object);
+  const relatie = relatieLabel(context.relatie);
+  if (pand) contextParts.push(pand);
+  if (relatie && !contextParts.includes(relatie)) contextParts.push(relatie);
+
+  const tijdLabel = taakTijdLabel(task, event, timeZone);
+  const regels = [] as string[];
+  if (contextParts.length) regels.push(contextParts.join(' · '));
+  if (tijdLabel) regels.push(tijdLabel);
+
+  // Geen technische/Engelse fallback als er task-context beschikbaar is.
+  // Alleen bij ontbrekende brondata gebruiken we de bestaande eventtekst.
+  return {
+    title,
+    body: regels.join('\n') || schoon(event?.body) || '',
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -99,7 +214,7 @@ Deno.serve(async (req: Request) => {
     const { data: events, error: eventsError } = eventIds.length
       ? await supabase
           .from('notification_events')
-          .select('id, user_id, title, body, href, priority, occurrence_key, scheduled_at, resolved_at, dismissed_at')
+          .select('id, user_id, event_type, source_type, source_id, title, body, href, priority, occurrence_key, scheduled_at, resolved_at, dismissed_at, metadata')
           .in('id', eventIds)
       : { data: [], error: null } as any;
     if (eventsError) throw eventsError;
@@ -121,9 +236,39 @@ Deno.serve(async (req: Request) => {
       : { data: [], error: null } as any;
     if (prefError) throw prefError;
 
+    const taakIds = Array.from(new Set(
+      (events ?? [])
+        .filter((e: any) => e.source_type === 'taak' && e.source_id)
+        .map((e: any) => e.source_id),
+    ));
+    const { data: tasks, error: taskError } = taakIds.length
+      ? await supabase
+          .from('taken')
+          .select('id, titel, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')
+          .in('id', taakIds)
+      : { data: [], error: null } as any;
+    if (taskError) throw taskError;
+
+    const relatieIds = Array.from(new Set((tasks ?? []).map((t: any) => t.relatie_id).filter(Boolean)));
+    const objectIds = Array.from(new Set((tasks ?? []).map((t: any) => t.object_id).filter(Boolean)));
+    const signaalIds = Array.from(new Set((tasks ?? []).map((t: any) => t.off_market_signaal_id).filter(Boolean)));
+
+    const [{ data: relaties, error: relatiesError }, { data: objecten, error: objectenError }, { data: signalen, error: signalenError }] = await Promise.all([
+      relatieIds.length ? supabase.from('relaties').select('*').in('id', relatieIds) : Promise.resolve({ data: [], error: null } as any),
+      objectIds.length ? supabase.from('objecten').select('*').in('id', objectIds) : Promise.resolve({ data: [], error: null } as any),
+      signaalIds.length ? supabase.from('off_market_signalen').select('id, adres, plaats, titel').in('id', signaalIds) : Promise.resolve({ data: [], error: null } as any),
+    ]);
+    if (relatiesError) throw relatiesError;
+    if (objectenError) throw objectenError;
+    if (signalenError) throw signalenError;
+
     const eventMap = new Map((events ?? []).map((e: any) => [e.id, e]));
     const subMap = new Map((subscriptions ?? []).map((s: any) => [s.id, s]));
     const prefMap = new Map((preferences ?? []).map((p: any) => [p.user_id, p]));
+    const taskMap = new Map((tasks ?? []).map((t: any) => [t.id, t]));
+    const relatieMap = new Map((relaties ?? []).map((r: any) => [r.id, r]));
+    const objectMap = new Map((objecten ?? []).map((o: any) => [o.id, o]));
+    const signaalMap = new Map((signalen ?? []).map((s: any) => [s.id, s]));
 
     let sent = 0;
     let deferred = 0;
@@ -167,9 +312,29 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
+      let pushTitle = event.title;
+      let pushBody = event.body || '';
+      if (event.source_type === 'taak') {
+        const task: any = taskMap.get(event.source_id);
+        if (task) {
+          const presentatie = taakPushPresentatie(
+            event,
+            task,
+            {
+              relatie: task.relatie_id ? relatieMap.get(task.relatie_id) : null,
+              object: task.object_id ? objectMap.get(task.object_id) : null,
+              signaal: task.off_market_signaal_id ? signaalMap.get(task.off_market_signaal_id) : null,
+            },
+            pref?.timezone || 'Europe/Amsterdam',
+          );
+          pushTitle = presentatie.title;
+          pushBody = presentatie.body;
+        }
+      }
+
       const payload = JSON.stringify({
-        title: event.title,
-        body: event.body || '',
+        title: pushTitle,
+        body: pushBody,
         href: event.href || '/',
         tag: event.occurrence_key,
         priority: event.priority,
