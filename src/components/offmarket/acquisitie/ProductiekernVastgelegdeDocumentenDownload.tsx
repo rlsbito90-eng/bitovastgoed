@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArchiveRestore, Download, ExternalLink, Loader2, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { maakProductiekernSignedDownloadUrl } from '@/lib/offMarket/acquisitie/productiekernBrowserStorage';
 import type { BatchdocumentContract } from '@/lib/offMarket/acquisitie/productiekernContract';
-import { bouwProductiekernZip } from '@/lib/offMarket/acquisitie/productiekernZip';
 
 interface Props {
   documenten: readonly BatchdocumentContract[];
@@ -32,25 +31,21 @@ function pakketBestandsnaam(documenten: readonly BatchdocumentContract[], bestan
 }
 
 /**
- * Bereidt exact de vier reeds geregistreerde private Storage-objecten voor als
- * één browser-lokale ZIP. De feitelijke download blijft bewust een afzonderlijke,
- * expliciete gebruikersklik op een normale <a download>-link. Daarmee blijft de
- * bekende Safari/WebKit-grens intact: nooit programmatisch klikken nadat async
- * Storage-fetches zijn afgerond.
+ * Bereidt uitsluitend kortlevende signed HTTPS-links voor de vier reeds
+ * geregistreerde private Storage-objecten voor. De feitelijke ZIP wordt pas
+ * na de expliciete downloadklik door een same-origin Vercel Function opgebouwd
+ * en als echte `Content-Disposition: attachment` response teruggegeven.
  *
- * Er wordt geen nieuwe BAT, documentversie of Storage-object aangemaakt en
- * voorbereiden/downloaden verandert geen print- of poststatus.
+ * De browser ontvangt die attachment rechtstreeks vanuit de gebruikersklik;
+ * er is geen client-side ObjectURL en ook geen verborgen iframe dat een PWA/in-app
+ * browser kan beletten de download als lokaal bestand te behandelen.
+ * Er wordt niets opnieuw geregistreerd of gemuteerd.
  */
 export default function ProductiekernVastgelegdeDocumentenDownload({ documenten, disabled = false }: Props) {
   const [bezig, setBezig] = useState(false);
   const [voorbereid, setVoorbereid] = useState<VoorbereidBestand[]>([]);
-  const [pakketUrl, setPakketUrl] = useState<string | null>(null);
   const [pakketNaam, setPakketNaam] = useState<string | null>(null);
   const [toonLosseBestanden, setToonLosseBestanden] = useState(false);
-
-  useEffect(() => () => {
-    if (pakketUrl) URL.revokeObjectURL(pakketUrl);
-  }, [pakketUrl]);
 
   async function maakSignedBestanden(): Promise<VoorbereidBestand[]> {
     if (documenten.length !== 4) throw new Error('De formele documentset is niet volledig.');
@@ -78,23 +73,10 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
     try {
       const nieuw = await maakSignedBestanden();
       setVoorbereid(nieuw);
-
-      const zipBestanden = await Promise.all(nieuw.map(async (bestand) => {
-        const response = await fetch(bestand.url);
-        if (!response.ok) throw new Error(`Download van ${bestand.bestandsnaam} is mislukt.`);
-        return {
-          naam: bestand.bestandsnaam,
-          bytes: new Uint8Array(await response.arrayBuffer()),
-        };
-      }));
-
-      const zip = bouwProductiekernZip(zipBestanden);
-      if (pakketUrl) URL.revokeObjectURL(pakketUrl);
-      setPakketUrl(URL.createObjectURL(zip));
       setPakketNaam(pakketBestandsnaam(documenten, nieuw));
-      toast.success('Productiepakket is klaar. Download het nu als één ZIP-bestand.');
+      toast.success('Productiepakket is klaar voor één gecombineerde download.');
     } catch (error) {
-      setPakketUrl(null);
+      setVoorbereid([]);
       setPakketNaam(null);
       toast.error(error instanceof Error ? error.message : 'Productiepakket voorbereiden is mislukt.');
     } finally {
@@ -112,28 +94,48 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
     try {
       const nieuw = await maakSignedBestanden();
       setVoorbereid(nieuw);
+      setPakketNaam(pakketBestandsnaam(documenten, nieuw));
       setToonLosseBestanden(true);
     } catch (error) {
       setVoorbereid([]);
+      setPakketNaam(null);
       toast.error(error instanceof Error ? error.message : 'Tijdelijke downloadlinks maken is mislukt.');
     } finally {
       setBezig(false);
     }
   }
 
+  const downloadManifest = pakketNaam && voorbereid.length === 4
+    ? JSON.stringify({
+      pakketNaam,
+      bestanden: voorbereid.map((bestand) => ({
+        naam: bestand.bestandsnaam,
+        url: bestand.url,
+      })),
+    })
+    : null;
+
   return (
     <div className="space-y-2" data-testid="productiekern-vastgelegde-documenten-download">
       <div className="flex flex-wrap items-center gap-2">
-        {pakketUrl && pakketNaam ? (
-          <a
-            href={pakketUrl}
-            download={pakketNaam}
-            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-secondary px-3 text-sm font-medium text-secondary-foreground shadow-sm hover:bg-secondary/80"
-            data-testid="productiekern-productiebestanden-downloaden"
+        {downloadManifest && pakketNaam ? (
+          <form
+            action="/api/productiekern-bat-download"
+            method="post"
+            data-testid="productiekern-productiebestanden-form"
           >
-            <Download className="h-4 w-4" />
-            Productiebestanden downloaden (4)
-          </a>
+            <input type="hidden" name="manifest" value={downloadManifest} />
+            <Button
+              type="submit"
+              size="sm"
+              variant="secondary"
+              disabled={disabled}
+              data-testid="productiekern-productiebestanden-downloaden"
+            >
+              <Download className="h-4 w-4" />
+              Productiebestanden downloaden (4)
+            </Button>
+          </form>
         ) : (
           <Button
             type="button"
@@ -148,7 +150,7 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
             Productiepakket voorbereiden
           </Button>
         )}
-        {pakketUrl && (
+        {downloadManifest && (
           <Button
             type="button"
             size="sm"
@@ -158,7 +160,7 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
             className="h-8 px-2 text-xs"
           >
             <ArchiveRestore className="h-3.5 w-3.5" />
-            Pakket vernieuwen
+            Links vernieuwen
           </Button>
         )}
         <Button
@@ -174,7 +176,7 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
         </Button>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        De vier bestaande BAT-bestanden worden één pakket. De uiteindelijke download is een expliciete klik en wijzigt geen print- of verzendstatus.
+        De vier bestaande BAT-bestanden worden na één expliciete klik als echte HTTPS-download aangeboden. Dit wijzigt geen print- of verzendstatus.
       </p>
 
       {toonLosseBestanden && voorbereid.length === 4 && (

@@ -14,20 +14,38 @@ const vastlegBron = readFileSync(
   resolve(process.cwd(), 'src/components/offmarket/acquisitie/ProductiekernProductiepakketVastleggen.tsx'),
   'utf8',
 );
+const apiBron = readFileSync(
+  resolve(process.cwd(), 'api/productiekern-bat-download.ts'),
+  'utf8',
+);
 
 describe('Productiekern downloadcontract voor Safari/WebKit', () => {
-  it('klikt nooit programmatisch nadat async Storage-fetches zijn afgerond', () => {
+  it('klikt nooit programmatisch en gebruikt geen blob/ObjectURL als primaire pakketdownload', () => {
     expect(downloadBron).not.toContain('link.click()');
     expect(downloadBron).not.toContain('downloadBlob(');
+    expect(downloadBron).not.toContain('URL.createObjectURL');
+    expect(downloadBron).not.toContain('blob:');
     expect(vastlegBron).not.toContain('downloadProductiekernBestand');
   });
 
-  it('maakt eerst het ZIP-pakket en laat de uiteindelijke download aan een expliciete ankerclick', () => {
+  it('bereidt signed links voor en laat de expliciete klik via een echte same-origin HTTPS response downloaden', () => {
     expect(downloadBron).toContain('Productiepakket voorbereiden');
-    expect(downloadBron).toContain('href={pakketUrl}');
-    expect(downloadBron).toContain('download={pakketNaam}');
+    expect(downloadBron).toContain('action="/api/productiekern-bat-download"');
+    expect(downloadBron).toContain('method="post"');
     expect(downloadBron).toContain('Productiebestanden downloaden (4)');
-    expect(downloadBron).toContain('bouwProductiekernZip(zipBestanden)');
+    expect(apiBron).toContain("Content-Type', 'application/zip'");
+    expect(apiBron).toContain("Content-Disposition', `attachment;");
+    expect(apiBron).toContain('bouwProductiekernZip(zipBestanden)');
+  });
+
+  it('begrenst de serverdownload tot exact vier signed bestanden uit de formele productiebucket', () => {
+    expect(apiBron).toContain('parsed.bestanden.length !== 4');
+    expect(apiBron).toContain("/storage/v1/object/sign/off-market-productie/");
+    expect(apiBron).toContain("url.searchParams.get('token')");
+    expect(apiBron).toContain("'-voorblad.pdf'");
+    expect(apiBron).toContain("'-controlelijst.pdf'");
+    expect(apiBron).toContain("'-brieven.pdf'");
+    expect(apiBron).toContain("'-adreslabels.csv'");
   });
 
   it('behoudt voor losse herstelbestanden kortlevende signed HTTPS-downloadlinks', () => {

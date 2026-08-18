@@ -47,6 +47,7 @@ import {
 } from '@/hooks/useOffMarketSignalen';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useContextueleTerugnavigatie } from '@/hooks/useContextueleTerugnavigatie';
 import { bepaalBriefStatus } from '@/lib/offMarket/briefStatus';
 import { bouwSignaalTaakContext } from '@/lib/offMarket/eigenaar';
 
@@ -74,6 +75,7 @@ const VALID_TABS = new Set(['overzicht', 'onderzoek', 'kadaster', 'brieven', 'ta
 export default function OffMarketSignaalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const contextueelTerug = useContextueleTerugnavigatie('/off-market');
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { data: signaal, isLoading, error } = useOffMarketSignaal(id);
@@ -105,7 +107,7 @@ export default function OffMarketSignaalDetailPage() {
 
   const handleBackToList = () => {
     if (returnToAcquisitieList) {
-      navigate('/off-market');
+      contextueelTerug();
       return;
     }
     if (fromAcquisitieFocus) {
@@ -119,7 +121,7 @@ export default function OffMarketSignaalDetailPage() {
         },
       });
     } else {
-      navigate('/off-market');
+      contextueelTerug();
     }
   };
 
@@ -164,7 +166,7 @@ export default function OffMarketSignaalDetailPage() {
     return (
       <div className="px-4 sm:px-6 py-6 space-y-3">
         <p className="text-sm text-destructive">Signaal niet gevonden.</p>
-        <Button variant="outline" onClick={() => navigate('/off-market')}>Terug naar overzicht</Button>
+        <Button variant="outline" onClick={contextueelTerug}>Terug naar overzicht</Button>
       </div>
     );
   }

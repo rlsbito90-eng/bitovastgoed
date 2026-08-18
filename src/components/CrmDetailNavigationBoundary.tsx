@@ -2,15 +2,26 @@ import type { MouseEvent, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { leesCrmReturnContext, maakCrmReturnState } from '@/lib/crmReturnContext';
 
-const DETAIL_MODULES = ['relaties', 'objecten', 'deals', 'taken', 'off-market'] as const;
+const DETAIL_MODULES = [
+  'relaties',
+  'objecten',
+  'deals',
+  'taken',
+  'off-market',
+  'acquisitie',
+  'vastgoedkansen',
+] as const;
 type DetailModule = (typeof DETAIL_MODULES)[number];
 
 export function getCrmDetailModule(pathname: string): DetailModule | null {
-  const match = pathname.match(/^\/(relaties|objecten|deals|taken|off-market)\/[^/]+\/?$/);
-  return match ? match[1] as DetailModule : null;
+  const standaard = pathname.match(/^\/(relaties|objecten|deals|taken|off-market)\/[^/]+\/?$/);
+  if (standaard) return standaard[1] as DetailModule;
+  if (/^\/acquisitie\/(?:targets|campagnes)\/[^/]+\/?$/.test(pathname)) return 'acquisitie';
+  if (/^\/vastgoedkansen\/[^/]+\/?$/.test(pathname)) return 'vastgoedkansen';
+  return null;
 }
 
-export type CrmDetailNavigationAction = 'normal' | 'return' | 'cross-detail';
+export type CrmDetailNavigationAction = 'normal' | 'history-back' | 'return' | 'cross-detail';
 
 export function bepaalCrmDetailNavigationAction(args: {
   currentPathname: string;
@@ -20,7 +31,9 @@ export function bepaalCrmDetailNavigationAction(args: {
 }): CrmDetailNavigationAction {
   const { currentPathname, targetPathname, fallbackPath, hasReturnContext } = args;
 
-  if (hasReturnContext && targetPathname === fallbackPath) return 'return';
+  if (targetPathname === fallbackPath) {
+    return hasReturnContext ? 'return' : 'history-back';
+  }
 
   const currentModule = getCrmDetailModule(currentPathname);
   const targetModule = getCrmDetailModule(targetPathname);
@@ -36,17 +49,24 @@ interface Props {
   source: string;
 }
 
+function heeftBruikbareBrowserHistory(): boolean {
+  const idx = (window.history.state as { idx?: unknown } | null)?.idx;
+  return typeof idx === 'number' && idx > 0;
+}
+
 /**
  * Centrale grens voor CRM-detailroutes.
  *
- * - Een vaste terug-link naar de eigen hoofdlijst respecteert een expliciete
- *   return-context wanneer het detail vanuit een andere CRM-module is geopend.
+ * - Een terug-/modulelink naar de eigen hoofdlijst gaat bij normale list->detail
+ *   navigatie via de echte vorige history-entry. Daardoor blijven tab, werkbak,
+ *   filters, sortering, selectie en scrollcontext behouden waar de lijst die
+ *   context zelf bewaart.
+ * - Een expliciete cross-module return-context blijft leidend.
  * - Een cross-module detail-link krijgt automatisch de huidige detailroute als
  *   return-context mee.
  * - Same-module navigatie (o.a. Vorige/Volgende) blijft ongemoeid.
- *
- * Hierdoor hoeven bestaande detailpagina's niet elk hun eigen browser-history
- * logica te implementeren.
+ * - Een directe deep-link zonder bruikbare history valt veilig terug op de
+ *   opgegeven module-hoofdroute.
  */
 export default function CrmDetailNavigationBoundary({
   children,
@@ -89,6 +109,14 @@ export default function CrmDetailNavigationBoundary({
       event.preventDefault();
       event.stopPropagation();
       navigate(returnContext.path);
+      return;
+    }
+
+    if (action === 'history-back') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (heeftBruikbareBrowserHistory()) navigate(-1);
+      else navigate(fallbackPath);
       return;
     }
 

@@ -8,6 +8,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAcquisitie } from '@/hooks/useAcquisitie';
+import { useContextueleTerugnavigatie } from '@/hooks/useContextueleTerugnavigatie';
 import {
   CAMPAGNE_KANAAL_LABEL, CAMPAGNE_STATUS_LABEL, targetTitel,
 } from '@/lib/acquisitie';
@@ -21,6 +22,7 @@ import { getListNavigation } from '@/lib/listNavigation';
 export default function AcquisitieCampagneDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const contextueelTerug = useContextueleTerugnavigatie('/acquisitie');
   const { campagnes, targets, deleteCampagne } = useAcquisitie();
   const [editOpen, setEditOpen] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
@@ -38,9 +40,9 @@ export default function AcquisitieCampagneDetailPage() {
   if (!campagne) {
     return (
       <div className="px-6 py-10">
-        <Link to="/acquisitie" className="text-sm text-muted-foreground inline-flex items-center gap-1">
+        <button type="button" onClick={contextueelTerug} className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Terug
-        </Link>
+        </button>
         <p className="mt-6 text-sm text-muted-foreground">Campagne niet gevonden.</p>
       </div>
     );
@@ -59,9 +61,9 @@ export default function AcquisitieCampagneDetailPage() {
   return (
     <div className="page-shell-detail">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <Link to="/acquisitie" className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
+        <button type="button" onClick={contextueelTerug} className="text-sm text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Terug naar acquisitie
-        </Link>
+        </button>
         <ListNavigator
           info={getListNavigation('acquisitie-campagnes', campagne.id, campagnes.map(c => c.id))}
           buildHref={(id) => `/acquisitie/campagnes/${id}`}
