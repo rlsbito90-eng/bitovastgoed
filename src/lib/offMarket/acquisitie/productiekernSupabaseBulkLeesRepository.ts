@@ -1,4 +1,9 @@
-import type { AcquisitiedossierContract, BriefContract, BriefversieContract } from './productiekernContract';
+import type {
+  AcquisitiedossierContract,
+  BriefContract,
+  BriefversieContract,
+  PrintbatchBriefContract,
+} from './productiekernContract';
 import { bewaakBriefLeesIntegriteit } from './productiekernBriefLeesIntegriteit';
 import { bewaakDossierLeesIntegriteit } from './productiekernDossierLeesIntegriteit';
 import { bewaakBriefLeesTijd, bewaakBriefversieLeesTijd } from './productiekernLeesTijdSamenhang';
@@ -7,13 +12,19 @@ import {
   isFormeleProductiekernBriefRij,
   type ProductiekernSupabaseLeesTransport,
 } from './productiekernSupabaseLeesRepository';
-import { mapAcquisitiedossierRij, mapBriefRij, mapBriefversieRij } from './productiekernSupabaseRijMapper';
+import {
+  mapAcquisitiedossierRij,
+  mapBriefRij,
+  mapBriefversieRij,
+  mapPrintbatchBriefRij,
+} from './productiekernSupabaseRijMapper';
 
 export interface ProductiekernBulkLeesRepository {
   haalDossiersOpSelectieIds(selectieIds: readonly string[]): Promise<AcquisitiedossierContract[]>;
   haalBrievenOpIds(ids: readonly string[]): Promise<BriefContract[]>;
   haalBriefversiesOpIds(ids: readonly string[]): Promise<BriefversieContract[]>;
   haalBriefversiesOpBriefIds(briefIds: readonly string[]): Promise<BriefversieContract[]>;
+  haalPrintbatchBrievenOpBriefversieIds(briefVersieIds: readonly string[]): Promise<PrintbatchBriefContract[]>;
 }
 
 function bewaakExacteIds(entiteit: string, gevraagd: readonly string[], gevonden: readonly string[]): void {
@@ -85,5 +96,25 @@ export class SupabaseProductiekernBulkLeesRepository implements ProductiekernBul
       versieIds.add(versie.id);
     }
     return versies;
+  }
+
+  async haalPrintbatchBrievenOpBriefversieIds(
+    briefVersieIds: readonly string[],
+  ): Promise<PrintbatchBriefContract[]> {
+    if (briefVersieIds.length === 0) return [];
+    const rijen = await this.eisBulktransport()('off_market_printbatch_brieven', briefVersieIds);
+    const gevraagd = new Set(briefVersieIds);
+    const koppelingen = rijen
+      .map(mapPrintbatchBriefRij)
+      .filter((koppeling) => koppeling.verwijderdOp === null);
+    const koppelIds = new Set<string>();
+    for (const koppeling of koppelingen) {
+      if (!gevraagd.has(koppeling.briefVersieId)) {
+        throw new Error('Printbatch-bulkread bevat een koppeling buiten de gevraagde briefversiescope.');
+      }
+      if (koppelIds.has(koppeling.id)) throw new Error('Printbatch-bulkread bevat dubbele koppelingen.');
+      koppelIds.add(koppeling.id);
+    }
+    return koppelingen;
   }
 }
