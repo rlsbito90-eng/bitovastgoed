@@ -61,34 +61,40 @@ export default function ProductiewerkbankBulkPrintbatchActies({ briefIds }: Prop
       setHerstelBezig(true);
       setHerstelFout(null);
       try {
-        const scope: ProductiekernBatchBrief[] = [];
-        const batchIds: Array<string | null> = [];
-        for (const briefId of ids) {
-          const [brief, versies] = await Promise.all([
-            lezen.repository.haalBrief(briefId),
-            lezen.repository.haalBriefversies(briefId),
-          ]);
+        // Eén bulkread voor de formele brieven + één bulkread voor alle versies
+        // van die briefscope. Dit voorkomt de vroegere 2N-read bij tientallen BR's.
+        const [formeleBrieven, alleVersies] = await Promise.all([
+          lezen.bulkRepository.haalBrievenOpIds(ids),
+          lezen.bulkRepository.haalBriefversiesOpBriefIds(ids),
+        ]);
+        if (formeleBrieven.length !== ids.length) {
+          throw new Error('Niet alle gekozen brieven konden als formele Productiekern-brief worden teruggelezen.');
+        }
+
+        const brievenPerId = new Map(formeleBrieven.map((brief) => [brief.id, brief] as const));
+        const scope: ProductiekernBatchBrief[] = ids.map((briefId) => {
+          const brief = brievenPerId.get(briefId);
           if (!brief || brief.status !== 'definitief' || !brief.briefnummer || !brief.actieveVersie) {
             throw new Error(`Brief ${briefId} is niet definitief of mist een BR-nummer.`);
           }
-          const versie = versies.find((v) =>
-            v.versienummer === brief.actieveVersie && (v.status === 'actief' || v.status === 'verzonden'));
-          if (!versie) throw new Error(`Actuele immutable versie voor ${brief.briefnummer} ontbreekt.`);
-          scope.push({ brief, versie, geadresseerdeKey: `${brief.signaalId}|${versie.id}` });
-          batchIds.push(await lezen.repository.haalActievePrintbatchIdVoorBriefversies([versie.id]));
-        }
+          const matches = alleVersies.filter((v) =>
+            v.briefId === brief.id
+            && v.versienummer === brief.actieveVersie
+            && (v.status === 'actief' || v.status === 'verzonden'));
+          if (matches.length !== 1) {
+            throw new Error(`Actuele immutable versie voor ${brief.briefnummer} ontbreekt of is niet uniek.`);
+          }
+          const versie = matches[0];
+          return { brief, versie, geadresseerdeKey: `${brief.signaalId}|${versie.id}` };
+        });
 
-        const gekoppeld = batchIds.filter((id): id is string => Boolean(id));
-        if (gekoppeld.length === 0) {
+        const versieIds = scope.map((item) => item.versie.id);
+        const bestaandId = await lezen.repository.haalActievePrintbatchIdVoorBriefversies(versieIds);
+        if (!bestaandId) {
           if (!cancelled) setBatchBrieven(scope);
           return;
         }
-        const uniek = new Set(gekoppeld);
-        if (gekoppeld.length !== batchIds.length || uniek.size !== 1) {
-          throw new Error('De gekozen definitieve brieven zijn deels al aan een andere printbatch gekoppeld. Selecteer één consistente productiescope.');
-        }
 
-        const bestaandId = [...uniek][0];
         const geladen = await laadProductiekernBatch(bestaandId, lezen.repository);
         const geladenIds = geladen.brieven.map((x) => x.brief.id).sort();
         if (JSON.stringify(geladenIds) !== JSON.stringify(ids)) {
@@ -108,7 +114,7 @@ export default function ProductiewerkbankBulkPrintbatchActies({ briefIds }: Prop
     };
     void run();
     return () => { cancelled = true; };
-  }, [actief, batch, idsKey, lezen.repository]);
+  }, [actief, batch, idsKey, lezen.bulkRepository, lezen.repository]);
 
   useEffect(() => {
     if (!actief || !batch || batch.status === 'concept') {
