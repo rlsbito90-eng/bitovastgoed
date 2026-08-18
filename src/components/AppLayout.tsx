@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import MatchAlertBadge from "@/components/MatchAlertBadge";
 import NotificationsBell from "@/components/NotificationsBell";
+import NotificationsBellV2 from "@/components/NotificationsBellV2";
 import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
@@ -44,6 +45,8 @@ import {
 } from "@/lib/vastgoedrekenen/workspaceNavigation";
 
 const HAMBURGER_RIGHT_MOBILE = true;
+const NOTIFICATION_ENGINE_V2_ENABLED = import.meta.env.VITE_NOTIFICATION_ENGINE_V2 === "true";
+const ActiveNotificationsBell = NOTIFICATION_ENGINE_V2_ENABLED ? NotificationsBellV2 : NotificationsBell;
 
 type NavGroup = "Werk" | "Vastgoed" | "Transacties" | "Acquisitie" | "Inzicht";
 
@@ -293,7 +296,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <div className="ml-auto flex shrink-0 items-center gap-0.5">
                 <RefreshButton />
                 <MatchAlertBadge />
-                <NotificationsBell />
+                <ActiveNotificationsBell />
                 <button
                   onClick={() => setMobileOpen(!mobileOpen)}
                   className="-mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 text-foreground hover:bg-muted"
@@ -320,7 +323,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-1.5">
             <RefreshButton />
             <MatchAlertBadge />
-            <NotificationsBell />
+            <ActiveNotificationsBell />
             <Link to="/taken" className="btn-premium ml-2">
               <Plus className="h-4 w-4" />
               <span>Nieuw</span>
