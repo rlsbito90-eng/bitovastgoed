@@ -17,6 +17,11 @@ import { nl } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { parseDutchNumber } from '@/lib/format/nl';
 import { QuickCreateRelationDialog } from '@/components/forms/QuickCreateRelationDialog';
+import {
+  beschrijfKandidaatFout,
+  vatKandidaatResultatenSamen,
+  type KandidaatResultaat,
+} from '@/lib/pipeline/kandidaatFouten';
 
 interface Props {
   open: boolean;
