@@ -11,6 +11,7 @@ interface ProductiekernDossierProjectieProps {
   totaalSelecties: number;
   actieveWerkbak: ProductiekernWerkbakView;
   onWerkbakChange: (werkbak: ProductiekernWerkbakView) => void;
+  printbatchAantal?: number;
   pariteit?: ProductiekernWorkflowPariteit | null;
   laden?: boolean;
   fout?: boolean;
@@ -25,18 +26,16 @@ function legeTellingen(): Record<OperationeleWerkbak, number> {
 /**
  * Formele statusprojectie van het Productiekernmodel.
  *
- * De werkbaknavigatie gebruikt uitsluitend `primaireWerkbak` uit formele
- * acquisitiedossiers. Zij leidt `nieuwe_selectie` dus nooit af uit legacydata,
- * datums of een ontbrekend dossier. Een readmodel-fout wordt expliciet
- * fail-closed weergegeven en produceert geen misleidende werkbaktellingen.
- * Tijdens laden blijft ook de werkbaknavigatie gesloten zodat nooit partiële
- * aantallen uit verschillende asynchrone reads worden getoond.
+ * De dagelijkse dossierwerkbakken blijven uitsluitend gebaseerd op
+ * `primaireWerkbak`. `Printbatches` is daarnaast een formele, read-only
+ * dwarsdoorsnede op BAT-niveau en verandert dus geen dossierstatus.
  */
 export default function ProductiekernDossierProjectie({
   dossiers,
   totaalSelecties,
   actieveWerkbak,
   onWerkbakChange,
+  printbatchAantal = 0,
   pariteit = null,
   laden = false,
   fout = false,
@@ -52,7 +51,13 @@ export default function ProductiekernDossierProjectie({
     ? null
     : actieveWerkbak === 'alles'
       ? dossiers.length
-      : tellingen[actieveWerkbak];
+      : actieveWerkbak === 'printbatches'
+        ? printbatchAantal
+        : tellingen[actieveWerkbak];
+
+  const zichtbaarEenheid = actieveWerkbak === 'printbatches'
+    ? (zichtbaarAantal === 1 ? 'printbatch' : 'printbatches')
+    : (zichtbaarAantal === 1 ? 'dossier' : 'dossiers');
 
   return (
     <section
@@ -88,6 +93,7 @@ export default function ProductiekernDossierProjectie({
         <ProductiekernWerkbakChips
           actief={actieveWerkbak}
           counts={tellingen}
+          printbatchAantal={printbatchAantal}
           totaal={dossiers.length}
           onChange={onWerkbakChange}
         />
@@ -98,7 +104,7 @@ export default function ProductiekernDossierProjectie({
           className="text-xs text-muted-foreground"
           data-testid="productiekern-actieve-werkbak-telling"
         >
-          {zichtbaarAantal} {zichtbaarAantal === 1 ? 'dossier' : 'dossiers'} in deze weergave
+          {zichtbaarAantal} {zichtbaarEenheid} in deze weergave
         </p>
       )}
     </section>
