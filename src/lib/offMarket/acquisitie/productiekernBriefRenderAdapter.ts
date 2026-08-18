@@ -1,6 +1,7 @@
 import { buildBriefViewModel, type BriefViewModel } from '@/lib/offMarket/brief';
 
 import type { BriefRenderInvoer } from './briefRenderInvoer';
+import { productiekernGeadresseerdeNaam } from './productiekernGeadresseerdeNaam';
 
 /**
  * Verbindt de immutable productiekern-renderpayload met de bestaande,
@@ -10,11 +11,17 @@ import type { BriefRenderInvoer } from './briefRenderInvoer';
 export function mapProductiekernBriefNaarViewModel(
   invoer: BriefRenderInvoer,
 ): BriefViewModel {
-  const geadresseerde = invoer.bedrijfsnaam?.trim()
-    || invoer.naam?.trim()
-    || '';
+  const geadresseerde = productiekernGeadresseerdeNaam({
+    naam: invoer.naam,
+    bedrijfsnaam: invoer.bedrijfsnaam,
+  });
+  const isBedrijf = Boolean(invoer.bedrijfsnaam?.trim())
+    || (Boolean(invoer.naam?.trim()) && geadresseerde === invoer.naam?.trim());
+
+  // Het verzendadres bevat hier bewust alleen adresregels. De bestaande
+  // BriefPagina rendert de geadresseerdenaam zelf al boven deze regels.
+  // Daarmee kan een bedrijfs- of persoonsnaam nooit dubbel in de briefkop staan.
   const verzendadres = [
-    geadresseerde,
     invoer.straatHuisnummer.trim(),
     `${invoer.postcode.trim()} ${invoer.plaats.trim()}`.trim(),
     invoer.land.trim() && invoer.land.trim().toLowerCase() !== 'nederland'
@@ -23,8 +30,8 @@ export function mapProductiekernBriefNaarViewModel(
   ].filter(Boolean).join('\n');
 
   return buildBriefViewModel({
-    eigenaarNaam: invoer.naam ?? '',
-    eigenaarBedrijfsnaam: invoer.bedrijfsnaam ?? '',
+    eigenaarNaam: isBedrijf ? '' : geadresseerde,
+    eigenaarBedrijfsnaam: isBedrijf ? geadresseerde : '',
     verzendadres,
     objectomschrijving: invoer.objectomschrijving ?? invoer.objectadres ?? '',
     onderwerp: invoer.onderwerp ?? '',
