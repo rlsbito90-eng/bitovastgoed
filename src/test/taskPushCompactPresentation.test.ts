@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(
-  new URL('../../supabase/functions/notification-push-send/index.ts', import.meta.url),
+  resolve(process.cwd(), 'supabase/functions/notification-push-send/index.ts'),
   'utf8',
 );
 
@@ -19,7 +20,7 @@ describe('notification-push-send — compacte taakpresentatie', () => {
 
   it('haalt taaktype, object/signaal en relatie op voor context', () => {
     expect(source).toContain(".select('id, titel, type, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')");
-    expect(source).toContain("const pand = signaalLabel(context.signaal) || objectLabel(context.object)");
+    expect(source).toContain('const pand = signaalLabel(context.signaal) || objectLabel(context.object)');
     expect(source).toContain('const relatie = relatieLabel(context.relatie)');
   });
 
