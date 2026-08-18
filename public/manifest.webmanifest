@@ -1,6 +1,9 @@
 {
+  "id": "/",
   "name": "Bito Vastgoed CRM",
   "short_name": "Bito CRM",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/icon-192-v3.png",

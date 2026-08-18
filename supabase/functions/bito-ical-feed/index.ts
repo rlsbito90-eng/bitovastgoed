@@ -1,17 +1,13 @@
 // supabase/functions/bito-ical-feed/index.ts
+// Bito Vastgoed — iCal feed
 //
-// Bito Vastgoed — iCal Feed Edge Function
-//
-// Genereert een iCalendar (.ics) feed van alle relevante agenda-items:
-//   - Bezichtigingen        (deals.bezichtiging_gepland)
-//   - Taken-deadlines       (taken.deadline + deadline_tijd)
-//   - Follow-ups            (deals.datum_follow_up + follow_up_tijd)
-//   - Verwachte closings    (deals.verwachte_closingdatum, all-day)
-//   - Pipeline-bezichtiging (object_pipeline.bezichtiging_datum)
-//   - Pipeline volgende actie (object_pipeline.volgende_actie_datum)
-//   - Gewenste levering     (object_pipeline.gewenste_levering)
-//   - NDA-datum relatie     (relaties.nda_datum)
-//   - Vastgoedkans volgende actie / opvolging met concrete datum
+// Semantisch contract:
+// - afspraken blijven domeinevents;
+// - prognoses blijven TENTATIVE agenda-items;
+// - echte gebruikersacties komen primair uit centrale taken;
+// - legacy follow-up/volgende-actievelden zijn uitsluitend agenda-fallback zolang
+//   nog geen canonieke source-bound taak bestaat;
+// - centrale taken zijn altijd user-scoped via feed_tokens.gebruiker_id.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
@@ -23,9 +19,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-// ===================================================================
-// iCalendar helpers
-// ===================================================================
+const ACTIVE_TASK_STATUSES = ['open', 'in_uitvoering', 'wacht_op_reactie'];
+const CLOSED_VASTGOEDKANS_STATUSES = new Set(['afgevallen', 'gepromoveerd']);
 
 function icsEscape(text: string): string {
   return text
@@ -44,18 +39,44 @@ function icsDate(d: string): string {
   return d.replace(/-/g, '');
 }
 
+function addOneDay(yyyymmdd: string): string {
+  const d = new Date(`${yyyymmdd}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
- * Combineer DATE + TIME (Europe/Amsterdam) → UTC Date.
- * Ruwe DST-benadering: april t/m oktober = +02:00, anders +01:00.
+ * Zet een lokale Europe/Amsterdam datum+tijd exact om naar UTC.
+ * Intl bepaalt de echte timezone-offset, inclusief DST-overgangsdagen.
  */
 function combineDateTimeAmsterdam(date: string, time: string): Date {
-  // Time kan "HH:mm" of "HH:mm:ss" zijn
-  const t = time.length === 5 ? `${time}:00` : time;
-  const tempDate = new Date(`${date}T${t}Z`); // parse als UTC
-  const month = parseInt(date.substring(5, 7), 10);
-  const isDst = month >= 4 && month <= 10;
-  const offsetMinutes = isDst ? 120 : 60;
-  return new Date(tempDate.getTime() - offsetMinutes * 60 * 1000);
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour = 0, minute = 0, second = 0] = time.split(':').map(Number);
+  if (!year || !month || !day) throw new Error(`Ongeldige datum: ${date}`);
+
+  const desiredAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+  let candidate = desiredAsUtc;
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Amsterdam',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  });
+
+  for (let i = 0; i < 2; i += 1) {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(candidate))
+        .filter((p) => p.type !== 'literal')
+        .map((p) => [p.type, p.value]),
+    ) as Record<string, string>;
+    const renderedAsUtc = Date.UTC(
+      Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+      Number(parts.hour), Number(parts.minute), Number(parts.second),
+    );
+    candidate += desiredAsUtc - renderedAsUtc;
+  }
+
+  return new Date(candidate);
 }
 
 function makeUid(type: string, id: string): string {
@@ -76,202 +97,133 @@ interface VEventInput {
 }
 
 function buildVEvent(e: VEventInput, dtstamp: string): string {
-  const lines: string[] = ['BEGIN:VEVENT'];
-  lines.push(`UID:${e.uid}`);
-  lines.push(`DTSTAMP:${dtstamp}`);
-
+  const lines: string[] = ['BEGIN:VEVENT', `UID:${e.uid}`, `DTSTAMP:${dtstamp}`];
   if (e.startUtc && e.endUtc) {
-    lines.push(`DTSTART:${icsDateTimeUtc(e.startUtc)}`);
-    lines.push(`DTEND:${icsDateTimeUtc(e.endUtc)}`);
+    lines.push(`DTSTART:${icsDateTimeUtc(e.startUtc)}`, `DTEND:${icsDateTimeUtc(e.endUtc)}`);
   } else if (e.startDate && e.endDate) {
-    lines.push(`DTSTART;VALUE=DATE:${icsDate(e.startDate)}`);
-    lines.push(`DTEND;VALUE=DATE:${icsDate(e.endDate)}`);
+    lines.push(`DTSTART;VALUE=DATE:${icsDate(e.startDate)}`, `DTEND;VALUE=DATE:${icsDate(e.endDate)}`);
   }
-
   lines.push(`SUMMARY:${icsEscape(e.summary)}`);
   if (e.description) lines.push(`DESCRIPTION:${icsEscape(e.description)}`);
   if (e.location) lines.push(`LOCATION:${icsEscape(e.location)}`);
   if (e.url) lines.push(`URL:${e.url}`);
   if (e.status) lines.push(`STATUS:${e.status}`);
-
   lines.push('END:VEVENT');
   return lines.join('\r\n');
 }
 
-function addOneDay(yyyymmdd: string): string {
-  const d = new Date(yyyymmdd + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().substring(0, 10);
+function timedOrAllDay(
+  base: Omit<VEventInput, 'startUtc' | 'endUtc' | 'startDate' | 'endDate'>,
+  date: string,
+  time: string | null | undefined,
+  durationMinutes: number,
+): VEventInput {
+  if (!time) return { ...base, startDate: date, endDate: addOneDay(date) };
+  const start = combineDateTimeAmsterdam(date, time);
+  return { ...base, startUtc: start, endUtc: new Date(start.getTime() + durationMinutes * 60_000) };
 }
-
-// ===================================================================
-// Hoofdfunctie
-// ===================================================================
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+    return new Response(null, { status: 204, headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    }});
   }
 
   try {
-    const url = new URL(req.url);
-    const token = url.searchParams.get('token');
+    const token = new URL(req.url).searchParams.get('token');
+    if (!token || token.length < 16) return new Response('Token ontbreekt of ongeldig', { status: 401 });
 
-    if (!token || token.length < 16) {
-      return new Response('Token ontbreekt of ongeldig', { status: 401 });
-    }
-
-    // 1. Token valideren
     const { data: tokenRow, error: tokenError } = await supabase
-      .from('feed_tokens')
-      .select('id, gebruiker_id')
-      .eq('token', token)
-      .is('ingetrokken_op', null)
-      .maybeSingle();
-
-    if (tokenError) {
-      console.error('Token lookup error:', tokenError);
-      return new Response('Server-fout', { status: 500 });
-    }
-    if (!tokenRow) {
-      return new Response('Ongeldig of ingetrokken token', { status: 401 });
+      .from('feed_tokens').select('id, gebruiker_id').eq('token', token)
+      .is('ingetrokken_op', null).maybeSingle();
+    if (tokenError) return new Response('Server-fout', { status: 500 });
+    if (!tokenRow) return new Response('Ongeldig of ingetrokken token', { status: 401 });
+    if (!tokenRow.gebruiker_id) {
+      console.error('iCal feed token zonder gebruiker_id', tokenRow.id);
+      return new Response('Feedtoken heeft geen gebruiker', { status: 403 });
     }
 
-    // 2. laatst_gebruikt updaten (best-effort)
-    supabase
-      .from('feed_tokens')
-      .update({ laatst_gebruikt: new Date().toISOString() })
-      .eq('id', tokenRow.id)
-      .then(() => {});
+    const feedUserId = tokenRow.gebruiker_id;
 
-    // 3. Data ophalen — vanaf 30 dagen geleden
-    const vandaag = new Date();
-    const dertigDagenGeleden = new Date(vandaag);
-    dertigDagenGeleden.setDate(dertigDagenGeleden.getDate() - 30);
-    const vanafDate = dertigDagenGeleden.toISOString().substring(0, 10);
+    supabase.from('feed_tokens').update({ laatst_gebruikt: new Date().toISOString() })
+      .eq('id', tokenRow.id).then(() => {});
 
-    // Deals — flat select (geen FK joins, die bestaan niet)
-    const { data: deals, error: dealsErr } = await supabase
-      .from('deals')
-      .select('id, object_id, relatie_id, bezichtiging_gepland, bezichtiging_tijd, datum_follow_up, follow_up_tijd, verwachte_closingdatum, notities, fase')
-      .is('soft_deleted_at', null);
+    const grens = new Date();
+    grens.setDate(grens.getDate() - 30);
+    const vanafDate = grens.toISOString().slice(0, 10);
 
-    if (dealsErr) console.error('Deals query error:', dealsErr);
+    const [dealRes, taakRes, pipelineRes, ndaRes, kansRes] = await Promise.all([
+      supabase.from('deals')
+        .select('id, object_id, relatie_id, bezichtiging_gepland, bezichtiging_tijd, datum_follow_up, follow_up_tijd, verwachte_closingdatum, notities, fase')
+        .is('soft_deleted_at', null),
+      supabase.from('taken')
+        .select('id, titel, notities, deadline, deadline_tijd, prioriteit, status, relatie_id, object_id, deal_id, vastgoedkans_id, owner_user_id, source_kind, source_id, source_slot')
+        .eq('owner_user_id', feedUserId)
+        .is('soft_deleted_at', null)
+        .gte('deadline', vanafDate)
+        .in('status', ACTIVE_TASK_STATUSES),
+      supabase.from('object_pipeline')
+        .select('id, object_id, relatie_id, pipeline_fase, interesse_niveau, bezichtiging_datum, volgende_actie, volgende_actie_datum, volgende_actie_omschrijving, gewenste_levering, notities')
+        .is('soft_deleted_at', null),
+      supabase.from('relaties')
+        .select('id, bedrijfsnaam, nda_datum').is('soft_deleted_at', null)
+        .not('nda_datum', 'is', null).gte('nda_datum', vanafDate),
+      // Geen archived_at-filter: dat veld bestaat niet in het actuele DB-contract.
+      // Afgesloten dossiers worden semantisch op status uitgesloten in de eventloop.
+      supabase.from('vastgoedkansen')
+        .select('id, kansnummer, adres, postcode, plaats, korte_omschrijving, status, eigenaar_naam, volgende_actie_datum, volgende_actie_omschrijving, opvolgdatum, opvolgactie')
+        .or(`volgende_actie_datum.gte.${vanafDate},opvolgdatum.gte.${vanafDate}`),
+    ]);
 
-    // Taken — flat select. vastgoedkans_id wordt alleen gebruikt om dubbele
-    // agenda-items te voorkomen als dezelfde gedateerde actie ook als taak bestaat.
-    const { data: taken, error: takenErr } = await supabase
-      .from('taken')
-      .select('id, titel, notities, deadline, deadline_tijd, prioriteit, status, relatie_id, object_id, deal_id, vastgoedkans_id')
-      .is('soft_deleted_at', null)
-      .gte('deadline', vanafDate)
-      .neq('status', 'afgerond');
+    if (dealRes.error) console.error('Deals query error:', dealRes.error);
+    if (taakRes.error) console.error('Taken query error:', taakRes.error);
+    if (pipelineRes.error) console.error('Pipeline query error:', pipelineRes.error);
+    if (ndaRes.error) console.error('NDA query error:', ndaRes.error);
+    if (kansRes.error) console.error('Vastgoedkansen query error:', kansRes.error);
 
-    if (takenErr) console.error('Taken query error:', takenErr);
+    const deals = dealRes.data ?? [];
+    const taken = taakRes.data ?? [];
+    const pipeline = pipelineRes.data ?? [];
+    const ndaRelaties = ndaRes.data ?? [];
+    const vastgoedkansen = kansRes.data ?? [];
 
-    // Pipeline-kandidaten — bezichtigingen + volgende acties + gewenste leveringen
-    const { data: pipeline, error: pipelineErr } = await supabase
-      .from('object_pipeline')
-      .select('id, object_id, relatie_id, pipeline_fase, interesse_niveau, bezichtiging_datum, volgende_actie, volgende_actie_datum, volgende_actie_omschrijving, gewenste_levering, notities')
-      .is('soft_deleted_at', null);
-
-    if (pipelineErr) console.error('Pipeline query error:', pipelineErr);
-
-    // Relaties met NDA-datum
-    const { data: ndaRelaties, error: ndaErr } = await supabase
-      .from('relaties')
-      .select('id, bedrijfsnaam, nda_datum')
-      .is('soft_deleted_at', null)
-      .not('nda_datum', 'is', null)
-      .gte('nda_datum', vanafDate);
-
-    if (ndaErr) console.error('NDA-relaties query error:', ndaErr);
-
-    // Vastgoedkansen: alleen dossiers met een echte datum. Ongedateerde
-    // workflowadviezen horen in de CRM-werkbak en niet in de agenda.
-    const { data: vastgoedkansen, error: vastgoedkansenErr } = await supabase
-      .from('vastgoedkansen')
-      .select('id, kansnummer, adres, postcode, plaats, korte_omschrijving, status, eigenaar_naam, volgende_actie_datum, volgende_actie_omschrijving, opvolgdatum, opvolgactie, archived_at')
-      .is('archived_at', null)
-      .or(`volgende_actie_datum.gte.${vanafDate},opvolgdatum.gte.${vanafDate}`);
-
-    if (vastgoedkansenErr) console.error('Vastgoedkansen query error:', vastgoedkansenErr);
-
-    // Verzamel alle benodigde object_ids en relatie_ids
     const objectIds = new Set<string>();
     const relatieIds = new Set<string>();
-    for (const d of deals ?? []) {
-      if (d.object_id) objectIds.add(d.object_id);
-      if (d.relatie_id) relatieIds.add(d.relatie_id);
+    for (const row of [...deals, ...pipeline]) {
+      if ((row as any).object_id) objectIds.add((row as any).object_id);
+      if ((row as any).relatie_id) relatieIds.add((row as any).relatie_id);
     }
-    for (const t of taken ?? []) {
+    for (const t of taken) {
       if (t.object_id) objectIds.add(t.object_id);
       if (t.relatie_id) relatieIds.add(t.relatie_id);
     }
-    for (const p of pipeline ?? []) {
-      if (p.object_id) objectIds.add(p.object_id);
-      if (p.relatie_id) relatieIds.add(p.relatie_id);
-    }
-    for (const r of ndaRelaties ?? []) {
-      relatieIds.add(r.id);
-    }
+    for (const r of ndaRelaties) relatieIds.add(r.id);
 
-    // Lookups (objectnaam ipv titel!)
-    const objectMap = new Map<string, any>();
-    if (objectIds.size > 0) {
-      const { data: objs, error: objsErr } = await supabase
-        .from('objecten')
+    const [objRes, relRes, cpRes] = await Promise.all([
+      objectIds.size ? supabase.from('objecten')
         .select('id, objectnaam, adres, postcode, plaats, anoniem, publieke_naam')
-        .in('id', Array.from(objectIds));
-      if (objsErr) console.error('Objecten query error:', objsErr);
-      for (const o of objs ?? []) objectMap.set(o.id, o);
-    }
-
-    const relatieMap = new Map<string, any>();
-    if (relatieIds.size > 0) {
-      const { data: rels, error: relsErr } = await supabase
-        .from('relaties')
+        .in('id', [...objectIds]) : Promise.resolve({ data: [], error: null } as any),
+      relatieIds.size ? supabase.from('relaties')
         .select('id, bedrijfsnaam, contactpersoon, email, telefoon, type_partij')
-        .in('id', Array.from(relatieIds));
-      if (relsErr) console.error('Relaties query error:', relsErr);
-      for (const r of rels ?? []) relatieMap.set(r.id, r);
-    }
-
-    // Contactpersonen per relatie: primair indien aanwezig, anders eerste
-    // beschikbare. Voorkomt dat "Onbekend" in agenda komt wanneer de
-    // contactpersoon (bv. Marco Spierings) niet als primair gemarkeerd is.
-    const primaryCpMap = new Map<string, any>();
-    if (relatieIds.size > 0) {
-      const { data: cps, error: cpsErr } = await supabase
-        .from('relatie_contactpersonen')
+        .in('id', [...relatieIds]) : Promise.resolve({ data: [], error: null } as any),
+      relatieIds.size ? supabase.from('relatie_contactpersonen')
         .select('relatie_id, naam, email, telefoon, telefoon_mobiel, is_primair, created_at')
-        .in('relatie_id', Array.from(relatieIds))
-        .order('is_primair', { ascending: false })
-        .order('created_at', { ascending: true });
-      if (cpsErr) console.error('Contactpersonen query error:', cpsErr);
-      for (const c of cps ?? []) {
-        // Eerste record per relatie wint door bovenstaande sortering
-        if (!primaryCpMap.has(c.relatie_id)) primaryCpMap.set(c.relatie_id, c);
-      }
-    }
+        .in('relatie_id', [...relatieIds]).order('is_primair', { ascending: false })
+        .order('created_at', { ascending: true }) : Promise.resolve({ data: [], error: null } as any),
+    ]);
+
+    const objectMap = new Map((objRes.data ?? []).map((o: any) => [o.id, o]));
+    const relatieMap = new Map((relRes.data ?? []).map((r: any) => [r.id, r]));
+    const primaryCpMap = new Map<string, any>();
+    for (const c of cpRes.data ?? []) if (!primaryCpMap.has(c.relatie_id)) primaryCpMap.set(c.relatie_id, c);
 
     const PLACEHOLDER = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
     const cleanStr = (v: any): string => {
       const s = (v ?? '').toString().trim();
-      if (!s) return '';
-      if (PLACEHOLDER.has(s.toLowerCase())) return '';
-      return s;
-    };
-    const PARTIJ_LABELS: Record<string, string> = {
-      belegger: 'Belegger', ontwikkelaar: 'Ontwikkelaar', eigenaar: 'Eigenaar',
-      makelaar: 'Makelaar', partner: 'Partner', overig: 'Relatie',
+      return !s || PLACEHOLDER.has(s.toLowerCase()) ? '' : s;
     };
     const relName = (r: any): string => {
       if (!r) return '';
@@ -279,430 +231,184 @@ Deno.serve(async (req: Request) => {
       const naam = cleanStr(cp?.naam) || cleanStr(r.contactpersoon);
       const bedrijf = cleanStr(r.bedrijfsnaam);
       if (naam && bedrijf) return `${naam} · ${bedrijf}`;
-      if (naam) return naam;
-      if (bedrijf) return bedrijf;
-      const email = cleanStr(r.email) || cleanStr(cp?.email);
-      if (email) return email;
-      const tel = cleanStr(r.telefoon) || cleanStr(cp?.telefoon) || cleanStr(cp?.telefoon_mobiel);
-      if (tel) return tel;
-      const typeLabel = r.type_partij ? PARTIJ_LABELS[r.type_partij] : '';
-      return typeLabel ? `${typeLabel} zonder naam` : '';
+      return naam || bedrijf || cleanStr(r.email) || cleanStr(cp?.email) || cleanStr(r.telefoon) || cleanStr(cp?.telefoon) || '';
     };
-
     const objNaam = (o: any) => o?.objectnaam ?? o?.publieke_naam ?? 'Object';
-
-    // Inline humanizer voor fase-keys; alle bekende keys staan ook in
-    // FASE_LABEL verderop, hier vooral fallback met underscore-naar-spatie.
-    const humanizeFaseInline = (key?: string | null): string => {
-      const s = (key ?? '').trim();
-      if (!s) return '';
-      return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    };
-
-    // Bouw agenda-titel zonder leeg-haakje "(Onbekend)" of "()".
+    const humanize = (s?: string | null) => cleanStr(s).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const buildAgendaTitle = (actie: string, naam: string, object: string): string => {
-      const subj = [naam, object].filter(Boolean).join(' · ');
-      if (actie && subj) return `${actie} — ${subj}`;
-      if (actie) return actie;
-      return subj || 'Agenda-item';
+      const onderwerp = [naam, object].filter(Boolean).join(' · ');
+      return actie && onderwerp ? `${actie} — ${onderwerp}` : actie || onderwerp || 'Agenda-item';
     };
-    const descLines = (...rows: Array<[string, string | undefined | null]>): string =>
-      rows.filter(([, v]) => !!v && v.toString().trim()).map(([k, v]) => `${k}: ${v}`).join('\n');
+    const descLines = (...rows: Array<[string, string | null | undefined]>) =>
+      rows.filter(([, v]) => cleanStr(v)).map(([k, v]) => `${k}: ${v}`).join('\n');
 
-    // 4. iCal opbouwen
+    // Canonieke source-bound taak wint van een legacy domeinveld, ongeacht of de
+    // legacy datum exact gelijk is. De set bevat uitsluitend taken van feedUserId.
+    const canonicalSourceSlots = new Set(
+      taken.filter((t: any) => t.source_kind && t.source_id && t.source_slot)
+        .map((t: any) => `${t.source_kind}|${t.source_id}|${t.source_slot}`),
+    );
+    const hasCanonical = (kind: string, id: string, slot: string) =>
+      canonicalSourceSlots.has(`${kind}|${id}|${slot}`);
+
     const dtstamp = icsDateTimeUtc(new Date());
     const events: string[] = [];
 
-    // === BEZICHTIGINGEN ===
-    for (const d of deals ?? []) {
-      if (!d.bezichtiging_gepland) continue;
+    for (const d of deals) {
       const obj = d.object_id ? objectMap.get(d.object_id) : null;
       const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
-
       const titel = objNaam(obj);
       const relatie = relName(rel);
-      const locatie = obj
-        ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
-        : undefined;
+      const locatie = obj ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ') : undefined;
       const dealUrl = `${APP_BASE_URL}/deals/${d.id}`;
 
-      const summary = `🏠 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`;
-      const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(d.fase)]),
-        d.notities ? `\n${d.notities}` : '',
-        `\nDeal: ${dealUrl}`,
-      ].filter(Boolean).join('\n');
-
-      const event: VEventInput = {
-        uid: makeUid('bezichtiging', d.id),
-        summary,
-        description,
-        location: locatie,
-        url: dealUrl,
-        status: 'CONFIRMED',
-      };
-
-      if (d.bezichtiging_tijd) {
-        const start = combineDateTimeAmsterdam(d.bezichtiging_gepland, d.bezichtiging_tijd);
-        const end = new Date(start.getTime() + 90 * 60 * 1000);
-        event.startUtc = start;
-        event.endUtc = end;
-      } else {
-        event.startDate = d.bezichtiging_gepland;
-        event.endDate = addOneDay(d.bezichtiging_gepland);
+      if (d.bezichtiging_gepland) {
+        events.push(buildVEvent(timedOrAllDay({
+          uid: makeUid('bezichtiging', d.id),
+          summary: `🏠 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`,
+          description: [descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanize(d.fase)]), d.notities, `Deal: ${dealUrl}`].filter(Boolean).join('\n'),
+          location: locatie, url: dealUrl, status: 'CONFIRMED',
+        }, d.bezichtiging_gepland, d.bezichtiging_tijd, 90), dtstamp));
       }
 
-      events.push(buildVEvent(event, dtstamp));
-    }
-
-    // === FOLLOW-UPS ===
-    for (const d of deals ?? []) {
-      if (!d.datum_follow_up) continue;
-      const obj = d.object_id ? objectMap.get(d.object_id) : null;
-      const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
-
-      const titel = objNaam(obj);
-      const relatie = relName(rel);
-      const locatie = obj
-        ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
-        : undefined;
-      const dealUrl = `${APP_BASE_URL}/deals/${d.id}`;
-
-      const summary = `📞 ${buildAgendaTitle('Follow-up', relatie, titel)}`;
-      const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(d.fase)]),
-        `\nDeal: ${dealUrl}`,
-      ].filter(Boolean).join('\n');
-
-      const event: VEventInput = {
-        uid: makeUid('followup', d.id),
-        summary,
-        description,
-        location: locatie,
-        url: dealUrl,
-      };
-
-      if (d.follow_up_tijd) {
-        const start = combineDateTimeAmsterdam(d.datum_follow_up, d.follow_up_tijd);
-        const end = new Date(start.getTime() + 30 * 60 * 1000);
-        event.startUtc = start;
-        event.endUtc = end;
-      } else {
-        event.startDate = d.datum_follow_up;
-        event.endDate = addOneDay(d.datum_follow_up);
+      if (d.datum_follow_up && !hasCanonical('deal', d.id, 'follow_up')) {
+        events.push(buildVEvent(timedOrAllDay({
+          uid: makeUid('followup', d.id),
+          summary: `📞 ${buildAgendaTitle('Follow-up', relatie, titel)}`,
+          description: [descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanize(d.fase)]), `Deal: ${dealUrl}`].filter(Boolean).join('\n'),
+          location: locatie, url: dealUrl,
+        }, d.datum_follow_up, d.follow_up_tijd, 30), dtstamp));
       }
 
-      events.push(buildVEvent(event, dtstamp));
+      if (d.verwachte_closingdatum) {
+        const bevestigd = d.fase === 'afgerond';
+        events.push(buildVEvent({
+          uid: makeUid('closing', d.id),
+          summary: `💼 ${buildAgendaTitle(bevestigd ? 'Closing' : 'Verwachte closing', relatie, titel)}`,
+          description: [descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanize(d.fase)]), `Deal: ${dealUrl}`].filter(Boolean).join('\n'),
+          location: locatie, url: dealUrl,
+          startDate: d.verwachte_closingdatum, endDate: addOneDay(d.verwachte_closingdatum),
+          status: bevestigd ? 'CONFIRMED' : 'TENTATIVE',
+        }, dtstamp));
+      }
     }
 
-    // === CLOSINGS ===
-    for (const d of deals ?? []) {
-      if (!d.verwachte_closingdatum) continue;
-      const obj = d.object_id ? objectMap.get(d.object_id) : null;
-      const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
+    const dealMap = new Map(deals.map((d: any) => [d.id, d]));
 
-      const titel = objNaam(obj);
-      const relatie = relName(rel);
-      const locatie = obj
-        ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
-        : undefined;
-      const dealUrl = `${APP_BASE_URL}/deals/${d.id}`;
-
-      const fase = d.fase ?? '';
-      const isAfgerond = fase === 'afgerond';
-
-      const actie = isAfgerond ? 'Closing' : 'Verwachte closing';
-      const summary = `💼 ${buildAgendaTitle(actie, relatie, titel)}`;
-      const description = [
-        descLines(['Relatie', relatie], ['Object', titel], ['Fase', humanizeFaseInline(fase) || undefined]),
-        `\nDeal: ${dealUrl}`,
-      ].filter(Boolean).join('\n');
-
-      events.push(buildVEvent({
-        uid: makeUid('closing', d.id),
-        summary,
-        description,
-        location: locatie,
-        url: dealUrl,
-        startDate: d.verwachte_closingdatum,
-        endDate: addOneDay(d.verwachte_closingdatum),
-        status: isAfgerond ? 'CONFIRMED' : 'TENTATIVE',
-      }, dtstamp));
-    }
-
-    // Build deal lookup map (voor taken die aan een deal gekoppeld zijn)
-    const dealMap = new Map<string, any>();
-    for (const d of deals ?? []) dealMap.set(d.id, d);
-
-    // === TAKEN ===
-    for (const t of taken ?? []) {
+    // Centrale taken: enige primaire agenda-bron voor echte gebruikersacties.
+    // Query is reeds hard begrensd op owner_user_id = feedUserId.
+    for (const t of taken) {
       if (!t.deadline) continue;
-      const rel = t.relatie_id ? relatieMap.get(t.relatie_id) : null;
-      let obj = t.object_id ? objectMap.get(t.object_id) : null;
-      const deal = t.deal_id ? dealMap.get(t.deal_id) : null;
-
-      // Als taak aan deal gekoppeld is en geen eigen object/relatie heeft, gebruik die van de deal
-      if (deal && !obj && deal.object_id) obj = objectMap.get(deal.object_id);
-      const dealRel = deal && !rel && deal.relatie_id ? relatieMap.get(deal.relatie_id) : rel;
-
-      const prefix = t.prioriteit === 'urgent' ? '🔴'
-        : t.prioriteit === 'hoog' ? '🟠'
-        : '⏰';
-
-      const summary = `${prefix} ${t.titel}`;
-      const dealUrl = deal ? `${APP_BASE_URL}/deals/${deal.id}` : null;
-      const dealTitel = deal ? objNaam(obj) : null;
-
-      const relNaam = relName(dealRel);
-      const description = [
-        relNaam ? `Relatie: ${relNaam}` : null,
-        obj ? `Object: ${objNaam(obj)}` : null,
-        deal ? `Deal: ${dealTitel}${deal.fase ? ` (${humanizeFaseInline(deal.fase)})` : ''}` : null,
-        t.notities ? `\nNotities:\n${t.notities}` : null,
-        dealUrl ? `\n${dealUrl}` : `\n${APP_BASE_URL}/taken`,
-      ].filter(Boolean).join('\n');
-
-      const locatie = obj
-        ? [obj.adres, obj.plaats].filter(Boolean).join(', ')
-        : undefined;
-
-      const event: VEventInput = {
-        uid: makeUid('taak', t.id),
-        summary,
-        description,
-        location: locatie,
-        url: dealUrl ?? `${APP_BASE_URL}/taken`,
-      };
-
-      if (t.deadline_tijd) {
-        const start = combineDateTimeAmsterdam(t.deadline, t.deadline_tijd);
-        const end = new Date(start.getTime() + 30 * 60 * 1000);
-        event.startUtc = start;
-        event.endUtc = end;
-      } else {
-        event.startDate = t.deadline;
-        event.endDate = addOneDay(t.deadline);
-      }
-
-      events.push(buildVEvent(event, dtstamp));
+      const deal: any = t.deal_id ? dealMap.get(t.deal_id) : null;
+      let obj: any = t.object_id ? objectMap.get(t.object_id) : null;
+      if (!obj && deal?.object_id) obj = objectMap.get(deal.object_id);
+      const rel: any = t.relatie_id ? relatieMap.get(t.relatie_id) : (deal?.relatie_id ? relatieMap.get(deal.relatie_id) : null);
+      const prefix = t.prioriteit === 'urgent' ? '🔴' : t.prioriteit === 'hoog' ? '🟠' : '⏰';
+      const url = deal ? `${APP_BASE_URL}/deals/${deal.id}` : `${APP_BASE_URL}/taken`;
+      const location = obj ? [obj.adres, obj.plaats].filter(Boolean).join(', ') : undefined;
+      events.push(buildVEvent(timedOrAllDay({
+        uid: makeUid('taak', t.id), summary: `${prefix} ${t.titel}`,
+        description: [relName(rel) ? `Relatie: ${relName(rel)}` : null, obj ? `Object: ${objNaam(obj)}` : null, t.notities, url].filter(Boolean).join('\n'),
+        location, url,
+      }, t.deadline, t.deadline_tijd, 30), dtstamp));
     }
 
-    // === VASTGOEDKANSEN ===
-    // Een expliciete volgende_actie_datum heeft altijd voorrang. Legacy opvolgdatum
-    // is alleen fallback en opent een afgesloten dossier niet opnieuw. Als voor
-    // dezelfde Vastgoedkans en datum al een open taak bestaat, wint de taak in iCal.
-    const taakDeadlineSleutels = new Set(
-      (taken ?? [])
-        .filter((t) => t.vastgoedkans_id && t.deadline)
-        .map((t) => `${t.vastgoedkans_id}|${t.deadline}`),
-    );
-
-    for (const k of vastgoedkansen ?? []) {
+    // Vastgoedkans-acties: expliciete actie of legacy opvolgdatum is fallback.
+    for (const k of vastgoedkansen) {
+      if (CLOSED_VASTGOEDKANS_STATUSES.has(k.status)) continue;
       const explicieteDatum = k.volgende_actie_datum ?? null;
-      const isAfgesloten = k.status === 'afgevallen' || k.status === 'gepromoveerd';
-      const legacyDatum = !explicieteDatum && !isAfgesloten ? (k.opvolgdatum ?? null) : null;
+      const legacyDatum = !explicieteDatum ? (k.opvolgdatum ?? null) : null;
       const actieDatum = explicieteDatum ?? legacyDatum;
       if (!actieDatum || actieDatum < vanafDate) continue;
-      if (taakDeadlineSleutels.has(`${k.id}|${actieDatum}`)) continue;
+      if (explicieteDatum && hasCanonical('vastgoedkans', k.id, 'volgende_actie')) continue;
+      if ((taken as any[]).some((t) => t.vastgoedkans_id === k.id && t.deadline === actieDatum)) continue;
 
-      const explicieteActie = explicieteDatum ? cleanStr(k.volgende_actie_omschrijving) : '';
-      const legacyActie = legacyDatum ? cleanStr(k.opvolgactie) : '';
-      const actie = explicieteActie || legacyActie || 'Vastgoedkans opvolgen';
-      const locatie = [k.adres, k.postcode, k.plaats].filter(Boolean).join(', ') || undefined;
-      const dossierTitel = cleanStr(k.korte_omschrijving)
-        || [k.adres, k.postcode, k.plaats].filter(Boolean).join(', ')
-        || cleanStr(k.kansnummer)
-        || 'Vastgoedkans';
-      const eigenaar = cleanStr(k.eigenaar_naam);
-      const kansUrl = `${APP_BASE_URL}/vastgoedkansen/${k.id}`;
-
+      const actie = (explicieteDatum ? cleanStr(k.volgende_actie_omschrijving) : cleanStr(k.opvolgactie)) || 'Vastgoedkans opvolgen';
+      const dossierTitel = cleanStr(k.korte_omschrijving) || [k.adres, k.postcode, k.plaats].filter(Boolean).join(', ') || cleanStr(k.kansnummer) || 'Vastgoedkans';
+      const url = `${APP_BASE_URL}/vastgoedkansen/${k.id}`;
       events.push(buildVEvent({
         uid: makeUid('vastgoedkans-actie', k.id),
-        summary: `📌 ${buildAgendaTitle(actie, eigenaar, dossierTitel)}`,
-        description: [
-          descLines(
-            ['Vastgoedkans', cleanStr(k.kansnummer) || dossierTitel],
-            ['Eigenaar', eigenaar],
-            ['Status', humanizeFaseInline(k.status)],
-            ['Actie', actie],
-          ),
-          `\n${kansUrl}`,
-        ].filter(Boolean).join('\n'),
-        location: locatie,
-        url: kansUrl,
-        startDate: actieDatum,
-        endDate: addOneDay(actieDatum),
+        summary: `📌 ${buildAgendaTitle(actie, cleanStr(k.eigenaar_naam), dossierTitel)}`,
+        description: [descLines(['Vastgoedkans', cleanStr(k.kansnummer) || dossierTitel], ['Eigenaar', cleanStr(k.eigenaar_naam)], ['Status', humanize(k.status)], ['Actie', actie]), url].filter(Boolean).join('\n'),
+        location: [k.adres, k.postcode, k.plaats].filter(Boolean).join(', ') || undefined,
+        url, startDate: actieDatum, endDate: addOneDay(actieDatum),
       }, dtstamp));
     }
 
-    // === PIPELINE-KANDIDATEN ===
-    // Per pipeline-record kunnen meerdere agenda-events ontstaan:
-    //  - bezichtiging_datum
-    //  - volgende_actie_datum
-    //  - gewenste_levering
-    const FASE_LABEL: Record<string, string> = {
-      match_gevonden: 'Match gevonden',
-      teaser_verstuurd: 'Teaser verstuurd',
-      interesse_ontvangen: 'Interesse ontvangen',
-      nda_verstuurd: 'NDA verstuurd',
-      nda_getekend: 'NDA getekend',
-      informatie_gedeeld: 'Informatie gedeeld',
-      bezichtiging_gepland: 'Bezichtiging gepland',
-      bezichtiging_geweest: 'Bezichtiging geweest',
-      bezichtiging_gehouden: 'Bezichtiging gehouden',
-      indicatieve_bieding: 'Indicatieve bieding',
-      onderhandeling: 'Onderhandeling',
-      loi_ontvangen: 'LOI ontvangen',
-      bieding_ontvangen: 'Bieding ontvangen',
-      due_diligence: 'Due diligence',
-      koopovereenkomst_concept: 'Koopovereenkomst concept',
-      koopovereenkomst_getekend: 'Koopovereenkomst getekend',
-      transport_closing: 'Transport / closing',
-      afgerond: 'Afgerond',
-      afgevallen: 'Afgevallen',
-      benaderd: 'Benaderd',
-      afgehaakt: 'Afgehaakt',
-      afgewezen_door_ons: 'Afgewezen door ons',
-      on_hold: 'On hold',
-      gewonnen: 'Gewonnen',
-    };
-
-    const humanizeKey = (key?: string | null): string => {
-      if (!key) return '';
-      if (FASE_LABEL[key]) return FASE_LABEL[key];
-      return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    };
-
     const ACTIE_LABEL: Record<string, string> = {
-      bellen: 'Bellen',
-      mailen: 'Mailen',
-      whatsapp: 'WhatsApp',
-      teaser_sturen: 'Teaser sturen',
-      nda_sturen: 'NDA sturen',
-      nda_opvolgen: 'NDA opvolgen',
-      stukken_delen: 'Stukken delen',
-      info_delen: 'Info delen',
-      bezichtiging_plannen: 'Bezichtiging plannen',
-      bezichtiging_inplannen: 'Bezichtiging inplannen',
-      bezichtiging: 'Bezichtiging',
-      bieding_opvolgen: 'Bieding opvolgen',
-      bod_opvolgen: 'Bod opvolgen',
-      onderhandelen: 'Onderhandelen',
-      contract_opstellen: 'Contract opstellen',
-      dd_opvolgen: 'DD opvolgen',
-      transport_voorbereiden: 'Transport voorbereiden',
-      overig: 'Actie',
-      anders: 'Actie',
+      bellen: 'Bellen', mailen: 'Mailen', whatsapp: 'WhatsApp', teaser_sturen: 'Teaser sturen',
+      nda_sturen: 'NDA sturen', nda_opvolgen: 'NDA opvolgen', stukken_delen: 'Stukken delen',
+      info_delen: 'Info delen', bezichtiging_plannen: 'Bezichtiging plannen',
+      bezichtiging_inplannen: 'Bezichtiging inplannen', bezichtiging: 'Bezichtiging',
+      bieding_opvolgen: 'Bieding opvolgen', bod_opvolgen: 'Bod opvolgen', onderhandelen: 'Onderhandelen',
+      contract_opstellen: 'Contract opstellen', dd_opvolgen: 'DD opvolgen', transport_voorbereiden: 'Transport voorbereiden',
+      overig: 'Actie', anders: 'Actie',
     };
 
-    for (const p of pipeline ?? []) {
-      const obj = p.object_id ? objectMap.get(p.object_id) : null;
-      const rel = p.relatie_id ? relatieMap.get(p.relatie_id) : null;
+    for (const p of pipeline) {
+      const obj: any = p.object_id ? objectMap.get(p.object_id) : null;
+      const rel: any = p.relatie_id ? relatieMap.get(p.relatie_id) : null;
       const titel = objNaam(obj);
       const relatie = relName(rel);
-      const locatie = obj
-        ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ')
-        : undefined;
-      const objectUrl = obj ? `${APP_BASE_URL}/objecten/${obj.id}` : `${APP_BASE_URL}/pipeline`;
-      const faseLabel = p.pipeline_fase ? (FASE_LABEL[p.pipeline_fase] ?? p.pipeline_fase) : '';
-
+      const locatie = obj ? [obj.adres, obj.postcode, obj.plaats].filter(Boolean).join(', ') : undefined;
+      const url = obj ? `${APP_BASE_URL}/objecten/${obj.id}` : `${APP_BASE_URL}/pipeline`;
       const baseDescription = (extra?: string) => [
-        relatie ? `Kandidaat: ${relatie}` : null,
-        obj ? `Object: ${titel}` : null,
-        faseLabel ? `Fase: ${faseLabel}` : null,
-        extra,
-        p.notities ? `\nNotities:\n${p.notities}` : null,
-        `\n${objectUrl}`,
+        relatie ? `Kandidaat: ${relatie}` : null, obj ? `Object: ${titel}` : null,
+        p.pipeline_fase ? `Fase: ${humanize(p.pipeline_fase)}` : null, extra, p.notities, url,
       ].filter(Boolean).join('\n');
 
-      // Bezichtiging vanuit kandidaat-pipeline (all-day, want geen tijdveld)
       if (p.bezichtiging_datum) {
         events.push(buildVEvent({
-          uid: makeUid('pipeline-bezichtiging', p.id),
-          summary: `🤝 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`,
-          description: baseDescription(),
-          location: locatie,
-          url: objectUrl,
-          startDate: p.bezichtiging_datum,
-          endDate: addOneDay(p.bezichtiging_datum),
-          status: 'CONFIRMED',
+          uid: makeUid('pipeline-bezichtiging', p.id), summary: `🤝 ${buildAgendaTitle('Bezichtiging', relatie, titel)}`,
+          description: baseDescription(), location: locatie, url,
+          startDate: p.bezichtiging_datum, endDate: addOneDay(p.bezichtiging_datum), status: 'CONFIRMED',
         }, dtstamp));
       }
 
-      // Volgende actie
-      if (p.volgende_actie_datum) {
-        const actieLabel = p.volgende_actie
-          ? (ACTIE_LABEL[p.volgende_actie] ?? p.volgende_actie)
-          : 'Volgende actie';
-        const omschrijving = p.volgende_actie_omschrijving?.trim();
-        const actieMetOmschrijving = omschrijving ? `${actieLabel}: ${omschrijving}` : actieLabel;
+      if (p.volgende_actie_datum && !hasCanonical('object_pipeline', p.id, 'volgende_actie')) {
+        const actieLabel = p.volgende_actie ? (ACTIE_LABEL[p.volgende_actie] ?? humanize(p.volgende_actie)) : 'Volgende actie';
+        const omschrijving = cleanStr(p.volgende_actie_omschrijving);
         events.push(buildVEvent({
           uid: makeUid('pipeline-actie', p.id),
-          summary: `✅ ${buildAgendaTitle(actieMetOmschrijving, relatie, titel)}`,
+          summary: `✅ ${buildAgendaTitle(omschrijving ? `${actieLabel}: ${omschrijving}` : actieLabel, relatie, titel)}`,
           description: baseDescription(omschrijving ? `Actie: ${actieLabel} — ${omschrijving}` : `Actie: ${actieLabel}`),
-          location: locatie,
-          url: objectUrl,
-          startDate: p.volgende_actie_datum,
-          endDate: addOneDay(p.volgende_actie_datum),
+          location: locatie, url, startDate: p.volgende_actie_datum, endDate: addOneDay(p.volgende_actie_datum),
         }, dtstamp));
       }
 
-      // Gewenste levering / closing-wens vanuit kandidaat
       if (p.gewenste_levering) {
         events.push(buildVEvent({
-          uid: makeUid('pipeline-levering', p.id),
-          summary: `📦 ${buildAgendaTitle('Gewenste levering', relatie, titel)}`,
-          description: baseDescription('Gewenste leveringsdatum vanuit kandidaat'),
-          location: locatie,
-          url: objectUrl,
-          startDate: p.gewenste_levering,
-          endDate: addOneDay(p.gewenste_levering),
-          status: 'TENTATIVE',
+          uid: makeUid('pipeline-levering', p.id), summary: `📦 ${buildAgendaTitle('Gewenste levering', relatie, titel)}`,
+          description: baseDescription('Gewenste leveringsdatum vanuit kandidaat'), location: locatie, url,
+          startDate: p.gewenste_levering, endDate: addOneDay(p.gewenste_levering), status: 'TENTATIVE',
         }, dtstamp));
       }
     }
 
-    // === NDA-DATA RELATIES ===
-    for (const r of ndaRelaties ?? []) {
-      if (!r.nda_datum) continue;
-      const relatieUrl = `${APP_BASE_URL}/relaties/${r.id}`;
+    // NDA blijft voor compatibiliteit in de feed; semantische opsplitsing is apart.
+    for (const r of ndaRelaties) {
+      const url = `${APP_BASE_URL}/relaties/${r.id}`;
       const naam = relName(relatieMap.get(r.id)) || 'Relatie';
       events.push(buildVEvent({
-        uid: makeUid('nda-relatie', r.id),
-        summary: `🖋 NDA — ${naam}`,
-        description: [
-          `Relatie: ${naam}`,
-          `NDA-datum vastgelegd op het relatieprofiel.`,
-          `\n${relatieUrl}`,
-        ].join('\n'),
-        url: relatieUrl,
-        startDate: r.nda_datum,
-        endDate: addOneDay(r.nda_datum),
+        uid: makeUid('nda-relatie', r.id), summary: `🖋 NDA — ${naam}`,
+        description: [`Relatie: ${naam}`, 'NDA-datum vastgelegd op het relatieprofiel.', url].join('\n'),
+        url, startDate: r.nda_datum!, endDate: addOneDay(r.nda_datum!),
       }, dtstamp));
     }
 
     const ics = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Bito Vastgoed//Agenda Feed//NL',
-      'METHOD:PUBLISH',
-      'X-WR-CALNAME:Bito Vastgoed',
-      'X-WR-CALDESC:Bezichtigingen, taken, follow-ups, closings, Vastgoedkans-acties, kandidaat-acties, leveringen en NDA-data',
-      'X-WR-TIMEZONE:Europe/Amsterdam',
-      'CALSCALE:GREGORIAN',
-      ...events,
-      'END:VCALENDAR',
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Bito Vastgoed//Agenda Feed//NL',
+      'METHOD:PUBLISH', 'X-WR-CALNAME:Bito Vastgoed',
+      'X-WR-CALDESC:Afspraken, centrale taken, prognoses en legacy fallbacks zonder dubbele acties',
+      'X-WR-TIMEZONE:Europe/Amsterdam', 'CALSCALE:GREGORIAN', ...events, 'END:VCALENDAR',
     ].join('\r\n');
 
-    return new Response(ics, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': 'inline; filename="bito-vastgoed.ics"',
-        'Cache-Control': 'max-age=300',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    return new Response(ics, { status: 200, headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'inline; filename="bito-vastgoed.ics"',
+      'Cache-Control': 'max-age=300',
+      'Access-Control-Allow-Origin': '*',
+    }});
   } catch (err) {
     console.error('Feed error:', err);
     return new Response('Interne fout bij genereren feed', { status: 500 });
