@@ -37,7 +37,7 @@ describe('productiewerkbank preflight', () => {
     expect(resultaat.regels[0]).toMatchObject({
       status: 'aandacht',
       reden: 'productiedossier_niet_gestart',
-      briefId: null,
+      briefId: 'b1',
     });
     expect(productiePreflightRedenLabel(resultaat.regels[0].reden)).toBe('Productiedossier nog niet gestart');
   });
@@ -47,7 +47,7 @@ describe('productiewerkbank preflight', () => {
     invoer.brieven = [{ ...invoer.brieven[0], status: 'definitief' }];
     const resultaat = bepaalProductiePreflight(invoer);
     expect(resultaat.telling).toEqual({ totaal: 1, gereed: 0, aandacht: 0, verwerkt: 1 });
-    expect(resultaat.regels[0]).toMatchObject({ status: 'verwerkt', reden: 'al_definitief' });
+    expect(resultaat.regels[0]).toMatchObject({ status: 'verwerkt', reden: 'al_definitief', briefId: 'b1' });
   });
 
   it('blokkeert een concept zonder volledig postadres', () => {
@@ -66,6 +66,33 @@ describe('productiewerkbank preflight', () => {
     }];
     const resultaat = bepaalProductiePreflight(invoer);
     expect(resultaat.regels[0]).toMatchObject({ status: 'aandacht', reden: 'geadresseerde_ontbreekt' });
+  });
+
+  it('classificeert meerdere geadresseerden van hetzelfde pand per brief', () => {
+    const invoer = basis();
+    invoer.brieven = [
+      {
+        id: 'b1', signaalId: 's1', status: 'definitief', kanaal: 'post',
+        eigenaarNaam: 'A. Eigenaar', verzendadres: 'Straat 1\n1234 AB Plaats',
+      },
+      {
+        id: 'b2', signaalId: 's1', status: 'concept', kanaal: 'post',
+        eigenaarNaam: 'B. Eigenaar', verzendadres: 'Straat 2\n1234 AB Plaats',
+      },
+      {
+        id: 'b3', signaalId: 's1', status: 'concept', kanaal: 'post',
+        eigenaarNaam: 'C. Eigenaar', verzendadres: 'Plaats',
+      },
+    ];
+
+    const resultaat = bepaalProductiePreflight(invoer);
+
+    expect(resultaat.telling).toEqual({ totaal: 3, gereed: 1, aandacht: 1, verwerkt: 1 });
+    expect(resultaat.regels).toEqual(expect.arrayContaining([
+      expect.objectContaining({ briefId: 'b1', status: 'verwerkt', reden: 'al_definitief' }),
+      expect.objectContaining({ briefId: 'b2', status: 'gereed', reden: null }),
+      expect.objectContaining({ briefId: 'b3', status: 'aandacht', reden: 'postadres_onvolledig' }),
+    ]));
   });
 
   it('rapporteert gemengde bulkselectie als gereed, aandacht en verwerkt', () => {
@@ -95,5 +122,19 @@ describe('productiewerkbank preflight', () => {
     });
 
     expect(resultaat.telling).toEqual({ totaal: 3, gereed: 1, aandacht: 1, verwerkt: 1 });
+  });
+
+  it('maakt per bestaande conceptbrief een aandachtregel wanneer het formele dossier ontbreekt', () => {
+    const invoer = basis();
+    invoer.formeleDossierSelectieIds = new Set();
+    invoer.brieven = [
+      { ...invoer.brieven[0], id: 'b1' },
+      { ...invoer.brieven[0], id: 'b2', eigenaarBedrijfsnaam: 'Tweede B.V.' },
+    ];
+
+    const resultaat = bepaalProductiePreflight(invoer);
+    expect(resultaat.telling).toEqual({ totaal: 2, gereed: 0, aandacht: 2, verwerkt: 0 });
+    expect(resultaat.regels.map((regel) => regel.briefId)).toEqual(['b1', 'b2']);
+    expect(resultaat.regels.every((regel) => regel.reden === 'productiedossier_niet_gestart')).toBe(true);
   });
 });
