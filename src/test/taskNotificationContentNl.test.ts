@@ -21,8 +21,11 @@ describe('taaknotificaties met herkenbare Nederlandse context', () => {
     expect(pushBron).toContain('signaalLabel(context.signaal) || objectLabel(context.object)');
   });
 
-  it('gebruikt de taaknaam als pushkop in plaats van de generieke Taakherinnering-kop', () => {
-    expect(pushBron).toContain("const title = schoon(task?.titel) || schoon(event?.title) || 'Taak';");
+  it('gebruikt compacte semantische pushkoppen en bewaart de taaktekst in de body', () => {
+    expect(pushBron).toContain('const title = compacteTaakCategorie(task, event, timeZone);');
+    expect(pushBron).toContain("return 'Taak vandaag'");
+    expect(pushBron).toContain("return 'Brief opvolgen'");
+    expect(pushBron).toContain('regels.push(verkortPushRegel(bronTitel))');
     expect(pushBron).toContain('title: pushTitle');
     expect(pushBron).toContain('body: pushBody');
   });
