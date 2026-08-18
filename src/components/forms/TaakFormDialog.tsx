@@ -42,7 +42,7 @@ const emptyForm = {
   objectId: '',
   offMarketSignaalId: '',
   type: 'Algemeen',
-  deadline: new Date().toISOString().split('T')[0],
+  deadline: '',
   deadlineTijd: '',
   prioriteit: 'normaal' as TaakPrioriteit,
   status: 'open' as TaakStatus,
@@ -84,7 +84,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         objectId: taak.objectId || '',
         offMarketSignaalId: taak.offMarketSignaalId || '',
         type: taak.type,
-        deadline: taak.deadline,
+        deadline: taak.deadline || '',
         deadlineTijd: taak.deadlineTijd ? taak.deadlineTijd.slice(0, 5) : '',
         prioriteit: taak.prioriteit,
         status: taak.status,
@@ -96,7 +96,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         titel: defaultTitel || '',
         type: defaultType || emptyForm.type,
         prioriteit: defaultPrioriteit || emptyForm.prioriteit,
-        deadline: defaultDeadline || emptyForm.deadline,
+        deadline: defaultDeadline || '',
         relatieId: defaultRelatieId || '',
         dealId: defaultDealId || '',
         objectId: defaultObjectId || '',
@@ -106,7 +106,6 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
   }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities]);
 
-  // ---- Picker items ----
   const relatieItems = useMemo<EntityPickerItem[]>(() => {
     return relaties.map(r => {
       const { primair, secundair } = getRelatieNamen(r, contactpersonen);
@@ -157,7 +156,6 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     };
   }, [deals, getObjectById, getRelatieById, contactpersonen]);
 
-  // ---- Relevantie-logica tussen velden ----
   const relevantDealIds = useMemo(() => {
     const ids = new Set<string>();
     deals.forEach(d => {
@@ -193,14 +191,12 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     return Array.from(ids);
   }, [deals, form.dealId, form.objectId]);
 
-  // ---- Handlers ----
   const handleDealChange = (id: string) => {
     setForm(prev => {
       const next = { ...prev, dealId: id };
       if (id) {
         const d = deals.find(x => x.id === id);
         if (d) {
-          // auto-vul relatie/object indien leeg
           if (!prev.relatieId) next.relatieId = d.relatieId;
           if (!prev.objectId) next.objectId = d.objectId;
         }
@@ -226,7 +222,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       offMarketSignaalId: form.offMarketSignaalId || undefined,
       type: form.type,
       deadline: form.deadline || '',
-      deadlineTijd: form.deadlineTijd || undefined,
+      deadlineTijd: form.deadline ? (form.deadlineTijd || undefined) : undefined,
       prioriteit: form.prioriteit,
       status: form.status,
       notities: form.notities || undefined,
@@ -266,7 +262,11 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
   };
 
-  const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));
+  const set = (key: string, val: string) => setForm(prev => ({
+    ...prev,
+    [key]: val,
+    ...(key === 'deadline' && !val ? { deadlineTijd: '' } : {}),
+  }));
 
   const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
 
@@ -277,7 +277,6 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
           <DialogTitle>{isEdit ? 'Taak bewerken' : 'Nieuwe taak'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ---------- BLOK 1: BASIS ---------- */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basis</h3>
             <div className="space-y-1.5">
@@ -309,22 +308,23 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             </div>
           </section>
 
-          {/* ---------- BLOK 2: PLANNING ---------- */}
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Een deadline is optioneel. Alleen een expliciet gekozen datum kan agenda- of deadlineherinneringen activeren.</p>
+            </div>
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Deadline</Label>
+                <Label>Deadline (optioneel)</Label>
                 <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Tijd (optioneel)</Label>
-                <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} />
+                <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} disabled={!form.deadline} />
               </div>
             </div>
           </section>
 
-          {/* ---------- BLOK 3: KOPPELINGEN ---------- */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
             <div className="space-y-3">
@@ -369,13 +369,11 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             </div>
           </section>
 
-          {/* ---------- BLOK 4: NOTITIES ---------- */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notities</h3>
             <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} placeholder="Optionele context, opvolging, aanvullende info…" />
           </section>
 
-          {/* ---------- ACTIES ---------- */}
           <div className="flex justify-between items-center gap-2 pt-2 border-t border-border">
             <div>
               {isEdit && (
