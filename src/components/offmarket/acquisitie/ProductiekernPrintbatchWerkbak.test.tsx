@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import type {
   BriefContract,
@@ -10,6 +10,8 @@ import type {
 } from '@/lib/offMarket/acquisitie/productiekernContract';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import ProductiekernPrintbatchWerkbak, { bouwProductiekernPrintbatchModellen } from './ProductiekernPrintbatchWerkbak';
+
+const OPEN_PRINTBATCHES_KEY = 'off-market-acq:open-printbatches';
 
 const batch: PrintbatchContract = {
   id: 'batch-1', batchnummer: 'BAT2026081801', status: 'documenten_gegenereerd', documentversie: 1,
@@ -38,12 +40,22 @@ const signaal = {
   id: 'signaal-1', adres: 'Maasstraat 94-4', plaats: 'Amsterdam',
 } as OffMarketSignaal;
 
-describe('ProductiekernPrintbatchWerkbak', () => {
-  it('houdt batches standaard compact en toont BR/signaal pas na uitklappen', () => {
-    const modellen = bouwProductiekernPrintbatchModellen({
-      batches: [batch], koppelingen: [koppeling], brieven: [brief], versies: [versie], signalen: [signaal],
-    });
+const modellen = bouwProductiekernPrintbatchModellen({
+  batches: [batch], koppelingen: [koppeling], brieven: [brief], versies: [versie], signalen: [signaal],
+});
 
+function renderWerkbak() {
+  return render(
+    <MemoryRouter>
+      <ProductiekernPrintbatchWerkbak modellen={modellen} />
+    </MemoryRouter>,
+  );
+}
+
+describe('ProductiekernPrintbatchWerkbak', () => {
+  beforeEach(() => sessionStorage.removeItem(OPEN_PRINTBATCHES_KEY));
+
+  it('houdt batches standaard compact en toont BR/signaal pas na uitklappen', () => {
     expect(modellen).toHaveLength(1);
     expect(modellen[0]).toMatchObject({ aantalSignalen: 1 });
     expect(modellen[0].regels[0]).toMatchObject({
@@ -52,11 +64,7 @@ describe('ProductiekernPrintbatchWerkbak', () => {
       objectLabel: 'Maasstraat 94-4 · Amsterdam',
     });
 
-    render(
-      <MemoryRouter>
-        <ProductiekernPrintbatchWerkbak modellen={modellen} />
-      </MemoryRouter>,
-    );
+    renderWerkbak();
 
     const toggle = screen.getByTestId('productiekern-printbatch-toggle-BAT2026081801');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -73,5 +81,16 @@ describe('ProductiekernPrintbatchWerkbak', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('BR2026000005')).not.toBeInTheDocument();
+  });
+
+  it('herstelt een geopende batch na detailnavigatie/remount binnen dezelfde sessie', () => {
+    const eerste = renderWerkbak();
+    fireEvent.click(screen.getByTestId('productiekern-printbatch-toggle-BAT2026081801'));
+    expect(sessionStorage.getItem(OPEN_PRINTBATCHES_KEY)).toContain('batch-1');
+    eerste.unmount();
+
+    renderWerkbak();
+    expect(screen.getByTestId('productiekern-printbatch-toggle-BAT2026081801')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('BR2026000005')).toBeInTheDocument();
   });
 });
