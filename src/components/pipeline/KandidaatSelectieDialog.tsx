@@ -118,16 +118,14 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         const plaats = r.vestigingsplaats?.trim() || (r.regio?.[0] ?? '');
 
         const zps = getZoekprofielenByRelatie(r.id);
-        const zp = zps.find(z => z.status === 'actief') ?? zps[0];
-        let score: number | undefined;
-        let zpId: string | undefined;
-        if (zp && object) {
-          try {
-            const res = berekenMatchScore(object as ObjectVastgoed, zp);
-            score = res?.score;
-            zpId = zp.id;
-          } catch { /* ignore */ }
-        }
+        // Een relatie kan meerdere actieve zoekprofielen hebben: kies het profiel
+        // met de hoogste geldige matchscore; zonder geldige match geen koppeling.
+        const keuze = object
+          ? kiesBesteZoekprofielMatch(zps, zp => berekenMatchScore(object as ObjectVastgoed, zp)?.score)
+          : null;
+        const score: number | undefined = keuze?.score;
+        const zpId: string | undefined = keuze?.zoekprofielId;
+
 
         return {
           relatie: r,
