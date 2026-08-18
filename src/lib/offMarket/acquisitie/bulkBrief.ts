@@ -23,6 +23,7 @@ import {
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { isVolledigPostadres } from '@/lib/offMarket/acquisitie/readiness';
 import type { CampagneStap } from '@/lib/offMarket/brieven/groepering';
+import { naarVoorlettersAchternaam } from '@/lib/format/naam';
 
 const AFGEROND_SIGNAAL_STATUS = new Set<string>([
   'archief', 'afgevallen', 'niet_interessant',
@@ -73,7 +74,8 @@ export function bouwKandidatenVoorSignaal(
   const out: BulkKandidaat[] = [];
 
   for (const [key, b] of perKey.entries()) {
-    const naam = (b.eigenaar_naam ?? '').trim() || null;
+    const rauweNaam = (b.eigenaar_naam ?? '').trim() || null;
+    const naam = rauweNaam ? naarVoorlettersAchternaam(rauweNaam) || null : null;
     const bedrijf = (b.eigenaar_bedrijfsnaam ?? '').trim() || null;
     const adres = (b.verzendadres ?? '').trim() || null;
     const heeftNaam = !!(naam || bedrijf);
@@ -98,12 +100,13 @@ export function bouwKandidatenVoorSignaal(
   if (out.length === 0) {
     // Geen brieven → val terug op de signaal-eigenaargegevens (max 1).
     const a = signaal as any;
-    const naam = ((a.eigenaar_naam ?? '') as string).trim() || null;
+    const rauweNaam = ((a.eigenaar_naam ?? '') as string).trim() || null;
+    const naam = rauweNaam ? naarVoorlettersAchternaam(rauweNaam) || null : null;
     const bedrijf = ((a.eigenaar_bedrijfsnaam ?? '') as string).trim() || null;
     const adres = ((a.eigenaar_verzendadres ?? a.eigenaar_adres ?? '') as string).trim() || null;
     const key = geadresseerdeKey({
       id: `_signaal|${signaal.id}`,
-      eigenaar_naam: naam, eigenaar_bedrijfsnaam: bedrijf, verzendadres: adres,
+      eigenaar_naam: rauweNaam, eigenaar_bedrijfsnaam: bedrijf, verzendadres: adres,
     } as any);
     const heeftNaam = !!(naam || bedrijf);
     const adresOk = isVolledigPostadres(adres);
@@ -264,7 +267,7 @@ export function viewModelVoorPlanItem(args: {
   const k = plan.kandidaat;
   const b = plan.bestaandeBrief;
   return buildBriefViewModel({
-    eigenaarNaam: b?.eigenaar_naam ?? k.naam ?? prefill.eigenaarNaam,
+    eigenaarNaam: b?.eigenaar_naam ? naarVoorlettersAchternaam(b.eigenaar_naam) : (k.naam ?? prefill.eigenaarNaam),
     eigenaarBedrijfsnaam: b?.eigenaar_bedrijfsnaam ?? k.bedrijfsnaam ?? prefill.eigenaarBedrijfsnaam,
     verzendadres: b?.verzendadres ?? k.verzendadres ?? prefill.verzendadres,
     objectomschrijving: b?.objectomschrijving ?? prefill.objectomschrijving,
