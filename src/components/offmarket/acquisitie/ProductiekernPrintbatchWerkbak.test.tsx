@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import type {
@@ -51,7 +52,11 @@ describe('ProductiekernPrintbatchWerkbak', () => {
       objectLabel: 'Maasstraat 94-4 · Amsterdam',
     });
 
-    render(<ProductiekernPrintbatchWerkbak modellen={modellen} />);
+    render(
+      <MemoryRouter>
+        <ProductiekernPrintbatchWerkbak modellen={modellen} />
+      </MemoryRouter>,
+    );
     expect(screen.getByText('BAT2026081801')).toBeInTheDocument();
     expect(screen.getByText('BR2026000005')).toBeInTheDocument();
     expect(screen.getByText('E.S. Blok')).toBeInTheDocument();
