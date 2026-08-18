@@ -3,21 +3,24 @@ import webpush from 'npm:web-push@3.6.7';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const INTERNAL_CRON_SECRET = Deno.env.get('NOTIFICATION_CRON_SECRET') ?? '';
-const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
-const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
-const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:info@bitovastgoed.nl';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-function isAuthorized(req: Request): boolean {
-  if (!INTERNAL_CRON_SECRET) return false;
+async function getRuntimeSecrets(keys: string[]): Promise<Record<string, string>> {
+  const { data, error } = await supabase
+    .from('notification_runtime_secrets')
+    .select('key, value')
+    .in('key', keys);
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).map((row: any) => [row.key, row.value?.trim() ?? '']));
+}
+
+function requestSecret(req: Request): string {
   const auth = req.headers.get('authorization') ?? '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  const explicit = req.headers.get('x-cron-secret') ?? '';
-  return bearer === INTERNAL_CRON_SECRET || explicit === INTERNAL_CRON_SECRET;
+  return req.headers.get('x-cron-secret') ?? bearer;
 }
 
 function minutesOfDay(value: string | null | undefined): number | null {
@@ -61,14 +64,22 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-  if (!isAuthorized(req)) return new Response('Unauthorized', { status: 401 });
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-    return Response.json({ ok: false, error: 'VAPID keys ontbreken' }, { status: 503 });
-  }
-
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
   try {
+    const secrets = await getRuntimeSecrets(['cron_secret', 'vapid_public_key', 'vapid_private_key', 'vapid_subject']);
+    if (!secrets.cron_secret || requestSecret(req) !== secrets.cron_secret) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    if (!secrets.vapid_public_key || !secrets.vapid_private_key) {
+      return Response.json({ ok: false, error: 'VAPID keys ontbreken' }, { status: 503 });
+    }
+
+    webpush.setVapidDetails(
+      secrets.vapid_subject || 'mailto:info@bitovastgoed.nl',
+      secrets.vapid_public_key,
+      secrets.vapid_private_key,
+    );
+
     const { data: pending, error: pendingError } = await supabase
       .from('notification_deliveries')
       .select('id, notification_event_id, subscription_id, retry_count')

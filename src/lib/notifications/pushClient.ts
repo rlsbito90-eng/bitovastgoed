@@ -1,6 +1,8 @@
 import { registerPushSubscription, revokePushSubscription } from './repository';
 import { registerBitoServiceWorker } from '@/lib/pwa/serviceWorker';
 
+const DEFAULT_WEB_PUSH_PUBLIC_KEY = 'BDWj5gjiMpecP4yU-6GolaJ9AL4a9ofuw0j9SLb2ijKlyRjW8E77haw9H10lNRXoPsMj4aEHp5QY47sLomxCcEc';
+
 export interface PushCapability {
   supported: boolean;
   permission: NotificationPermission | 'unsupported';
@@ -72,8 +74,7 @@ export async function enablePushForThisDevice(deviceLabel?: string): Promise<Pus
   const capability = getPushCapability();
   if (!capability.supported) throw new Error('Pushmeldingen worden op dit apparaat/browser niet ondersteund');
 
-  const publicKey = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY?.trim();
-  if (!publicKey) throw new Error('VITE_WEB_PUSH_PUBLIC_KEY ontbreekt');
+  const publicKey = import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY?.trim() || DEFAULT_WEB_PUSH_PUBLIC_KEY;
 
   const permission = Notification.permission === 'granted'
     ? 'granted'
