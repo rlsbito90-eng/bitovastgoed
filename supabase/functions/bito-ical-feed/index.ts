@@ -6,7 +6,8 @@
 // - prognoses blijven TENTATIVE agenda-items;
 // - echte gebruikersacties komen primair uit centrale taken;
 // - legacy follow-up/volgende-actievelden zijn uitsluitend agenda-fallback zolang
-//   nog geen canonieke source-bound taak bestaat.
+//   nog geen canonieke source-bound taak bestaat;
+// - centrale taken zijn altijd user-scoped via feed_tokens.gebruiker_id.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
@@ -46,8 +47,7 @@ function addOneDay(yyyymmdd: string): string {
 
 /**
  * Zet een lokale Europe/Amsterdam datum+tijd exact om naar UTC.
- * Geen hard-coded zomer-/wintertijdmaanden: Intl bepaalt de echte timezone-offset,
- * inclusief overgangsdagen.
+ * Intl bepaalt de echte timezone-offset, inclusief DST-overgangsdagen.
  */
 function combineDateTimeAmsterdam(date: string, time: string): Date {
   const [year, month, day] = date.split('-').map(Number);
@@ -63,8 +63,6 @@ function combineDateTimeAmsterdam(date: string, time: string): Date {
     hourCycle: 'h23',
   });
 
-  // Twee iteraties zijn voldoende om de timezone-offset rond DST-overgangen
-  // correct te convergeren voor bestaande geldige lokale CRM-tijden.
   for (let i = 0; i < 2; i += 1) {
     const parts = Object.fromEntries(
       formatter.formatToParts(new Date(candidate))
@@ -77,6 +75,7 @@ function combineDateTimeAmsterdam(date: string, time: string): Date {
     );
     candidate += desiredAsUtc - renderedAsUtc;
   }
+
   return new Date(candidate);
 }
 
@@ -142,6 +141,12 @@ Deno.serve(async (req: Request) => {
       .is('ingetrokken_op', null).maybeSingle();
     if (tokenError) return new Response('Server-fout', { status: 500 });
     if (!tokenRow) return new Response('Ongeldig of ingetrokken token', { status: 401 });
+    if (!tokenRow.gebruiker_id) {
+      console.error('iCal feed token zonder gebruiker_id', tokenRow.id);
+      return new Response('Feedtoken heeft geen gebruiker', { status: 403 });
+    }
+
+    const feedUserId = tokenRow.gebruiker_id;
 
     supabase.from('feed_tokens').update({ laatst_gebruikt: new Date().toISOString() })
       .eq('id', tokenRow.id).then(() => {});
@@ -155,8 +160,11 @@ Deno.serve(async (req: Request) => {
         .select('id, object_id, relatie_id, bezichtiging_gepland, bezichtiging_tijd, datum_follow_up, follow_up_tijd, verwachte_closingdatum, notities, fase')
         .is('soft_deleted_at', null),
       supabase.from('taken')
-        .select('id, titel, notities, deadline, deadline_tijd, prioriteit, status, relatie_id, object_id, deal_id, vastgoedkans_id, source_kind, source_id, source_slot')
-        .is('soft_deleted_at', null).gte('deadline', vanafDate).in('status', ACTIVE_TASK_STATUSES),
+        .select('id, titel, notities, deadline, deadline_tijd, prioriteit, status, relatie_id, object_id, deal_id, vastgoedkans_id, owner_user_id, source_kind, source_id, source_slot')
+        .eq('owner_user_id', feedUserId)
+        .is('soft_deleted_at', null)
+        .gte('deadline', vanafDate)
+        .in('status', ACTIVE_TASK_STATUSES),
       supabase.from('object_pipeline')
         .select('id, object_id, relatie_id, pipeline_fase, interesse_niveau, bezichtiging_datum, volgende_actie, volgende_actie_datum, volgende_actie_omschrijving, gewenste_levering, notities')
         .is('soft_deleted_at', null),
@@ -235,7 +243,7 @@ Deno.serve(async (req: Request) => {
       rows.filter(([, v]) => cleanStr(v)).map(([k, v]) => `${k}: ${v}`).join('\n');
 
     // Canonieke source-bound taak wint van een legacy domeinveld, ongeacht of de
-    // legacy datum exact gelijk is. Hierdoor blijft wijzigen van datum/tijd 1 event.
+    // legacy datum exact gelijk is. De set bevat uitsluitend taken van feedUserId.
     const canonicalSourceSlots = new Set(
       taken.filter((t: any) => t.source_kind && t.source_id && t.source_slot)
         .map((t: any) => `${t.source_kind}|${t.source_id}|${t.source_slot}`),
@@ -246,7 +254,6 @@ Deno.serve(async (req: Request) => {
     const dtstamp = icsDateTimeUtc(new Date());
     const events: string[] = [];
 
-    // Deal-afspraken en deal-prognoses.
     for (const d of deals) {
       const obj = d.object_id ? objectMap.get(d.object_id) : null;
       const rel = d.relatie_id ? relatieMap.get(d.relatie_id) : null;
@@ -264,8 +271,6 @@ Deno.serve(async (req: Request) => {
         }, d.bezichtiging_gepland, d.bezichtiging_tijd, 90), dtstamp));
       }
 
-      // Legacy fallback: zodra de canonieke deal-follow-up-taak bestaat, publiceert
-      // alleen TAKEN het agenda-item.
       if (d.datum_follow_up && !hasCanonical('deal', d.id, 'follow_up')) {
         events.push(buildVEvent(timedOrAllDay({
           uid: makeUid('followup', d.id),
@@ -291,6 +296,7 @@ Deno.serve(async (req: Request) => {
     const dealMap = new Map(deals.map((d: any) => [d.id, d]));
 
     // Centrale taken: enige primaire agenda-bron voor echte gebruikersacties.
+    // Query is reeds hard begrensd op owner_user_id = feedUserId.
     for (const t of taken) {
       if (!t.deadline) continue;
       const deal: any = t.deal_id ? dealMap.get(t.deal_id) : null;
@@ -379,8 +385,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // NDA blijft voor compatibiliteit in de feed; de semantische opsplitsing van
-    // nda_datum is een aparte migratie en wordt niet stilzwijgend in deze tranche veranderd.
+    // NDA blijft voor compatibiliteit in de feed; semantische opsplitsing is apart.
     for (const r of ndaRelaties) {
       const url = `${APP_BASE_URL}/relaties/${r.id}`;
       const naam = relName(relatieMap.get(r.id)) || 'Relatie';
