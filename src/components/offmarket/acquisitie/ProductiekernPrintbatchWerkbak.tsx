@@ -11,6 +11,8 @@ import type {
 import { productiekernGeadresseerdeNaam } from '@/lib/offMarket/acquisitie/productiekernGeadresseerdeNaam';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 
+const OPEN_PRINTBATCHES_KEY = 'off-market-acq:open-printbatches';
+
 export interface ProductiekernPrintbatchRegel {
   briefId: string;
   briefVersieId: string;
@@ -34,6 +36,26 @@ function batchStatusLabel(status: PrintbatchContract['status']): string {
     case 'gedeeltelijk_gepost': return 'Gedeeltelijk gepost';
     case 'gepost': return 'Gepost';
     case 'geannuleerd': return 'Geannuleerd';
+  }
+}
+
+function leesOpenBatchIds(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(OPEN_PRINTBATCHES_KEY);
+    if (!raw) return new Set();
+    const ids = JSON.parse(raw);
+    if (!Array.isArray(ids)) return new Set();
+    return new Set(ids.filter((id): id is string => typeof id === 'string' && id.length > 0));
+  } catch {
+    return new Set();
+  }
+}
+
+function bewaarOpenBatchIds(ids: Set<string>): void {
+  try {
+    sessionStorage.setItem(OPEN_PRINTBATCHES_KEY, JSON.stringify([...ids].sort()));
+  } catch {
+    // Storage is alleen UX-state; bij blokkade blijft de werkbak functioneel.
   }
 }
 
@@ -88,13 +110,14 @@ export default function ProductiekernPrintbatchWerkbak({
   modellen: readonly ProductiekernPrintbatchModel[];
   fout?: boolean;
 }) {
-  const [openBatchIds, setOpenBatchIds] = useState<Set<string>>(() => new Set());
+  const [openBatchIds, setOpenBatchIds] = useState<Set<string>>(leesOpenBatchIds);
 
   const toggleBatch = (batchId: string) => {
     setOpenBatchIds((huidig) => {
       const volgende = new Set(huidig);
       if (volgende.has(batchId)) volgende.delete(batchId);
       else volgende.add(batchId);
+      bewaarOpenBatchIds(volgende);
       return volgende;
     });
   };
