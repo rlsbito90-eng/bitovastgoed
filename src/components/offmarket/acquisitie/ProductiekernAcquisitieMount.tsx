@@ -79,17 +79,18 @@ function pasProductiekernToolbarSemantiekToe() {
  * snelwegen blijven tijdelijk in legacycode aanwezig voor rollback, maar worden
  * in de actieve Productiekern-UI bewust niet aangeboden.
  */
-function useConsolideerProductiekernToolbar() {
+function useConsolideerProductiekernToolbar(actief: boolean) {
   useEffect(() => {
-    pasProductiekernToolbarSemantiekToe();
+    if (!actief) return;
 
+    pasProductiekernToolbarSemantiekToe();
     const toolbar = document.querySelector('[data-testid="acquisitie-bulk-toolbar"]');
     if (!toolbar || typeof MutationObserver === 'undefined') return;
 
     const observer = new MutationObserver(() => pasProductiekernToolbarSemantiekToe());
     observer.observe(toolbar, { subtree: true, childList: true, characterData: true });
     return () => observer.disconnect();
-  }, []);
+  }, [actief]);
 }
 
 function ActieveProductiekernDossierProjectie({
@@ -194,9 +195,6 @@ function ActieveProductiekernDossierProjectie({
     [selectieIds, dossiers, legacyContextPerSelectieId, dossierQuery.isError],
   );
 
-  // Eén uniforme laadgrens voor de volledige projectie. Met name de signalenread
-  // moet klaar zijn vóór `Nog niet gestart` labels worden opgebouwd; anders kan
-  // een refresh tijdelijk ruwe selectie-UUID's als gebruikerslabel tonen.
   const laden = selectieLaden || signalenLaden || brievenLaden || dossierQuery.isLoading;
   const toonNogNietGestart = !laden
     && !dossierQuery.isError
@@ -223,26 +221,12 @@ function ActieveProductiekernDossierProjectie({
   );
 }
 
-/**
- * Fysieke frontendmount voor de nieuwe acquisitieproductiekern.
- *
- * De mount is aan de bestaande CRM-Supabase-client gekoppeld via de aparte
- * browsercompositie. Zonder volledig leesbewijs retourneert deze component vóór
- * de actieve child wordt gemount; daardoor worden ook selectie- en
- * productiekernreads voor deze projectie niet gestart.
- *
- * In een expliciet vrijgegeven werk-CRM toont de mount de formele acht
- * operationele werkbakken op basis van de Productiekern-dossiers. Selecties
- * zonder dossier worden apart als `Nog niet gestart` getoond en kunnen via de
- * fail-closed werk-CRM-writecompositie expliciet worden gestart. Legacydata
- * wordt alleen voor pariteitsobservatie gebruikt.
- */
 export default function ProductiekernAcquisitieMount() {
   const leesSamenstelling = maakStandaardProductiekernBrowserLeesSamenstelling();
+  useConsolideerProductiekernToolbar(leesSamenstelling.activatie.lezenActief);
 
   if (!leesSamenstelling.activatie.lezenActief) return null;
 
-  useConsolideerProductiekernToolbar();
   const writeSamenstelling = maakStandaardProductiekernBrowserWriteSamenstelling();
 
   return (
