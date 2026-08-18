@@ -20,6 +20,30 @@ describe('bouwBatchAdreslabelRijen', () => {
     expect(rijen[0]).toMatchObject({ volgnummer: 1, postcode: '1234AB', landregel: null });
   });
 
+  it('gebruikt op het fysieke label alleen de canonieke persoonsnaam', () => {
+    const [rij] = bouwBatchAdreslabelRijen([{
+      briefnummer: 'BR2026000005', briefVersieId: 'v5',
+      geadresseerde: {
+        ...geadresseerde,
+        naam: 'Evelyn Sabine Blok Geboren 29-04-1959 te AMSTERDAM',
+      },
+    }]);
+    expect(rij.naamregel).toBe('E.S. Blok');
+    expect(rij.naamregel).not.toContain('Geboren');
+  });
+
+  it('behoudt een bedrijfsnaam exact en slechts als één naamregel', () => {
+    const [rij] = bouwBatchAdreslabelRijen([{
+      briefnummer: 'BR2026000002', briefVersieId: 'v2',
+      geadresseerde: {
+        ...geadresseerde,
+        naam: 'Bloemgracht 24 B.V.',
+        bedrijfsnaam: 'Bloemgracht 24 B.V.',
+      },
+    }]);
+    expect(rij.naamregel).toBe('Bloemgracht 24 B.V.');
+  });
+
   it('neemt een buitenlands land als aparte labelregel op', () => {
     const [rij] = bouwBatchAdreslabelRijen([{
       briefnummer: 'BR2026000001', briefVersieId: 'v1',
