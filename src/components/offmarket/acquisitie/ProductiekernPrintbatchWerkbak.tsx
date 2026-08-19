@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, ExternalLink, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -7,7 +7,9 @@ import type { PrintbatchContract } from '@/lib/offMarket/acquisitie/productieker
 import type { ProductiekernPrintbatchModel } from '@/lib/offMarket/acquisitie/productiekernPrintbatchOverzicht';
 import type { AcquisitieProductiekernRepository } from '@/lib/offMarket/acquisitie/productiekernRepository';
 import { bepaalActieveProductiekernBatchdocumenten } from '@/lib/offMarket/acquisitie/productiekernBatchdocumentHerstel';
+import { laadProductiekernBatch } from '@/lib/offMarket/acquisitie/productiekernBatchLezer';
 import ProductiekernBatchDocumentversieVernieuwen from './ProductiekernBatchDocumentversieVernieuwen';
+import ProductiekernPrintPostBevestiging from './ProductiekernPrintPostBevestiging';
 import ProductiekernVastgelegdeDocumentenDownload from './ProductiekernVastgelegdeDocumentenDownload';
 
 const OPEN_PRINTBATCHES_KEY = 'off-market-acq:open-printbatches';
@@ -47,29 +49,56 @@ function normaliseerZoekterm(waarde: string): string {
   return waarde.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
-function ProductiekernPrintbatchDownloads({
+function ProductiekernPrintbatchBediening({
   batch,
   repository,
 }: {
   batch: PrintbatchContract;
   repository: AcquisitieProductiekernRepository;
 }) {
+  const queryClient = useQueryClient();
+  const [actueleBatch, setActueleBatch] = useState(batch);
+
+  useEffect(() => {
+    setActueleBatch(batch);
+  }, [batch.id, batch.status, batch.documentversie, batch.printdatum, batch.verzenddatum]);
+
   const documentenQuery = useQuery({
     queryKey: [
       'off-market-acquisitie-productiekern',
       'printbatch-documenten',
-      batch.id,
-      batch.documentversie,
+      actueleBatch.id,
+      actueleBatch.documentversie,
     ],
-    enabled: batch.status !== 'concept',
+    enabled: actueleBatch.status !== 'concept',
     staleTime: 30_000,
     queryFn: async () => {
-      const alle = await repository.haalBatchdocumenten(batch.id);
-      return bepaalActieveProductiekernBatchdocumenten({ batch, documenten: alle });
+      const alle = await repository.haalBatchdocumenten(actueleBatch.id);
+      return bepaalActieveProductiekernBatchdocumenten({ batch: actueleBatch, documenten: alle });
     },
   });
 
-  if (batch.status === 'concept') {
+  const batchQuery = useQuery({
+    queryKey: [
+      'off-market-acquisitie-productiekern',
+      'printbatch-bediening',
+      actueleBatch.id,
+      actueleBatch.status,
+      actueleBatch.documentversie,
+    ],
+    enabled: actueleBatch.status !== 'concept' && documentenQuery.isSuccess,
+    staleTime: 15_000,
+    queryFn: () => laadProductiekernBatch(actueleBatch.id, repository),
+  });
+
+  const verversNaStatuswijziging = (volgende: PrintbatchContract) => {
+    setActueleBatch(volgende);
+    void queryClient.invalidateQueries({ queryKey: ['off-market-acquisitie-productiekern'] });
+    void queryClient.invalidateQueries({ queryKey: ['off-market-brieven-bulk'] });
+    void queryClient.invalidateQueries({ queryKey: ['off-market-acquisitie-selectie'] });
+  };
+
+  if (actueleBatch.status === 'concept') {
     return (
       <p className="text-[11px] text-muted-foreground">
         Deze batch is nog niet vastgelegd; er bestaan nog geen geregistreerde productiebestanden.
@@ -91,7 +120,30 @@ function ProductiekernPrintbatchDownloads({
     );
   }
   if (!documentenQuery.data) return null;
-  return <ProductiekernVastgelegdeDocumentenDownload documenten={documentenQuery.data} />;
+
+  return (
+    <div className="space-y-3">
+      <ProductiekernVastgelegdeDocumentenDownload documenten={documentenQuery.data} />
+
+      {batchQuery.isLoading && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Batchstatus controleren…
+        </p>
+      )}
+      {batchQuery.isError && (
+        <p className="text-xs text-destructive" role="alert">
+          Batchbediening kon niet veilig worden geladen. De status is niet gewijzigd.
+        </p>
+      )}
+      {batchQuery.data && (
+        <ProductiekernPrintPostBevestiging
+          batch={actueleBatch}
+          brieven={batchQuery.data.brieven}
+          onBatchChange={verversNaStatuswijziging}
+        />
+      )}
+    </div>
+  );
 }
 
 export default function ProductiekernPrintbatchWerkbak({
@@ -118,6 +170,22 @@ export default function ProductiekernPrintbatchWerkbak({
       ]),
     ].join(' ')).includes(zoek));
   }, [modellen, zoek]);
+
+  const samenvatting = useMemo(() => {
+    const signalen = new Set<string>();
+    let brieven = 0;
+    let printklaar = 0;
+    let geprint = 0;
+    let gepost = 0;
+    for (const model of zichtbareModellen) {
+      brieven += model.regels.length;
+      for (const regel of model.regels) signalen.add(regel.signaalId);
+      if (model.batch.status === 'documenten_gegenereerd') printklaar += model.regels.length;
+      if (model.batch.status === 'geprint' || model.batch.status === 'gedeeltelijk_gepost') geprint += model.regels.length;
+      if (model.batch.status === 'gepost') gepost += model.regels.length;
+    }
+    return { brieven, signalen: signalen.size, printklaar, geprint, gepost };
+  }, [zichtbareModellen]);
 
   const toggleBatch = (batchId: string) => {
     setOpenBatchIds((huidig) => {
@@ -149,6 +217,15 @@ export default function ProductiekernPrintbatchWerkbak({
 
   return (
     <section className="space-y-2" data-testid="productiekern-printbatches-werkbak" aria-label="Formele printbatches">
+      <div className="rounded-lg border bg-card px-3 py-2.5 text-xs text-muted-foreground" data-testid="productiekern-printbatches-samenvatting">
+        <p className="font-medium text-foreground">
+          {samenvatting.brieven} {samenvatting.brieven === 1 ? 'brief' : 'brieven'} in BAT · {samenvatting.signalen} {samenvatting.signalen === 1 ? 'signaal' : 'signalen'}
+        </p>
+        <p className="mt-0.5">
+          Printklaar {samenvatting.printklaar} · Geprint / te posten {samenvatting.geprint} · Gepost {samenvatting.gepost}
+        </p>
+      </div>
+
       {zichtbareModellen.map((model) => {
         const open = openBatchIds.has(model.batch.id);
         const inhoudId = `productiekern-printbatch-inhoud-${model.batch.id}`;
@@ -196,12 +273,12 @@ export default function ProductiekernPrintbatchWerkbak({
                 {repository && (
                   <div className="border-b bg-muted/15 px-3 py-3 sm:px-4" data-testid={`productiekern-printbatch-downloads-${model.batch.batchnummer}`}>
                     <div className="mb-2">
-                      <p className="text-xs font-medium text-foreground">Productiebestanden</p>
+                      <p className="text-xs font-medium text-foreground">Productiebestanden & status</p>
                       <p className="text-[11px] text-muted-foreground">
                         Actieve documentversie {model.batch.documentversie}
                       </p>
                     </div>
-                    <ProductiekernPrintbatchDownloads batch={model.batch} repository={repository} />
+                    <ProductiekernPrintbatchBediening batch={model.batch} repository={repository} />
                     <ProductiekernBatchDocumentversieVernieuwen
                       batch={model.batch}
                       repository={repository}
