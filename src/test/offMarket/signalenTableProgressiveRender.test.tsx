@@ -78,4 +78,27 @@ describe('SignalenTable — progressieve render', () => {
     expect(screen.getByText('250 van 250 signalen weergegeven')).toBeTruthy();
     expect(document.querySelector('[data-row-id="s219"]')).toBeTruthy();
   });
+
+  it('mount per breakpoint maar één rijboom', () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(min-width: 640px)',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      renderLijst([maakSignaal(0)]);
+      expect(document.querySelectorAll('[data-row-id="s0"]')).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Selectie s0' })).toHaveLength(1);
+      expect(screen.getByRole('columnheader', { name: 'Sel.' })).toBeTruthy();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
 });

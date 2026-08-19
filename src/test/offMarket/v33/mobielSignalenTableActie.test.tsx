@@ -1,6 +1,6 @@
 // V33 — Mobiele SignalenTable-card toont een herkenbare compacte actie
 // (geen icon-only) met aria-label en pictogramonderscheid voor selectie-state.
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -34,6 +34,19 @@ const sig: any = {
   eigenaar_relatie_id: null,
 };
 
+beforeEach(() => {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+});
+
 describe('SignalenTable mobiele card-actie', () => {
   it('toont compacte selectieknop met tekst, niet alleen een icoon', () => {
     selSet = new Set();
@@ -43,7 +56,6 @@ describe('SignalenTable mobiele card-actie', () => {
       </MemoryRouter>,
     );
     const knoppen = screen.getAllByTestId('acquisitie-selectie-toggle');
-    // Eerste card = mobiele kaartvariant.
     const knop = knoppen[0];
     expect(knop.getAttribute('data-variant')).toBe('compact');
     expect(knop.textContent).toMatch(/Aan selectie/i);
@@ -71,7 +83,7 @@ describe('SignalenTable mobiele card-actie', () => {
         <SignalenTable signalen={[sig]} laden={false} />
       </MemoryRouter>,
     );
-    const mobileCard = container.querySelector('.sm\\:hidden');
+    const mobileCard = container.querySelector('[data-row-id="sig-mob"]');
     expect(mobileCard).not.toBeNull();
     const occurrences = (mobileCard!.textContent || '').match(/In selectie/g) ?? [];
     expect(occurrences.length).toBe(1);
