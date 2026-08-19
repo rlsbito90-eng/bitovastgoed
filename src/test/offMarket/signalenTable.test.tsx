@@ -15,6 +15,7 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
 }));
 
 beforeEach(() => {
+  sessionStorage.clear();
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: query === '(min-width: 640px)',
     media: query,
@@ -51,10 +52,24 @@ const baseSignaal = {
   eigenaarstatus: 'te_onderzoeken',
 } as unknown as OffMarketSignaal;
 
-function renderTable(signalen: OffMarketSignaal[], zichtbareKolommen?: string[]) {
+function maakSignalen(aantal: number): OffMarketSignaal[] {
+  return Array.from({ length: aantal }, (_, index) => ({
+    ...baseSignaal,
+    id: `s${index + 1}`,
+    adres: `Teststraat ${index + 1}`,
+    titel: `Signaal ${index + 1}`,
+  } as unknown as OffMarketSignaal));
+}
+
+function renderTable(signalen: OffMarketSignaal[], zichtbareKolommen?: string[], highlightedId?: string | null) {
   return render(
     <MemoryRouter>
-      <SignalenTable signalen={signalen} laden={false} zichtbareKolommen={zichtbareKolommen} />
+      <SignalenTable
+        signalen={signalen}
+        laden={false}
+        zichtbareKolommen={zichtbareKolommen}
+        highlightedId={highlightedId}
+      />
     </MemoryRouter>,
   );
 }
@@ -119,7 +134,6 @@ describe('SignalenTable — standaard acquisitie-grid', () => {
   });
 
   it('bewaart de scrollpositie van de echte tabel-scroller bij openen', () => {
-    sessionStorage.clear();
     renderTable([baseSignaal]);
     const row = document.querySelector('tr[data-row-id="s1"]') as HTMLElement;
     const scroller = row.closest('.overflow-auto') as HTMLElement;
@@ -134,5 +148,46 @@ describe('SignalenTable — standaard acquisitie-grid', () => {
 
     const saved = JSON.parse(sessionStorage.getItem('list-last-viewed:off-market-signalen') ?? '{}');
     expect(saved).toMatchObject({ id: 's1', scrollY: 420 });
+  });
+});
+
+describe('SignalenTable — paginering', () => {
+  it('toont standaard maximaal 50 signalen en navigeert naar pagina 2', () => {
+    renderTable(maakSignalen(120));
+
+    expect(document.querySelectorAll('tbody tr[data-row-id]').length).toBe(50);
+    expect(document.querySelector('tr[data-row-id="s50"]')).not.toBeNull();
+    expect(document.querySelector('tr[data-row-id="s51"]')).toBeNull();
+    expect(screen.getByText('1–50 van 120 signalen')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pagina 2' }));
+
+    expect(document.querySelector('tr[data-row-id="s1"]')).toBeNull();
+    expect(document.querySelector('tr[data-row-id="s51"]')).not.toBeNull();
+    expect(document.querySelector('tr[data-row-id="s100"]')).not.toBeNull();
+    expect(screen.getByText('51–100 van 120 signalen')).toBeTruthy();
+    expect(sessionStorage.getItem('off-market-signalen:pagina')).toBe('2');
+  });
+
+  it('ondersteunt 100 signalen per pagina', () => {
+    renderTable(maakSignalen(120));
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Aantal signalen per pagina' }), {
+      target: { value: '100' },
+    });
+
+    expect(document.querySelectorAll('tbody tr[data-row-id]').length).toBe(100);
+    expect(document.querySelector('tr[data-row-id="s100"]')).not.toBeNull();
+    expect(document.querySelector('tr[data-row-id="s101"]')).toBeNull();
+    expect(sessionStorage.getItem('off-market-signalen:pagina-grootte')).toBe('100');
+  });
+
+  it('opent bij terugnavigatie direct de pagina van het gehighlighte signaal', () => {
+    renderTable(maakSignalen(120), undefined, 's75');
+
+    expect(document.querySelector('tr[data-row-id="s75"]')).not.toBeNull();
+    expect(document.querySelector('tr[data-row-id="s1"]')).toBeNull();
+    expect(screen.getByText('51–100 van 120 signalen')).toBeTruthy();
+    expect(sessionStorage.getItem('off-market-signalen:pagina')).toBe('2');
   });
 });
