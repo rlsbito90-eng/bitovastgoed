@@ -1,3 +1,5 @@
+import { isRechtspersoonNaam } from '@/lib/format/naam';
+
 import type { GeadresseerdeSnapshot } from './productiekernContract';
 import { valideerGeadresseerdeSnapshot } from './productiekernContract';
 import { productiekernGeadresseerdeNaam } from './productiekernGeadresseerdeNaam';
@@ -13,6 +15,7 @@ export interface BatchAdreslabelRij {
   briefnummer: string;
   briefVersieId: string;
   naamregel: string;
+  attentieregel: string | null;
   adresregel: string;
   postcode: string;
   plaats: string;
@@ -48,16 +51,23 @@ export function bouwBatchAdreslabelRijen(
 
     const naamregel = productiekernGeadresseerdeNaam(item.geadresseerde);
     const land = item.geadresseerde.land.trim();
+    const isNederland = /^nederland$/i.test(land);
+    const isBedrijf = Boolean(item.geadresseerde.bedrijfsnaam?.trim())
+      || isRechtspersoonNaam(item.geadresseerde.naam?.trim() ?? '');
 
     return {
       volgnummer: index + 1,
       briefnummer: veiligeCel(item.briefnummer),
       briefVersieId: veiligeCel(item.briefVersieId),
       naamregel: veiligeCel(naamregel),
+      // Herstel de bestaande fysieke labelconventie: Nederlandse rechtspersonen
+      // krijgen onder de bedrijfsnaam een generieke directieregel. Er wordt bewust
+      // geen persoonsnaam uit brondata op een bedrijfslabel gezet.
+      attentieregel: isBedrijf && isNederland ? 'T.a.v. de directie' : null,
       adresregel: veiligeCel(item.geadresseerde.straatHuisnummer),
       postcode: veiligeCel(item.geadresseerde.postcode.replace(/\s+/g, '').toUpperCase()),
       plaats: veiligeCel(item.geadresseerde.plaats),
-      landregel: /^nederland$/i.test(land) ? null : veiligeCel(land.toUpperCase()),
+      landregel: isNederland ? null : veiligeCel(land.toUpperCase()),
     };
   });
 }
