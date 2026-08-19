@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve(process.cwd(), 'src/pages/SnellePandcheckPage.tsx'), 'utf8');
-const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+const crmApp = readFileSync(resolve(process.cwd(), 'src/CrmProtectedApp.tsx'), 'utf8');
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260804150000_crm_objectidentiteit.sql'), 'utf8');
 
 describe('Snelle pandcheck', () => {
@@ -18,8 +18,8 @@ describe('Snelle pandcheck', () => {
   });
 
   it('heeft een beveiligde route binnen de bestaande app', () => {
-    expect(app).toContain('SnellePandcheckPage');
-    expect(app).toContain('/vastgoedkansen/pandcheck');
+    expect(crmApp).toContain('SnellePandcheckPage');
+    expect(crmApp).toContain('/vastgoedkansen/pandcheck');
   });
 });
 

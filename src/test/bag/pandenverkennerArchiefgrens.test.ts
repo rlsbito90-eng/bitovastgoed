@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const pagina = readFileSync('src/pages/VastgoedkansenVindenPage.tsx', 'utf8');
 const badge = readFileSync('src/components/bag/BagCrmMatchBadge.tsx', 'utf8');
-const kaart = readFileSync('src/components/bag/BagPandenKaart.tsx', 'utf8');
+const kaart = readFileSync('src/components/bag/BagPandenKaartRuntime.tsx', 'utf8');
 
 describe('Pandenverkenner archiefgrens', () => {
   it('neemt actieve én gearchiveerde Vastgoedkansen mee in de duplicaatblokkade', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 
 describe('Pandenverkenner UX 1E.3 contract', () => {
-  const kaart = fs.readFileSync('src/components/bag/BagPandenKaart.tsx', 'utf8');
+  const kaart = fs.readFileSync('src/components/bag/BagPandenKaartRuntime.tsx', 'utf8');
   const lijst = fs.readFileSync('src/components/bag/BagServicePandenlijst.tsx', 'utf8');
   const promotie = fs.readFileSync('src/lib/bag/handmatigePromotie.ts', 'utf8');
 

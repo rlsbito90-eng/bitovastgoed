@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 
 const lijst = fs.readFileSync('src/components/bag/BagServicePandenlijst.tsx', 'utf8');
-const kaart = fs.readFileSync('src/components/bag/BagPandenKaart.tsx', 'utf8');
+const kaart = fs.readFileSync('src/components/bag/BagPandenKaartRuntime.tsx', 'utf8');
 
 describe('Pandenverkenner kaartflow hotfix', () => {
   it('blijft in kaartweergave na Controleer selectie en gebruikt de gedeelde review', () => {

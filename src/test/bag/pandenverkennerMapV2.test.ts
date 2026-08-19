@@ -5,7 +5,7 @@ const sql = fs.readFileSync('experiments/bag/pandenverkenner-map-v2.sql', 'utf8'
 const service = fs.readFileSync('src/lib/bag/queryService.ts', 'utf8');
 const transport = fs.readFileSync('src/lib/bag/queryTransport.ts', 'utf8');
 const edge = fs.readFileSync('supabase/functions/bag-query-service/index.ts', 'utf8');
-const kaart = fs.readFileSync('src/components/bag/BagPandenKaart.tsx', 'utf8');
+const kaart = fs.readFileSync('src/components/bag/BagPandenKaartRuntime.tsx', 'utf8');
 const model = fs.readFileSync('src/lib/bag/kaartModel.ts', 'utf8');
 
 describe('Pandenverkenner Map v2', () => {

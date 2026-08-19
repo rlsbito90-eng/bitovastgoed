@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Calendar, ExternalLink, Eye } from 'lucide-react';
 import {
@@ -27,6 +27,8 @@ interface Props {
   highlightedId?: string | null;
 }
 
+const EERSTE_RENDER_AANTAL = 100;
+const EXTRA_RENDER_AANTAL = 100;
 
 function formatDateNL(d: string | null) {
   if (!d) return '—';
@@ -211,6 +213,44 @@ export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defa
 
 export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
+  const [zichtbaarAantal, setZichtbaarAantal] = useState(EERSTE_RENDER_AANTAL);
+  const vorigeLijstSignatuur = useRef('');
+  const lijstSignatuur = useMemo(
+    () => `${rows.length}:${rows.slice(0, 5).map(s => s.id).join('|')}`,
+    [rows],
+  );
+
+  useEffect(() => {
+    if (vorigeLijstSignatuur.current && vorigeLijstSignatuur.current !== lijstSignatuur) {
+      setZichtbaarAantal(EERSTE_RENDER_AANTAL);
+    }
+    vorigeLijstSignatuur.current = lijstSignatuur;
+  }, [lijstSignatuur]);
+
+  const highlightedIndex = highlightedId ? rows.findIndex(s => s.id === highlightedId) : -1;
+  const minimumVoorHighlight = highlightedIndex >= 0
+    ? Math.ceil((highlightedIndex + 1) / EXTRA_RENDER_AANTAL) * EXTRA_RENDER_AANTAL
+    : 0;
+
+  // Zodra terugnavigatie een diep signaal zichtbaar maakt, houden we die tranche
+  // ook vast nadat de tijdelijke highlight verdwijnt. Zo klapt de lijst niet na
+  // enkele seconden terug naar 100 regels en blijft de herstelde scrollpositie stabiel.
+  useEffect(() => {
+    if (minimumVoorHighlight > zichtbaarAantal) {
+      setZichtbaarAantal(Math.min(rows.length, minimumVoorHighlight));
+    }
+  }, [minimumVoorHighlight, rows.length, zichtbaarAantal]);
+
+  const effectiefZichtbaarAantal = Math.min(
+    rows.length,
+    Math.max(zichtbaarAantal, minimumVoorHighlight),
+  );
+  const zichtbareRows = useMemo(
+    () => rows.slice(0, effectiefZichtbaarAantal),
+    [rows, effectiefZichtbaarAantal],
+  );
+  const heeftMeer = effectiefZichtbaarAantal < rows.length;
+
   const navigate = useNavigate();
   const go = (id: string, anchor?: HTMLElement | null) => {
     try {
@@ -227,7 +267,6 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
     return (r as any).bedrijfsnaam ?? (r as any).contactpersoon ?? '—';
   };
 
-
   const actieveKolommen = useMemo(() => {
     const ids = zichtbareKolommen && zichtbareKolommen.length > 0
       ? zichtbareKolommen
@@ -237,7 +276,6 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
   }, [zichtbareKolommen]);
 
   const selectieIds = useActieveSelectieIds();
-
   const ctx: SignalenKolomCtx = { relatieNaam };
 
   if (laden) {
@@ -257,7 +295,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
     <>
       {/* Mobiel: compacte card */}
       <div className="sm:hidden divide-y divide-border/70">
-        {rows.map(s => {
+        {zichtbareRows.map(s => {
           const isHighlighted = highlightedId === s.id;
           return (
             <div
@@ -320,7 +358,6 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
         })}
       </div>
 
-
       {/* Desktop: acquisitie-tabel */}
       <div className="hidden sm:block">
         <Table>
@@ -333,7 +370,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(s => {
+            {zichtbareRows.map(s => {
               const isHighlighted = highlightedId === s.id;
               const inSelectie = selectieIds.has(s.id);
               return (
@@ -370,10 +407,26 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                 </TableRow>
               );
             })}
-
           </TableBody>
         </Table>
       </div>
+
+      {rows.length > EERSTE_RENDER_AANTAL && (
+        <div className="border-t border-border/70 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-muted/20">
+          <p className="text-xs text-muted-foreground">
+            {effectiefZichtbaarAantal} van {rows.length} signalen weergegeven
+          </p>
+          {heeftMeer && (
+            <button
+              type="button"
+              onClick={() => setZichtbaarAantal(current => Math.min(rows.length, current + EXTRA_RENDER_AANTAL))}
+              className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              Meer signalen laden
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 }

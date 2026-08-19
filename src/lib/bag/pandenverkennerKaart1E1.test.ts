@@ -7,7 +7,7 @@ const sql = readFileSync(resolve(process.cwd(), 'experiments/bag/pandenverkenner
 const edge = readFileSync(resolve(process.cwd(), 'supabase/functions/bag-query-service/index.ts'), 'utf8');
 const transport = readFileSync(resolve(process.cwd(), 'src/lib/bag/queryTransport.ts'), 'utf8');
 const queryService = readFileSync(resolve(process.cwd(), 'src/lib/bag/queryService.ts'), 'utf8');
-const component = readFileSync(resolve(process.cwd(), 'src/components/bag/BagPandenKaart.tsx'), 'utf8');
+const component = readFileSync(resolve(process.cwd(), 'src/components/bag/BagPandenKaartRuntime.tsx'), 'utf8');
 const lijst = readFileSync(resolve(process.cwd(), 'src/components/bag/BagServicePandenlijst.tsx'), 'utf8');
 
 function rij(overrides: Partial<BagKaartPandRij> = {}): BagKaartPandRij {
