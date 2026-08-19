@@ -1,38 +1,35 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { leesCrmReturnContext, maakCrmReturnState } from '@/lib/crmReturnContext';
+import {
+  getCrmDetailModule,
+  leesCrmDetailOrigin,
+  leesCrmReturnContext,
+  maakCrmReturnState,
+} from '@/lib/crmReturnContext';
 
-const DETAIL_MODULES = [
-  'relaties',
-  'objecten',
-  'deals',
-  'taken',
-  'off-market',
-  'acquisitie',
-  'vastgoedkansen',
-] as const;
-type DetailModule = (typeof DETAIL_MODULES)[number];
+export { getCrmDetailModule } from '@/lib/crmReturnContext';
 
-export function getCrmDetailModule(pathname: string): DetailModule | null {
-  const standaard = pathname.match(/^\/(relaties|objecten|deals|taken|off-market)\/[^/]+\/?$/);
-  if (standaard) return standaard[1] as DetailModule;
-  if (/^\/acquisitie\/(?:targets|campagnes)\/[^/]+\/?$/.test(pathname)) return 'acquisitie';
-  if (/^\/vastgoedkansen\/[^/]+\/?$/.test(pathname)) return 'vastgoedkansen';
-  return null;
-}
-
-export type CrmDetailNavigationAction = 'normal' | 'history-back' | 'return' | 'cross-detail';
+export type CrmDetailNavigationAction = 'normal' | 'history-back' | 'return' | 'origin' | 'cross-detail';
 
 export function bepaalCrmDetailNavigationAction(args: {
   currentPathname: string;
   targetPathname: string;
   fallbackPath: string;
   hasReturnContext: boolean;
+  hasOriginContext?: boolean;
 }): CrmDetailNavigationAction {
-  const { currentPathname, targetPathname, fallbackPath, hasReturnContext } = args;
+  const {
+    currentPathname,
+    targetPathname,
+    fallbackPath,
+    hasReturnContext,
+    hasOriginContext = false,
+  } = args;
 
   if (targetPathname === fallbackPath) {
-    return hasReturnContext ? 'return' : 'history-back';
+    if (hasReturnContext) return 'return';
+    if (hasOriginContext) return 'origin';
+    return 'history-back';
   }
 
   const currentModule = getCrmDetailModule(currentPathname);
@@ -57,16 +54,16 @@ function heeftBruikbareBrowserHistory(): boolean {
 /**
  * Centrale grens voor CRM-detailroutes.
  *
- * - Een terug-/modulelink naar de eigen hoofdlijst gaat bij normale list->detail
- *   navigatie via de echte vorige history-entry. Daardoor blijven tab, werkbak,
- *   filters, sortering, selectie en scrollcontext behouden waar de lijst die
- *   context zelf bewaart.
- * - Een expliciete cross-module return-context blijft leidend.
- * - Een cross-module detail-link krijgt automatisch de huidige detailroute als
- *   return-context mee.
- * - Same-module navigatie (o.a. Vorige/Volgende) blijft ongemoeid.
- * - Een directe deep-link zonder bruikbare history valt veilig terug op de
- *   opgegeven module-hoofdroute.
+ * Terugvolgorde:
+ * 1. expliciete cross-module return-context;
+ * 2. stabiele route waar de detailketen echt is gestart;
+ * 3. browser-history als legacy fallback;
+ * 4. module-hoofdroute bij een directe deep-link.
+ *
+ * Daardoor blijft Terug correct nadat iemand met Vorige/Volgende door meerdere
+ * details is gegaan, en ook bij programmatic list->detail navigatie. Tabs,
+ * filters, sortering, selectie en scrollcontext blijven op de oorspronkelijke
+ * lijst-entry/session-state staan.
  */
 export default function CrmDetailNavigationBoundary({
   children,
@@ -77,6 +74,8 @@ export default function CrmDetailNavigationBoundary({
   const location = useLocation();
   const navigate = useNavigate();
   const returnContext = leesCrmReturnContext(location.state);
+  const currentModule = getCrmDetailModule(location.pathname);
+  const originPath = currentModule ? leesCrmDetailOrigin(currentModule) : null;
 
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
 
@@ -103,12 +102,20 @@ export default function CrmDetailNavigationBoundary({
       targetPathname: url.pathname,
       fallbackPath,
       hasReturnContext: !!returnContext,
+      hasOriginContext: !!originPath,
     });
 
     if (action === 'return' && returnContext) {
       event.preventDefault();
       event.stopPropagation();
-      navigate(returnContext.path);
+      navigate(returnContext.path, { replace: true });
+      return;
+    }
+
+    if (action === 'origin' && originPath) {
+      event.preventDefault();
+      event.stopPropagation();
+      navigate(originPath, { replace: true });
       return;
     }
 
@@ -116,7 +123,7 @@ export default function CrmDetailNavigationBoundary({
       event.preventDefault();
       event.stopPropagation();
       if (heeftBruikbareBrowserHistory()) navigate(-1);
-      else navigate(fallbackPath);
+      else navigate(fallbackPath, { replace: true });
       return;
     }
 
