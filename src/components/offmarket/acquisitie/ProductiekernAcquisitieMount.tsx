@@ -10,14 +10,13 @@ import {
   type ProductiekernBrowserWriteSamenstelling,
 } from '@/lib/offMarket/acquisitie/productiekernBrowserWriteClient';
 import { meetProductiekernWorkflowPariteit } from '@/lib/offMarket/acquisitie/productiekernDossierProjectiePariteit';
+import { bouwProductiekernPrintbatchModellen } from '@/lib/offMarket/acquisitie/productiekernPrintbatchOverzicht';
 import type { ProductiekernSupabaseClientSamenstelling } from '@/lib/offMarket/acquisitie/productiekernSupabaseClientSamenstelling';
 import { bepaalWerkbakContext, type WerkbakContext } from '@/lib/offMarket/acquisitie/werkbak';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import ProductiekernDossierProjectie from './ProductiekernDossierProjectie';
 import ProductiekernNogNietGestart from './ProductiekernNogNietGestart';
-import ProductiekernPrintbatchWerkbak, {
-  bouwProductiekernPrintbatchModellen,
-} from './ProductiekernPrintbatchWerkbak';
+import ProductiekernPrintbatchWerkbak from './ProductiekernPrintbatchWerkbak';
 import ProductiekernProductiepakketZone from './ProductiekernProductiepakketZone';
 import type { ProductiekernWerkbakView } from './ProductiekernWerkbakChips';
 

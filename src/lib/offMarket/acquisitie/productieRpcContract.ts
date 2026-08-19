@@ -1,5 +1,6 @@
 import type {
   BatchDocumentenRegistrerenInput,
+  BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
@@ -10,6 +11,7 @@ import { valideerProductieTransactie } from './productieTransactieContract';
 export type ProductieRpcNaam =
   | 'off_market_brief_definitief_maken'
   | 'off_market_batch_documenten_registreren'
+  | 'off_market_batch_documentversie_vernieuwen'
   | 'off_market_batch_geprint_markeren'
   | 'off_market_brief_gepost_markeren';
 
@@ -46,6 +48,28 @@ function batchDocumentenParameters(
       p_operation_key: input.operationKey,
       p_verwacht_documentversie: input.verwachtVersienummer,
       p_uitgevoerd_op: input.uitgevoerdOp,
+      p_documenten: input.opgeslagenDocumenten.map(document => ({
+        documenttype: document.documenttype,
+        bestand_referentie: document.bestandReferentie,
+        metadata: document.metadata,
+      })),
+    },
+  };
+}
+
+function batchDocumentversieVernieuwenParameters(
+  input: BatchDocumentversieVernieuwenInput,
+): ProductieRpcAanroep {
+  return {
+    rpc: 'off_market_batch_documentversie_vernieuwen',
+    parameters: {
+      p_batch_id: input.batch.id,
+      p_actor_id: input.actorId,
+      p_operation_key: input.operationKey,
+      p_verwacht_documentversie: input.verwachtVersienummer,
+      p_nieuwe_documentversie: input.nieuweDocumentversie,
+      p_uitgevoerd_op: input.uitgevoerdOp,
+      p_reden: input.reden,
       p_documenten: input.opgeslagenDocumenten.map(document => ({
         documenttype: document.documenttype,
         bestand_referentie: document.bestandReferentie,
@@ -106,6 +130,8 @@ export function bouwProductieRpcAanroep(
       return briefDefinitiefParameters(input);
     case 'batch_documenten_registreren':
       return batchDocumentenParameters(input);
+    case 'batch_documentversie_vernieuwen':
+      return batchDocumentversieVernieuwenParameters(input);
     case 'batch_geprint_markeren':
       return batchGeprintParameters(input);
     case 'brief_gepost_markeren':

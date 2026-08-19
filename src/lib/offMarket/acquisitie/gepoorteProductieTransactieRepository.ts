@@ -6,6 +6,7 @@ import type {
 import { ProductieTransactiesNietGeactiveerdError } from './productieTransactieRepository';
 import type {
   BatchDocumentenRegistrerenInput,
+  BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
@@ -40,6 +41,13 @@ implements AcquisitieProductieTransactieRepository {
   ): Promise<void> {
     this.eisSchrijftoegang('registreerBatchdocumenten');
     return this.achterliggendeRepository.registreerBatchdocumenten(input);
+  }
+
+  vernieuwBatchdocumenten(
+    input: BatchDocumentversieVernieuwenInput,
+  ): Promise<void> {
+    this.eisSchrijftoegang('vernieuwBatchdocumenten');
+    return this.achterliggendeRepository.vernieuwBatchdocumenten(input);
   }
 
   markeerBatchGeprint(input: BatchGeprintMarkerenInput): Promise<void> {

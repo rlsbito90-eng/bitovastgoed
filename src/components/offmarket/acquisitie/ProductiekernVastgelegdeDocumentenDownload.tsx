@@ -74,7 +74,9 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
       const nieuw = await maakSignedBestanden();
       setVoorbereid(nieuw);
       setPakketNaam(pakketBestandsnaam(documenten, nieuw));
-      toast.success('Productiepakket is klaar voor één gecombineerde download.');
+      toast.success('Productiepakket staat klaar.', {
+        description: 'Klik op “Productiebestanden downloaden” voor de gecombineerde ZIP.',
+      });
     } catch (error) {
       setVoorbereid([]);
       setPakketNaam(null);
@@ -147,7 +149,7 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
             data-testid="productiekern-productiebestanden-voorbereiden"
           >
             {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
-            Productiepakket voorbereiden
+            Productiebestanden opnieuw downloaden
           </Button>
         )}
         {downloadManifest && (

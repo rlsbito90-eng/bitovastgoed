@@ -7,7 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  ArrowDownUp, ExternalLink, FileDown, Inbox, Mail, MessageSquare, PlayCircle, Printer, Search, Send, Sparkles, Tag, Trash2, Users,
+  ArrowDownUp, ExternalLink, FileDown, Inbox, Mail, MessageSquare, PackageCheck, PlayCircle, Search, Sparkles, Trash2, Users,
 } from 'lucide-react';
 
 import {
@@ -34,6 +34,7 @@ import {
 } from '@/lib/offMarket/brieven/respons';
 import { KANAAL_LABEL, type Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useProductiekernSelectieOverzicht } from '@/hooks/useProductiekernSelectieOverzicht';
 import type { OffMarketEigenaarstatus } from '@/lib/offMarket/types';
 import { BagKaartBadge } from '@/components/offmarket/kaart/KaartSignaalBadges';
 import {
@@ -50,8 +51,7 @@ import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
 import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
-import BrotherAdreslabelsCsvDialog from './BrotherAdreslabelsCsvDialog';
-import MarkeerBulkDialog, { type MarkeerModus } from './MarkeerBulkDialog';
+import ProductiekernPrintbatchWerkbak from './ProductiekernPrintbatchWerkbak';
 import AcquisitieDossierRij from './AcquisitieDossierRij';
 import VastgoedkansenInAcquisitieSelectie from './VastgoedkansenInAcquisitieSelectie';
 import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
@@ -179,6 +179,7 @@ export default function AcquisitieSelectieTab() {
   const readiness = useAcquisitieReadiness(geselecteerdeSignalen);
   const signaalIds = useMemo(() => geselecteerdeSignalen.map(s => s.id), [geselecteerdeSignalen]);
   const { data: brieven = [] } = useBrievenVoorSignalen(signaalIds);
+  const productieOverzicht = useProductiekernSelectieOverzicht(brieven, geselecteerdeSignalen);
 
   const initieel = useMemo(leesInitieleView, []);
   const [werkbak, setWerkbakState] = useState<WerkbakView>(initieel.werkbak);
@@ -253,7 +254,7 @@ export default function AcquisitieSelectieTab() {
   const tellingen = useMemo(() => {
     const wb: Record<WerkbakView, number> = { actie: 0, wachten: 0, afgehandeld: 0, alles: 0 };
     const sf: Record<ActieSubfilter, number> = {
-      alle: 0, onderzoeken: 0, eigenaar_controleren: 0, brief_voorbereiden: 0,
+      alle: 0, onderzoeken: 0, eigenaar_controleren: 0, adres_achterhalen: 0, brief_voorbereiden: 0,
       printen_posten: 0, opvolgen: 0,
     };
     const pp: Record<PrintPostFilter, number> = { alles: 0, te_printen: 0, te_posten: 0 };
@@ -324,6 +325,7 @@ export default function AcquisitieSelectieTab() {
       if (!ctx) continue;
 
       if (zoekActief) {
+        const productieNummers = productieOverzicht.nummersPerSignaal.get(signaal.id);
         const geadresseerdeTekst = r.geadresseerden
           .flatMap((g) => [g.naam, g.bedrijfsnaam, g.verzendadres])
           .filter(Boolean)
@@ -337,6 +339,8 @@ export default function AcquisitieSelectieTab() {
           signaal.type_signaal,
           signaal.id,
           geadresseerdeTekst,
+          ...(productieNummers?.briefnummers ?? []),
+          ...(productieNummers?.batchnummers ?? []),
         ].filter(Boolean).join(' '));
         if (!haystack.includes(zoek)) continue;
       } else {
@@ -371,6 +375,7 @@ export default function AcquisitieSelectieTab() {
   }, [
     readiness.lijst, werkbakPerSignaal, werkbak, subfilter, printPost,
     actieveSortering, toegevoegdOpPerSignaal, zoek, zoekActief,
+    productieOverzicht.nummersPerSignaal,
   ]);
 
   const [werkronde, setWerkrondeState] = useState<Werkronde | null>(() => leesWerkronde());
@@ -481,15 +486,6 @@ export default function AcquisitieSelectieTab() {
     };
   }, [bulkSelectie, signaalIndex, brievenPerSignaal]);
 
-  function selecteerAlleGeschikteBulk() {
-    const next = new Set<string>();
-    for (const { signaal, readiness: r } of gefilterd) {
-      if (r.info.status === 'geblokkeerd') continue;
-      next.add(signaal.id);
-    }
-    setBulkSelectie(next);
-  }
-
   function selecteerZichtbareBulk() {
     setBulkSelectie(new Set(gefilterd.map((x) => x.signaal.id)));
   }
@@ -523,8 +519,6 @@ export default function AcquisitieSelectieTab() {
 
   const [wizardOpen, setWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
-  const [labelsOpen, setLabelsOpen] = useState(false);
-  const [markeerModus, setMarkeerModus] = useState<MarkeerModus | null>(null);
 
   const [focusOpen, setFocusOpen] = useState(false);
   const [focusIndex, setFocusIndexState] = useState<number>(() => {
@@ -753,90 +747,90 @@ export default function AcquisitieSelectieTab() {
           onSubfilterChange={setSubfilter}
           counts={tellingen}
         />
-        <Button
-          type="button"
-          size="sm"
-          variant="default"
-          onClick={primaireVerwerkActie}
-          data-testid="acquisitie-verwerk-selectie"
-          disabled={primaireVerwerkDisabled}
-        >
-          <PlayCircle className="h-4 w-4" />
-          {primaireVerwerkLabel()}
-        </Button>
+        {!werkronde && (
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            onClick={primaireVerwerkActie}
+            data-testid="acquisitie-verwerk-selectie"
+            disabled={primaireVerwerkDisabled}
+          >
+            <PlayCircle className="h-4 w-4" />
+            {primaireVerwerkLabel()}
+          </Button>
+        )}
       </div>
 
       <div className="section-card px-3 py-2.5" data-testid="acquisitie-zoekbalk">
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
           <div className="relative w-full sm:max-w-xl">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
               value={zoekterm}
               onChange={(e) => setZoekterm(e.target.value)}
-              placeholder="Zoek adres, plaats, eigenaar of signaaltype…"
+              placeholder="Zoek adres, eigenaar, BR- of BAT-nummer…"
               className="pl-9"
               aria-label="Zoek in acquisitieselectie"
               data-testid="acquisitie-zoeken"
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground lg:ml-auto">
+            <ArrowDownUp className="h-3.5 w-3.5" />
+            <span>Sorteren</span>
+            <select
+              data-testid="acquisitie-sortering"
+              value={actieveSortering}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSorteerKeuze(isSorteerOptie(v) ? v : null);
+              }}
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+            >
+              {SORTEER_VOLGORDE.map((o) => (
+                <option key={o} value={o}>{SORTEER_LABEL[o]}</option>
+              ))}
+            </select>
+            {sorteerKeuze && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setSorteerKeuze(null)}>
+                Standaard
+              </Button>
+            )}
+          </label>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+          <p className="mr-auto text-[11px] text-muted-foreground">
             {zoekActief
               ? `${gefilterd.length} resultaat${gefilterd.length === 1 ? '' : 'en'} · zoekt in alle werkbakken`
               : `Doorzoek alle ${tellingen.werkbak.alles} signalen in de acquisitieselectie`}
           </p>
-        </div>
-      </div>
-
-      {!zoekActief && werkbak === 'actie' && subfilter === 'printen_posten' && (
-        <div
-          className="flex flex-wrap items-center gap-1.5"
-          data-testid="acquisitie-printpost-chips"
-          role="group"
-          aria-label="Printen en posten filteren"
-        >
-          {PRINT_POST_VOLGORDE.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setPrintPost(f)}
-              data-testid={`acquisitie-printpost-${f}`}
-              aria-pressed={printPost === f}
-              className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                printPost === f
-                  ? 'border-accent/50 bg-accent/15 text-accent font-medium'
-                  : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
-              }`}
+          {!zoekActief && werkbak === 'actie' && subfilter === 'printen_posten' && (
+            <div
+              className="flex flex-wrap items-center gap-1.5"
+              data-testid="acquisitie-printpost-chips"
+              role="group"
+              aria-label="Printen en posten filteren"
             >
-              {PRINT_POST_LABEL[f]} ({tellingen.printPost[f]})
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ArrowDownUp className="h-3.5 w-3.5" />
-          <span>Sorteren</span>
-          <select
-            data-testid="acquisitie-sortering"
-            value={actieveSortering}
-            onChange={(e) => {
-              const v = e.target.value;
-              setSorteerKeuze(isSorteerOptie(v) ? v : null);
-            }}
-            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-          >
-            {SORTEER_VOLGORDE.map((o) => (
-              <option key={o} value={o}>{SORTEER_LABEL[o]}</option>
-            ))}
-          </select>
-          {sorteerKeuze && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setSorteerKeuze(null)}>
-              Standaard
-            </Button>
+              {PRINT_POST_VOLGORDE.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setPrintPost(f)}
+                  data-testid={`acquisitie-printpost-${f}`}
+                  aria-pressed={printPost === f}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    printPost === f
+                      ? 'border-accent/50 bg-accent/15 text-accent font-medium'
+                      : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                  }`}
+                >
+                  {PRINT_POST_LABEL[f]} ({tellingen.printPost[f]})
+                </button>
+              ))}
+            </div>
           )}
-        </label>
+        </div>
       </div>
 
       {werkronde && werkrondeVoortgang && (
@@ -878,96 +872,102 @@ export default function AcquisitieSelectieTab() {
         className="section-card flex flex-wrap items-center justify-between gap-2 px-3 py-2"
       >
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Button
-            type="button" variant="outline" size="sm"
-            onClick={selecteerZichtbareBulk}
-            disabled={gefilterd.length === 0}
-            data-testid="acquisitie-bulk-selecteer-zichtbare"
-          >
-            <Users className="h-3.5 w-3.5" />
-            Selecteer zichtbare ({gefilterd.length})
-          </Button>
-          <Button
-            type="button" variant="outline" size="sm"
-            onClick={selecteerAlleGeschikteBulk}
-            data-testid="acquisitie-bulk-selecteer-alle"
-          >
-            <Users className="h-3.5 w-3.5" />
-            Selecteer alle geschikte
-          </Button>
-          {bulkSelectie.size > 0 && (
-            <Button type="button" variant="ghost" size="sm" onClick={wisBulk}>
-              Wis selectie
+          {bulkSelectie.size === 0 ? (
+            <Button
+              type="button" variant="outline" size="sm"
+              onClick={selecteerZichtbareBulk}
+              disabled={gefilterd.length === 0}
+              data-testid="acquisitie-bulk-selecteer-zichtbare"
+            >
+              <Users className="h-3.5 w-3.5" />
+              Selecteer resultaten ({gefilterd.length})
+            </Button>
+          ) : (
+            <>
+              <span className="font-medium text-foreground" data-testid="acquisitie-bulk-telling">
+                {bulkTotalen.signalen} geselecteerd · {bulkTotalen.geadresseerden} geadresseerden ·{' '}
+                {bulkTotalen.geschikteBrieven} brieven gereed
+              </span>
+              <Button type="button" variant="ghost" size="sm" onClick={wisBulk}>
+                Wis selectie
+              </Button>
+            </>
+          )}
+          {bulkSelectie.size > 0 && gefilterd.length > bulkSelectie.size && (
+            <Button type="button" variant="ghost" size="sm" onClick={selecteerZichtbareBulk}>
+              Selecteer alle {gefilterd.length} resultaten
             </Button>
           )}
-          <span data-testid="acquisitie-bulk-telling">
-            {bulkTotalen.signalen} signalen · {bulkTotalen.geadresseerden} geadresseerden ·{' '}
-            {bulkTotalen.geschikteBrieven} brieven
-          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button" size="sm" variant="secondary"
-            onClick={() => setWizardOpen(true)}
-            disabled={bulkSelectie.size === 0}
-            data-testid="acquisitie-bulk-brieven-voorbereiden"
-          >
-            <Mail className="h-3.5 w-3.5" />
-            Brieven voorbereiden
-          </Button>
-          <Button
-            type="button" size="sm" variant="secondary"
-            onClick={() => setPdfOpen(true)}
-            disabled={bulkSelectie.size === 0}
-            data-testid="acquisitie-bulk-gecombineerde-pdf"
-          >
-            <FileDown className="h-3.5 w-3.5" />
-            Brieven-PDF
-          </Button>
-          <Button
-            type="button" size="sm" variant="secondary"
-            onClick={() => setLabelsOpen(true)}
-            disabled={bulkSelectie.size === 0}
-            data-testid="acquisitie-bulk-adreslabels"
-            title="Download een CSV-database voor Brother P-touch Editor."
-          >
-            <Tag className="h-3.5 w-3.5" />
-            Brother-adreslabels exporteren
-          </Button>
-          <Button
-            type="button" size="sm" variant="outline"
-            onClick={() => setMarkeerModus('geprint')}
-            disabled={bulkSelectie.size === 0}
-            data-testid="acquisitie-bulk-markeer-geprint"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            Markeer geprint
-          </Button>
-          <Button
-            type="button" size="sm" variant="outline"
-            onClick={() => setMarkeerModus('gepost')}
-            disabled={bulkSelectie.size === 0}
-            data-testid="acquisitie-bulk-markeer-gepost"
-          >
-            <Send className="h-3.5 w-3.5" />
-            Markeer gepost
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={verwijderBulkUitSelectie}
-            disabled={bulkSelectie.size === 0 || verwijderUitSelectie.isPending}
-            data-testid="acquisitie-bulk-uit-selectie"
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {verwijderUitSelectie.isPending
-              ? 'Uit selectie halen…'
-              : `Geselecteerde uit selectie (${bulkSelectie.size})`}
-          </Button>
-        </div>
+        {bulkSelectie.size > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button" size="sm" variant="secondary"
+              onClick={() => setWizardOpen(true)}
+              data-testid="acquisitie-bulk-brieven-voorbereiden"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              Brieven voorbereiden
+            </Button>
+            <Button
+              type="button" size="sm" variant="secondary"
+              onClick={() => setPdfOpen(true)}
+              data-testid="acquisitie-bulk-gecombineerde-pdf"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              Conceptbrieven &amp; productie
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={verwijderBulkUitSelectie}
+              disabled={verwijderUitSelectie.isPending}
+              data-testid="acquisitie-bulk-uit-selectie"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {verwijderUitSelectie.isPending
+                ? 'Uit selectie halen…'
+                : `Uit Acquisitieselectie (${bulkSelectie.size})`}
+            </Button>
+          </div>
+        )}
       </div>
+
+      {(
+        (!zoekActief && werkbak === 'actie' && subfilter === 'printen_posten')
+        || (zoekActief && /^(br|bat)[\s-]*\d/i.test(zoekterm.trim()))
+      ) && productieOverzicht.actief && (
+        <section className="section-card space-y-3 px-3 py-3" data-testid="acquisitie-printbatchbeheer">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <PackageCheck className="h-4 w-4 text-accent" />
+                Printbatches
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Bestaande BAT-bestanden opnieuw downloaden of de gekoppelde BR-brieven openen. Downloaden genereert niets opnieuw.
+              </p>
+            </div>
+            {!productieOverzicht.isLoading && !productieOverzicht.isError && (
+              <span className="rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground">
+                {productieOverzicht.modellen.length} {productieOverzicht.modellen.length === 1 ? 'batch' : 'batches'}
+              </span>
+            )}
+          </div>
+          {productieOverzicht.isLoading ? (
+            <p className="text-xs text-muted-foreground">Printbatches laden…</p>
+          ) : (
+            <ProductiekernPrintbatchWerkbak
+              modellen={productieOverzicht.modellen}
+              fout={productieOverzicht.isError}
+              repository={productieOverzicht.repository}
+              zoekterm={zoekActief ? zoekterm : ''}
+            />
+          )}
+        </section>
+      )}
 
       {gefilterd.length === 0 ? (
         <p className="text-sm text-muted-foreground px-1 py-4">
@@ -987,6 +987,7 @@ export default function AcquisitieSelectieTab() {
             const toegevoegd = toegevoegdOpLabel(toegevoegdOpPerSignaal.get(signaal.id) ?? null);
             const briefInfo = briefInfoPerSignaal.get(signaal.id);
             const respons = briefInfo?.respons ?? null;
+            const productieNummers = productieOverzicht.nummersPerSignaal.get(signaal.id);
             return (
               <AcquisitieDossierRij
                 key={signaal.id}
@@ -1046,6 +1047,26 @@ export default function AcquisitieSelectieTab() {
                             )}
                           </span>
                         )}
+                        {productieNummers?.briefnummers.map((nummer) => (
+                          <span
+                            key={nummer}
+                            className="inline-flex rounded border border-border bg-background px-1.5 py-0.5 font-mono-data text-[10px] font-medium text-foreground"
+                            data-testid="acquisitie-rij-briefnummer"
+                            title={`Formeel briefnummer ${nummer}`}
+                          >
+                            {nummer}
+                          </span>
+                        ))}
+                        {productieNummers?.batchnummers.map((nummer) => (
+                          <span
+                            key={nummer}
+                            className="inline-flex rounded border border-accent/35 bg-accent/10 px-1.5 py-0.5 font-mono-data text-[10px] font-medium text-accent"
+                            data-testid="acquisitie-rij-batchnummer"
+                            title={`Printbatch ${nummer}`}
+                          >
+                            {nummer}
+                          </span>
+                        ))}
                         {respons && (
                           <span
                             data-testid="acquisitie-rij-responsbadge"
@@ -1207,21 +1228,6 @@ export default function AcquisitieSelectieTab() {
         brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
       />
 
-      <BrotherAdreslabelsCsvDialog
-        open={labelsOpen}
-        onClose={() => setLabelsOpen(false)}
-        signalen={geselecteerdeSignalenBulk}
-        toegevoegdOpPerSignaal={toegevoegdOpPerSignaal}
-        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
-      />
-
-      <MarkeerBulkDialog
-        open={markeerModus !== null}
-        onClose={() => setMarkeerModus(null)}
-        modus={markeerModus ?? 'geprint'}
-        signalen={geselecteerdeSignalenBulk}
-        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
-      />
     </section>
   );
 }

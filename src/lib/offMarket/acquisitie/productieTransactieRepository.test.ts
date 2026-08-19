@@ -27,6 +27,13 @@ describe('UitgeschakeldeAcquisitieProductieTransactieRepository', () => {
     );
   });
 
+  it('blokkeert het vernieuwen van batchdocumenten', async () => {
+    await verwachtGeblokkeerd(
+      repository.vernieuwBatchdocumenten({} as never),
+      'vernieuwBatchdocumenten',
+    );
+  });
+
   it('blokkeert printregistratie', async () => {
     await verwachtGeblokkeerd(repository.markeerBatchGeprint({} as never), 'markeerBatchGeprint');
   });

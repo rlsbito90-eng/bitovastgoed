@@ -24,7 +24,7 @@ export interface OffMarketBrief {
   aanhef: string | null;
   onderwerp: string | null;
   brieftekst: string;
-  status: 'concept' | 'verstuurd';
+  status: 'concept' | 'definitief' | 'verstuurd';
   verzonden_op: string | null;
   aangemaakt_door: string | null;
   created_at: string;
@@ -32,6 +32,10 @@ export interface OffMarketBrief {
   /** Soft-archive timestamp; null betekent actief/zichtbaar. */
   archived_at: string | null;
   archived_reason: string | null;
+  // Formele Acquisitieproductiekern-identiteit; null voor legacy concepten.
+  briefnummer?: string | null;
+  selectie_id?: string | null;
+  actieve_versie?: number | null;
   // Brieven & opvolging V2 — nullable voor backward compatibility.
   kanaal?: Kanaal | null;
   campagne_stap?: CampagneStap | 'email_1' | 'email_2' | 'email_3' | null;

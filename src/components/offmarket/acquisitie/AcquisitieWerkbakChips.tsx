@@ -59,7 +59,9 @@ export default function AcquisitieWerkbakChips({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Actiestap</span>
           <div role="tablist" aria-label="Actiestap" data-testid="acquisitie-werkbak-sub" className="flex flex-wrap gap-1.5">
-            {SUB_VOLGORDE.map(id => {
+            {SUB_VOLGORDE.filter((id) => (
+              id === 'alle' || id === subfilter || (counts.subfilter[id] ?? 0) > 0
+            )).map(id => {
               const actief = subfilter === id;
               const aantal = counts.subfilter[id] ?? 0;
               return (

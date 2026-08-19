@@ -11,7 +11,6 @@ import type { SortOption } from '@/lib/sorting/types';
 import OffMarketKpi from '@/components/offmarket/OffMarketKpi';
 import SignalenTable from '@/components/offmarket/SignalenTable';
 import AcquisitieSelectieTab from '@/components/offmarket/acquisitie/AcquisitieSelectieTab';
-import ProductiekernAcquisitieMount from '@/components/offmarket/acquisitie/ProductiekernAcquisitieMount';
 import { useAcquisitieSelectieCount } from '@/hooks/useAcquisitieSelectie';
 import SignaalFormDialog from '@/components/offmarket/SignaalFormDialog';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
@@ -422,10 +421,7 @@ export default function OffMarketPage() {
       )}
 
       {tab === 'acquisitieselectie' && (
-        <>
-          <AcquisitieSelectieTab />
-          <ProductiekernAcquisitieMount />
-        </>
+        <AcquisitieSelectieTab />
       )}
     </div>
   );

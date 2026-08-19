@@ -121,6 +121,46 @@ export async function registreerProductiekernBatchdocumenten(input: {
   });
 }
 
+/**
+ * Vervangt uitsluitend de actieve documentset van een nog niet geprinte BAT.
+ * De bestaande set blijft als vervallen historie bewaard; de database verhoogt
+ * batch.documentversie en activeert de vier nieuwe documenten atomisch.
+ */
+export async function vernieuwProductiekernBatchdocumenten(input: {
+  batch: PrintbatchContract;
+  plan: BatchDocumentPlan;
+  opgeslagenDocumenten: BatchdocumentContract[];
+  actorId: string;
+  reden: string;
+  uitgevoerdOp?: string;
+}, transacties: AcquisitieProductieTransactieRepository): Promise<PrintbatchContract> {
+  if (input.batch.status !== 'documenten_gegenereerd' || input.batch.printdatum) {
+    throw new Error('Alleen een nog niet geprinte batch kan een nieuwe documentversie krijgen.');
+  }
+  const nieuweDocumentversie = input.batch.documentversie + 1;
+  if (input.plan.documentversie !== nieuweDocumentversie) {
+    throw new Error('Vervangend documentplan moet exact de volgende documentversie gebruiken.');
+  }
+  if (!input.reden.trim()) throw new Error('Reden voor documentvernieuwing is verplicht.');
+  exactVierDocumenten(input.plan, input.opgeslagenDocumenten);
+
+  const uitgevoerdOp = input.uitgevoerdOp ?? new Date().toISOString();
+  await transacties.vernieuwBatchdocumenten({
+    actie: 'batch_documentversie_vernieuwen',
+    batch: input.batch,
+    plan: input.plan,
+    opgeslagenDocumenten: input.opgeslagenDocumenten,
+    actorId: input.actorId,
+    operationKey: `batch-documentversie:${input.batch.id}:v${nieuweDocumentversie}`,
+    verwachtVersienummer: input.batch.documentversie,
+    nieuweDocumentversie,
+    uitgevoerdOp,
+    reden: input.reden.trim(),
+  });
+
+  return { ...input.batch, documentversie: nieuweDocumentversie };
+}
+
 export async function markeerProductiekernBatchGeprint(input: {
   batch: PrintbatchContract;
   actorId: string;

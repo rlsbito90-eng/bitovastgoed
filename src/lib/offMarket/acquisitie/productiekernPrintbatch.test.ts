@@ -10,6 +10,7 @@ import {
   markeerProductiekernBrievenGepost,
   registreerProductiekernBatchdocumenten,
   startProductiekernPrintbatch,
+  vernieuwProductiekernBatchdocumenten,
 } from './productiekernPrintbatch';
 
 const brief: BriefContract = {
@@ -38,14 +39,15 @@ function transacties() {
   return {
     maakBriefDefinitief: vi.fn(),
     registreerBatchdocumenten: vi.fn(async () => undefined),
+    vernieuwBatchdocumenten: vi.fn(async () => undefined),
     markeerBatchGeprint: vi.fn(async () => undefined),
     markeerBriefGepost: vi.fn(async () => undefined),
   };
 }
 
-function docs(): BatchdocumentContract[] {
+function docs(documentversie = 1): BatchdocumentContract[] {
   return (['batchvoorblad', 'controlelijst', 'brieven_pdf', 'adreslabels'] as const).map((documenttype, i) => ({
-    id: `doc-${i}`, batchId: 'batch-1', documentversie: 1, documenttype,
+    id: `doc-${documentversie}-${i}`, batchId: 'batch-1', documentversie, documenttype,
     bestandReferentie: `off-market-productie/BAT2026081601/${documenttype}`,
     status: 'actief', metadata: {}, createdAt: '2026-08-16T20:00:00.000Z', vervallenOp: null,
   }));
@@ -133,5 +135,48 @@ describe('Productiekern printbatch', () => {
       geadresseerdeKey: 'sig-1|es-blok',
       verzenddatum: '2026-08-16T20:20:00.000Z',
     }));
+  });
+
+  it('vernieuwt een nog niet geprinte BAT atomisch naar exact de volgende documentversie', async () => {
+    const tx = transacties();
+    const documentenBatch = { ...batch, status: 'documenten_gegenereerd' as const };
+    const gestart = await startProductiekernPrintbatch({
+      brieven: [{ brief, versie, geadresseerdeKey: 'x' }],
+      actorId: 'actor', datum: '2026-08-16', operationScope: 'vernieuwen',
+    }, atomisch());
+    const planV2 = {
+      ...gestart.plan,
+      documentversie: 2,
+      documenten: gestart.plan.documenten.map((document) => ({
+        ...document,
+        documentversie: 2,
+        bestandsnaam: document.bestandsnaam.replace('-v1-', '-v2-'),
+      })),
+    };
+
+    await expect(vernieuwProductiekernBatchdocumenten({
+      batch: documentenBatch,
+      plan: planV2,
+      opgeslagenDocumenten: docs(2),
+      actorId: 'actor',
+      reden: 'Huisstijlherstel',
+      uitgevoerdOp: '2026-08-16T20:05:00.000Z',
+    }, tx)).resolves.toMatchObject({ documentversie: 2, status: 'documenten_gegenereerd' });
+
+    expect(tx.vernieuwBatchdocumenten).toHaveBeenCalledWith(expect.objectContaining({
+      actie: 'batch_documentversie_vernieuwen',
+      operationKey: 'batch-documentversie:batch-1:v2',
+      verwachtVersienummer: 1,
+      nieuweDocumentversie: 2,
+      reden: 'Huisstijlherstel',
+    }));
+
+    await expect(vernieuwProductiekernBatchdocumenten({
+      batch: { ...documentenBatch, status: 'geprint', printdatum: '2026-08-16T20:10:00.000Z' },
+      plan: planV2,
+      opgeslagenDocumenten: docs(2),
+      actorId: 'actor',
+      reden: 'Te laat',
+    }, tx)).rejects.toThrow('nog niet geprinte batch');
   });
 });

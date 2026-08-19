@@ -1,7 +1,6 @@
 import GecombineerdeBrievenPDF from '@/components/offmarket/GecombineerdeBrievenPDF';
 import type { BriefRenderInvoer } from '@/lib/offMarket/acquisitie/briefRenderInvoer';
 import { bouwProductiekernBriefRenderItems } from '@/lib/offMarket/acquisitie/productiekernBriefRenderAdapter';
-import { BITO_LOGO_URL } from '@/lib/pdf/logo';
 
 interface ProductiekernBrievenPDFProps {
   brieven: readonly BriefRenderInvoer[];
@@ -15,8 +14,10 @@ interface ProductiekernBrievenPDFProps {
  * BriefRenderInvoer en hergebruikt daarna de bestaande BriefPagina-layout.
  * Hij leest of schrijft zelf niets in Supabase/Storage.
  *
- * Formele BAT-brieven gebruiken expliciet het volledige gekleurde Bito-logo;
- * daarmee is de huisstijl niet afhankelijk van de icon-only fallback.
+ * Formele BAT-brieven gebruiken exact dezelfde canonieke, gekleurde briefkop
+ * als conceptbrieven. Het lokaal gebundelde beeldmerk voorkomt dat de PDF in
+ * productie stil terugvalt op een zwarte tekstkop wanneer een externe asset
+ * niet bereikbaar is.
  */
 export default function ProductiekernBrievenPDF({
   brieven,
@@ -25,7 +26,6 @@ export default function ProductiekernBrievenPDF({
   const items = bouwProductiekernBriefRenderItems(brieven).map((item) => ({
     key: item.key,
     vm: item.viewModel,
-    logo: { mode: 'full' as const, url: BITO_LOGO_URL },
   }));
 
   return (

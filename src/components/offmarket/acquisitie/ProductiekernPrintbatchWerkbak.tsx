@@ -1,32 +1,16 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronDown, ChevronRight, ExternalLink, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import type {
-  BriefContract,
-  BriefversieContract,
-  PrintbatchBriefContract,
-  PrintbatchContract,
-} from '@/lib/offMarket/acquisitie/productiekernContract';
-import { productiekernGeadresseerdeNaam } from '@/lib/offMarket/acquisitie/productiekernGeadresseerdeNaam';
-import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import type { PrintbatchContract } from '@/lib/offMarket/acquisitie/productiekernContract';
+import type { ProductiekernPrintbatchModel } from '@/lib/offMarket/acquisitie/productiekernPrintbatchOverzicht';
+import type { AcquisitieProductiekernRepository } from '@/lib/offMarket/acquisitie/productiekernRepository';
+import { bepaalActieveProductiekernBatchdocumenten } from '@/lib/offMarket/acquisitie/productiekernBatchdocumentHerstel';
+import ProductiekernBatchDocumentversieVernieuwen from './ProductiekernBatchDocumentversieVernieuwen';
+import ProductiekernVastgelegdeDocumentenDownload from './ProductiekernVastgelegdeDocumentenDownload';
 
 const OPEN_PRINTBATCHES_KEY = 'off-market-acq:open-printbatches';
-
-export interface ProductiekernPrintbatchRegel {
-  briefId: string;
-  briefVersieId: string;
-  briefnummer: string;
-  signaalId: string;
-  geadresseerde: string;
-  objectLabel: string;
-}
-
-export interface ProductiekernPrintbatchModel {
-  batch: PrintbatchContract;
-  regels: ProductiekernPrintbatchRegel[];
-  aantalSignalen: number;
-}
 
 function batchStatusLabel(status: PrintbatchContract['status']): string {
   switch (status) {
@@ -59,58 +43,81 @@ function bewaarOpenBatchIds(ids: Set<string>): void {
   }
 }
 
-export function bouwProductiekernPrintbatchModellen(input: {
-  batches: readonly PrintbatchContract[];
-  koppelingen: readonly PrintbatchBriefContract[];
-  brieven: readonly BriefContract[];
-  versies: readonly BriefversieContract[];
-  signalen: readonly OffMarketSignaal[];
-}): ProductiekernPrintbatchModel[] {
-  const briefIndex = new Map(input.brieven.map((brief) => [brief.id, brief] as const));
-  const versieIndex = new Map(input.versies.map((versie) => [versie.id, versie] as const));
-  const signaalIndex = new Map(input.signalen.map((signaal) => [signaal.id, signaal] as const));
+function normaliseerZoekterm(waarde: string): string {
+  return waarde.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
 
-  return [...input.batches]
-    .sort((a, b) => b.batchnummer.localeCompare(a.batchnummer))
-    .map((batch) => {
-      const regels = input.koppelingen
-        .filter((koppeling) => koppeling.batchId === batch.id && koppeling.verwijderdOp === null)
-        .map((koppeling): ProductiekernPrintbatchRegel | null => {
-          const brief = briefIndex.get(koppeling.briefId);
-          const versie = versieIndex.get(koppeling.briefVersieId);
-          if (!brief || !versie || !brief.briefnummer) return null;
-          const signaal = signaalIndex.get(brief.signaalId);
-          const adres = signaal?.adres?.trim() ?? versie.inhoud.objectadres?.trim() ?? '';
-          const plaats = signaal?.plaats?.trim() ?? '';
-          return {
-            briefId: brief.id,
-            briefVersieId: versie.id,
-            briefnummer: brief.briefnummer,
-            signaalId: brief.signaalId,
-            geadresseerde: productiekernGeadresseerdeNaam(versie.geadresseerde),
-            objectLabel: [adres, plaats].filter(Boolean).join(' · ') || 'Object niet benoemd',
-          };
-        })
-        .filter((regel): regel is ProductiekernPrintbatchRegel => regel !== null)
-        .sort((a, b) => a.briefnummer.localeCompare(b.briefnummer));
+function ProductiekernPrintbatchDownloads({
+  batch,
+  repository,
+}: {
+  batch: PrintbatchContract;
+  repository: AcquisitieProductiekernRepository;
+}) {
+  const documentenQuery = useQuery({
+    queryKey: [
+      'off-market-acquisitie-productiekern',
+      'printbatch-documenten',
+      batch.id,
+      batch.documentversie,
+    ],
+    enabled: batch.status !== 'concept',
+    staleTime: 30_000,
+    queryFn: async () => {
+      const alle = await repository.haalBatchdocumenten(batch.id);
+      return bepaalActieveProductiekernBatchdocumenten({ batch, documenten: alle });
+    },
+  });
 
-      return {
-        batch,
-        regels,
-        aantalSignalen: new Set(regels.map((regel) => regel.signaalId)).size,
-      };
-    })
-    .filter((model) => model.regels.length > 0);
+  if (batch.status === 'concept') {
+    return (
+      <p className="text-[11px] text-muted-foreground">
+        Deze batch is nog niet vastgelegd; er bestaan nog geen geregistreerde productiebestanden.
+      </p>
+    );
+  }
+  if (documentenQuery.isLoading) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Geregistreerde bestanden controleren…
+      </p>
+    );
+  }
+  if (documentenQuery.isError) {
+    return (
+      <p className="text-xs text-destructive" role="alert">
+        Productiebestanden konden niet veilig worden geladen. Er is niets opnieuw gegenereerd.
+      </p>
+    );
+  }
+  if (!documentenQuery.data) return null;
+  return <ProductiekernVastgelegdeDocumentenDownload documenten={documentenQuery.data} />;
 }
 
 export default function ProductiekernPrintbatchWerkbak({
   modellen,
   fout = false,
+  repository,
+  zoekterm = '',
 }: {
   modellen: readonly ProductiekernPrintbatchModel[];
   fout?: boolean;
+  repository?: AcquisitieProductiekernRepository;
+  zoekterm?: string;
 }) {
   const [openBatchIds, setOpenBatchIds] = useState<Set<string>>(leesOpenBatchIds);
+  const zoek = normaliseerZoekterm(zoekterm);
+  const zichtbareModellen = useMemo(() => {
+    if (!zoek) return modellen;
+    return modellen.filter((model) => normaliseerZoekterm([
+      model.batch.batchnummer,
+      ...model.regels.flatMap((regel) => [
+        regel.briefnummer,
+        regel.geadresseerde,
+        regel.objectLabel,
+      ]),
+    ].join(' ')).includes(zoek));
+  }, [modellen, zoek]);
 
   const toggleBatch = (batchId: string) => {
     setOpenBatchIds((huidig) => {
@@ -130,17 +137,19 @@ export default function ProductiekernPrintbatchWerkbak({
     );
   }
 
-  if (modellen.length === 0) {
+  if (zichtbareModellen.length === 0) {
     return (
       <section className="rounded-lg border bg-card px-4 py-4 text-sm text-muted-foreground" data-testid="productiekern-printbatches-leeg">
-        Nog geen formele printbatch gekoppeld aan brieven in deze acquisitieselectie.
+        {zoek
+          ? `Geen printbatch gevonden voor “${zoekterm.trim()}”.`
+          : 'Nog geen formele printbatch gekoppeld aan brieven in deze acquisitieselectie.'}
       </section>
     );
   }
 
   return (
     <section className="space-y-2" data-testid="productiekern-printbatches-werkbak" aria-label="Formele printbatches">
-      {modellen.map((model) => {
+      {zichtbareModellen.map((model) => {
         const open = openBatchIds.has(model.batch.id);
         const inhoudId = `productiekern-printbatch-inhoud-${model.batch.id}`;
         return (
@@ -172,26 +181,45 @@ export default function ProductiekernPrintbatchWerkbak({
             {open && (
               <div
                 id={inhoudId}
-                className="mx-3 mb-3 divide-y divide-border/70 rounded-md border"
+                className="mx-3 mb-3 overflow-hidden rounded-md border"
                 data-testid={`productiekern-printbatch-${model.batch.batchnummer}`}
               >
-                {model.regels.map((regel) => (
-                  <div key={regel.briefVersieId} className="grid gap-1 px-3 py-2 text-xs sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-3">
-                    <span className="font-mono-data font-medium text-foreground">{regel.briefnummer}</span>
-                    <div className="min-w-0">
-                      <p className="break-words font-medium text-foreground">{regel.geadresseerde || 'Geadresseerde ontbreekt'}</p>
-                      <p className="break-words text-muted-foreground">{regel.objectLabel}</p>
+                {repository && (
+                  <div className="border-b bg-muted/15 px-3 py-3" data-testid={`productiekern-printbatch-downloads-${model.batch.batchnummer}`}>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">Productiebestanden</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Actieve documentversie {model.batch.documentversie}
+                        </p>
+                      </div>
+                      <ProductiekernBatchDocumentversieVernieuwen
+                        batch={model.batch}
+                        repository={repository}
+                      />
                     </div>
-                    <Link
-                      to={`/off-market/${regel.signaalId}`}
-                      className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-accent hover:bg-accent/10"
-                      aria-label={`Open signaal voor ${regel.briefnummer}`}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Open signaal
-                    </Link>
+                    <ProductiekernPrintbatchDownloads batch={model.batch} repository={repository} />
                   </div>
-                ))}
+                )}
+                <div className="divide-y divide-border/70">
+                  {model.regels.map((regel) => (
+                    <div key={regel.briefVersieId} className="grid gap-1 px-3 py-2 text-xs sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-3">
+                      <span className="font-mono-data font-medium text-foreground">{regel.briefnummer}</span>
+                      <div className="min-w-0">
+                        <p className="break-words font-medium text-foreground">{regel.geadresseerde || 'Geadresseerde ontbreekt'}</p>
+                        <p className="break-words text-muted-foreground">{regel.objectLabel}</p>
+                      </div>
+                      <Link
+                        to={`/off-market/${regel.signaalId}`}
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-accent hover:bg-accent/10"
+                        aria-label={`Open signaal voor ${regel.briefnummer}`}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Open signaal
+                      </Link>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </article>

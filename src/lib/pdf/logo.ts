@@ -8,7 +8,7 @@
 //   (fallback wanneer alleen de tekstuele variant niet gewenst is).
 
 import bitoLogo from '@/assets/bito-logo.png';
-import bitoIcon from '@/assets/bito-icon.png.asset.json';
+import bitoIcon from '@/assets/bito-icon.png';
 
 export const BITO_LOGO_URL = bitoLogo;
-export const BITO_ICON_URL = bitoIcon.url;
+export const BITO_ICON_URL = bitoIcon;

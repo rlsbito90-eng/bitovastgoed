@@ -41,6 +41,32 @@ describe('normaliseerProductieRpcFout', () => {
     expect(fout.code).toBe('onbekende_productiefout');
     expect(fout.retrybaar).toBe(true);
   });
+
+  it('vertaalt een geblokkeerde documentvernieuwing naar een veilige domeinmelding', () => {
+    const fout = normaliseerProductieRpcFout({
+      rpc: 'off_market_batch_documentversie_vernieuwen',
+      message: 'batchstatus_blokkeert_documentvernieuwing',
+    });
+
+    expect(fout).toMatchObject({
+      code: 'batchstatus_blokkeert_documentvernieuwing',
+      retrybaar: false,
+      veiligBericht: 'Alleen een nog niet geprinte batch kan een nieuwe documentversie krijgen.',
+    });
+  });
+
+  it('meldt een ontbrekend Storage-object zonder technische opslagdetails te lekken', () => {
+    const fout = normaliseerProductieRpcFout({
+      rpc: 'off_market_batch_documentversie_vernieuwen',
+      message: 'batchdocument_storage_object_ontbreekt',
+      details: 'private/path/object.pdf',
+    });
+
+    expect(fout.code).toBe('batchdocument_storage_object_ontbreekt');
+    expect(fout.retrybaar).toBe(false);
+    expect(fout.veiligBericht).not.toContain('private/path');
+    expect(fout.technischeMelding).toContain('private/path/object.pdf');
+  });
 });
 
 describe('parseBriefDefinitiefRpcResultaat', () => {

@@ -51,6 +51,7 @@ function samenstelling(schrijvenActief: boolean) {
     transactieRepository: {
       maakBriefDefinitief: vi.fn(),
       registreerBatchdocumenten: vi.fn(),
+      vernieuwBatchdocumenten: vi.fn(),
       markeerBatchGeprint: vi.fn(),
       markeerBriefGepost: vi.fn(),
     },
