@@ -170,6 +170,8 @@ begin
   v_resolved := 0;
 
   -- Oude of niet langer geldige prioriteits-episodes sluiten.
+  -- Een reeds vooraf geplande episode blijft na scheduled_at actief tot de deadline,
+  -- zodat engine-tick hem niet vlak vóór de push-sender resolve't.
   update public.notification_events e
      set resolved_at = now(), updated_at = now()
    where e.user_id = p_user_id
@@ -217,7 +219,6 @@ begin
            and t.deadline_tijd is not null
            and t.reminder_policy <> 'none'
            and d.deadline_at > now()
-           and x.attention_at > now()
            and e.occurrence_key = 'high_priority_task:' || t.id::text || ':v' || t.reminder_version::text
            and not exists (
              select 1
