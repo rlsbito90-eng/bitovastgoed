@@ -1,7 +1,7 @@
 import type { BatchAdreslabelRij } from './batchAdreslabelRijen';
 
 const KOLOMMEN = [
-  'volgnummer', 'briefnummer', 'briefVersieId', 'naamregel',
+  'volgnummer', 'briefnummer', 'briefVersieId', 'naamregel', 'attentieregel',
   'adresregel', 'postcode', 'plaats', 'landregel',
 ] as const;
 

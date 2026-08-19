@@ -29,10 +29,11 @@ describe('bouwBatchAdreslabelRijen', () => {
       },
     }]);
     expect(rij.naamregel).toBe('E.S. Blok');
+    expect(rij.attentieregel).toBeNull();
     expect(rij.naamregel).not.toContain('Geboren');
   });
 
-  it('behoudt een bedrijfsnaam exact en slechts als één naamregel', () => {
+  it('behoudt een bedrijfsnaam exact en voegt de directieregel toe', () => {
     const [rij] = bouwBatchAdreslabelRijen([{
       briefnummer: 'BR2026000002', briefVersieId: 'v2',
       geadresseerde: {
@@ -42,14 +43,29 @@ describe('bouwBatchAdreslabelRijen', () => {
       },
     }]);
     expect(rij.naamregel).toBe('Bloemgracht 24 B.V.');
+    expect(rij.attentieregel).toBe('T.a.v. de directie');
   });
 
-  it('neemt een buitenlands land als aparte labelregel op', () => {
+  it('herkent ook een legacy rechtspersoon zonder apart bedrijfsnaamveld', () => {
+    const [rij] = bouwBatchAdreslabelRijen([{
+      briefnummer: 'BR2026000003', briefVersieId: 'v3',
+      geadresseerde: {
+        ...geadresseerde,
+        naam: 'Voorbeeld Vastgoed B.V.',
+        bedrijfsnaam: null,
+      },
+    }]);
+    expect(rij.naamregel).toBe('Voorbeeld Vastgoed B.V.');
+    expect(rij.attentieregel).toBe('T.a.v. de directie');
+  });
+
+  it('neemt een buitenlands land als aparte labelregel op en houdt de directieregel leeg', () => {
     const [rij] = bouwBatchAdreslabelRijen([{
       briefnummer: 'BR2026000001', briefVersieId: 'v1',
-      geadresseerde: { ...geadresseerde, land: 'België' },
+      geadresseerde: { ...geadresseerde, naam: 'Voorbeeld B.V.', bedrijfsnaam: 'Voorbeeld B.V.', land: 'België' },
     }]);
     expect(rij.landregel).toBe('BELGIË');
+    expect(rij.attentieregel).toBeNull();
   });
 
   it('neutraliseert spreadsheetformules in tekstvelden', () => {
