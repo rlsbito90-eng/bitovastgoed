@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve(process.cwd(), 'src/pages/KadasterKostenPage.tsx'), 'utf8');
 const hook = readFileSync(resolve(process.cwd(), 'src/hooks/useKadasterKostenbeheer.ts'), 'utf8');
-const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+const crmApp = readFileSync(resolve(process.cwd(), 'src/CrmProtectedApp.tsx'), 'utf8');
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migration-archive/pre-baseline-snapshot/20260804152000_kadaster_kostenbeheer.sql'), 'utf8');
 
 describe('Kadaster kostenbeheer dashboard', () => {
@@ -41,7 +41,7 @@ describe('Kadaster kostenbeheer dashboard', () => {
   });
 
   it('is bereikbaar via een afzonderlijke rapportageroute', () => {
-    expect(app).toMatch(/const\s+KadasterKostenPage\s*=\s*lazy\(\(\)\s*=>\s*import\(["']@\/pages\/KadasterKostenPage["']\)\)/);
-    expect(app).toContain('/rapportage/kadasterkosten');
+    expect(crmApp).toMatch(/const\s+KadasterKostenPage\s*=\s*lazy\(\(\)\s*=>\s*import\(["']@\/pages\/KadasterKostenPage["']\)\)/);
+    expect(crmApp).toContain('/rapportage/kadasterkosten');
   });
 });
