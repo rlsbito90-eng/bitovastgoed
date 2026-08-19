@@ -141,6 +141,7 @@ export default function ProductiekernBatchDocumentversieVernieuwen({
           size="sm"
           variant="outline"
           disabled={bezig}
+          className="mt-3 h-auto min-h-10 w-full min-w-0 justify-center whitespace-normal px-3 text-center leading-snug sm:w-auto"
           data-testid="productiekern-documentversie-vernieuwen-openen"
         >
           {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Palette className="h-4 w-4" />}

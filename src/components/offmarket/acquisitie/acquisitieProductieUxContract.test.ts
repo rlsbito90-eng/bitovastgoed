@@ -20,6 +20,10 @@ const vernieuwBron = readFileSync(
   resolve(process.cwd(), 'src/components/offmarket/acquisitie/ProductiekernBatchDocumentversieVernieuwen.tsx'),
   'utf8',
 );
+const downloadBron = readFileSync(
+  resolve(process.cwd(), 'src/components/offmarket/acquisitie/ProductiekernVastgelegdeDocumentenDownload.tsx'),
+  'utf8',
+);
 
 describe('Acquisitieselectie productie-UX-contract', () => {
   it('toont geen tweede, concurrerende Productiekern-werkbak onder het hoofdscherm', () => {
@@ -55,5 +59,14 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(vernieuwBron).toContain('documentversie: geladen.batch.documentversie + 1');
     expect(vernieuwBron).toContain('vernieuwProductiekernBatchdocumenten');
     expect(vernieuwBron).toContain('De eerdere versie blijft bewaard');
+  });
+
+  it('houdt printbatchkoppen en bestandsacties bruikbaar op een smal scherm', () => {
+    expect(batchWerkbakBron).toContain('sm:flex-row');
+    expect(batchWerkbakBron).toContain('grid-cols-[minmax(0,1fr)_auto]');
+    expect(downloadBron).toContain('ZIP-download klaarzetten');
+    expect(downloadBron).toContain('w-full min-w-0 justify-center whitespace-normal');
+    expect(vernieuwBron).toContain('w-full min-w-0 justify-center whitespace-normal');
+    expect(downloadBron).not.toContain('Productiebestanden opnieuw downloaden');
   });
 });

@@ -940,21 +940,21 @@ export default function AcquisitieSelectieTab() {
         || (zoekActief && /^(br|bat)[\s-]*\d/i.test(zoekterm.trim()))
       ) && productieOverzicht.actief && (
         <section className="section-card space-y-3 px-3 py-3" data-testid="acquisitie-printbatchbeheer">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <div className="space-y-1.5">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
                 <PackageCheck className="h-4 w-4 text-accent" />
                 Printbatches
               </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Bestaande BAT-bestanden opnieuw downloaden of de gekoppelde BR-brieven openen. Downloaden genereert niets opnieuw.
-              </p>
+              {!productieOverzicht.isLoading && !productieOverzicht.isError && (
+                <span className="shrink-0 rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground">
+                  {productieOverzicht.modellen.length} {productieOverzicht.modellen.length === 1 ? 'batch' : 'batches'}
+                </span>
+              )}
             </div>
-            {!productieOverzicht.isLoading && !productieOverzicht.isError && (
-              <span className="rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground">
-                {productieOverzicht.modellen.length} {productieOverzicht.modellen.length === 1 ? 'batch' : 'batches'}
-              </span>
-            )}
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Download bestaande BAT-bestanden of open de gekoppelde BR-brieven. Er wordt niets opnieuw gegenereerd.
+            </p>
           </div>
           {productieOverzicht.isLoading ? (
             <p className="text-xs text-muted-foreground">Printbatches laden…</p>

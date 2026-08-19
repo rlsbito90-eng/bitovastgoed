@@ -32,7 +32,7 @@ describe('Productiekern downloadcontract voor Safari/WebKit', () => {
     expect(downloadBron).toContain('Productiepakket voorbereiden');
     expect(downloadBron).toContain('action="/api/productiekern-bat-download"');
     expect(downloadBron).toContain('method="post"');
-    expect(downloadBron).toContain('Productiebestanden downloaden (4)');
+    expect(downloadBron).toContain('ZIP downloaden (4 bestanden)');
     expect(apiBron).toContain("Content-Type', 'application/zip'");
     expect(apiBron).toContain("Content-Disposition', `attachment;");
     expect(apiBron).toContain('bouwProductiekernZip(zipBestanden)');
