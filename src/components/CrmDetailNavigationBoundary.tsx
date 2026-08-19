@@ -75,7 +75,6 @@ export default function CrmDetailNavigationBoundary({
   const navigate = useNavigate();
   const returnContext = leesCrmReturnContext(location.state);
   const currentModule = getCrmDetailModule(location.pathname);
-  const originPath = currentModule ? leesCrmDetailOrigin(currentModule) : null;
 
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
 
@@ -96,6 +95,12 @@ export default function CrmDetailNavigationBoundary({
 
     const url = new URL(anchor.href, window.location.origin);
     if (url.origin !== window.location.origin) return;
+
+    // De origin-tracker schrijft na de routewisseling. Lees daarom pas op het
+    // daadwerkelijke terugmoment uit sessionStorage, niet tijdens de eerste
+    // detail-render; zo kan een snelle list->detail overgang geen lege origin
+    // vastzetten in deze componentinstantie.
+    const originPath = currentModule ? leesCrmDetailOrigin(currentModule) : null;
 
     const action = bepaalCrmDetailNavigationAction({
       currentPathname: location.pathname,
