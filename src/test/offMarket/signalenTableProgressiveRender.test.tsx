@@ -39,12 +39,16 @@ function maakSignaal(index: number): OffMarketSignaal {
   } as unknown as OffMarketSignaal;
 }
 
-function renderLijst(signalen: OffMarketSignaal[], highlightedId?: string | null) {
-  return render(
+function lijstElement(signalen: OffMarketSignaal[], highlightedId?: string | null) {
+  return (
     <MemoryRouter>
       <SignalenTable signalen={signalen} laden={false} highlightedId={highlightedId} />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderLijst(signalen: OffMarketSignaal[], highlightedId?: string | null) {
+  return render(lijstElement(signalen, highlightedId));
 }
 
 describe('SignalenTable — progressieve render', () => {
@@ -61,10 +65,16 @@ describe('SignalenTable — progressieve render', () => {
     expect(document.querySelector('[data-row-id="s119"]')).toBeTruthy();
   });
 
-  it('rendert een diep laatst bekeken signaal direct zodat terugnavigatie het kan herstellen', () => {
-    renderLijst(Array.from({ length: 250 }, (_, i) => maakSignaal(i)), 's219');
+  it('houdt een diep laatst bekeken signaal gerenderd nadat de tijdelijke highlight verdwijnt', () => {
+    const signalen = Array.from({ length: 250 }, (_, i) => maakSignaal(i));
+    const { rerender } = renderLijst(signalen, 's219');
 
     expect(screen.queryByText('300 van 250 signalen weergegeven')).toBeNull();
+    expect(screen.getByText('250 van 250 signalen weergegeven')).toBeTruthy();
+    expect(document.querySelector('[data-row-id="s219"]')).toBeTruthy();
+
+    rerender(lijstElement(signalen, null));
+
     expect(screen.getByText('250 van 250 signalen weergegeven')).toBeTruthy();
     expect(document.querySelector('[data-row-id="s219"]')).toBeTruthy();
   });
