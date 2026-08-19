@@ -29,6 +29,26 @@ interface Props {
 
 const EERSTE_RENDER_AANTAL = 100;
 const EXTRA_RENDER_AANTAL = 100;
+const SM_BREAKPOINT_QUERY = '(min-width: 640px)';
+
+function useDesktopSignalenLayout() {
+  const [desktop, setDesktop] = useState(() => (
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(SM_BREAKPOINT_QUERY).matches
+      : false
+  ));
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const media = window.matchMedia(SM_BREAKPOINT_QUERY);
+    const update = () => setDesktop(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  return desktop;
+}
 
 function formatDateNL(d: string | null) {
   if (!d) return '—';
@@ -214,6 +234,7 @@ export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defa
 export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
   const [zichtbaarAantal, setZichtbaarAantal] = useState(EERSTE_RENDER_AANTAL);
+  const desktopLayout = useDesktopSignalenLayout();
   const vorigeLijstSignatuur = useRef('');
   const lijstSignatuur = useMemo(
     () => `${rows.length}:${rows.slice(0, 5).map(s => s.id).join('|')}`,
@@ -293,123 +314,123 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
 
   return (
     <>
-      {/* Mobiel: compacte card */}
-      <div className="sm:hidden divide-y divide-border/70">
-        {zichtbareRows.map(s => {
-          const isHighlighted = highlightedId === s.id;
-          return (
-            <div
-              key={s.id}
-              data-row-id={s.id}
-              className={`px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors ${
-                isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''
-              }`}
-              onClick={(e) => go(s.id, e.currentTarget)}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
-                      {vergunningLabel(s)}
-                    </span>
-                    {selectieIds.has(s.id) && <InSelectieBadge />}
-                    {isHighlighted && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
-                        <Eye className="h-3 w-3" /> Laatst bekeken
+      {desktopLayout ? (
+        <div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {actieveKolommen.map(k => (
+                  <TableHead key={k.id} className={k.headerClassName}>{k.label}</TableHead>
+                ))}
+                <TableHead className="w-12 text-right">Sel.</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {zichtbareRows.map(s => {
+                const isHighlighted = highlightedId === s.id;
+                const inSelectie = selectieIds.has(s.id);
+                return (
+                  <TableRow
+                    key={s.id}
+                    data-row-id={s.id}
+                    className={`cursor-pointer ${isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''}`}
+                    onClick={(e) => go(s.id, e.currentTarget)}
+                    title={s.titel}
+                  >
+                    {actieveKolommen.map((k, i) => (
+                      <TableCell key={k.id} className={k.cellClassName}>
+                        {i === 0 && (isHighlighted || inSelectie) ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isHighlighted && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
+                                <Eye className="h-3 w-3" /> Laatst bekeken
+                              </span>
+                            )}
+                            {inSelectie && <InSelectieBadge />}
+                            {k.render(s, ctx)}
+                          </div>
+                        ) : k.render(s, ctx)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <ToevoegenAanAcquisitieSelectieKnop
+                        signaalId={s.id}
+                        variant="icon"
+                        isInSelectie={inSelectie}
+                        stopPropagation
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="divide-y divide-border/70">
+          {zichtbareRows.map(s => {
+            const isHighlighted = highlightedId === s.id;
+            return (
+              <div
+                key={s.id}
+                data-row-id={s.id}
+                className={`px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors ${
+                  isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''
+                }`}
+                onClick={(e) => go(s.id, e.currentTarget)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/30 bg-accent/10 text-accent">
+                        {vergunningLabel(s)}
+                      </span>
+                      {selectieIds.has(s.id) && <InSelectieBadge />}
+                      {isHighlighted && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
+                          <Eye className="h-3 w-3" /> Laatst bekeken
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-foreground mt-1 truncate">
+                      {formatSignaalAdres(s) || cleanAdres(s.adres) || '—'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {typeof s.ai_score === 'number' && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-mono-data">
+                        <Sparkles className="h-3 w-3" />{s.ai_score}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-foreground mt-1 truncate">
-                    {formatSignaalAdres(s) || cleanAdres(s.adres) || '—'}
-                  </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  {typeof s.ai_score === 'number' && (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-mono-data">
-                      <Sparkles className="h-3 w-3" />{s.ai_score}
-                    </span>
-                  )}
+                <div className="mt-2 flex justify-end">
+                  <ToevoegenAanAcquisitieSelectieKnop
+                    signaalId={s.id}
+                    variant="compact"
+                    labelMode="short"
+                    isInSelectie={selectieIds.has(s.id)}
+                    stopPropagation
+                    className={
+                      selectieIds.has(s.id)
+                        ? 'h-9 px-2 text-[12px] border-accent/60 bg-accent/10 text-accent'
+                        : 'h-9 px-2 text-[12px]'
+                    }
+                  />
                 </div>
-              </div>
-              <div className="mt-2 flex justify-end">
-                <ToevoegenAanAcquisitieSelectieKnop
-                  signaalId={s.id}
-                  variant="compact"
-                  labelMode="short"
-                  isInSelectie={selectieIds.has(s.id)}
-                  stopPropagation
-                  className={
-                    selectieIds.has(s.id)
-                      ? 'h-9 px-2 text-[12px] border-accent/60 bg-accent/10 text-accent'
-                      : 'h-9 px-2 text-[12px]'
-                  }
-                />
-              </div>
 
-              <div className="flex items-center flex-wrap gap-1.5 mt-2">
-                <OffMarketStatusBadge status={s.status} />
-                <OffMarketEigenaarstatusBadge status={eigenaarstatusVan(s)} />
+                <div className="flex items-center flex-wrap gap-1.5 mt-2">
+                  <OffMarketStatusBadge status={s.status} />
+                  <OffMarketEigenaarstatusBadge status={eigenaarstatusVan(s)} />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> {formatDateNL(brondatumOfCreated(s))}
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> {formatDateNL(brondatumOfCreated(s))}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Desktop: acquisitie-tabel */}
-      <div className="hidden sm:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {actieveKolommen.map(k => (
-                <TableHead key={k.id} className={k.headerClassName}>{k.label}</TableHead>
-              ))}
-              <TableHead className="w-12 text-right">Sel.</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {zichtbareRows.map(s => {
-              const isHighlighted = highlightedId === s.id;
-              const inSelectie = selectieIds.has(s.id);
-              return (
-                <TableRow
-                  key={s.id}
-                  data-row-id={s.id}
-                  className={`cursor-pointer ${isHighlighted ? 'bg-accent/5 ring-1 ring-inset ring-accent/40' : ''}`}
-                  onClick={(e) => go(s.id, e.currentTarget)}
-                  title={s.titel}
-                >
-                  {actieveKolommen.map((k, i) => (
-                    <TableCell key={k.id} className={k.cellClassName}>
-                      {i === 0 && (isHighlighted || inSelectie) ? (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {isHighlighted && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
-                              <Eye className="h-3 w-3" /> Laatst bekeken
-                            </span>
-                          )}
-                          {inSelectie && <InSelectieBadge />}
-                          {k.render(s, ctx)}
-                        </div>
-                      ) : k.render(s, ctx)}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <ToevoegenAanAcquisitieSelectieKnop
-                      signaalId={s.id}
-                      variant="icon"
-                      isInSelectie={inSelectie}
-                      stopPropagation
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {rows.length > EERSTE_RENDER_AANTAL && (
         <div className="border-t border-border/70 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-muted/20">
