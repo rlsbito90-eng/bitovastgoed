@@ -2,7 +2,7 @@
 // Eén tabel: off_market_acquisitie_selectie. Soft-remove via archived_at.
 // Hergebruikt patroon: heractiveer bestaand record bij dubbele toevoeging.
 import { useMemo } from 'react';
-import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AcquisitieSelectieItem {
@@ -46,12 +46,11 @@ export function useAcquisitieSelectie() {
   });
 
   // AcquisitieSelectieTab bouwt de zichtbare waarheid uit drie asynchrone bronnen:
-  // selectie + signalen + brieven. De tab gebruikte historisch alleen deze query's
-  // `isLoading`, waardoor na refresh eerst een lege/partiële toestand kon renderen.
-  // Zodra de signalenquery in dezelfde view actief is, verlengen we daarom alleen
-  // de loading-semantiek tot de exact bij de geselecteerde signalen horende
-  // bulkbriefquery óók succesvol geladen is. Data en querykeys zelf veranderen niet.
-  const signalenFetching = useIsFetching({ queryKey: SIGNALEN_KEY, exact: true });
+  // selectie + signalen + brieven. Alleen de INITIËLE hydratatie mag de hele tab
+  // vervangen door "Selectie laden…". Een achtergrond-refetch na een mutatie moet
+  // de bestaande selectie en een open Focusmodus juist gemount laten. Anders sluit
+  // bijvoorbeeld Onderzoeken → Verwerk onderzoeken zodra de automatische
+  // eigenaarspatch de signalenquery invalideert.
   const signalenState = qc.getQueryState(SIGNALEN_KEY);
   const signalen = qc.getQueryData<Array<{ id: string }>>(SIGNALEN_KEY) ?? [];
   const selectieSignaalIds = new Set(
@@ -64,16 +63,14 @@ export function useAcquisitieSelectie() {
     .filter((id) => selectieSignaalIds.has(id))
     .sort();
   const brievenQueryKey = [...BRIEVEN_BULK_KEY, geselecteerdeSignaalIds] as const;
-  const brievenFetching = useIsFetching({ queryKey: brievenQueryKey, exact: true });
   const brievenState = geselecteerdeSignaalIds.length > 0
     ? qc.getQueryState(brievenQueryKey)
     : null;
   const acquisitieHydratatieActief = Boolean(signalenState);
   const afhankelijkhedenLaden = acquisitieHydratatieActief && (
-    signalenFetching > 0
-    || signalenState?.status !== 'success'
+    signalenState?.status === 'pending'
     || (geselecteerdeSignaalIds.length > 0
-      && (brievenFetching > 0 || brievenState?.status !== 'success'))
+      && (!brievenState || brievenState.status === 'pending'))
   );
 
   return {
