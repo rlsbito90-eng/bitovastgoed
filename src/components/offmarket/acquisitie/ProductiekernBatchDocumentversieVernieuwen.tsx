@@ -144,7 +144,7 @@ export default function ProductiekernBatchDocumentversieVernieuwen({
           data-testid="productiekern-documentversie-vernieuwen-openen"
         >
           {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Palette className="h-4 w-4" />}
-          Nieuwe kleurversie maken
+          Nieuwe documentversie maken
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
