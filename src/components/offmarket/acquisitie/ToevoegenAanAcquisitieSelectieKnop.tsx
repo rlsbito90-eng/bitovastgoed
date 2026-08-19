@@ -11,6 +11,10 @@ import {
   useVoegToeAanAcquisitieSelectie,
   useVerwijderUitAcquisitieSelectie,
 } from '@/hooks/useAcquisitieSelectie';
+import {
+  voegSignaalToeAanAcquisitieSelectie,
+  verwijderSignaalUitAcquisitieSelectie,
+} from '@/lib/offMarket/acquisitie/acquisitieSelectieActions';
 
 type Variant = 'default' | 'compact' | 'icon';
 type LabelMode = 'long' | 'short' | 'remove';
@@ -34,6 +38,9 @@ interface Props {
 
 interface ToggleProps extends Omit<Props, 'isInSelectie'> {
   inSelectie: boolean;
+  voegToe: (signaalId: string) => Promise<unknown>;
+  verwijder: (signaalId: string) => Promise<unknown>;
+  externalPending?: boolean;
 }
 
 function AcquisitieSelectieToggle({
@@ -43,11 +50,12 @@ function AcquisitieSelectieToggle({
   inSelectie,
   className = '',
   stopPropagation = false,
+  voegToe,
+  verwijder,
+  externalPending = false,
 }: ToggleProps) {
-  const voegToe = useVoegToeAanAcquisitieSelectie();
-  const verwijder = useVerwijderUitAcquisitieSelectie();
   const [localPending, setLocalPending] = useState(false);
-  const pending = localPending || voegToe.isPending || verwijder.isPending;
+  const pending = localPending || externalPending;
 
   const handleClick = async (e: React.MouseEvent) => {
     if (stopPropagation) e.stopPropagation();
@@ -63,12 +71,12 @@ function AcquisitieSelectieToggle({
     setLocalPending(true);
     try {
       if (inSelectie) {
-        await verwijder.mutateAsync(signaalId);
+        await verwijder(signaalId);
         toast.success('Uit acquisitieselectie gehaald', {
           description: 'Het oorspronkelijke signaal en de historie zijn behouden.',
         });
       } else {
-        await voegToe.mutateAsync(signaalId);
+        await voegToe(signaalId);
         toast.success('Toegevoegd aan selectie');
       }
     } catch (err) {
@@ -140,16 +148,36 @@ function AcquisitieSelectieToggle({
 
 function ZelfDetecterendeToggle(props: Omit<Props, 'isInSelectie'>) {
   const detected = useIsInAcquisitieSelectie(props.signaalId);
-  return <AcquisitieSelectieToggle {...props} inSelectie={detected} />;
+  const voegToeMutation = useVoegToeAanAcquisitieSelectie();
+  const verwijderMutation = useVerwijderUitAcquisitieSelectie();
+  return (
+    <AcquisitieSelectieToggle
+      {...props}
+      inSelectie={detected}
+      voegToe={voegToeMutation.mutateAsync}
+      verwijder={verwijderMutation.mutateAsync}
+      externalPending={voegToeMutation.isPending || verwijderMutation.isPending}
+    />
+  );
+}
+
+function GecontroleerdeToggle({ isInSelectie, ...props }: Props & { isInSelectie: boolean }) {
+  return (
+    <AcquisitieSelectieToggle
+      {...props}
+      inSelectie={isInSelectie}
+      voegToe={voegSignaalToeAanAcquisitieSelectie}
+      verwijder={verwijderSignaalUitAcquisitieSelectie}
+    />
+  );
 }
 
 export default function ToevoegenAanAcquisitieSelectieKnop({ isInSelectie, ...props }: Props) {
-  // Grote lijsten, zoals de Off-Market signalenlijst, leveren de selectiestatus al
-  // centraal aan. Gebruik die status direct en voorkom dan per rij een extra
-  // useAcquisitieSelectie/useIsFetching-hookboom. Op iOS Safari kon die honderden
-  // keren worden opgebouwd en de webview uit het geheugen drukken.
+  // Grote lijsten leveren de selectiestatus centraal aan. In die gecontroleerde
+  // modus gebruiken we imperatieve acties: geen useMutation/MutationObserver per rij.
+  // Zonder override blijft de zelf-detecterende hookvariant ongewijzigd beschikbaar.
   if (isInSelectie !== undefined) {
-    return <AcquisitieSelectieToggle {...props} inSelectie={isInSelectie} />;
+    return <GecontroleerdeToggle {...props} isInSelectie={isInSelectie} />;
   }
 
   return <ZelfDetecterendeToggle {...props} />;
