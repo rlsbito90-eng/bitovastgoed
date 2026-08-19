@@ -1,7 +1,7 @@
 // Tweede filterlaag binnen het subfilter "Printen & posten".
-//   - te_printen : concept met volledig postadres, nog niet geprint/gepost
+//   - te_printen : printklaar maar fysiek nog niet als geprint bevestigd; kan al in een BAT zitten
 //   - te_posten  : geprint of in envelop, nog niet gepost/verzonden
-// Afgeleid uit de bestaande ActieCategorie; geen nieuwe statuslogica.
+// Afgeleid uit de bestaande ActieCategorie; formele BAT-details staan apart in Printbatches.
 import type { ActieCategorie } from '@/lib/offMarket/acquisitie/werkbak';
 
 export type PrintPostFilter = 'alles' | 'te_printen' | 'te_posten';
@@ -9,7 +9,7 @@ export type PrintPostGroep = 'te_printen' | 'te_posten';
 
 export const PRINT_POST_LABEL: Record<PrintPostFilter, string> = {
   alles: 'Alles',
-  te_printen: 'Te printen',
+  te_printen: 'Nog niet geprint',
   te_posten: 'Te posten',
 };
 
