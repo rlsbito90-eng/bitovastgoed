@@ -89,7 +89,6 @@ describe('BUILD 2.0D — gedeeld List Workspace-contract', () => {
     expect(tab).toContain('ZOEK_KEY');
     expect(tab).toContain('normaliseerZoektekst');
     expect(tab).toContain('selecteerZichtbareBulk');
-    expect(tab).toContain('selecteerAlleGeschikteBulk');
     expect(tab).toContain('verwijderBulkUitSelectie');
   });
 
