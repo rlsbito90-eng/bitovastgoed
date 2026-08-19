@@ -18,8 +18,10 @@ describe('notification-push-send — compacte taakpresentatie', () => {
     expect(source).toContain("return 'Taak morgen'");
   });
 
-  it('haalt taaktype, object/signaal en relatie op voor context', () => {
-    expect(source).toContain(".select('id, titel, type, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')");
+  it('haalt het echte taken.type_taak veld plus object/signaal en relatie op voor context', () => {
+    expect(source).toContain(".select('id, titel, type_taak, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')");
+    expect(source).toContain('task?.type_taak');
+    expect(source).not.toContain('task?.type)');
     expect(source).toContain('const pand = signaalLabel(context.signaal) || objectLabel(context.object)');
     expect(source).toContain('const relatie = relatieLabel(context.relatie)');
   });
