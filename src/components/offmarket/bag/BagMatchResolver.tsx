@@ -24,7 +24,6 @@ interface Props {
   signaal?: BagMatchResolverSignaal | null;
 }
 
-
 function normalizeBagKandidaat(
   k?: Partial<BagMatchKandidaat> | null,
 ): BagMatchKandidaat | null {
@@ -51,7 +50,6 @@ function normalizeBagKandidaat(
     woonplaats: k.woonplaats ?? null,
   };
 }
-
 
 function hasSelectableId(k: BagMatchKandidaat): boolean {
   return !!(k.pdok_id || k.vbo_id || k.nummeraanduiding_id);
@@ -94,14 +92,10 @@ export default function BagMatchResolver({ signaalId, kandidaten, signaal }: Pro
       if (isNearby(k)) near.push(k);
       else prim.push(k);
     }
-    // Doelobject-match bovenaan.
     prim.sort((a, b) => Number(isDoelobject(b)) - Number(isDoelobject(a)));
     return { primair: prim, nearby: near };
   }, [kandidaten]);
 
-  /** V2.5 — client-side validatie identiek aan backend validateDoelobject.
-   *  Voorkomt dat een kandidaat met afwijkend basis-huisnummer of postcode
-   *  selectief wordt aangeboden. */
   const validateKandidaat = (k: BagMatchKandidaat): { ok: boolean; reden?: string } => {
     if (!signaal) return { ok: true };
     return validateDoelobject(
@@ -153,56 +147,51 @@ export default function BagMatchResolver({ signaalId, kandidaten, signaal }: Pro
         data-variant={doelobject ? 'doelobject' : 'kandidaat'}
         data-valide={validatie.ok ? 'true' : 'false'}
         data-theme-safe="true"
-        className={`rounded-md border px-3 py-2 flex flex-wrap gap-3 items-start justify-between transition-colors ${
+        className={`rounded-md border px-3 py-2 flex flex-col sm:flex-row gap-3 items-stretch sm:items-start justify-between transition-colors ${
           doelobject
             ? 'border-emerald-500/40 bg-emerald-500/5 ring-1 ring-emerald-500/20 dark:bg-emerald-400/[0.06] dark:border-emerald-300/40 dark:ring-emerald-300/15'
             : 'border-border bg-card'
         }`}
       >
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 w-full flex-1">
           {badge.label && (
             <span
               data-testid={doelobject ? 'bag-match-badge-doelobject' : 'bag-match-badge'}
-              className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${TONE_CLASS[badge.tone]} mb-1`}
+              className={`inline-flex max-w-full items-center text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${TONE_CLASS[badge.tone]} mb-1 whitespace-normal`}
             >
               {badge.label}
             </span>
           )}
-          <p className="text-sm text-foreground">{k.adres || '—'}</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-sm text-foreground break-words">{k.adres || '—'}</p>
+          <p className="text-[11px] text-muted-foreground break-words">
             {k.opp_m2 != null ? `${k.opp_m2} m²` : 'Oppervlakte onbekend'}
             {k.gebruiksdoel?.length ? ` · ${k.gebruiksdoel.join(', ')}` : ''}
             {k.status ? ` · ${k.status}` : ''}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono break-all">
+          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono break-words [overflow-wrap:anywhere]">
             {k.vbo_id ? <>VBO {k.vbo_id}</> : null}
             {k.nummeraanduiding_id ? <> · NA {k.nummeraanduiding_id}</> : null}
             {k.match_kwaliteit ? ` · ${k.match_kwaliteit}` : ''}
           </p>
           {k.match_reden && (
-            <p className="text-[10px] text-muted-foreground italic">{k.match_reden}</p>
+            <p className="text-[10px] text-muted-foreground italic break-words">{k.match_reden}</p>
           )}
           {!selectable && (
-            <p
-              data-testid="bag-match-onbruikbaar-melding"
-              className="text-[11px] text-amber-900 italic mt-1"
-            >
+            <p data-testid="bag-match-onbruikbaar-melding" className="text-[11px] text-amber-900 italic mt-1 break-words">
               Deze BAG-kandidaat mist een technisch ID. Controleer via BAG Viewer.
             </p>
           )}
           {!validatie.ok && (
-            <p
-              data-testid="bag-match-ongeldig-reden"
-              className="text-[11px] text-amber-900 italic mt-1"
-            >
+            <p data-testid="bag-match-ongeldig-reden" className="text-[11px] text-amber-900 italic mt-1 break-words">
               Niet selecteerbaar: {validatie.reden ?? 'past niet bij het signaal'}.
             </p>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
+        <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-1.5 shrink-0">
           <Button
             size="sm"
             variant="default"
+            className="w-full sm:w-auto justify-center"
             onClick={() => { if (!disabled) void kies(k); }}
             disabled={disabled}
             aria-disabled={disabled}
@@ -217,7 +206,7 @@ export default function BagMatchResolver({ signaalId, kandidaten, signaal }: Pro
             target="_blank"
             rel="noopener noreferrer"
             data-testid="bag-match-viewer-link"
-            className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-border hover:bg-muted"
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-1 text-[11px] px-2 py-1 rounded border border-border hover:bg-muted"
           >
             <ExternalLink className="h-3 w-3" />
             BAG Viewer
@@ -227,47 +216,39 @@ export default function BagMatchResolver({ signaalId, kandidaten, signaal }: Pro
     );
   };
 
-
   return (
-    <section
-      data-testid="bag-match-resolver"
-      className="rounded-md border border-amber-300/60 bg-amber-50/60 p-3 space-y-3"
-    >
+    <section data-testid="bag-match-resolver" className="rounded-md border border-amber-300/60 bg-amber-50/60 p-3 space-y-3 overflow-hidden">
       <div className="flex items-start gap-2">
         <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-sm font-semibold text-amber-900">
-            Mogelijke BAG-matches
-          </p>
-          <p className="text-xs text-amber-900/80">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-amber-900">Mogelijke BAG-matches</p>
+          <p className="text-xs text-amber-900/80 break-words">
             Kies het adres dat het beste bij het signaal hoort. Daarna wordt de BAG-pandcontext opgehaald.
           </p>
         </div>
       </div>
 
-      <ul className="space-y-2" data-testid="bag-match-kandidaten">
+      <ul className="space-y-2 min-w-0" data-testid="bag-match-kandidaten">
         {primair.length === 0 ? (
           <li className="text-xs text-amber-900 italic">
             Geen exacte huisnummer-treffers gevonden — bekijk eventueel "Andere BAG-treffers in de buurt".
           </li>
-        ) : (
-          primair.map((k, i) => renderKandidaat(k, i))
-        )}
+        ) : primair.map((k, i) => renderKandidaat(k, i))}
       </ul>
 
       {nearby.length > 0 && (
-        <div data-testid="bag-match-nearby-sectie" className="pt-1">
+        <div data-testid="bag-match-nearby-sectie" className="pt-1 min-w-0">
           <button
             type="button"
             onClick={() => setToonNearby((v) => !v)}
-            className="inline-flex items-center gap-1 text-[11px] text-amber-900/80 hover:text-amber-900"
+            className="inline-flex max-w-full items-start gap-1 text-left text-[11px] text-amber-900/80 hover:text-amber-900"
             data-testid="bag-match-nearby-toggle"
           >
-            <ChevronDown className={`h-3 w-3 transition-transform ${toonNearby ? 'rotate-180' : ''}`} />
-            {toonNearby ? 'Verberg' : 'Toon'} andere BAG-treffers in de buurt ({nearby.length})
+            <ChevronDown className={`h-3 w-3 mt-0.5 shrink-0 transition-transform ${toonNearby ? 'rotate-180' : ''}`} />
+            <span className="break-words">{toonNearby ? 'Verberg' : 'Toon'} andere BAG-treffers in de buurt ({nearby.length})</span>
           </button>
           {toonNearby && (
-            <ul className="space-y-2 mt-2" data-testid="bag-match-nearby-lijst">
+            <ul className="space-y-2 mt-2 min-w-0" data-testid="bag-match-nearby-lijst">
               {nearby.map((k, i) => renderKandidaat(k, i + 1000))}
             </ul>
           )}

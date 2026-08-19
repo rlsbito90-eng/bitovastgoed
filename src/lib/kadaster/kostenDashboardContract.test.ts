@@ -41,7 +41,7 @@ describe('Kadaster kostenbeheer dashboard', () => {
   });
 
   it('is bereikbaar via een afzonderlijke rapportageroute', () => {
-    expect(app).toContain('import KadasterKostenPage');
+    expect(app).toMatch(/const\s+KadasterKostenPage\s*=\s*lazy\(\(\)\s*=>\s*import\(["']@\/pages\/KadasterKostenPage["']\)\)/);
     expect(app).toContain('/rapportage/kadasterkosten');
   });
 });
