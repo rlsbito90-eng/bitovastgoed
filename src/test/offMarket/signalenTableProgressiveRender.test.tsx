@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SignalenTable from '@/components/offmarket/SignalenTable';
@@ -15,6 +15,10 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
 vi.mock('@/components/offmarket/acquisitie/ToevoegenAanAcquisitieSelectieKnop', () => ({
   default: ({ signaalId }: { signaalId: string }) => <button type="button">Selectie {signaalId}</button>,
 }));
+
+beforeEach(() => {
+  sessionStorage.clear();
+});
 
 function maakSignaal(index: number): OffMarketSignaal {
   return {
@@ -51,31 +55,35 @@ function renderLijst(signalen: OffMarketSignaal[], highlightedId?: string | null
   return render(lijstElement(signalen, highlightedId));
 }
 
-describe('SignalenTable — progressieve render', () => {
-  it('rendert grote lijsten eerst in een begrensde tranche en kan daarna uitbreiden', () => {
+describe('SignalenTable — begrensde paginering', () => {
+  it('rendert grote lijsten standaard per 50 en navigeert naar de volgende pagina', () => {
     renderLijst(Array.from({ length: 120 }, (_, i) => maakSignaal(i)));
 
-    expect(screen.getByText('100 van 120 signalen weergegeven')).toBeTruthy();
+    expect(screen.getByText('1–50 van 120')).toBeTruthy();
+    expect(document.querySelector('[data-row-id="s49"]')).toBeTruthy();
+    expect(document.querySelector('[data-row-id="s50"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Volgende/i }));
+
+    expect(screen.getByText('51–100 van 120')).toBeTruthy();
+    expect(document.querySelector('[data-row-id="s50"]')).toBeTruthy();
     expect(document.querySelector('[data-row-id="s99"]')).toBeTruthy();
     expect(document.querySelector('[data-row-id="s100"]')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Meer signalen laden' }));
-
-    expect(screen.getByText('120 van 120 signalen weergegeven')).toBeTruthy();
-    expect(document.querySelector('[data-row-id="s119"]')).toBeTruthy();
   });
 
-  it('houdt een diep laatst bekeken signaal gerenderd nadat de tijdelijke highlight verdwijnt', () => {
+  it('houdt de pagina van een diep laatst bekeken signaal vast nadat de tijdelijke highlight verdwijnt', () => {
     const signalen = Array.from({ length: 250 }, (_, i) => maakSignaal(i));
     const { rerender } = renderLijst(signalen, 's219');
 
-    expect(screen.queryByText('300 van 250 signalen weergegeven')).toBeNull();
-    expect(screen.getByText('250 van 250 signalen weergegeven')).toBeTruthy();
+    expect(screen.getByText('201–250 van 250')).toBeTruthy();
+    expect(screen.getByText('Pagina 5 van 5')).toBeTruthy();
     expect(document.querySelector('[data-row-id="s219"]')).toBeTruthy();
+    expect(document.querySelector('[data-row-id="s199"]')).toBeNull();
 
     rerender(lijstElement(signalen, null));
 
-    expect(screen.getByText('250 van 250 signalen weergegeven')).toBeTruthy();
+    expect(screen.getByText('201–250 van 250')).toBeTruthy();
+    expect(screen.getByText('Pagina 5 van 5')).toBeTruthy();
     expect(document.querySelector('[data-row-id="s219"]')).toBeTruthy();
   });
 
