@@ -14,6 +14,7 @@ function read(rel: string): string {
 const migration = read('supabase/migrations/20260818102143_task_reminder_scheduling.sql');
 const deliveryMigration = read('supabase/migrations/20260818102153_notification_delivery_scheduling.sql');
 const rescheduleMigration = read('supabase/migrations/20260818102202_notification_delivery_reschedule_sync.sql');
+const priorityDedupeMigration = read('supabase/migrations/20260819115000_task_deadline_priority_notification_dedupe.sql');
 const engine = read('supabase/functions/notification-engine-tick/index.ts');
 const sender = read('supabase/functions/notification-push-send/index.ts');
 const repository = read('src/lib/notifications/repository.ts');
@@ -40,6 +41,14 @@ describe('task reminder scheduling', () => {
   it('laat timed taken niet meer via de oude dagmelding lopen', () => {
     expect(migration).toContain('and t.deadline_tijd is null');
     expect(migration).toContain("e.event_type in ('task_due_today', 'task_overdue', 'high_priority_task')");
+  });
+
+  it('laat prioriteit een deadline-reminder niet als tweede directe push dupliceren', () => {
+    expect(priorityDedupeMigration).toContain("and t.prioriteit in ('hoog', 'urgent')");
+    expect(priorityDedupeMigration).toContain('and t.deadline is null');
+    expect(priorityDedupeMigration).toContain("e.event_type = 'high_priority_task'");
+    expect(priorityDedupeMigration).toContain("and e.event_type = 'high_priority_task'");
+    expect(priorityDedupeMigration).toContain('and t.deadline is not null');
   });
 
   it('prequeued device-deliveries wachten server-side tot hun beschikbare moment', () => {
