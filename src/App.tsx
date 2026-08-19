@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -12,37 +13,46 @@ import { PropertyTaxonomieProvider } from "@/hooks/usePropertyTaxonomie";
 import { AcquisitieProvider } from "@/hooks/useAcquisitie";
 import { VastgoedkansenProvider } from "@/hooks/useVastgoedkansen";
 import { queryClient } from "@/lib/queryClient";
-import AcquisitiePage from "@/pages/AcquisitiePage";
-import AcquisitieTargetDetailPage from "@/pages/AcquisitieTargetDetailPage";
-import AcquisitieCampagneDetailPage from "@/pages/AcquisitieCampagneDetailPage";
-import AcquisitieFunnelMetPrestatiesPage from "@/pages/AcquisitieFunnelMetPrestatiesPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
-import AuthPage from "@/pages/AuthPage";
-import DashboardPage from "@/pages/DashboardPage";
-import RelatiesPage from "@/pages/RelatiesPage";
-import RelatieDetailPage from "@/pages/RelatieDetailPage";
-import ObjectenPage from "@/pages/ObjectenPage";
-import ObjectDetailPage from "@/pages/ObjectDetailPage";
-import DealsPage from "@/pages/DealsPage";
-import DealDetailPage from "@/pages/DealDetailPage";
-import ZoekprofielenPage from "@/pages/ZoekprofielenPage";
-import PipelinePage from "@/pages/PipelinePage";
-import TakenPage from "@/pages/TakenPage";
-import TaakDetailPage from "@/pages/TaakDetailPage";
-import RapportagePage from "@/pages/RapportagePage";
-import KadasterKostenPage from "@/pages/KadasterKostenPage";
-import ReferentieObjectenPage from "@/pages/ReferentieObjectenPage";
-import AdminPage from "@/pages/AdminPage";
-import VastgoedrekenenPage from "@/pages/VastgoedrekenenPage";
-import OffMarketPage from "@/pages/OffMarketPage";
-import VastgoedkansenPage from "@/pages/VastgoedkansenPage";
-import VastgoedkansDetailPage from "@/pages/VastgoedkansDetailPage";
-import VastgoedkansenVindenPage from "@/pages/VastgoedkansenVindenPage";
-import SnellePandcheckPage from "@/pages/SnellePandcheckPage";
-import OffMarketSignaalRoutePage from "@/pages/OffMarketSignaalRoutePage";
-import OAuthConsentPage from "@/pages/OAuthConsentPage";
-import NotFound from "@/pages/NotFound";
+
+const AcquisitiePage = lazy(() => import("@/pages/AcquisitiePage"));
+const AcquisitieTargetDetailPage = lazy(() => import("@/pages/AcquisitieTargetDetailPage"));
+const AcquisitieCampagneDetailPage = lazy(() => import("@/pages/AcquisitieCampagneDetailPage"));
+const AcquisitieFunnelMetPrestatiesPage = lazy(() => import("@/pages/AcquisitieFunnelMetPrestatiesPage"));
+const AuthPage = lazy(() => import("@/pages/AuthPage"));
+const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const RelatiesPage = lazy(() => import("@/pages/RelatiesPage"));
+const RelatieDetailPage = lazy(() => import("@/pages/RelatieDetailPage"));
+const ObjectenPage = lazy(() => import("@/pages/ObjectenPage"));
+const ObjectDetailPage = lazy(() => import("@/pages/ObjectDetailPage"));
+const DealsPage = lazy(() => import("@/pages/DealsPage"));
+const DealDetailPage = lazy(() => import("@/pages/DealDetailPage"));
+const ZoekprofielenPage = lazy(() => import("@/pages/ZoekprofielenPage"));
+const PipelinePage = lazy(() => import("@/pages/PipelinePage"));
+const TakenPage = lazy(() => import("@/pages/TakenPage"));
+const TaakDetailPage = lazy(() => import("@/pages/TaakDetailPage"));
+const RapportagePage = lazy(() => import("@/pages/RapportagePage"));
+const KadasterKostenPage = lazy(() => import("@/pages/KadasterKostenPage"));
+const ReferentieObjectenPage = lazy(() => import("@/pages/ReferentieObjectenPage"));
+const AdminPage = lazy(() => import("@/pages/AdminPage"));
+const VastgoedrekenenPage = lazy(() => import("@/pages/VastgoedrekenenPage"));
+const OffMarketPage = lazy(() => import("@/pages/OffMarketPage"));
+const VastgoedkansenPage = lazy(() => import("@/pages/VastgoedkansenPage"));
+const VastgoedkansDetailPage = lazy(() => import("@/pages/VastgoedkansDetailPage"));
+const VastgoedkansenVindenPage = lazy(() => import("@/pages/VastgoedkansenVindenPage"));
+const SnellePandcheckPage = lazy(() => import("@/pages/SnellePandcheckPage"));
+const OffMarketSignaalRoutePage = lazy(() => import("@/pages/OffMarketSignaalRoutePage"));
+const OAuthConsentPage = lazy(() => import("@/pages/OAuthConsentPage"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center p-8 text-sm text-muted-foreground">
+      Laden…
+    </div>
+  );
+}
 
 function SafeObjectDetailRoute() {
   const { id } = useParams<{ id: string }>();
@@ -80,6 +90,7 @@ const App = () => (
             <DataStoreProvider>
               <AcquisitieProvider>
               <VastgoedkansenProvider>
+              <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
@@ -185,6 +196,7 @@ const App = () => (
                   }
                 />
               </Routes>
+              </Suspense>
               </VastgoedkansenProvider>
               </AcquisitieProvider>
             </DataStoreProvider>
