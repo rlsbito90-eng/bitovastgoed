@@ -95,7 +95,11 @@ describe('ProductiekernPrintbatchWerkbak', () => {
     const toggle = screen.getByTestId('productiekern-printbatch-toggle-BAT2026081801');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByText('BAT2026081801')).toBeInTheDocument();
-    expect(screen.getByText(/1 brief · 1 signaal · documentversie 1/)).toBeInTheDocument();
+    expect(screen.getByText('1 brief')).toBeInTheDocument();
+    expect(screen.getByText('1 signaal')).toBeInTheDocument();
+    expect(screen.getByText('versie 1')).toBeInTheDocument();
+    expect(screen.getByTestId('productiekern-printbatch-status-BAT2026081801'))
+      .toHaveTextContent('Printklaar');
     expect(screen.queryByText('BR2026000005')).not.toBeInTheDocument();
 
     fireEvent.click(toggle);
@@ -155,7 +159,9 @@ describe('ProductiekernPrintbatchWerkbak', () => {
     fireEvent.click(screen.getByTestId('productiekern-printbatch-toggle-BAT2026081801'));
 
     expect(await screen.findByTestId('productiekern-productiebestanden-voorbereiden'))
-      .toHaveTextContent('Productiebestanden opnieuw downloaden');
+      .toHaveTextContent('ZIP-download klaarzetten');
+    expect(screen.getByTestId('productiekern-productiebestanden-voorbereiden'))
+      .toHaveClass('w-full', 'min-w-0', 'whitespace-normal');
     expect(repository.haalBatchdocumenten).toHaveBeenCalledTimes(1);
     expect(repository.haalBatchdocumenten).toHaveBeenCalledWith('batch-1');
   });

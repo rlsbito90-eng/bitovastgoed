@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArchiveRestore, Download, ExternalLink, Loader2, PackageCheck } from 'lucide-react';
+import { ArchiveRestore, Download, ExternalLink, Files, Loader2, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -75,7 +75,7 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
       setVoorbereid(nieuw);
       setPakketNaam(pakketBestandsnaam(documenten, nieuw));
       toast.success('Productiepakket staat klaar.', {
-        description: 'Klik op “Productiebestanden downloaden” voor de gecombineerde ZIP.',
+        description: 'Klik op “ZIP downloaden” voor de vier batchbestanden.',
       });
     } catch (error) {
       setVoorbereid([]);
@@ -119,11 +119,12 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
 
   return (
     <div className="space-y-2" data-testid="productiekern-vastgelegde-documenten-download">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid min-w-0 gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
         {downloadManifest && pakketNaam ? (
           <form
             action="/api/productiekern-bat-download"
             method="post"
+            className="w-full sm:w-auto"
             data-testid="productiekern-productiebestanden-form"
           >
             <input type="hidden" name="manifest" value={downloadManifest} />
@@ -132,10 +133,11 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
               size="sm"
               variant="secondary"
               disabled={disabled}
+              className="h-auto min-h-10 w-full min-w-0 justify-center whitespace-normal px-3 text-center leading-snug sm:w-auto"
               data-testid="productiekern-productiebestanden-downloaden"
             >
               <Download className="h-4 w-4" />
-              Productiebestanden downloaden (4)
+              ZIP downloaden (4 bestanden)
             </Button>
           </form>
         ) : (
@@ -146,54 +148,63 @@ export default function ProductiekernVastgelegdeDocumentenDownload({ documenten,
             onClick={() => void voorbereidenPakket()}
             disabled={disabled || bezig || documenten.length !== 4}
             title="Bereid de vier reeds geregistreerde BAT-productiebestanden voor als één ZIP."
+            className="h-auto min-h-10 w-full min-w-0 justify-center whitespace-normal px-3 text-center leading-snug sm:w-auto"
             data-testid="productiekern-productiebestanden-voorbereiden"
           >
             {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
-            Productiebestanden opnieuw downloaden
+            ZIP-download klaarzetten
           </Button>
         )}
-        {downloadManifest && (
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          {downloadManifest && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => void voorbereidenPakket()}
+              disabled={disabled || bezig}
+              className="h-auto min-h-8 min-w-0 whitespace-normal px-2 text-xs"
+            >
+              <ArchiveRestore className="h-3.5 w-3.5" />
+              Links vernieuwen
+            </Button>
+          )}
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => void voorbereidenPakket()}
-            disabled={disabled || bezig}
-            className="h-8 px-2 text-xs"
+            onClick={() => void toonOfVernieuwLosseBestanden()}
+            disabled={disabled || bezig || documenten.length !== 4}
+            className="h-auto min-h-8 min-w-0 whitespace-normal px-2 text-xs"
+            aria-expanded={toonLosseBestanden}
+            aria-controls="productiekern-losse-bestanden"
           >
-            <ArchiveRestore className="h-3.5 w-3.5" />
-            Links vernieuwen
+            <Files className="h-3.5 w-3.5" />
+            {toonLosseBestanden ? 'Losse bestanden verbergen' : 'Losse bestanden'}
           </Button>
-        )}
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => void toonOfVernieuwLosseBestanden()}
-          disabled={disabled || bezig || documenten.length !== 4}
-          className="h-8 px-2 text-xs"
-        >
-          <ArchiveRestore className="h-3.5 w-3.5" />
-          {toonLosseBestanden ? 'Losse bestanden verbergen' : 'Losse bestanden'}
-        </Button>
+        </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        De vier bestaande BAT-bestanden worden na één expliciete klik als echte HTTPS-download aangeboden. Dit wijzigt geen print- of verzendstatus.
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Downloadt de vier geregistreerde batchbestanden als ZIP. Print- en verzendstatus blijven ongewijzigd.
       </p>
 
       {toonLosseBestanden && voorbereid.length === 4 && (
-        <div className="space-y-1.5 rounded-md border bg-muted/20 p-2" data-testid="productiekern-downloadlinks-gereed">
+        <div
+          id="productiekern-losse-bestanden"
+          className="min-w-0 space-y-1.5 rounded-md border bg-muted/20 p-2"
+          data-testid="productiekern-downloadlinks-gereed"
+        >
           <p className="text-[11px] text-muted-foreground">
-            Secundaire herstelroute: tijdelijke links naar de vier losse geregistreerde bestanden.
+            Download één geregistreerd bestand afzonderlijk:
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             {voorbereid.map((bestand) => (
               <a
                 key={bestand.documentId}
                 href={bestand.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
+                className="inline-flex min-h-9 min-w-0 max-w-full items-center justify-center gap-2 whitespace-normal break-all rounded-md border border-input bg-background px-3 py-1.5 text-left text-xs font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
                 data-testid={`productiekern-download-${bestand.documenttype}`}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
