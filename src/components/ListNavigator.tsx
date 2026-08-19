@@ -12,7 +12,12 @@ interface Props {
 /**
  * Herbruikbare Vorige/Volgende navigatie voor detailpagina's.
  * Werkt op basis van een eerder opgeslagen lijst-context (zie listNavigation.ts).
- * Eventuele CRM return-context blijft behouden bij wisselen binnen dezelfde lijst.
+ *
+ * Belangrijk: detail -> detail gebruikt `replace`, niet `push`. Anders wordt de
+ * browser-history A -> detail 1 -> detail 2 -> detail 3 en brengt de Terug-knop
+ * de gebruiker eerst langs alle eerder bekeken details. Vorige/Volgende is zelf
+ * al de detailnavigatie; Terug hoort naar de oorspronkelijke werkcontext te gaan.
+ * Eventuele CRM return-context blijft behouden.
  */
 export default function ListNavigator({ info, buildHref, itemLabel = 'item' }: Props) {
   const navigate = useNavigate();
@@ -24,7 +29,7 @@ export default function ListNavigator({ info, buildHref, itemLabel = 'item' }: P
 
   const navigeer = (id: string | null) => {
     if (!id) return;
-    navigate(buildHref(id), { state: location.state });
+    navigate(buildHref(id), { state: location.state, replace: true });
   };
 
   const baseBtn =
