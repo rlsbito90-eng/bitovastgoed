@@ -99,8 +99,6 @@ function datumSleutel(date: Date, timeZone: string): string {
 function lokaleDatumTijd(deadline: string, deadlineTijd: string | null, timeZone: string): Date | null {
   if (!deadline) return null;
   const tijd = deadlineTijd ? deadlineTijd.slice(0, 5) : '12:00';
-  // CRM is momenteel Europe/Amsterdam-gecentreerd. Voor presentatielabels is de bronwaarde
-  // leidend; de datumvergelijking gebruikt Intl in de ingestelde timezone.
   const parsed = new Date(`${deadline}T${tijd}:00`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
@@ -148,7 +146,7 @@ function taakIsTeLaat(task: any, event: any, timeZone: string): boolean {
 
 function compacteTaakCategorie(task: any, event: any, timeZone: string): string {
   const titel = (schoon(task?.titel) || schoon(event?.title) || '').toLocaleLowerCase('nl-NL');
-  const type = (schoon(task?.type) || '').toLocaleLowerCase('nl-NL');
+  const type = (schoon(task?.type_taak) || '').toLocaleLowerCase('nl-NL');
   const samen = `${type} ${titel}`.trim();
 
   const isBrief = /\bbrief\b/.test(samen);
@@ -217,8 +215,6 @@ function taakPushPresentatie(
 
   if (tijdLabel) regels.push(tijdLabel);
 
-  // Push is een compacte samenvatting van de CRM-taak, niet een letterlijke kopie.
-  // Alleen wanneer de taakbron volledig ontbreekt gebruiken we nog de bestaande eventtekst.
   return {
     title,
     body: regels.filter(Boolean).join('\n') || schoon(event?.body) || '',
@@ -303,7 +299,7 @@ Deno.serve(async (req: Request) => {
     const { data: tasks, error: taskError } = taakIds.length
       ? await supabase
           .from('taken')
-          .select('id, titel, type, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')
+          .select('id, titel, type_taak, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')
           .in('id', taakIds)
       : { data: [], error: null } as any;
     if (taskError) throw taskError;
@@ -349,8 +345,6 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Defense in depth: available_at is leidend, maar een event met een latere
-      // scheduled_at mag nooit door een inconsistente delivery te vroeg worden verzonden.
       if (event.scheduled_at && new Date(event.scheduled_at).getTime() > Date.now()) {
         deferred++;
         continue;
