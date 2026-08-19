@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Calendar, ExternalLink, Eye } from 'lucide-react';
+import { Sparkles, Calendar, ExternalLink, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -27,9 +27,39 @@ interface Props {
   highlightedId?: string | null;
 }
 
-const EERSTE_RENDER_AANTAL = 100;
-const EXTRA_RENDER_AANTAL = 100;
+const STANDAARD_PAGINA_GROOTTE = 50;
+const PAGINA_GROOTTES = [50, 100] as const;
+const PAGINA_STORAGE_KEY = 'off-market-signalen:pagina';
+const PAGINA_GROOTTE_STORAGE_KEY = 'off-market-signalen:pagina-grootte';
 const SM_BREAKPOINT_QUERY = '(min-width: 640px)';
+
+function leesOpgeslagenPagina(): number {
+  try {
+    const value = Number(sessionStorage.getItem(PAGINA_STORAGE_KEY));
+    return Number.isInteger(value) && value > 0 ? value : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function leesOpgeslagenPaginaGrootte(): number {
+  try {
+    const value = Number(sessionStorage.getItem(PAGINA_GROOTTE_STORAGE_KEY));
+    return PAGINA_GROOTTES.includes(value as (typeof PAGINA_GROOTTES)[number])
+      ? value
+      : STANDAARD_PAGINA_GROOTTE;
+  } catch {
+    return STANDAARD_PAGINA_GROOTTE;
+  }
+}
+
+function bewaarPagina(page: number) {
+  try { sessionStorage.setItem(PAGINA_STORAGE_KEY, String(page)); } catch { /* ignore */ }
+}
+
+function bewaarPaginaGrootte(pageSize: number) {
+  try { sessionStorage.setItem(PAGINA_GROOTTE_STORAGE_KEY, String(pageSize)); } catch { /* ignore */ }
+}
 
 function useDesktopSignalenLayout() {
   const [desktop, setDesktop] = useState(() => (
@@ -231,52 +261,94 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
 
 export const STANDAARD_ZICHTBARE_KOLOMMEN = SIGNALEN_KOLOMMEN.filter(k => k.defaultVisible).map(k => k.id);
 
+function paginaknoppen(huidigePagina: number, totaalPaginas: number): Array<number | 'ellipsis'> {
+  if (totaalPaginas <= 7) return Array.from({ length: totaalPaginas }, (_, i) => i + 1);
+
+  const kandidaten = new Set([1, totaalPaginas]);
+  for (let p = huidigePagina - 2; p <= huidigePagina + 2; p += 1) {
+    if (p > 1 && p < totaalPaginas) kandidaten.add(p);
+  }
+  const paginaNummers = [...kandidaten].sort((a, b) => a - b);
+  const resultaat: Array<number | 'ellipsis'> = [];
+  paginaNummers.forEach((pagina, index) => {
+    const vorige = paginaNummers[index - 1];
+    if (vorige && pagina - vorige > 1) resultaat.push('ellipsis');
+    resultaat.push(pagina);
+  });
+  return resultaat;
+}
+
 export default function SignalenTable({ signalen, laden, zichtbareKolommen, highlightedId }: Props) {
   const rows = useMemo(() => signalen, [signalen]);
-  const [zichtbaarAantal, setZichtbaarAantal] = useState(EERSTE_RENDER_AANTAL);
+  const [paginaGrootte, setPaginaGrootte] = useState(leesOpgeslagenPaginaGrootte);
+  const [pagina, setPaginaState] = useState(leesOpgeslagenPagina);
   const desktopLayout = useDesktopSignalenLayout();
   const vorigeLijstSignatuur = useRef('');
   const lijstSignatuur = useMemo(
-    () => `${rows.length}:${rows.slice(0, 5).map(s => s.id).join('|')}`,
+    () => rows.map(s => s.id).join('|'),
     [rows],
   );
 
+  const totaalPaginas = Math.max(1, Math.ceil(rows.length / paginaGrootte));
+  const highlightedIndex = highlightedId ? rows.findIndex(s => s.id === highlightedId) : -1;
+  const highlightedPagina = highlightedIndex >= 0
+    ? Math.floor(highlightedIndex / paginaGrootte) + 1
+    : null;
+  const begrensdePagina = Math.min(Math.max(pagina, 1), totaalPaginas);
+  const effectievePagina = highlightedPagina ?? begrensdePagina;
+
+  const setPagina = (volgendePagina: number) => {
+    const begrensd = Math.min(Math.max(volgendePagina, 1), totaalPaginas);
+    setPaginaState(begrensd);
+    bewaarPagina(begrensd);
+  };
+
   useEffect(() => {
     if (vorigeLijstSignatuur.current && vorigeLijstSignatuur.current !== lijstSignatuur) {
-      setZichtbaarAantal(EERSTE_RENDER_AANTAL);
+      setPaginaState(1);
+      bewaarPagina(1);
     }
     vorigeLijstSignatuur.current = lijstSignatuur;
   }, [lijstSignatuur]);
 
-  const highlightedIndex = highlightedId ? rows.findIndex(s => s.id === highlightedId) : -1;
-  const minimumVoorHighlight = highlightedIndex >= 0
-    ? Math.ceil((highlightedIndex + 1) / EXTRA_RENDER_AANTAL) * EXTRA_RENDER_AANTAL
-    : 0;
-
-  // Zodra terugnavigatie een diep signaal zichtbaar maakt, houden we die tranche
-  // ook vast nadat de tijdelijke highlight verdwijnt. Zo klapt de lijst niet na
-  // enkele seconden terug naar 100 regels en blijft de herstelde scrollpositie stabiel.
   useEffect(() => {
-    if (minimumVoorHighlight > zichtbaarAantal) {
-      setZichtbaarAantal(Math.min(rows.length, minimumVoorHighlight));
+    if (pagina !== begrensdePagina) {
+      setPaginaState(begrensdePagina);
+      bewaarPagina(begrensdePagina);
     }
-  }, [minimumVoorHighlight, rows.length, zichtbaarAantal]);
+  }, [pagina, begrensdePagina]);
 
-  const effectiefZichtbaarAantal = Math.min(
-    rows.length,
-    Math.max(zichtbaarAantal, minimumVoorHighlight),
+  useEffect(() => {
+    if (highlightedPagina && highlightedPagina !== pagina) {
+      setPaginaState(highlightedPagina);
+      bewaarPagina(highlightedPagina);
+    }
+  }, [highlightedPagina, pagina]);
+
+  const startIndex = (effectievePagina - 1) * paginaGrootte;
+  const paginaRows = useMemo(
+    () => rows.slice(startIndex, startIndex + paginaGrootte),
+    [rows, startIndex, paginaGrootte],
   );
-  const zichtbareRows = useMemo(
-    () => rows.slice(0, effectiefZichtbaarAantal),
-    [rows, effectiefZichtbaarAantal],
-  );
-  const heeftMeer = effectiefZichtbaarAantal < rows.length;
+  const eersteNummer = rows.length === 0 ? 0 : startIndex + 1;
+  const laatsteNummer = Math.min(startIndex + paginaRows.length, rows.length);
+
+  const wijzigPaginaGrootte = (nieuweGrootte: number) => {
+    if (!PAGINA_GROOTTES.includes(nieuweGrootte as (typeof PAGINA_GROOTTES)[number])) return;
+    const eersteHuidigeIndex = (effectievePagina - 1) * paginaGrootte;
+    const nieuwePagina = Math.floor(eersteHuidigeIndex / nieuweGrootte) + 1;
+    setPaginaGrootte(nieuweGrootte);
+    setPaginaState(nieuwePagina);
+    bewaarPaginaGrootte(nieuweGrootte);
+    bewaarPagina(nieuwePagina);
+  };
 
   const navigate = useNavigate();
   const go = (id: string, anchor?: HTMLElement | null) => {
     try {
       const scrollY = getListScrollY(anchor);
       saveListLastViewed('off-market-signalen', { id, scrollY, ts: Date.now() });
+      bewaarPagina(effectievePagina);
     } catch { /* ignore */ }
     navigate(`/off-market/${id}`);
   };
@@ -312,6 +384,101 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
     );
   }
 
+  const pagination = desktopLayout ? (
+    <div className="border-t border-border/70 px-4 py-3 flex items-center justify-between gap-4 bg-muted/20">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span>{eersteNummer}–{laatsteNummer} van {rows.length} signalen</span>
+        <label className="inline-flex items-center gap-1.5">
+          <span>Per pagina</span>
+          <select
+            aria-label="Aantal signalen per pagina"
+            value={paginaGrootte}
+            onChange={e => wijzigPaginaGrootte(Number(e.target.value))}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+          >
+            {PAGINA_GROOTTES.map(grootte => <option key={grootte} value={grootte}>{grootte}</option>)}
+          </select>
+        </label>
+      </div>
+      <nav aria-label="Signalen paginering" className="flex items-center gap-1">
+        <button
+          type="button"
+          aria-label="Vorige pagina"
+          disabled={effectievePagina <= 1}
+          onClick={() => setPagina(effectievePagina - 1)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background disabled:opacity-40"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        {paginaknoppen(effectievePagina, totaalPaginas).map((item, index) => item === 'ellipsis' ? (
+          <span key={`ellipsis-${index}`} className="px-1.5 text-xs text-muted-foreground">…</span>
+        ) : (
+          <button
+            key={item}
+            type="button"
+            aria-label={`Pagina ${item}`}
+            aria-current={item === effectievePagina ? 'page' : undefined}
+            onClick={() => setPagina(item)}
+            className={`inline-flex h-9 min-w-9 items-center justify-center rounded-md border px-2 text-sm ${
+              item === effectievePagina
+                ? 'border-accent bg-accent text-accent-foreground'
+                : 'border-border bg-background text-foreground hover:bg-muted'
+            }`}
+          >
+            {item}
+          </button>
+        ))}
+        <button
+          type="button"
+          aria-label="Volgende pagina"
+          disabled={effectievePagina >= totaalPaginas}
+          onClick={() => setPagina(effectievePagina + 1)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background disabled:opacity-40"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </nav>
+    </div>
+  ) : (
+    <div className="border-t border-border/70 px-4 py-3 bg-muted/20 space-y-2">
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>{eersteNummer}–{laatsteNummer} van {rows.length}</span>
+        <label className="inline-flex items-center gap-1.5">
+          <span>Per pagina</span>
+          <select
+            aria-label="Aantal signalen per pagina"
+            value={paginaGrootte}
+            onChange={e => wijzigPaginaGrootte(Number(e.target.value))}
+            className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+          >
+            {PAGINA_GROOTTES.map(grootte => <option key={grootte} value={grootte}>{grootte}</option>)}
+          </select>
+        </label>
+      </div>
+      <nav aria-label="Signalen paginering" className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <button
+          type="button"
+          disabled={effectievePagina <= 1}
+          onClick={() => setPagina(effectievePagina - 1)}
+          className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-md border border-border bg-background px-3 text-sm font-medium disabled:opacity-40"
+        >
+          <ChevronLeft className="h-4 w-4" /> Vorige
+        </button>
+        <span className="px-1 text-center text-xs text-muted-foreground whitespace-nowrap">
+          Pagina {effectievePagina} van {totaalPaginas}
+        </span>
+        <button
+          type="button"
+          disabled={effectievePagina >= totaalPaginas}
+          onClick={() => setPagina(effectievePagina + 1)}
+          className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-md border border-border bg-background px-3 text-sm font-medium disabled:opacity-40"
+        >
+          Volgende <ChevronRight className="h-4 w-4" />
+        </button>
+      </nav>
+    </div>
+  );
+
   return (
     <>
       {desktopLayout ? (
@@ -326,7 +493,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
               </TableRow>
             </TableHeader>
             <TableBody>
-              {zichtbareRows.map(s => {
+              {paginaRows.map(s => {
                 const isHighlighted = highlightedId === s.id;
                 const inSelectie = selectieIds.has(s.id);
                 return (
@@ -368,7 +535,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
         </div>
       ) : (
         <div className="divide-y divide-border/70">
-          {zichtbareRows.map(s => {
+          {paginaRows.map(s => {
             const isHighlighted = highlightedId === s.id;
             return (
               <div
@@ -432,22 +599,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
         </div>
       )}
 
-      {rows.length > EERSTE_RENDER_AANTAL && (
-        <div className="border-t border-border/70 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-muted/20">
-          <p className="text-xs text-muted-foreground">
-            {effectiefZichtbaarAantal} van {rows.length} signalen weergegeven
-          </p>
-          {heeftMeer && (
-            <button
-              type="button"
-              onClick={() => setZichtbaarAantal(current => Math.min(rows.length, current + EXTRA_RENDER_AANTAL))}
-              className="inline-flex min-h-[40px] items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-            >
-              Meer signalen laden
-            </button>
-          )}
-        </div>
-      )}
+      {pagination}
     </>
   );
 }
