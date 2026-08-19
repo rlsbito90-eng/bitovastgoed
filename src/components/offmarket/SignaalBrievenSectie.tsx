@@ -3,16 +3,14 @@
 // Per geadresseerde wordt Brief 1 / Brief 2 / Brief 3 getoond; nooit
 // globale Brief 4/5/6-nummering. Conceptversies worden samengeklapt en
 // veilige testconcepten kunnen worden opgeschoond.
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { pdf } from '@react-pdf/renderer';
 import { Mail, Inbox, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
 import { useDataStore } from '@/hooks/useDataStore';
 import BriefVoorbereidenKnop from '@/components/offmarket/BriefVoorbereidenKnop';
-import BriefVoorbereidenDialog from '@/components/offmarket/BriefVoorbereidenDialog';
 import GeadresseerdeKaart, { type EmailContactRegel }
   from '@/components/offmarket/brieven/GeadresseerdeKaart';
 import BrievenSamenvattingRegel from '@/components/offmarket/brieven/BrievenSamenvatting';
@@ -21,7 +19,6 @@ import MarkeerVerstuurdDialog from '@/components/offmarket/brieven/MarkeerVerstu
 import RegistreerResponsDialog, { type ResponsVervolgtaakVoorstel }
   from '@/components/offmarket/brieven/RegistreerResponsDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
-import BriefPDF from '@/components/offmarket/BriefPDF';
 import {
   buildBriefViewModel, briefAlsPlatteTekst,
 } from '@/lib/offMarket/brief';
@@ -36,6 +33,9 @@ import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import type { ContactMoment } from '@/lib/contactMoments';
 
+const BriefVoorbereidenDialog = lazy(
+  () => import('@/components/offmarket/BriefVoorbereidenDialog'),
+);
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -138,7 +138,8 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
         onderwerp: b.onderwerp ?? '',
         brieftekst: b.brieftekst ?? '',
       });
-      const blob = await pdf(<BriefPDF vm={vm} />).toBlob();
+      const { generateBriefPdfBlob } = await import('@/lib/pdf/generateBriefPdf');
+      const blob = await generateBriefPdfBlob(vm);
       const datum = (b.verzonden_op ?? b.created_at ?? new Date().toISOString()).split('T')[0];
       const naam = safeFilename(vm.geadresseerdeNaam || vm.bedrijfsnaam || vm.objectomschrijving);
       const filename = `Bito-brief-${naam}-${datum}.pdf`;
@@ -265,26 +266,30 @@ export default function SignaalBrievenSectie({ signaal }: Props) {
 
       {/* Open bestaande brief (concept of verstuurd) */}
       {openBrief && (
-        <BriefVoorbereidenDialog
-          open={!!openBrief}
-          onOpenChange={(v) => { if (!v) setOpenBrief(null); }}
-          signaal={signaal}
-          kadasterRecords={kadasterRecords}
-          historischeBrieven={brieven}
-          initialBrief={openBrief}
-        />
+        <Suspense fallback={null}>
+          <BriefVoorbereidenDialog
+            open={!!openBrief}
+            onOpenChange={(v) => { if (!v) setOpenBrief(null); }}
+            signaal={signaal}
+            kadasterRecords={kadasterRecords}
+            historischeBrieven={brieven}
+            initialBrief={openBrief}
+          />
+        </Suspense>
       )}
 
       {/* Nieuwe opvolgbrief voor één specifieke geadresseerde */}
       {opvolgVoor && (
-        <BriefVoorbereidenDialog
-          open={!!opvolgVoor}
-          onOpenChange={(v) => { if (!v) setOpvolgVoor(null); }}
-          signaal={signaal}
-          kadasterRecords={kadasterRecords}
-          historischeBrieven={brieven}
-          forceKandidaatLabel={forceLabel}
-        />
+        <Suspense fallback={null}>
+          <BriefVoorbereidenDialog
+            open={!!opvolgVoor}
+            onOpenChange={(v) => { if (!v) setOpvolgVoor(null); }}
+            signaal={signaal}
+            kadasterRecords={kadasterRecords}
+            historischeBrieven={brieven}
+            forceKandidaatLabel={forceLabel}
+          />
+        </Suspense>
       )}
 
       {/* Markeer als verstuurd */}

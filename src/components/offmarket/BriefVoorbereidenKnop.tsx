@@ -1,13 +1,16 @@
 // Knop "Brief voorbereiden" voor in de Eigenaarsonderzoek-sectie van een
 // Off-Market signaal. Disabled met tooltip wanneer eigenaar/rechthebbende
 // of objectadres ontbreekt.
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Mail } from 'lucide-react';
 import { useKadasterDataRecordsForSignaal } from '@/hooks/useKadasterDataRecords';
 import { useOffMarketBrievenForSignaal } from '@/hooks/useOffMarketBrieven';
 import { kanBriefVoorbereiden } from '@/lib/offMarket/brief';
-import BriefVoorbereidenDialog from '@/components/offmarket/BriefVoorbereidenDialog';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
+
+const BriefVoorbereidenDialog = lazy(
+  () => import('@/components/offmarket/BriefVoorbereidenDialog'),
+);
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -57,15 +60,17 @@ export default function BriefVoorbereidenKnop({
         </button>
       )}
       {open && (
-        <BriefVoorbereidenDialog
-          open={open}
-          onOpenChange={setOpen}
-          signaal={signaal}
-          kadasterRecords={records}
-          historischeBrieven={brieven}
-          initialBrief={initialBrief}
-          forceKandidaatLabel={forceKandidaatLabel}
-        />
+        <Suspense fallback={null}>
+          <BriefVoorbereidenDialog
+            open={open}
+            onOpenChange={setOpen}
+            signaal={signaal}
+            kadasterRecords={records}
+            historischeBrieven={brieven}
+            initialBrief={initialBrief}
+            forceKandidaatLabel={forceKandidaatLabel}
+          />
+        </Suspense>
       )}
     </>
   );

@@ -7,7 +7,6 @@
 // - Subcategorie-label wordt automatisch meegegeven aan PDFs
 
 import { useState, useMemo } from 'react';
-import { pdf } from '@react-pdf/renderer';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -18,8 +17,6 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
 import { getSignedUrl } from '@/lib/storage';
 import type { ObjectVastgoed } from '@/data/mock-data';
-import ObjectOnepagerPDF from '@/components/pdf/ObjectOnepagerPDF';
-import ObjectBrochurePDF from '@/components/pdf/ObjectBrochurePDF';
 
 interface Props {
   object: ObjectVastgoed;
@@ -144,6 +141,14 @@ export default function ObjectPdfButton({ object }: Props) {
       }
 
       const marktwaardeArg = includeMarktwaarde ? marktwaardeMediaan : undefined;
+
+      // PDF-engine en documenttemplates pas laden wanneer de gebruiker
+      // daadwerkelijk op "Genereer PDF" klikt.
+      const [{ pdf }, { default: ObjectOnepagerPDF }, { default: ObjectBrochurePDF }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('@/components/pdf/ObjectOnepagerPDF'),
+        import('@/components/pdf/ObjectBrochurePDF'),
+      ]);
 
       const doc = type === 'onepager'
         ? <ObjectOnepagerPDF
