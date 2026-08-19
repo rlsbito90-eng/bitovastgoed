@@ -11,6 +11,7 @@ function maakAchterliggendeRepository(): AcquisitieProductieTransactieRepository
       briefnummer: 'BR2026000001',
     }),
     registreerBatchdocumenten: vi.fn().mockResolvedValue(undefined),
+    vernieuwBatchdocumenten: vi.fn().mockResolvedValue(undefined),
     markeerBatchGeprint: vi.fn().mockResolvedValue(undefined),
     markeerBriefGepost: vi.fn().mockResolvedValue(undefined),
   };
@@ -30,6 +31,9 @@ describe('GepoorteAcquisitieProductieTransactieRepository', () => {
     expect(() => repository.maakBriefDefinitief(willekeurigeInput))
       .toThrow(ProductieTransactiesNietGeactiveerdError);
     expect(achterliggend.maakBriefDefinitief).not.toHaveBeenCalled();
+    expect(() => repository.vernieuwBatchdocumenten(willekeurigeInput))
+      .toThrow(ProductieTransactiesNietGeactiveerdError);
+    expect(achterliggend.vernieuwBatchdocumenten).not.toHaveBeenCalled();
   });
 
   it('laat lezenActief zonder schrijftoegang nooit door', () => {
@@ -58,11 +62,13 @@ describe('GepoorteAcquisitieProductieTransactieRepository', () => {
       briefnummer: 'BR2026000001',
     });
     await repository.registreerBatchdocumenten(willekeurigeInput);
+    await repository.vernieuwBatchdocumenten(willekeurigeInput);
     await repository.markeerBatchGeprint(willekeurigeInput);
     await repository.markeerBriefGepost(willekeurigeInput);
 
     expect(achterliggend.maakBriefDefinitief).toHaveBeenCalledOnce();
     expect(achterliggend.registreerBatchdocumenten).toHaveBeenCalledOnce();
+    expect(achterliggend.vernieuwBatchdocumenten).toHaveBeenCalledOnce();
     expect(achterliggend.markeerBatchGeprint).toHaveBeenCalledOnce();
     expect(achterliggend.markeerBriefGepost).toHaveBeenCalledOnce();
   });

@@ -9,6 +9,7 @@ import type { BatchDocumentPlan } from './batchDocumentPlan';
 export type ProductieTransactieActie =
   | 'brief_definitief_maken'
   | 'batch_documenten_registreren'
+  | 'batch_documentversie_vernieuwen'
   | 'batch_geprint_markeren'
   | 'brief_gepost_markeren';
 
@@ -34,6 +35,15 @@ export interface BatchDocumentenRegistrerenInput extends TransactieContext {
   opgeslagenDocumenten: BatchdocumentContract[];
 }
 
+export interface BatchDocumentversieVernieuwenInput extends TransactieContext {
+  actie: 'batch_documentversie_vernieuwen';
+  batch: PrintbatchContract;
+  plan: BatchDocumentPlan;
+  opgeslagenDocumenten: BatchdocumentContract[];
+  nieuweDocumentversie: number;
+  reden: string;
+}
+
 export interface BatchGeprintMarkerenInput extends TransactieContext {
   actie: 'batch_geprint_markeren';
   batch: PrintbatchContract;
@@ -52,6 +62,7 @@ export interface BriefGepostMarkerenInput extends TransactieContext {
 export type ProductieTransactieInput =
   | BriefDefinitiefMakenInput
   | BatchDocumentenRegistrerenInput
+  | BatchDocumentversieVernieuwenInput
   | BatchGeprintMarkerenInput
   | BriefGepostMarkerenInput;
 
@@ -114,6 +125,36 @@ export function valideerProductieTransactie(
         if (!typen.has(gepland.documenttype)) {
           fouten.push(`Opgeslagen document ontbreekt: ${gepland.documenttype}.`);
         }
+      }
+      break;
+    }
+
+    case 'batch_documentversie_vernieuwen': {
+      if (input.batch.status !== 'documenten_gegenereerd' || input.batch.printdatum) {
+        fouten.push('Alleen een nog niet geprinte batch kan een nieuwe documentversie krijgen.');
+      }
+      if (input.verwachtVersienummer !== input.batch.documentversie) {
+        fouten.push('De verwachte documentversie wijkt af van de actuele batch.');
+      }
+      if (input.nieuweDocumentversie !== input.verwachtVersienummer + 1) {
+        fouten.push('De nieuwe documentversie moet exact één hoger zijn.');
+      }
+      if (input.plan.batchId !== input.batch.id) {
+        fouten.push('Documentplan hoort niet bij de opgegeven batch.');
+      }
+      if (input.plan.documentversie !== input.nieuweDocumentversie) {
+        fouten.push('Documentplan hoort niet bij de nieuwe documentversie.');
+      }
+      if (!input.reden.trim()) fouten.push('Reden voor de nieuwe documentversie is verplicht.');
+      const typen = new Set(input.opgeslagenDocumenten.map(document => document.documenttype));
+      for (const gepland of input.plan.documenten) {
+        if (!typen.has(gepland.documenttype)) {
+          fouten.push(`Opgeslagen vervangend document ontbreekt: ${gepland.documenttype}.`);
+        }
+      }
+      if (input.opgeslagenDocumenten.some((document) =>
+        document.documentversie !== input.nieuweDocumentversie)) {
+        fouten.push('Een opgeslagen document hoort niet bij de nieuwe documentversie.');
       }
       break;
     }

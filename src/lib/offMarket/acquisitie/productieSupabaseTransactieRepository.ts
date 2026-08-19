@@ -13,6 +13,7 @@ import type {
 } from './productieTransactieRepository';
 import type {
   BatchDocumentenRegistrerenInput,
+  BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
@@ -92,6 +93,13 @@ implements AcquisitieProductieTransactieRepository {
 
   async registreerBatchdocumenten(
     input: BatchDocumentenRegistrerenInput,
+  ): Promise<void> {
+    const data = await voerUit(this.uitvoerder, input);
+    bevestigLeegRpcResultaat(data);
+  }
+
+  async vernieuwBatchdocumenten(
+    input: BatchDocumentversieVernieuwenInput,
   ): Promise<void> {
     const data = await voerUit(this.uitvoerder, input);
     bevestigLeegRpcResultaat(data);

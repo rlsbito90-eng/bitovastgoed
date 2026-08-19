@@ -22,7 +22,7 @@ const batch: PrintbatchContract = {
 
 function tx() {
   return {
-    maakBriefDefinitief: vi.fn(), registreerBatchdocumenten: vi.fn(), markeerBatchGeprint: vi.fn(),
+    maakBriefDefinitief: vi.fn(), registreerBatchdocumenten: vi.fn(), vernieuwBatchdocumenten: vi.fn(), markeerBatchGeprint: vi.fn(),
     markeerBriefGepost: vi.fn(async () => undefined),
   };
 }

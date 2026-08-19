@@ -85,6 +85,17 @@ vi.mock('@/hooks/useDataStore', () => ({
     getObjectById: () => null,
   }),
 }));
+vi.mock('@/hooks/useProductiekernSelectieOverzicht', () => ({
+  useProductiekernSelectieOverzicht: () => ({
+    actief: false,
+    repository: null,
+    modellen: [],
+    nummersPerSignaal: new Map(),
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
+}));
 
 import AcquisitieSelectieTab
   from '@/components/offmarket/acquisitie/AcquisitieSelectieTab';

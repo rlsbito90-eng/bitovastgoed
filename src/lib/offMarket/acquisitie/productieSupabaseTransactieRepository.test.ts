@@ -65,6 +65,39 @@ const input = {
   jaar: 2026,
 };
 
+const batch = {
+  id: 'batch-1', batchnummer: 'BAT2026080801', status: 'documenten_gegenereerd' as const,
+  documentversie: 1, aanvullingOpBatchId: null, printdatum: null, verzenddatum: null,
+  geannuleerdOp: null, annuleringsreden: null,
+};
+const documenttypen = ['batchvoorblad', 'controlelijst', 'brieven_pdf', 'adreslabels'] as const;
+const nieuweDocumenten = documenttypen.map((documenttype, index) => ({
+  id: `doc-${index}`, batchId: batch.id, documentversie: 2, documenttype,
+  bestandReferentie: `off-market-productie/actor-1/batch-1/v2/poging/${documenttype}`,
+  status: 'actief' as const, metadata: { bestandsnaam: `${documenttype}.pdf` },
+  createdAt: '2026-08-08T08:30:00.000Z', vervallenOp: null,
+}));
+const documentversieInput = {
+  actie: 'batch_documentversie_vernieuwen' as const,
+  actorId: 'actor-1',
+  operationKey: 'batch-documentversie:batch-1:v2',
+  verwachtVersienummer: 1,
+  uitgevoerdOp: '2026-08-08T08:30:00.000Z',
+  batch,
+  nieuweDocumentversie: 2,
+  reden: 'Huisstijlherstel',
+  opgeslagenDocumenten: nieuweDocumenten,
+  plan: {
+    batchId: batch.id, batchnummer: batch.batchnummer, documentversie: 2,
+    briefAantal: 1, geadresseerdeAantal: 1,
+    documenten: documenttypen.map((documenttype) => ({
+      documenttype, bestandsnaam: `${documenttype}.pdf`, documentversie: 2,
+      briefVersieIds: ['versie-1'],
+    })),
+    waarschuwingen: [],
+  },
+};
+
 describe('SupabaseAcquisitieProductieTransactieRepository', () => {
   it('voert exact één allowlisted RPC uit en parseert het briefresultaat', async () => {
     const voerRpcUit = vi.fn<ProductieSupabaseRpcUitvoerder['voerRpcUit']>()
@@ -111,6 +144,29 @@ describe('SupabaseAcquisitieProductieTransactieRepository', () => {
         message: 'De gegevens zijn intussen gewijzigd. Ververs en probeer opnieuw.',
       });
     }
+  });
+
+  it('vernieuwt batchdocumenten via exact één transactionele RPC', async () => {
+    const voerRpcUit = vi.fn<ProductieSupabaseRpcUitvoerder['voerRpcUit']>()
+      .mockResolvedValue({ data: null, error: null });
+    const repository = new SupabaseAcquisitieProductieTransactieRepository({ voerRpcUit });
+
+    await expect(repository.vernieuwBatchdocumenten(documentversieInput)).resolves.toBeUndefined();
+
+    expect(voerRpcUit).toHaveBeenCalledOnce();
+    expect(voerRpcUit).toHaveBeenCalledWith(
+      'off_market_batch_documentversie_vernieuwen',
+      expect.objectContaining({
+        p_batch_id: 'batch-1',
+        p_operation_key: 'batch-documentversie:batch-1:v2',
+        p_verwacht_documentversie: 1,
+        p_nieuwe_documentversie: 2,
+        p_reden: 'Huisstijlherstel',
+        p_documenten: expect.arrayContaining([
+          expect.objectContaining({ documenttype: 'brieven_pdf' }),
+        ]),
+      }),
+    );
   });
 
   it('roept de RPC-uitvoerder niet aan wanneer de centrale productiepoort dicht staat', () => {

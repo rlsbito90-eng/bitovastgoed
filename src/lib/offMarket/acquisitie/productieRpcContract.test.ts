@@ -156,4 +156,60 @@ describe('bouwProductieRpcAanroep', () => {
       p_verzenddatum: '2026-08-06T10:00:00.000Z',
     });
   });
+
+  it('bouwt een afzonderlijke atomische RPC voor documentversie-upgrade', () => {
+    const batch = {
+      id: 'batch-1', batchnummer: 'BAT2026080601', status: 'documenten_gegenereerd' as const,
+      documentversie: 1, aanvullingOpBatchId: null, printdatum: null, verzenddatum: null,
+      geannuleerdOp: null, annuleringsreden: null,
+    };
+    const documenttypen = ['batchvoorblad', 'controlelijst', 'brieven_pdf', 'adreslabels'] as const;
+    const opgeslagenDocumenten = documenttypen.map((documenttype, index) => ({
+      id: `doc-${index}`, batchId: batch.id, documentversie: 2, documenttype,
+      bestandReferentie: `off-market-productie/actor-1/batch-1/v2/poging/${documenttype}`,
+      status: 'actief' as const, metadata: { bestandsnaam: `${documenttype}.pdf` },
+      createdAt: context.uitgevoerdOp, vervallenOp: null,
+    }));
+    const plan = {
+      batchId: batch.id,
+      batchnummer: batch.batchnummer,
+      documentversie: 2,
+      briefAantal: 1,
+      geadresseerdeAantal: 1,
+      documenten: documenttypen.map((documenttype) => ({
+        documenttype, bestandsnaam: `${documenttype}.pdf`, documentversie: 2,
+        briefVersieIds: ['versie-1'],
+      })),
+      waarschuwingen: [],
+    };
+
+    const aanroep = bouwProductieRpcAanroep({
+      actie: 'batch_documentversie_vernieuwen',
+      ...context,
+      operationKey: 'batch-documentversie:batch-1:v2',
+      batch,
+      plan,
+      opgeslagenDocumenten,
+      nieuweDocumentversie: 2,
+      reden: 'Huisstijlherstel',
+    });
+
+    expect(aanroep).toEqual({
+      rpc: 'off_market_batch_documentversie_vernieuwen',
+      parameters: {
+        p_batch_id: 'batch-1',
+        p_actor_id: 'actor-1',
+        p_operation_key: 'batch-documentversie:batch-1:v2',
+        p_verwacht_documentversie: 1,
+        p_nieuwe_documentversie: 2,
+        p_uitgevoerd_op: context.uitgevoerdOp,
+        p_reden: 'Huisstijlherstel',
+        p_documenten: opgeslagenDocumenten.map((document) => ({
+          documenttype: document.documenttype,
+          bestand_referentie: document.bestandReferentie,
+          metadata: document.metadata,
+        })),
+      },
+    });
+  });
 });

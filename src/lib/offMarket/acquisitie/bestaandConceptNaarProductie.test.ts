@@ -78,6 +78,7 @@ function transacties() {
   return {
     maakBriefDefinitief: vi.fn(async () => ({ briefId: 'brief-1', briefnummer: 'BR2026000001' })),
     registreerBatchdocumenten: vi.fn(),
+    vernieuwBatchdocumenten: vi.fn(),
     markeerBatchGeprint: vi.fn(),
     markeerBriefGepost: vi.fn(),
   };

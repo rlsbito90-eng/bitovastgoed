@@ -1,5 +1,6 @@
 import type {
   BatchDocumentenRegistrerenInput,
+  BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
@@ -22,6 +23,10 @@ export interface AcquisitieProductieTransactieRepository {
 
   registreerBatchdocumenten(
     input: BatchDocumentenRegistrerenInput,
+  ): Promise<void>;
+
+  vernieuwBatchdocumenten(
+    input: BatchDocumentversieVernieuwenInput,
   ): Promise<void>;
 
   markeerBatchGeprint(
@@ -55,6 +60,10 @@ implements AcquisitieProductieTransactieRepository {
 
   registreerBatchdocumenten(): Promise<void> {
     return this.geblokkeerd('registreerBatchdocumenten');
+  }
+
+  vernieuwBatchdocumenten(): Promise<void> {
+    return this.geblokkeerd('vernieuwBatchdocumenten');
   }
 
   markeerBatchGeprint(): Promise<void> {

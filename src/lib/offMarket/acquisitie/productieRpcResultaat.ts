@@ -11,8 +11,19 @@ export type ProductieRpcFoutcode =
   | 'exact_vier_batchdocumenten_verplicht'
   | 'batch_niet_gevonden'
   | 'batchstatus_blokkeert_documentregistratie'
+  | 'batchstatus_blokkeert_documentvernieuwing'
+  | 'nieuwe_documentversie_niet_opvolgend'
+  | 'actieve_documentset_niet_compleet'
+  | 'actieve_documentset_versiedrift'
+  | 'documentvernieuwing_reden_verplicht'
+  | 'documentvernieuwing_reden_te_lang'
+  | 'ongeldige_documentversie'
   | 'ongeldig_documenttype'
   | 'bestand_referentie_verplicht'
+  | 'ongeldige_bestand_referentie'
+  | 'bestand_referentie_buiten_nieuwe_documentversie'
+  | 'dubbele_bestand_referentie'
+  | 'batchdocument_storage_object_ontbreekt'
   | 'ieder_documenttype_exact_een_keer_verplicht'
   | 'batch_niet_printklaar'
   | 'printdatum_bestaat_al'
@@ -34,8 +45,19 @@ const BEKENDE_FOUTCODES = new Set<ProductieRpcFoutcode>([
   'exact_vier_batchdocumenten_verplicht',
   'batch_niet_gevonden',
   'batchstatus_blokkeert_documentregistratie',
+  'batchstatus_blokkeert_documentvernieuwing',
+  'nieuwe_documentversie_niet_opvolgend',
+  'actieve_documentset_niet_compleet',
+  'actieve_documentset_versiedrift',
+  'documentvernieuwing_reden_verplicht',
+  'documentvernieuwing_reden_te_lang',
+  'ongeldige_documentversie',
   'ongeldig_documenttype',
   'bestand_referentie_verplicht',
+  'ongeldige_bestand_referentie',
+  'bestand_referentie_buiten_nieuwe_documentversie',
+  'dubbele_bestand_referentie',
+  'batchdocument_storage_object_ontbreekt',
   'ieder_documenttype_exact_een_keer_verplicht',
   'batch_niet_printklaar',
   'printdatum_bestaat_al',
@@ -65,8 +87,19 @@ const VEILIGE_BERICHTEN: Record<ProductieRpcFoutcode, string> = {
   exact_vier_batchdocumenten_verplicht: 'De batchdocumentenset is niet compleet.',
   batch_niet_gevonden: 'De printbatch bestaat niet meer of is niet toegankelijk.',
   batchstatus_blokkeert_documentregistratie: 'De batchstatus staat documentregistratie niet toe.',
+  batchstatus_blokkeert_documentvernieuwing: 'Alleen een nog niet geprinte batch kan een nieuwe documentversie krijgen.',
+  nieuwe_documentversie_niet_opvolgend: 'De nieuwe documentversie moet exact één hoger zijn.',
+  actieve_documentset_niet_compleet: 'De actieve documentset van de batch is niet compleet.',
+  actieve_documentset_versiedrift: 'De actieve documenten horen niet allemaal bij dezelfde batchversie.',
+  documentvernieuwing_reden_verplicht: 'Een reden voor de nieuwe documentversie is verplicht.',
+  documentvernieuwing_reden_te_lang: 'De reden voor de nieuwe documentversie is te lang.',
+  ongeldige_documentversie: 'De huidige documentversie is ongeldig.',
   ongeldig_documenttype: 'De batch bevat een onbekend documenttype.',
   bestand_referentie_verplicht: 'Een document mist een geldige bestandsreferentie.',
+  ongeldige_bestand_referentie: 'Een bestandsreferentie bevat een ongeldig pad.',
+  bestand_referentie_buiten_nieuwe_documentversie: 'Een bestand staat niet in de map van de nieuwe documentversie.',
+  dubbele_bestand_referentie: 'De nieuwe documentset bevat dezelfde bestandsreferentie meer dan één keer.',
+  batchdocument_storage_object_ontbreekt: 'Een bestand van de nieuwe documentversie ontbreekt in de beveiligde opslag.',
   ieder_documenttype_exact_een_keer_verplicht: 'Ieder vereist batchdocument moet precies één keer aanwezig zijn.',
   batch_niet_printklaar: 'De batch is niet printklaar.',
   printdatum_bestaat_al: 'Voor deze batch is al een printdatum geregistreerd.',
