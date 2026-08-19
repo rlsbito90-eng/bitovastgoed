@@ -15,6 +15,7 @@ const migration = read('supabase/migrations/20260818102143_task_reminder_schedul
 const deliveryMigration = read('supabase/migrations/20260818102153_notification_delivery_scheduling.sql');
 const rescheduleMigration = read('supabase/migrations/20260818102202_notification_delivery_reschedule_sync.sql');
 const priorityDedupeMigration = read('supabase/migrations/20260819115000_task_deadline_priority_notification_dedupe.sql');
+const priorityAttentionMigration = read('supabase/migrations/20260819123000_task_priority_attention_scheduling.sql');
 const engine = read('supabase/functions/notification-engine-tick/index.ts');
 const sender = read('supabase/functions/notification-push-send/index.ts');
 const repository = read('src/lib/notifications/repository.ts');
@@ -43,12 +44,33 @@ describe('task reminder scheduling', () => {
     expect(migration).toContain("e.event_type in ('task_due_today', 'task_overdue', 'high_priority_task')");
   });
 
-  it('laat prioriteit een deadline-reminder niet als tweede directe push dupliceren', () => {
+  it('blokkeert de oude directe high-priority push voor deadline-taken', () => {
     expect(priorityDedupeMigration).toContain("and t.prioriteit in ('hoog', 'urgent')");
     expect(priorityDedupeMigration).toContain('and t.deadline is null');
     expect(priorityDedupeMigration).toContain("e.event_type = 'high_priority_task'");
-    expect(priorityDedupeMigration).toContain("and e.event_type = 'high_priority_task'");
-    expect(priorityDedupeMigration).toContain('and t.deadline is not null');
+  });
+
+  it('plant prioriteitsattentie 30 min voor hoog en 60 min voor urgent', () => {
+    expect(priorityAttentionMigration).toContain("case when t.prioriteit = 'urgent' then 60 else 30 end");
+    expect(priorityAttentionMigration).toContain("'high_priority_task:' || t.id::text || ':v' || t.reminder_version::text");
+    expect(priorityAttentionMigration).toContain('d.deadline_at - make_interval(mins => d.attention_minutes) as attention_at');
+    expect(priorityAttentionMigration).toContain('x.attention_at > now()');
+  });
+
+  it('geeft zonder concrete deadline+tijd of bij melding=geen geen prioriteitspush', () => {
+    expect(priorityAttentionMigration).toContain('and t.deadline is not null');
+    expect(priorityAttentionMigration).toContain('and t.deadline_tijd is not null');
+    expect(priorityAttentionMigration).toContain("and t.reminder_policy <> 'none'");
+    expect(priorityAttentionMigration).toContain('and scheduled_at is null');
+  });
+
+  it('voorkomt een dubbele push als prioriteitsattentie exact samenvalt met de taakreminder', () => {
+    expect(priorityAttentionMigration).toContain("and r.event_type = 'task_reminder'");
+    expect(priorityAttentionMigration).toContain('and r.scheduled_at = x.attention_at');
+  });
+
+  it('neemt prioriteitswijzigingen mee in de reminder-versie', () => {
+    expect(priorityAttentionMigration).toContain('old.prioriteit is distinct from new.prioriteit');
   });
 
   it('prequeued device-deliveries wachten server-side tot hun beschikbare moment', () => {
