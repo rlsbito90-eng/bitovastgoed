@@ -265,6 +265,40 @@ body,
     gap: 0.5rem !important;
   }
 
+  /* Acquisitieselectie: zodra er echt iets geselecteerd is, blijft de bulkbar
+     onderaan bereikbaar. De lege "Selecteer resultaten"-staat blijft inline. */
+  [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) {
+    position: fixed !important;
+    z-index: 45;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: auto;
+    max-height: min(42dvh, 18rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.625rem 0.75rem !important;
+    border: 1px solid hsl(var(--border) / 0.9);
+    box-shadow: var(--shadow-lg) !important;
+    backdrop-filter: blur(14px) saturate(125%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(125%) !important;
+  }
+
+  [data-testid="acquisitie-selectie-tab"]:has(
+    [data-testid="acquisitie-bulk-toolbar"] [data-testid="acquisitie-bulk-telling"]
+  ) {
+    padding-bottom: calc(10rem + env(safe-area-inset-bottom));
+  }
+
+  [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) button {
+    min-height: 2.5rem !important;
+  }
+
   .kpi-card:hover,
   .card-hover:hover {
     transform: none;

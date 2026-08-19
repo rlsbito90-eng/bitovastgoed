@@ -55,4 +55,14 @@ describe('mobiele UX fundering', () => {
     expect(css).toContain('main .field-label');
     expect(css).toContain('main .field-value');
   });
+
+  it('houdt bulkacties in de acquisitieselectie sticky zodra er items geselecteerd zijn', () => {
+    const acquisitie = source('src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx');
+    const css = source('src/mobile-foundation.css');
+    expect(acquisitie).toContain('data-testid="acquisitie-bulk-toolbar"');
+    expect(acquisitie).toContain('data-testid="acquisitie-bulk-telling"');
+    expect(css).toContain('[data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"])');
+    expect(css).toContain('position: fixed !important');
+    expect(css).toContain('padding-bottom: calc(10rem + env(safe-area-inset-bottom))');
+  });
 });
