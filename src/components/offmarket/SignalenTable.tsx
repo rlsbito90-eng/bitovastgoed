@@ -231,6 +231,16 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
   const minimumVoorHighlight = highlightedIndex >= 0
     ? Math.ceil((highlightedIndex + 1) / EXTRA_RENDER_AANTAL) * EXTRA_RENDER_AANTAL
     : 0;
+
+  // Zodra terugnavigatie een diep signaal zichtbaar maakt, houden we die tranche
+  // ook vast nadat de tijdelijke highlight verdwijnt. Zo klapt de lijst niet na
+  // enkele seconden terug naar 100 regels en blijft de herstelde scrollpositie stabiel.
+  useEffect(() => {
+    if (minimumVoorHighlight > zichtbaarAantal) {
+      setZichtbaarAantal(Math.min(rows.length, minimumVoorHighlight));
+    }
+  }, [minimumVoorHighlight, rows.length, zichtbaarAantal]);
+
   const effectiefZichtbaarAantal = Math.min(
     rows.length,
     Math.max(zichtbaarAantal, minimumVoorHighlight),
