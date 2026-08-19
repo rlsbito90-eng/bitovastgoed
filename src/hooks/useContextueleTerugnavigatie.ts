@@ -20,7 +20,6 @@ export function useContextueleTerugnavigatie(fallback: string) {
   const location = useLocation();
   const returnContext = leesCrmReturnContext(location.state);
   const module = getCrmDetailModule(location.pathname);
-  const originPath = module ? leesCrmDetailOrigin(module) : null;
 
   return useCallback(() => {
     if (returnContext) {
@@ -28,6 +27,10 @@ export function useContextueleTerugnavigatie(fallback: string) {
       return;
     }
 
+    // De origin-tracker schrijft na de routewisseling. Lees daarom pas wanneer
+    // de gebruiker daadwerkelijk Terug kiest; zo is ook een list->detail
+    // overgang zonder extra detail-render correct.
+    const originPath = module ? leesCrmDetailOrigin(module) : null;
     if (originPath) {
       navigate(originPath, { replace: true });
       return;
@@ -43,5 +46,5 @@ export function useContextueleTerugnavigatie(fallback: string) {
     }
 
     navigate(fallback, { replace: true });
-  }, [fallback, navigate, originPath, returnContext]);
+  }, [fallback, module, navigate, returnContext]);
 }
