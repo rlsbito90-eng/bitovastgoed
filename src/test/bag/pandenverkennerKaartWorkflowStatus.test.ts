@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { bepaalBagKaartWorkflowStatus } from '@/lib/bag/pandenverkennerKaartStatus';
 
-const kaart = readFileSync('src/components/bag/BagPandenKaart.tsx', 'utf8');
+const kaart = readFileSync('src/components/bag/BagPandenKaartRuntime.tsx', 'utf8');
 
 describe('Pandenverkenner visuele workflowstatus', () => {
   it('geeft CRM-lifecycle voorrang boven lokale selectie', () => {
