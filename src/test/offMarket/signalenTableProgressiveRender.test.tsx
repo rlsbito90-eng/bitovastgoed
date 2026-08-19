@@ -64,7 +64,7 @@ describe('SignalenTable — progressieve render', () => {
   it('rendert een diep laatst bekeken signaal direct zodat terugnavigatie het kan herstellen', () => {
     renderLijst(Array.from({ length: 250 }, (_, i) => maakSignaal(i)), 's219');
 
-    expect(screen.getByText('300 van 250 signalen weergegeven')).toBeFalsy();
+    expect(screen.queryByText('300 van 250 signalen weergegeven')).toBeNull();
     expect(screen.getByText('250 van 250 signalen weergegeven')).toBeTruthy();
     expect(document.querySelector('[data-row-id="s219"]')).toBeTruthy();
   });
