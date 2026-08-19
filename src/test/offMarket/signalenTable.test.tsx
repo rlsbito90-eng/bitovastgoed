@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SignalenTable, { STANDAARD_ZICHTBARE_KOLOMMEN, SIGNALEN_KOLOMMEN } from '@/components/offmarket/SignalenTable';
@@ -13,6 +13,19 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+
+beforeEach(() => {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: query === '(min-width: 640px)',
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+});
 
 const baseSignaal = {
   id: 's1',
@@ -79,8 +92,7 @@ describe('SignalenTable — standaard acquisitie-grid', () => {
   it('toont adres zonder postcode in de standaard adres-cel', () => {
     renderTable([baseSignaal]);
     expect(screen.getAllByText('Hoofdweg 160').length).toBeGreaterThan(0);
-    // Postcode mag niet in de desktop-grid verschijnen
-    const desktop = document.querySelector('.hidden.sm\\:block');
+    const desktop = document.querySelector('table');
     expect(desktop?.textContent ?? '').not.toContain('1057 DB');
   });
 
@@ -91,7 +103,6 @@ describe('SignalenTable — standaard acquisitie-grid', () => {
 
   it('Eigenaar-kolom toont eigenaarstatus-label', () => {
     renderTable([baseSignaal]);
-    // Desktop badge + mobile badge — beide tonen "Te onderzoeken"
     expect(screen.getAllByText('Te onderzoeken').length).toBeGreaterThan(0);
   });
 
