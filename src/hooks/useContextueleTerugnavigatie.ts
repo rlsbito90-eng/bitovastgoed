@@ -1,18 +1,41 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  getCrmDetailModule,
+  leesCrmDetailOrigin,
+  leesCrmReturnContext,
+} from '@/lib/crmReturnContext';
 
 /**
- * Centrale regel voor detail -> lijst-navigatie.
+ * Centrale regel voor detail -> herkomst-navigatie.
  *
- * `Terug` betekent terug naar de echte vorige browser/app-entry, zodat tab,
- * werkbak, filters, sortering, selectie en scrollcontext die op die entry
- * leefden niet worden vervangen door een nieuwe standaardroute. Alleen bij een
- * directe deep-link zonder bruikbare app-history wordt de modulefallback gebruikt.
+ * Prioriteit:
+ * 1. expliciete cross-module return-context;
+ * 2. stabiele origin van de huidige detailketen;
+ * 3. echte browser-history als legacy fallback;
+ * 4. modulefallback bij een directe deep-link.
  */
 export function useContextueleTerugnavigatie(fallback: string) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnContext = leesCrmReturnContext(location.state);
+  const module = getCrmDetailModule(location.pathname);
 
   return useCallback(() => {
+    if (returnContext) {
+      navigate(returnContext.path, { replace: true });
+      return;
+    }
+
+    // De origin-tracker schrijft na de routewisseling. Lees daarom pas wanneer
+    // de gebruiker daadwerkelijk Terug kiest; zo is ook een list->detail
+    // overgang zonder extra detail-render correct.
+    const originPath = module ? leesCrmDetailOrigin(module) : null;
+    if (originPath) {
+      navigate(originPath, { replace: true });
+      return;
+    }
+
     const idx = typeof window !== 'undefined'
       ? (window.history.state as { idx?: unknown } | null)?.idx
       : null;
@@ -22,6 +45,6 @@ export function useContextueleTerugnavigatie(fallback: string) {
       return;
     }
 
-    navigate(fallback);
-  }, [fallback, navigate]);
+    navigate(fallback, { replace: true });
+  }, [fallback, module, navigate, returnContext]);
 }

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes, useParams } from 'react-router-dom';
 import CrmDetailNavigationBoundary from '@/components/CrmDetailNavigationBoundary';
+import CrmNavigationOriginTracker from '@/components/CrmNavigationOriginTracker';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { SubcategorieProvider } from '@/hooks/useSubcategorieen';
@@ -69,6 +70,7 @@ export default function CrmProtectedApp() {
             <VastgoedkansenProvider>
               <Suspense fallback={<RouteFallback />}>
                 <AppLayout>
+                  <CrmNavigationOriginTracker />
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/relaties" element={<RelatiesPage />} />

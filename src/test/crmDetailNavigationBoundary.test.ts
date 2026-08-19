@@ -24,15 +24,27 @@ describe('CrmDetailNavigationBoundary', () => {
       targetPathname: '/deals',
       fallbackPath: '/deals',
       hasReturnContext: true,
+      hasOriginContext: true,
     })).toBe('return');
   });
 
-  it('behandelt de normale hoofdlijst-link zonder return-context als echte history-back', () => {
+  it('kiest na return-context de stabiele detail-origin vóór browser-history', () => {
+    expect(bepaalCrmDetailNavigationAction({
+      currentPathname: '/off-market/s3',
+      targetPathname: '/off-market',
+      fallbackPath: '/off-market',
+      hasReturnContext: false,
+      hasOriginContext: true,
+    })).toBe('origin');
+  });
+
+  it('gebruikt alleen zonder expliciete context nog de browser-history', () => {
     expect(bepaalCrmDetailNavigationAction({
       currentPathname: '/deals/d1',
       targetPathname: '/deals',
       fallbackPath: '/deals',
       hasReturnContext: false,
+      hasOriginContext: false,
     })).toBe('history-back');
     expect(bepaalCrmDetailNavigationAction({
       currentPathname: '/vastgoedkansen/v1',
