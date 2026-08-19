@@ -50,7 +50,7 @@ describe('Acquisitieselectie productie-UX-contract', () => {
 
   it('biedt bij een nog niet geprinte BAT een expliciete append-only kleurupgrade', () => {
     expect(batchWerkbakBron).toContain('ProductiekernBatchDocumentversieVernieuwen');
-    expect(vernieuwBron).toContain('Nieuwe kleurversie maken');
+    expect(vernieuwBron).toContain('Nieuwe documentversie maken');
     expect(vernieuwBron).toContain("batch.status !== 'documenten_gegenereerd' || batch.printdatum");
     expect(vernieuwBron).toContain('documentversie: geladen.batch.documentversie + 1');
     expect(vernieuwBron).toContain('vernieuwProductiekernBatchdocumenten');
