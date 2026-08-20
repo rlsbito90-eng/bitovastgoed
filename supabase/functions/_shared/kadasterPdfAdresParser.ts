@@ -28,7 +28,7 @@ const RECHTSVORM_PATRONEN: RegExp[] = [
   /\bstichting\b/i, /\bvereniging\b/i, /\bco(?:ö|o)peratie\b/i,
   /\bmaatschap\b/i, /\bholding\b/i, /\bbeheer\b/i,
   /\bgmbh\b/i, /\bltd\b/i, /\blimited\b/i, /\bs\.?a\.?\b/i,
-  /\bs\.?\s*[àa]\.?\s*r\.?\s*l\.?\b/i,
+  /\bs\.?\s*[àa]\.?\s*r\.?\s*l\.?(?:\s|$)/i,
 ];
 
 function isRechtspersoonNaam(naam: string | null | undefined): boolean {
