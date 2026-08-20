@@ -1,5 +1,5 @@
 // Inline eigenaarstatus-dropdown voor Signaal-Cockpit.
-// Trigger = control-wrapper rond badge + chevron, duidelijk klikbaar.
+// Eigenaarstatus is bewust beperkt tot identificatie; commerciële voortgang hoort bij Signaalstatus.
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -8,7 +8,7 @@ import {
 import { OffMarketEigenaarstatusBadge } from '@/components/offmarket/OffMarketBadges';
 import { useUpdateOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
 import {
-  EIGENAARSTATUS_LABEL, EIGENAARSTATUS_VOLGORDE,
+  EIGENAARSTATUS_LABEL,
   type OffMarketEigenaarstatus,
 } from '@/lib/offMarket/types';
 
@@ -17,8 +17,15 @@ interface Props {
   eigenaarstatus: OffMarketEigenaarstatus;
 }
 
+const IDENTIFICATIE_STATUSSEN: OffMarketEigenaarstatus[] = [
+  'onbekend',
+  'te_onderzoeken',
+  'gevonden',
+];
+
 export default function EigenaarstatusWijzigDropdown({ signaalId, eigenaarstatus }: Props) {
   const update = useUpdateOffMarketSignaal();
+  const legacyProcesstatus = !IDENTIFICATIE_STATUSSEN.includes(eigenaarstatus);
 
   const zet = async (nieuw: OffMarketEigenaarstatus) => {
     if (nieuw === eigenaarstatus || update.isPending) return;
@@ -35,6 +42,7 @@ export default function EigenaarstatusWijzigDropdown({ signaalId, eigenaarstatus
       <SelectTrigger
         aria-label="Eigenaarstatus wijzigen"
         data-testid="eigenaarstatus-wijzig-dropdown"
+        title="Eigenaarstatus geeft alleen aan of de eigenaar bekend is. Benadering en gesprekken staan bij Status."
         className="h-10 min-h-10 w-auto gap-1.5 px-2 py-1.5 rounded-md border border-border bg-card/60 hover:border-accent/50 hover:bg-muted/60 focus:ring-1 focus:ring-ring focus:ring-offset-0 overflow-visible [&>svg]:hidden [&>span]:!line-clamp-none [&>span]:!overflow-visible"
       >
         <span className="inline-flex items-center gap-1.5 leading-none overflow-visible">
@@ -43,7 +51,12 @@ export default function EigenaarstatusWijzigDropdown({ signaalId, eigenaarstatus
         </span>
       </SelectTrigger>
       <SelectContent align="end">
-        {EIGENAARSTATUS_VOLGORDE.map((s) => (
+        {legacyProcesstatus && (
+          <SelectItem value={eigenaarstatus} disabled data-testid="eigenaarstatus-legacy">
+            {EIGENAARSTATUS_LABEL[eigenaarstatus]} · oude processtatus
+          </SelectItem>
+        )}
+        {IDENTIFICATIE_STATUSSEN.map((s) => (
           <SelectItem key={s} value={s} data-testid={`eigenaarstatus-optie-${s}`}>
             {EIGENAARSTATUS_LABEL[s]}
           </SelectItem>

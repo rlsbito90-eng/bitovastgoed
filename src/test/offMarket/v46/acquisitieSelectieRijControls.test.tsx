@@ -143,14 +143,15 @@ describe('V46 AcquisitieSelectieTab — rij-controls', () => {
     });
   });
 
-  it('eigenaarstatus wijzigen roept update aan met { eigenaarstatus }', async () => {
+  it('eigenaarstatus is identificatiegericht en wijzigt naar te onderzoeken', async () => {
     const user = userEvent.setup();
     render(wrap(<AcquisitieSelectieTab />));
     const trigger = await screen.findByTestId('eigenaarstatus-wijzig-dropdown');
     await user.click(trigger);
-    await user.click(await screen.findByTestId('eigenaarstatus-optie-benaderd'));
+    expect(screen.queryByTestId('eigenaarstatus-optie-benaderd')).not.toBeInTheDocument();
+    await user.click(await screen.findByTestId('eigenaarstatus-optie-te_onderzoeken'));
     await waitFor(() => {
-      expect(updateMock.mock.calls.some((c) => c[0]?.patch?.eigenaarstatus === 'benaderd')).toBe(true);
+      expect(updateMock.mock.calls.some((c) => c[0]?.patch?.eigenaarstatus === 'te_onderzoeken')).toBe(true);
     });
   });
 
