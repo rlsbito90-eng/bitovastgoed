@@ -15,6 +15,12 @@ import { bouwProductiekernPrintbatchModellen } from '@/lib/offMarket/acquisitie/
 import type { AcquisitieProductiekernRepository } from '@/lib/offMarket/acquisitie/productiekernRepository';
 import ProductiekernPrintbatchWerkbak from './ProductiekernPrintbatchWerkbak';
 
+vi.mock('./ProductiekernPrintbatchPartijContext', () => ({
+  default: ({ briefnummer }: { briefnummer: string }) => (
+    <span data-testid={`mock-printbatch-partijcontext-${briefnummer}`} />
+  ),
+}));
+
 const OPEN_PRINTBATCHES_KEY = 'off-market-acq:open-printbatches';
 
 const batch: PrintbatchContract = {
