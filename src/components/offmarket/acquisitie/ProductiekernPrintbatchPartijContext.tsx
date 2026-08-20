@@ -3,6 +3,7 @@ import { AlertTriangle, Layers3, MessageCircle, Send } from 'lucide-react';
 import { useAcquisitiePartijOverzicht } from '@/hooks/useAcquisitiePartijOverzicht';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { partijKeyVoorBrief } from '@/lib/offMarket/acquisitie/partijOverzicht';
+import { openAcquisitiePartij } from '@/lib/offMarket/acquisitie/partijNavigatie';
 
 function datumKort(iso: string | null): string {
   if (!iso) return '—';
@@ -42,9 +43,14 @@ export default function ProductiekernPrintbatchPartijContext({
     <div className="mt-1.5 space-y-1" data-testid={`printbatch-partijcontext-${briefnummer}`}>
       <div className="flex flex-wrap items-center gap-1">
         {bekendePartij && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
+          <button
+            type="button"
+            onClick={() => openAcquisitiePartij(partij.key)}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            title={`Open ${partij.naam} in Eigenaren & portefeuilles`}
+          >
             <Layers3 className="h-3 w-3" /> Bekende partij · {partij.objecten.length} objecten
-          </span>
+          </button>
         )}
         {eerderBenaderd && (
           <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
