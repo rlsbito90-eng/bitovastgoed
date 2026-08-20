@@ -10,6 +10,8 @@ export interface PartijObject {
   adres: string;
   typeSignaal: string | null;
   status: string | null;
+  benaderd: boolean;
+  laatsteContactOp: string | null;
 }
 
 export interface PartijOverzicht {
@@ -21,6 +23,8 @@ export interface PartijOverzicht {
   briefAantal: number;
   verstuurdAantal: number;
   laatsteContactOp: string | null;
+  laatsteContactSignaalId: string | null;
+  laatsteContactObjectAdres: string | null;
   laatsteRespons: string | null;
   laatsteResponsOp: string | null;
   advies: PartijAdvies;
@@ -88,6 +92,11 @@ function bepaalAdvies(input: {
   return 'normaal';
 }
 
+function contactDatum(brief: OffMarketBrief): string | null {
+  if (brief.status !== 'verstuurd') return null;
+  return brief.verzonden_op ?? brief.postdatum ?? brief.updated_at ?? brief.created_at ?? null;
+}
+
 export function bouwPartijenOverzicht(
   signalen: readonly OffMarketSignaal[],
   brieven: readonly OffMarketBrief[],
@@ -134,6 +143,8 @@ export function bouwPartijenOverzicht(
         adres: formatSignaalAdres(signaal) || signaal.adres || signaal.titel || 'Onbekend object',
         typeSignaal: signaal.type_signaal ?? null,
         status: signaal.status ?? null,
+        benaderd: false,
+        laatsteContactOp: null,
       });
     }
   }
@@ -160,18 +171,37 @@ export function bouwPartijenOverzicht(
   return [...perPartij.values()].map((partij) => {
     const partijBrieven = [...partij.brieven.values()];
     const verstuurd = partijBrieven.filter((brief) => brief.status === 'verstuurd');
-    const contacten = verstuurd
-      .map((brief) => brief.verzonden_op ?? brief.postdatum ?? brief.updated_at ?? brief.created_at)
-      .filter((v): v is string => !!v)
-      .sort((a, b) => b.localeCompare(a));
     const reacties = partijBrieven
       .filter((brief) => !!brief.responsstatus)
       .sort((a, b) => String(b.responsdatum ?? b.updated_at ?? b.created_at)
         .localeCompare(String(a.responsdatum ?? a.updated_at ?? a.created_at)));
     const laatsteResponsBrief = reacties[0];
+
+    const laatsteContactPerSignaal = new Map<string, string>();
+    for (const brief of verstuurd) {
+      const datum = contactDatum(brief);
+      if (!datum) continue;
+      const huidig = laatsteContactPerSignaal.get(brief.signaal_id);
+      if (!huidig || datum.localeCompare(huidig) > 0) {
+        laatsteContactPerSignaal.set(brief.signaal_id, datum);
+      }
+    }
+
     const objecten = [...partij.objecten.values()]
+      .map((object) => {
+        const laatsteContactOp = laatsteContactPerSignaal.get(object.signaalId) ?? null;
+        return {
+          ...object,
+          benaderd: !!laatsteContactOp,
+          laatsteContactOp,
+        };
+      })
       .sort((a, b) => a.adres.localeCompare(b.adres, 'nl'));
-    const laatsteContactOp = contacten[0] ?? null;
+
+    const laatsteContactObject = objecten
+      .filter((object) => !!object.laatsteContactOp)
+      .sort((a, b) => String(b.laatsteContactOp).localeCompare(String(a.laatsteContactOp)))[0];
+    const laatsteContactOp = laatsteContactObject?.laatsteContactOp ?? null;
     const laatsteRespons = laatsteResponsBrief?.responsstatus ?? null;
 
     return {
@@ -183,6 +213,8 @@ export function bouwPartijenOverzicht(
       briefAantal: partijBrieven.length,
       verstuurdAantal: verstuurd.length,
       laatsteContactOp,
+      laatsteContactSignaalId: laatsteContactObject?.signaalId ?? null,
+      laatsteContactObjectAdres: laatsteContactObject?.adres ?? null,
       laatsteRespons,
       laatsteResponsOp: laatsteResponsBrief?.responsdatum ?? null,
       advies: bepaalAdvies({

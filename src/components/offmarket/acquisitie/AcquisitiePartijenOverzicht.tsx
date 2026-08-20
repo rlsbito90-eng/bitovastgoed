@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Building2, UserRound, ShieldAlert } from 'lucide-react';
+import { ChevronDown, ChevronRight, Building2, UserRound, ShieldAlert, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { PartijOverzicht } from '@/lib/offMarket/acquisitie/partijOverzicht';
 
@@ -28,8 +28,6 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
   const [open, setOpen] = useState(false);
   const [uitgeklapt, setUitgeklapt] = useState<Set<string>>(new Set());
 
-  // Dit overzicht is bedoeld als portefeuille-signalering: één-objectpartijen
-  // horen hier bewust niet in. Een algemene namenlijst kan later apart komen.
   const portefeuillePartijen = useMemo(
     () => partijen.filter((partij) => partij.objecten.length >= 2),
     [partijen],
@@ -82,6 +80,7 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
               {portefeuillePartijen.map((partij) => {
                 const expanded = uitgeklapt.has(partij.key);
                 const aandacht = partij.advies !== 'normaal' && partij.advies !== 'portefeuille';
+                const benaderdeObjecten = partij.objecten.filter((object) => object.benaderd).length;
                 return (
                   <li key={partij.key} className="px-3 py-2.5" data-testid="acquisitie-partij-rij">
                     <button
@@ -100,9 +99,9 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
                           <span className="rounded-full border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                             {partij.objecten.length} objecten
                           </span>
-                          {partij.verstuurdAantal > 0 && (
+                          {benaderdeObjecten > 0 && (
                             <span className="rounded-full border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                              {partij.verstuurdAantal} verstuurd
+                              {benaderdeObjecten} benaderd
                             </span>
                           )}
                           {partij.advies !== 'normaal' && (
@@ -114,8 +113,9 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
                           )}
                         </div>
                         <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          Laatste contact: {datumKort(partij.laatsteContactOp)}
-                          {partij.laatsteRespons ? ` · reactie: ${partij.laatsteRespons.replaceAll('_', ' ')}` : ''}
+                          {partij.laatsteContactOp
+                            ? <>Laatste contact: {datumKort(partij.laatsteContactOp)}{partij.laatsteContactObjectAdres ? ` · ${partij.laatsteContactObjectAdres}` : ''}</>
+                            : 'Nog niet benaderd'}
                         </p>
                       </div>
                     </button>
@@ -131,8 +131,12 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
                           <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Objecten / signalen</p>
                           <ul className="space-y-1">
                             {partij.objecten.map((object) => (
-                              <li key={object.signaalId} className="flex flex-wrap items-center gap-2 text-xs">
+                              <li key={object.signaalId} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                                 <span className="min-w-0 flex-1 break-words">{object.adres}</span>
+                                <span className={`inline-flex items-center gap-1 text-[11px] ${object.benaderd ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                  {object.benaderd && <Send className="h-3 w-3" />}
+                                  {object.benaderd ? `Brief verstuurd · ${datumKort(object.laatsteContactOp)}` : 'Nog niet benaderd'}
+                                </span>
                                 <Button
                                   type="button"
                                   size="sm"
@@ -146,9 +150,6 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
                             ))}
                           </ul>
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          {partij.briefAantal} briefrecord{partij.briefAantal === 1 ? '' : 's'} · {partij.verstuurdAantal} daadwerkelijk verstuurd.
-                        </p>
                       </div>
                     )}
                   </li>
