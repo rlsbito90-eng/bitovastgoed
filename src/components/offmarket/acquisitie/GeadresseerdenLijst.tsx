@@ -1,4 +1,8 @@
+import { Layers3 } from 'lucide-react';
 import { naarVoorlettersAchternaam } from '@/lib/format/naam';
+import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
+import { useAcquisitiePartijOverzicht } from '@/hooks/useAcquisitiePartijOverzicht';
+import { partijKeyVoorKandidaat } from '@/lib/offMarket/acquisitie/partijOverzicht';
 
 export interface GeadresseerdeVoorLijst {
   key: string;
@@ -32,6 +36,9 @@ export function weergaveadresGeadresseerde(adres: string | null | undefined): st
 export default function GeadresseerdenLijst({
   geadresseerden,
 }: GeadresseerdenLijstProps) {
+  const { data: alleSignalen = [] } = useOffMarketSignalen();
+  const partijOverzicht = useAcquisitiePartijOverzicht(alleSignalen);
+
   if (geadresseerden.length === 0) return null;
 
   return (
@@ -46,14 +53,29 @@ export default function GeadresseerdenLijst({
       <ul className="space-y-1.5 text-[11px] text-muted-foreground">
         {geadresseerden.map((geadresseerde) => {
           const adres = weergaveadresGeadresseerde(geadresseerde.verzendadres);
+          const partijKey = partijKeyVoorKandidaat(geadresseerde);
+          const partij = partijKey ? partijOverzicht.perKey.get(partijKey) : undefined;
+          const bekendePartij = partij && partij.objecten.length >= 2 ? partij : undefined;
           return (
             <li
               key={geadresseerde.key}
               data-testid="acquisitie-rij-geadresseerde"
               className="min-w-0 break-words"
             >
-              <div className="font-medium text-foreground" data-testid="acquisitie-rij-geadresseerde-naam">
-                {weergavenaamGeadresseerde(geadresseerde)}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <div className="font-medium text-foreground" data-testid="acquisitie-rij-geadresseerde-naam">
+                  {weergavenaamGeadresseerde(geadresseerde)}
+                </div>
+                {bekendePartij && (
+                  <span
+                    data-testid="acquisitie-rij-bekende-partij"
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900"
+                    title={`Deze partij is gekoppeld aan ${bekendePartij.objecten.length} bekende objecten.`}
+                  >
+                    <Layers3 className="h-3 w-3" />
+                    Bekende partij · {bekendePartij.objecten.length} objecten
+                  </span>
+                )}
               </div>
               {adres ? (
                 <div data-testid="acquisitie-rij-geadresseerde-adres">
