@@ -31,8 +31,9 @@ function normaliseer(waarde: string | null | undefined): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/\b(besloten vennootschap|b\.v\.|bv)\b/g, ' bv ')
     .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\bbesloten\s+vennootschap\b/g, ' bv ')
+    .replace(/\bb\s+v\b/g, ' bv ')
     .replace(/\s+/g, ' ')
     .trim();
 }
