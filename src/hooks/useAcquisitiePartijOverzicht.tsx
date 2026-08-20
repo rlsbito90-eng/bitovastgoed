@@ -3,7 +3,27 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
-import { bouwPartijenOverzicht } from '@/lib/offMarket/acquisitie/partijOverzicht';
+import { bouwPartijenOverzicht, type PartijOverzicht } from '@/lib/offMarket/acquisitie/partijOverzicht';
+
+let cachedSignalen: readonly OffMarketSignaal[] | null = null;
+let cachedBrieven: readonly OffMarketBrief[] | null = null;
+let cachedPartijen: PartijOverzicht[] = [];
+
+/**
+ * Meerdere acquisitierijen gebruiken hetzelfde partijregister. React Query deelt
+ * de brondata al; deze kleine referentiecache voorkomt dat iedere zichtbare rij
+ * de volledige partijgroepering opnieuw uitrekent.
+ */
+function bouwPartijenOverzichtGecachet(
+  signalen: readonly OffMarketSignaal[],
+  brieven: readonly OffMarketBrief[],
+): PartijOverzicht[] {
+  if (cachedSignalen === signalen && cachedBrieven === brieven) return cachedPartijen;
+  cachedSignalen = signalen;
+  cachedBrieven = brieven;
+  cachedPartijen = bouwPartijenOverzicht(signalen, brieven);
+  return cachedPartijen;
+}
 
 export function useAlleOffMarketBrievenVoorPartijen() {
   return useQuery({
@@ -23,15 +43,16 @@ export function useAlleOffMarketBrievenVoorPartijen() {
 
 export function useAcquisitiePartijOverzicht(signalen: readonly OffMarketSignaal[]) {
   const brievenQuery = useAlleOffMarketBrievenVoorPartijen();
+  const brieven = brievenQuery.data ?? [];
   const partijen = useMemo(
-    () => bouwPartijenOverzicht(signalen, brievenQuery.data ?? []),
-    [signalen, brievenQuery.data],
+    () => bouwPartijenOverzichtGecachet(signalen, brieven),
+    [signalen, brieven],
   );
   const perKey = useMemo(() => new Map(partijen.map((partij) => [partij.key, partij] as const)), [partijen]);
   return {
     ...brievenQuery,
     partijen,
     perKey,
-    alleBrieven: brievenQuery.data ?? [],
+    alleBrieven: brieven,
   };
 }
