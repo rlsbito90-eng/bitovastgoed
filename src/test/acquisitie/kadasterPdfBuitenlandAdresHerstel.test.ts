@@ -3,7 +3,7 @@ import { extractKadasterAdresVoorstellenUitTekst } from '../../../supabase/funct
 import { normaliseerKadasterPdfTekst } from '../../../supabase/functions/_shared/kadasterPdfTekstNormalisatie';
 
 describe('Kadaster PDF adresherstel — buitenlandse adressen', () => {
-  it('leest een Luxemburgs adres zonder Nederlandse postcode uit het rechtenblok', () => {
+  it('leest een Luxemburgs adres met expliciete landregel uit het rechtenblok', () => {
     const tekst = normaliseerKadasterPdfTekst([
       'Objectinformatie',
       'Hemonystraat 66',
@@ -12,8 +12,8 @@ describe('Kadaster PDF adresherstel — buitenlandse adressen', () => {
       'Eigendom (recht van)',
       'Aandeel 1/1',
       'Naam Spring Properties E S.à r.l.',
-      'Adres 6C, rue Gabriel Lippmann',
-      'L-5365 MUNSBACH',
+      'Adres 1, Allée Scheffer',
+      'L-2520 LUXEMBOURG',
       'Luxembourg',
       'Bijzonderheden',
     ].join('\n'));
@@ -21,12 +21,30 @@ describe('Kadaster PDF adresherstel — buitenlandse adressen', () => {
     expect(extractKadasterAdresVoorstellenUitTekst(tekst)).toEqual([
       expect.objectContaining({
         bedrijfsnaam: 'Spring Properties E S.à r.l.',
-        verzendadres: '6C, rue Gabriel Lippmann\nL-5365 MUNSBACH\nLuxembourg',
+        verzendadres: '1, Allée Scheffer\nL-2520 LUXEMBOURG\nLuxembourg',
       }),
     ]);
   });
 
-  it('blijft conservatief bij twee regels zonder herkenbare landregel', () => {
+  it('vult bij een tweeregelig L-#### adres uitsluitend de Luxemburg-landregel aan', () => {
+    const tekst = normaliseerKadasterPdfTekst([
+      'Rechten',
+      'Eigendom (recht van)',
+      'Naam Spring Properties E S.à r.l.',
+      'Adres 1, Allée Scheffer',
+      'L-2520 LUXEMBOURG',
+      'Bijzonderheden',
+    ].join('\n'));
+
+    expect(extractKadasterAdresVoorstellenUitTekst(tekst)).toEqual([
+      expect.objectContaining({
+        bedrijfsnaam: 'Spring Properties E S.à r.l.',
+        verzendadres: '1, Allée Scheffer\nL-2520 LUXEMBOURG\nLuxembourg',
+      }),
+    ]);
+  });
+
+  it('blijft conservatief bij twee regels zonder herkenbare land- of landcode', () => {
     const tekst = normaliseerKadasterPdfTekst([
       'Rechten',
       'Eigendom (recht van)',
