@@ -16,6 +16,13 @@ interface GeadresseerdenLijstProps {
   geadresseerden: GeadresseerdeVoorLijst[];
 }
 
+function datumKort(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return new Intl.DateTimeFormat('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
+}
+
 export function weergavenaamGeadresseerde(geadresseerde: GeadresseerdeVoorLijst): string {
   if (geadresseerde.bedrijfsnaam?.trim()) return geadresseerde.bedrijfsnaam.trim();
   if (geadresseerde.naam?.trim()) return naarVoorlettersAchternaam(geadresseerde.naam.trim());
@@ -27,12 +34,6 @@ export function weergaveadresGeadresseerde(adres: string | null | undefined): st
   return schoon || null;
 }
 
-/**
- * Altijd zichtbare eigenaar-/geadresseerdenweergave voor één acquisitiedossier.
- * De objectregel erboven blijft het primaire anker; hier staan alle partijen met
- * hun correspondentieadres zodat ook eigenaren op een ander adres direct aan het
- * juiste object te koppelen zijn.
- */
 export default function GeadresseerdenLijst({
   geadresseerden,
 }: GeadresseerdenLijstProps) {
@@ -87,6 +88,13 @@ export default function GeadresseerdenLijst({
               ) : (
                 <div className="text-destructive" data-testid="acquisitie-rij-geadresseerde-adres-ontbreekt">
                   Postadres ontbreekt
+                </div>
+              )}
+              {bekendePartij && bekendePartij.laatsteContactOp && (
+                <div className="mt-0.5 text-[10px] text-muted-foreground" data-testid="acquisitie-rij-laatste-partijcontact">
+                  <span className="font-medium text-foreground/80">Laatste partijcontact:</span>{' '}
+                  {datumKort(bekendePartij.laatsteContactOp)}
+                  {bekendePartij.laatsteContactObjectAdres ? ` · ${bekendePartij.laatsteContactObjectAdres}` : ''}
                 </div>
               )}
             </li>
