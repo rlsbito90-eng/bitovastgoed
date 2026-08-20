@@ -11,6 +11,7 @@ import { laadProductiekernBatch } from '@/lib/offMarket/acquisitie/productiekern
 import ProductiekernBatchDocumentversieVernieuwen from './ProductiekernBatchDocumentversieVernieuwen';
 import ProductiekernPrintPostBevestiging from './ProductiekernPrintPostBevestiging';
 import ProductiekernVastgelegdeDocumentenDownload from './ProductiekernVastgelegdeDocumentenDownload';
+import ProductiekernPrintbatchPartijContext from './ProductiekernPrintbatchPartijContext';
 
 const OPEN_PRINTBATCHES_KEY = 'off-market-acq:open-printbatches';
 
@@ -289,14 +290,15 @@ export default function ProductiekernPrintbatchWerkbak({
                   {model.regels.map((regel) => (
                     <div
                       key={regel.briefVersieId}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3 py-2.5 text-xs sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center sm:py-2"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3 py-2.5 text-xs sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-start sm:py-2"
                     >
-                      <span className="col-start-1 row-start-1 font-mono-data font-medium text-foreground">
+                      <span className="col-start-1 row-start-1 pt-0.5 font-mono-data font-medium text-foreground">
                         {regel.briefnummer}
                       </span>
                       <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:row-start-1">
                         <p className="break-words font-medium text-foreground">{regel.geadresseerde || 'Geadresseerde ontbreekt'}</p>
                         <p className="break-words text-muted-foreground">{regel.objectLabel}</p>
+                        <ProductiekernPrintbatchPartijContext briefnummer={regel.briefnummer} />
                       </div>
                       <Link
                         to={`/off-market/${regel.signaalId}`}
