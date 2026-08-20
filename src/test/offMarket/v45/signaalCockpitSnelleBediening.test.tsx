@@ -95,16 +95,17 @@ describe('V45 SignaalCockpit — snelle acquisitiebediening', () => {
     });
   });
 
-  it('eigenaarstatus-dropdown wijzigt naar benaderd', async () => {
+  it('eigenaarstatus-dropdown bevat alleen identificatiestatussen en wijzigt naar gevonden', async () => {
     updateMock.mockClear();
     const user = userEvent.setup();
     wrap(<SignaalCockpit signaal={sig} taken={[]} briefStatus="geen" />);
     await user.click(screen.getByTestId('eigenaarstatus-wijzig-dropdown'));
-    const opt = await screen.findByTestId('eigenaarstatus-optie-benaderd');
+    expect(screen.queryByTestId('eigenaarstatus-optie-benaderd')).not.toBeInTheDocument();
+    const opt = await screen.findByTestId('eigenaarstatus-optie-gevonden');
     await user.click(opt);
     await waitFor(() => {
       expect(updateMock).toHaveBeenCalled();
-      expect(updateMock.mock.calls.some((c) => c[0]?.patch?.eigenaarstatus === 'benaderd')).toBe(true);
+      expect(updateMock.mock.calls.some((c) => c[0]?.patch?.eigenaarstatus === 'gevonden')).toBe(true);
     });
   });
 
