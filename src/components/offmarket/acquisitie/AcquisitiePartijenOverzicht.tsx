@@ -28,12 +28,18 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
   const [open, setOpen] = useState(false);
   const [uitgeklapt, setUitgeklapt] = useState<Set<string>>(new Set());
 
+  // Dit overzicht is bedoeld als portefeuille-signalering: één-objectpartijen
+  // horen hier bewust niet in. Een algemene namenlijst kan later apart komen.
+  const portefeuillePartijen = useMemo(
+    () => partijen.filter((partij) => partij.objecten.length >= 2),
+    [partijen],
+  );
+
   const statistiek = useMemo(() => ({
-    totaal: partijen.length,
-    meerdereObjecten: partijen.filter((p) => p.objecten.length > 1).length,
-    eerderBenaderd: partijen.filter((p) => p.verstuurdAantal > 0).length,
-    aandacht: partijen.filter((p) => ['recent_benaderd', 'warm_contact', 'niet_opnieuw'].includes(p.advies)).length,
-  }), [partijen]);
+    totaal: portefeuillePartijen.length,
+    eerderBenaderd: portefeuillePartijen.filter((p) => p.verstuurdAantal > 0).length,
+    aandacht: portefeuillePartijen.filter((p) => ['recent_benaderd', 'warm_contact', 'niet_opnieuw'].includes(p.advies)).length,
+  }), [portefeuillePartijen]);
 
   const toggle = (key: string) => setUitgeklapt((prev) => {
     const next = new Set(prev);
@@ -54,8 +60,8 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
           <p className="text-sm font-semibold text-foreground">Eigenaren &amp; portefeuilles</p>
           <p className="text-[11px] text-muted-foreground">
             {isLoading
-              ? 'Partijhistorie laden…'
-              : `${statistiek.totaal} partijen · ${statistiek.meerdereObjecten} met meerdere objecten · ${statistiek.eerderBenaderd} eerder benaderd`}
+              ? 'Portefeuilles laden…'
+              : `${statistiek.totaal} portefeuillehouder${statistiek.totaal === 1 ? '' : 's'} met 2+ objecten · ${statistiek.eerderBenaderd} eerder benaderd`}
           </p>
         </div>
         {!isLoading && statistiek.aandacht > 0 && (
@@ -68,12 +74,12 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
       {open && (
         <div className="border-t border-border/70">
           {isLoading ? (
-            <p className="px-3 py-4 text-xs text-muted-foreground">Partijen en contacthistorie laden…</p>
-          ) : partijen.length === 0 ? (
-            <p className="px-3 py-4 text-xs text-muted-foreground">Nog geen herkenbare eigenaren of geadresseerden.</p>
+            <p className="px-3 py-4 text-xs text-muted-foreground">Portefeuilles en contacthistorie laden…</p>
+          ) : portefeuillePartijen.length === 0 ? (
+            <p className="px-3 py-4 text-xs text-muted-foreground">Nog geen partijen met 2 of meer bekende objecten.</p>
           ) : (
             <ul className="divide-y divide-border/70">
-              {partijen.map((partij) => {
+              {portefeuillePartijen.map((partij) => {
                 const expanded = uitgeklapt.has(partij.key);
                 const aandacht = partij.advies !== 'normaal' && partij.advies !== 'portefeuille';
                 return (
@@ -92,7 +98,7 @@ export default function AcquisitiePartijenOverzicht({ partijen, isLoading, onOpe
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-sm font-medium text-foreground break-words">{partij.naam}</span>
                           <span className="rounded-full border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                            {partij.objecten.length} object{partij.objecten.length === 1 ? '' : 'en'}
+                            {partij.objecten.length} objecten
                           </span>
                           {partij.verstuurdAantal > 0 && (
                             <span className="rounded-full border bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
