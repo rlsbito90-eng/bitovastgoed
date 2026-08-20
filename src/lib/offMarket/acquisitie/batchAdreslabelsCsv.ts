@@ -5,14 +5,19 @@ const KOLOMMEN = [
   'adresregel', 'postcode', 'plaats', 'landregel',
 ] as const;
 
+const SCHEIDINGSTEKEN = ';';
+
 function csvCel(waarde: string | number | null): string {
   const tekst = waarde === null ? '' : String(waarde);
+  if (!/[;"\r\n]/.test(tekst)) return tekst;
   return `"${tekst.replace(/"/g, '""')}"`;
 }
 
 /**
- * Serializeert uitsluitend reeds gevalideerde labelrijen. UTF-8 BOM ondersteunt
- * praktisch openen in spreadsheetsoftware; CRLF maakt het bestand printdienstvriendelijk.
+ * Serializeert uitsluitend reeds gevalideerde labelrijen in het formaat dat
+ * Brother P-touch Editor op de Nederlandse macOS-workflow direct kan openen:
+ * UTF-8 zonder BOM, puntkomma als scheidingsteken en CRLF-regelafbreking.
+ * Alleen cellen die dat echt vereisen worden volgens CSV-regels geciteerd.
  */
 export function serializeerBatchAdreslabelsCsv(
   rijen: readonly BatchAdreslabelRij[],
@@ -27,8 +32,8 @@ export function serializeerBatchAdreslabelsCsv(
   });
 
   const regels = [
-    KOLOMMEN.map(csvCel).join(','),
-    ...rijen.map((rij) => KOLOMMEN.map((kolom) => csvCel(rij[kolom])).join(',')),
+    KOLOMMEN.map(csvCel).join(SCHEIDINGSTEKEN),
+    ...rijen.map((rij) => KOLOMMEN.map((kolom) => csvCel(rij[kolom])).join(SCHEIDINGSTEKEN)),
   ];
-  return `\uFEFF${regels.join('\r\n')}\r\n`;
+  return `${regels.join('\r\n')}\r\n`;
 }
