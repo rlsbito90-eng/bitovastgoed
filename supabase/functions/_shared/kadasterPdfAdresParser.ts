@@ -61,6 +61,7 @@ const NEGEER_LABELS = new Set(['Geboren', 'Te']);
 const INLINE_LABELS = VELD_LABELS.filter(l => l !== 'te' && l !== 'Geboren');
 const POSTCODE_RE = /\b(\d{4})\s?([A-Z]{2})\b/;
 const BUITENLAND_POSTCODE_RE = /\b(?:L-\d{4}|\d{4,6}(?:-\d{3,4})?|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i;
+const LUXEMBURG_POSTCODE_RE = /\bL-\d{4}\b/i;
 const LANDNAMEN_RE = /^(?:luxembourg|luxemburg|belgi[eë]|belgium|duitsland|germany|frankrijk|france|spanje|spain|portugal|itali[eë]|italy|verenigd koninkrijk|united kingdom|engeland|england|zwitserland|switzerland|oostenrijk|austria|hong kong|ierland|ireland|denemarken|denmark|zweden|sweden|noorwegen|norway|finland)$/i;
 
 function stripMarkdown(line: string): string {
@@ -120,16 +121,27 @@ function normaliseerStraatHuisnr(s: string): string {
     .trim();
 }
 function formatteerBuitenlandsAdres(values: string[] | undefined): string | null {
-  if (!values || values.length < 3) return null;
+  if (!values || values.length < 2) return null;
   const regels = values.map((v) => v.replace(/\s+/g, ' ').trim()).filter(Boolean);
-  if (regels.length < 3) return null;
-  const land = regels[regels.length - 1];
-  if (!LANDNAMEN_RE.test(land)) return null;
-  const midden = regels.slice(1, -1).join(' ');
-  if (!BUITENLAND_POSTCODE_RE.test(midden)) return null;
+  if (regels.length < 2) return null;
   const straat = normaliseerStraatHuisnr(regels[0]);
   if (!straat || straat === '-' || straat.toLowerCase() === 'onbekend') return null;
-  return [straat, ...regels.slice(1)].join('\n');
+
+  const land = regels[regels.length - 1];
+  if (regels.length >= 3 && LANDNAMEN_RE.test(land)) {
+    const midden = regels.slice(1, -1).join(' ');
+    if (!BUITENLAND_POSTCODE_RE.test(midden)) return null;
+    return [straat, ...regels.slice(1)].join('\n');
+  }
+
+  // Luxemburgse Kadaster-adressen komen ook voor als twee regels zonder
+  // expliciete landregel. De landcode in L-#### is voldoende specifiek om
+  // veilig de verplichte landregel voor postverzending aan te vullen.
+  const rest = regels.slice(1).join(' ');
+  if (LUXEMBURG_POSTCODE_RE.test(rest)) {
+    return [straat, ...regels.slice(1), 'Luxembourg'].join('\n');
+  }
+  return null;
 }
 function formatteerAdres(values: string[] | undefined): string | null {
   if (!values || values.length === 0) return null;
