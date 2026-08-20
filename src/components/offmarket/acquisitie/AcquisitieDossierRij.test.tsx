@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import AcquisitieDossierRij from './AcquisitieDossierRij';
 
+vi.mock('@/hooks/useOffMarketSignalen', () => ({
+  useOffMarketSignalen: () => ({ data: [] }),
+}));
+
+vi.mock('@/hooks/useAcquisitiePartijOverzicht', () => ({
+  useAcquisitiePartijOverzicht: () => ({ perKey: new Map() }),
+}));
+
 describe('AcquisitieDossierRij', () => {
   it('combineert kaartselectie, hoofdinhoud en zichtbare geadresseerden', () => {
     const onToggle = vi.fn();
