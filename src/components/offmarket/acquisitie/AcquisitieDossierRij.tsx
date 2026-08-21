@@ -1,6 +1,5 @@
 import {
   Children,
-  cloneElement,
   isValidElement,
   type ReactElement,
   type ReactNode,
@@ -63,39 +62,6 @@ function verzamelProductieIdentiteit(node: ReactNode, resultaat: ProductieIdenti
   });
 }
 
-function maakOpvolgHoofdinhoudSchoon(node: ReactNode, heeftFormeleBrief: boolean): ReactNode {
-  return Children.map(node, (child) => {
-    if (!isValidElement(child)) return child;
-    const element = child as ReactElement<any>;
-    const testId = element.props['data-testid'];
-
-    if (testId === 'acquisitie-rij-briefnummer' || testId === 'acquisitie-rij-batchnummer') {
-      return null;
-    }
-
-    // In Opvolgen is de eigenaar al als primaire context zichtbaar. De losse
-    // proceschip "Eigenaar gevonden" voegt daar geen beslisinformatie toe.
-    if (
-      testId === 'acquisitie-rij-eigenaarproces'
-      && tekstUitNode(element).toLowerCase().includes('gevonden')
-    ) {
-      return null;
-    }
-
-    // Een formele BR-identiteit bewijst dat er een brief bestaat. Verberg dan
-    // de generieke briefstatuschip uit de oude kaartlaag, zodat combinaties als
-    // "Benaderd" + "Geen brief" niet meer naast elkaar kunnen staan.
-    if (heeftFormeleBrief && testId === 'acquisitie-rij-briefstatus') return null;
-
-    if (!('children' in element.props)) return element;
-    return cloneElement(
-      element,
-      undefined,
-      maakOpvolgHoofdinhoudSchoon(element.props.children, heeftFormeleBrief),
-    );
-  });
-}
-
 function eigenaarLabel(geadresseerden: GeadresseerdeVoorDossierRij[]): string | null {
   const eerste = geadresseerden[0];
   if (!eerste) return null;
@@ -112,6 +78,11 @@ function isOpvolgingsActie(werkbak: string, actieCategorie?: string | null): boo
  * Opvolging is bewust actiegericht: BR/BAT-identiteit en de volledige
  * geadresseerdenkaart blijven beschikbaar, maar staan secundair en inklapbaar.
  * Andere werkbakken behouden de bestaande presentatie ongewijzigd.
+ *
+ * Belangrijk: de bestaande hoofdinhoud wordt niet gekloond of herschreven.
+ * Alleen de visuele zichtbaarheid van secundaire badges verandert in Opvolgen.
+ * Zo blijven de bestaande React Query-/dropdowncomponenten exact dezelfde boom
+ * houden als in de overige werkbakken.
  */
 export default function AcquisitieDossierRij({
   geselecteerd,
@@ -128,9 +99,6 @@ export default function AcquisitieDossierRij({
   const productie: ProductieIdentiteit = { briefnummers: [], batchnummers: [] };
   if (opvolging) verzamelProductieIdentiteit(hoofdinhoud, productie);
 
-  const compactHoofdinhoud = opvolging
-    ? maakOpvolgHoofdinhoudSchoon(hoofdinhoud, productie.briefnummers.length > 0)
-    : hoofdinhoud;
   const eigenaar = eigenaarLabel(geadresseerden);
   const meerdereGeadresseerden = geadresseerden.length > 1;
   const briefSamenvatting = productie.briefnummers.length > 1
@@ -140,6 +108,15 @@ export default function AcquisitieDossierRij({
       : fase === 'email_verzonden'
         ? 'E-mail verzonden'
         : 'Benadering geregistreerd';
+
+  const verbergFormeleBriefstatus = opvolging && productie.briefnummers.length > 0;
+  const hoofdinhoudClass = opvolging
+    ? [
+        "[&_[data-testid='acquisitie-rij-briefnummer']]:hidden",
+        "[&_[data-testid='acquisitie-rij-batchnummer']]:hidden",
+        verbergFormeleBriefstatus ? "[&_[data-testid='acquisitie-rij-briefstatus']]:hidden" : '',
+      ].filter(Boolean).join(' ')
+    : '';
 
   return (
     <SelecteerbareDossierRij
@@ -152,7 +129,7 @@ export default function AcquisitieDossierRij({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
-          {compactHoofdinhoud}
+          <div className={hoofdinhoudClass}>{hoofdinhoud}</div>
 
           {opvolging ? (
             <div className="mt-2 space-y-2" data-testid="acquisitie-opvolgen-compact">
