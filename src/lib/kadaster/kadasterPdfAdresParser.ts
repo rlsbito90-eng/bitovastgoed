@@ -81,6 +81,14 @@ const INLINE_LABELS = VELD_LABELS.filter(l => l !== 'te' && l !== 'Geboren');
 
 const POSTCODE_RE = /\b(\d{4})\s?([A-Z]{2})\b/;
 
+const ESCAPE_REGEX_RE = /[-/\\^$*+?.()|[\]{}]/g;
+
+function escapeRegexLiteral(value: string): string {
+  return value.replace(ESCAPE_REGEX_RE, '\\$&');
+}
+
+const INLINE_LABEL_PATTERN = INLINE_LABELS.map(escapeRegexLiteral).join('|');
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function stripMarkdown(line: string): string {
@@ -106,7 +114,7 @@ function normRegels(tekst: string): string[] {
 function herkenLabel(regel: string): { label: string; rest: string } | null {
   // "Adres:" / "Adres" / "Adres Visserstuin 119" / "**Adres:** X"
   for (const lbl of VELD_LABELS) {
-    const re = new RegExp(`^${lbl.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b\\s*:?\\s*(.*)$`, 'i');
+    const re = new RegExp(String.raw`^${escapeRegexLiteral(lbl)}\b\s*:?\s*(.*)$`, 'i');
     const m = regel.match(re);
     if (m) return { label: normaliseerLabel(lbl), rest: m[1] };
   }
@@ -125,7 +133,7 @@ function normaliseerLabel(lbl: string): string {
  */
 function splitInlineLabels(regel: string): string[] {
   const pattern = new RegExp(
-    `\\s+(${INLINE_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b\\s*:?\\s*`,
+    String.raw`\s+(${INLINE_LABEL_PATTERN})\b\s*:?\s*`,
     'g',
   );
   // Vervang elk label door een newline + label.
@@ -143,7 +151,7 @@ function leesBlokVelden(blokRegels: string[]): Record<string, string[]> {
   for (const raw of blokRegels) {
     // Detecteer of de regel meerdere labels bevat (minstens twee labelhits).
     const labelHits = (raw.match(new RegExp(
-      `\\b(${INLINE_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b`,
+      String.raw`\b(${INLINE_LABEL_PATTERN})\b`,
       'g',
     )) || []).length;
     if (labelHits >= 2) {

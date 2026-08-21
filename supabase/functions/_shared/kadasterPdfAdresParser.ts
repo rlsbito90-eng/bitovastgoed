@@ -60,9 +60,19 @@ const VELD_LABELS = ['Aandeel', 'Naam', 'Geboren', 'te', 'Adres', 'Postbus', 'Ze
 const NEGEER_LABELS = new Set(['Geboren', 'Te']);
 const INLINE_LABELS = VELD_LABELS.filter(l => l !== 'te' && l !== 'Geboren');
 const POSTCODE_RE = /\b(\d{4})\s?([A-Z]{2})\b/;
-const BUITENLAND_POSTCODE_RE = /\b(?:L-\d{4}|\d{4,6}(?:-\d{3,4})?|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i;
+const BUITENLAND_POSTCODE_RE = /\b(?:[A-Z]{1,2}-\d{4,6}|\d{4,6}(?:-\d{3,4})?|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i;
+const LANDCODE_POSTCODE_RE = /\b[A-Z]{1,2}-\d{4,6}\b/i;
 const LUXEMBURG_POSTCODE_RE = /\bL-\d{4}\b/i;
-const LANDNAMEN_RE = /^(?:luxembourg|luxemburg|belgi[eë]|belgium|duitsland|germany|frankrijk|france|spanje|spain|portugal|itali[eë]|italy|verenigd koninkrijk|united kingdom|engeland|england|zwitserland|switzerland|oostenrijk|austria|hong kong|ierland|ireland|denemarken|denmark|zweden|sweden|noorwegen|norway|finland)$/i;
+const LANDNAAM_PATTERN = '(?:bondsrepubliek duitsland|verenigd koninkrijk|united kingdom|luxembourg|luxemburg|belgi[eë]|belgium|duitsland|germany|frankrijk|france|spanje|spain|portugal|itali[eë]|italy|engeland|england|zwitserland|switzerland|oostenrijk|austria|hong kong|ierland|ireland|denemarken|denmark|zweden|sweden|noorwegen|norway|finland|anguilla)';
+const LANDNAMEN_RE = new RegExp(String.raw`^${LANDNAAM_PATTERN}$`, 'i');
+const LANDNAAM_SUFFIX_RE = new RegExp(String.raw`\s+(${LANDNAAM_PATTERN})$`, 'i');
+const ESCAPE_REGEX_RE = /[-/\\^$*+?.()|[\]{}]/g;
+
+function escapeRegexLiteral(value: string): string {
+  return value.replace(ESCAPE_REGEX_RE, '\\$&');
+}
+
+const INLINE_LABEL_PATTERN = INLINE_LABELS.map(escapeRegexLiteral).join('|');
 
 function stripMarkdown(line: string): string {
   return line.replace(/\*\*/g, '').replace(/^\s*#+\s*/, '').replace(/\s+$/g, '').replace(/^\s+/, '');
@@ -77,7 +87,7 @@ function normaliseerLabel(lbl: string): string {
 }
 function herkenLabel(regel: string): { label: string; rest: string } | null {
   for (const lbl of VELD_LABELS) {
-    const re = new RegExp(`^${lbl.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b\\s*:?\\s*(.*)$`, 'i');
+    const re = new RegExp(String.raw`^${escapeRegexLiteral(lbl)}\b\s*:?\s*(.*)$`, 'i');
     const m = regel.match(re);
     if (m) return { label: normaliseerLabel(lbl), rest: m[1] };
   }
@@ -85,7 +95,7 @@ function herkenLabel(regel: string): { label: string; rest: string } | null {
 }
 function splitInlineLabels(regel: string): string[] {
   const pattern = new RegExp(
-    `\\s+(${INLINE_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b\\s*:?\\s*`, 'g',
+    String.raw`\s+(${INLINE_LABEL_PATTERN})\b\s*:?\s*`, 'g',
   );
   const replaced = regel.replace(pattern, (_m, lbl: string) => `\n${normaliseerLabel(lbl)} `);
   return replaced.split('\n').map(s => s.trim()).filter(Boolean);
@@ -94,7 +104,7 @@ function leesBlokVelden(blokRegels: string[]): Record<string, string[]> {
   const flat: string[] = [];
   for (const raw of blokRegels) {
     const labelHits = (raw.match(new RegExp(
-      `\\b(${INLINE_LABELS.map(l => l.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b`, 'g',
+      String.raw`\b(${INLINE_LABEL_PATTERN})\b`, 'g',
     )) || []).length;
     if (labelHits >= 2) flat.push(...splitInlineLabels(raw));
     else flat.push(raw);
@@ -120,9 +130,32 @@ function normaliseerStraatHuisnr(s: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+function formatteerEenregeligBuitenlandsAdres(samen: string): string | null {
+  const landMatch = samen.match(LANDNAAM_SUFFIX_RE);
+  if (!landMatch || landMatch.index === undefined) return null;
+  const land = landMatch[1];
+  const voorLand = samen.slice(0, landMatch.index).trim();
+
+  // Buitenlandse postbus alleen accepteren als het Adres-veld daarnaast
+  // zowel een distributieregel als een expliciete landnaam bevat.
+  const postbus = voorLand.match(/^((?:P\.?\s*O\.?|POST\s+OFFICE)\s+BOX\s+\d+)\s+(.+)$/i);
+  if (postbus?.[2]?.trim()) {
+    return `${postbus[1]}\n${postbus[2].trim()}\n${land}`;
+  }
+
+  // Splits een door unpdf samengevouwen buitenlands straatadres alleen op
+  // een expliciete landcode-postcode (zoals L-#### of D-#####).
+  const postcodeIndex = voorLand.search(LANDCODE_POSTCODE_RE);
+  if (postcodeIndex <= 0) return null;
+  const straat = normaliseerStraatHuisnr(voorLand.slice(0, postcodeIndex).trim());
+  const postcodeEnPlaats = voorLand.slice(postcodeIndex).trim();
+  if (!straat || !postcodeEnPlaats) return null;
+  return `${straat}\n${postcodeEnPlaats}\n${land}`;
+}
 function formatteerBuitenlandsAdres(values: string[] | undefined): string | null {
-  if (!values || values.length < 2) return null;
+  if (!values || values.length === 0) return null;
   const regels = values.map((v) => v.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  if (regels.length === 1) return formatteerEenregeligBuitenlandsAdres(regels[0]);
   if (regels.length < 2) return null;
   const straat = normaliseerStraatHuisnr(regels[0]);
   if (!straat || straat === '-' || straat.toLowerCase() === 'onbekend') return null;
