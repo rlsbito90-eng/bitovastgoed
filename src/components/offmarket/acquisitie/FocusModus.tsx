@@ -21,9 +21,8 @@ import {
 import FocusWerkInhoud from './FocusWerkInhoud';
 import BulkKadasterWizard from './BulkKadasterWizard';
 import { cleanAdres, cleanPlaats, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
-import {
-  SIGNAALTYPE_LABEL, type OffMarketSignaal,
-} from '@/lib/offMarket/types';
+import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import { acquisitieSignaalLabel } from '@/lib/offMarket/acquisitie/signaalLabel';
 import type { SignaalReadiness } from '@/lib/offMarket/acquisitie/readiness';
 import { bepaalFocusContext } from '@/lib/offMarket/acquisitie/focusContext';
 import ToevoegenAanAcquisitieSelectieKnop from './ToevoegenAanAcquisitieSelectieKnop';
@@ -59,7 +58,7 @@ interface Props {
 }
 
 function tekstType(s: OffMarketSignaal): string {
-  return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
+  return acquisitieSignaalLabel(s);
 }
 
 function volledigBehandeld(ronde: Werkronde): boolean {
