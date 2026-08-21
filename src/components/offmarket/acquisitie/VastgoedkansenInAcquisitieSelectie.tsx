@@ -9,7 +9,7 @@ import {
   type AcquisitieSelectieItem,
   useVerwijderVastgoedkansUitAcquisitieSelectie,
 } from '@/hooks/useAcquisitieSelectie';
-import { PRIORITEIT_LABEL, STATUS_LABEL, kansTitel } from '@/lib/vastgoedkansen';
+import { HERKOMST_LABEL, PRIORITEIT_LABEL, STATUS_LABEL, kansTitel } from '@/lib/vastgoedkansen';
 import { VASTGOEDKANS_STATUS_PRESENTATIE } from '@/lib/vastgoedkansStatusPresentation';
 
 interface Props {
@@ -84,6 +84,9 @@ export default function VastgoedkansenInAcquisitieSelectie({ items }: Props) {
                     {STATUS_LABEL[kans.status]}
                   </Badge>
                   <Badge variant="outline">{PRIORITEIT_LABEL[kans.prioriteit] ?? `P${kans.prioriteit}`}</Badge>
+                  <Badge variant="outline">
+                    {kans.herkomst === 'bag_selectie' ? 'Pandenverkenner' : HERKOMST_LABEL[kans.herkomst]}
+                  </Badge>
                   {kans.archivedAt && <Badge variant="secondary"><Archive className="mr-1 h-3 w-3" />Gearchiveerd</Badge>}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">

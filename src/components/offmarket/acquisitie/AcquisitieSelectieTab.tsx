@@ -37,9 +37,8 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { useProductiekernSelectieOverzicht } from '@/hooks/useProductiekernSelectieOverzicht';
 import type { OffMarketEigenaarstatus } from '@/lib/offMarket/types';
 import { BagKaartBadge } from '@/components/offmarket/kaart/KaartSignaalBadges';
-import {
-  SIGNAALTYPE_LABEL, type OffMarketSignaal,
-} from '@/lib/offMarket/types';
+import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import { acquisitieSignaalLabel } from '@/lib/offMarket/acquisitie/signaalLabel';
 import { cleanAdres, cleanPlaats, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -112,7 +111,7 @@ import {
 } from '@/lib/offMarket/acquisitie/werkrondeContext';
 
 function tekstType(s: OffMarketSignaal): string {
-  return (SIGNAALTYPE_LABEL as Record<string, string>)[s.type_signaal] ?? s.type_signaal ?? '—';
+  return acquisitieSignaalLabel(s);
 }
 
 function normaliseerZoektekst(waarde: unknown): string {
