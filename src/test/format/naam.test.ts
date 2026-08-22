@@ -20,6 +20,13 @@ describe('naarVoorlettersAchternaam', () => {
     expect(naarVoorlettersAchternaam('P. J. Achternaam')).toBe('P. J. Achternaam');
   });
 
+  it('behoudt samengestelde natuurlijke personen exact', () => {
+    const samengesteld = 'Mevrouw E.G. Engwirda en de heer P.T.C. Rotteveel';
+    expect(naarVoorlettersAchternaam(samengesteld)).toBe(samengesteld);
+    expect(naarVoorlettersAchternaam('De heer J. Jansen en mevrouw P. de Vries'))
+      .toBe('De heer J. Jansen en mevrouw P. de Vries');
+  });
+
   it('laat rechtspersoon ongemoeid (BV met punten)', () => {
     expect(naarVoorlettersAchternaam('Voorbeeld Vastgoed B.V.')).toBe('Voorbeeld Vastgoed B.V.');
   });
