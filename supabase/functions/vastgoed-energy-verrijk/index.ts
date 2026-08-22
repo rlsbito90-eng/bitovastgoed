@@ -113,7 +113,12 @@ Deno.serve(async (req) => {
         .order('opgehaald_op', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (recent) return json({ ok: true, cached: true, snapshot: recent });
+      if (recent) return json({
+        ok: true,
+        cached: true,
+        found: recent.status !== 'geen_label',
+        snapshot: recent,
+      });
     }
 
     const endpoint = `${EP_BASE}/PandEnergielabel/AdresseerbaarObject/${encodeURIComponent(bagVboId)}`;
@@ -129,7 +134,36 @@ Deno.serve(async (req) => {
       clearTimeout(timeout);
     }
 
-    if (response.status === 404) return json({ ok: true, found: false, bag_vbo_id: bagVboId }, 200);
+    if (response.status === 404) {
+      const noLabelSnapshot = {
+        bag_vbo_id: bagVboId,
+        bag_nummeraanduiding_id: text(body.bag_nummeraanduiding_id),
+        bag_pand_id: text(body.bag_pand_id),
+        adres: text(body.adres),
+        postcode: text(body.postcode),
+        plaats: text(body.plaats),
+        energielabel: null,
+        gebouwklasse: null,
+        gebruiksfunctie: null,
+        energie_index: null,
+        primair_fossiel_energiegebruik: null,
+        registratiedatum: null,
+        geldig_tot: null,
+        status: 'geen_label',
+        match_kwaliteit: 'exact',
+        bron: 'ep_online',
+        bron_referentie: null,
+        raw_payload: {},
+        opgehaald_op: new Date().toISOString(),
+      };
+      const { data: inserted, error: insertError } = await admin
+        .from('vastgoed_energielabel_snapshots')
+        .insert(noLabelSnapshot)
+        .select('*')
+        .single();
+      if (insertError) throw insertError;
+      return json({ ok: true, cached: false, found: false, snapshot: inserted });
+    }
     if (!response.ok) {
       const bodyText = (await response.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 500);
       return json({ error: `EP-Online HTTP ${response.status}${bodyText ? `: ${bodyText}` : ''}` }, 502);
@@ -149,9 +183,7 @@ Deno.serve(async (req) => {
       energielabel: text(pick(p, 'Energieklasse', 'energieklasse', 'Energielabel', 'energielabel', 'Labelklasse', 'labelklasse')),
       gebouwklasse: text(pick(p, 'Gebouwklasse', 'gebouwklasse')),
       gebruiksfunctie: text(pick(p, 'Gebruiksfunctie', 'gebruiksfunctie', 'Gebouwtype', 'gebouwtype')),
-      // EnergieIndex is vooral relevant voor oudere registratiemethodieken. Ontbrekend is null, nooit 0.
       energie_index: num(pick(p, 'EnergieIndex', 'energieIndex', 'energie_index')),
-      // EP-Online v5 gebruikt bij NTA 8800 o.a. `PrimaireFossieleEnergie`.
       primair_fossiel_energiegebruik: num(pick(
         p,
         'PrimaireFossieleEnergie',
