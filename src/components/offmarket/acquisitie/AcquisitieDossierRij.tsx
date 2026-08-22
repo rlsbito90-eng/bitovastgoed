@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import GeadresseerdenLijst, { weergavenaamGeadresseerde } from './GeadresseerdenLijst';
+import GeadresseerdenLijst, { isEmailContactwaarde, weergavenaamGeadresseerde } from './GeadresseerdenLijst';
 import SelecteerbareDossierRij from './SelecteerbareDossierRij';
 
 interface GeadresseerdeVoorDossierRij {
@@ -151,10 +151,9 @@ function opvolgStatusRegel(procesDatum: string | null, heeftRespons: boolean): s
 /**
  * Volledige presentatielaag voor één dossier in de acquisitieselectie.
  *
- * Opvolging is bewust actiegericht: de hoofdkaart toont uitsluitend informatie
- * die nodig is om te beslissen wat nu moet gebeuren. Productie-identiteit,
- * toevoegmoment en volledige geadresseerdendetails blijven beschikbaar onder
- * de inklapbare detailsecties. Andere werkbakken blijven ongewijzigd.
+ * Opvolging is actiegericht en maakt onderscheid tussen briefproductie en een
+ * legacy e-mailcontactwaarde. De component blijft bewust provider-onafhankelijk:
+ * hij leest alleen de gegevens die al aan de dossierregel zijn meegegeven.
  */
 export default function AcquisitieDossierRij({
   geselecteerd,
@@ -192,11 +191,20 @@ export default function AcquisitieDossierRij({
       ? `AI ${Math.round(presentatie.aiScore)}`
       : adviesLabel;
 
-  const heeftBriefVerzending = Boolean(
-    briefstatus || productie.briefnummers.length > 0 || productie.batchnummers.length > 0,
+  const legacyEmail = geadresseerden.find((g) => isEmailContactwaarde(g.verzendadres))?.verzendadres?.trim() ?? null;
+  const isEmailVerzonden = fase === 'email_verzonden';
+  const contactKanaalLabel = legacyEmail
+    ? isEmailVerzonden ? 'E-mail verstuurd' : 'E-mailcontact'
+    : null;
+
+  const heeftContactOfVerzending = Boolean(
+    contactKanaalLabel || briefstatus || productie.briefnummers.length > 0 || productie.batchnummers.length > 0,
+  );
+  const verbergFormeleBriefstatus = opvolging && (
+    productie.briefnummers.length > 0
+    || Boolean(isEmailVerzonden && briefstatus?.toLowerCase().includes('geen brief'))
   );
 
-  const verbergFormeleBriefstatus = opvolging && productie.briefnummers.length > 0;
   const hoofdinhoudClass = opvolging
     ? [
         "[&_[data-testid='acquisitie-rij-briefnummer']]:hidden",
@@ -228,7 +236,7 @@ export default function AcquisitieDossierRij({
 
           {opvolging ? (
             <div className="mt-2 space-y-2" data-testid="acquisitie-opvolgen-compact">
-              {(eigenaar || statusRegel || aiAdviesLabel) && (
+              {(eigenaar || contactKanaalLabel || statusRegel || aiAdviesLabel) && (
                 <div
                   className="rounded-md border border-border/70 bg-muted/15 px-2.5 py-2 text-[11px]"
                   data-testid="acquisitie-opvolgen-samenvatting"
@@ -239,8 +247,13 @@ export default function AcquisitieDossierRij({
                       {meerdereGeadresseerden ? ` · +${geadresseerden.length - 1} geadresseerde${geadresseerden.length - 1 === 1 ? '' : 'n'}` : ''}
                     </p>
                   )}
-                  {(statusRegel || aiAdviesLabel) && (
+                  {(contactKanaalLabel || statusRegel || aiAdviesLabel) && (
                     <div className={`${eigenaar ? 'mt-1.5' : ''} flex flex-wrap items-center gap-1.5`}>
+                      {contactKanaalLabel && (
+                        <span className="font-medium text-foreground" data-testid="acquisitie-opvolgen-contactkanaal">
+                          {contactKanaalLabel}
+                        </span>
+                      )}
                       {statusRegel && (
                         <span className="text-muted-foreground" data-testid="acquisitie-opvolgen-statusregel">
                           {statusRegel}
@@ -259,21 +272,26 @@ export default function AcquisitieDossierRij({
                 </div>
               )}
 
-              {heeftBriefVerzending && (
+              {heeftContactOfVerzending && (
                 <details
                   className="group rounded-md border border-border/70 bg-background"
                   data-testid="acquisitie-opvolgen-brief-verzending"
                   data-no-row-select="true"
                 >
                   <summary className="cursor-pointer list-none px-2.5 py-2 text-[11px] font-medium text-foreground marker:hidden">
-                    Brief &amp; verzending
+                    {legacyEmail ? 'Contact & verzending' : 'Brief & verzending'}
                     <span className="ml-1 text-muted-foreground group-open:hidden">›</span>
                     <span className="ml-1 hidden text-muted-foreground group-open:inline">⌄</span>
                   </summary>
                   <div className="border-t border-border/60 px-2.5 py-2 text-[10px] text-muted-foreground">
+                    {legacyEmail && (
+                      <p className="mb-1.5" data-testid="acquisitie-opvolgen-email-detail">
+                        <span className="font-medium text-foreground">E-mail:</span> {legacyEmail}
+                      </p>
+                    )}
                     {briefstatus && (
                       <p className="mb-1.5" data-testid="acquisitie-opvolgen-briefstatus-detail">
-                        <span className="font-medium text-foreground">Status:</span> {briefstatus}
+                        <span className="font-medium text-foreground">Briefstatus:</span> {briefstatus}
                       </p>
                     )}
                     {productie.briefnummers.length > 0 && (
@@ -296,7 +314,7 @@ export default function AcquisitieDossierRij({
                         ))}
                       </div>
                     )}
-                    {productie.briefnummers.length === 0 && productie.batchnummers.length === 0 && (
+                    {productie.briefnummers.length === 0 && productie.batchnummers.length === 0 && !legacyEmail && (
                       <p>Er is nog geen formeel BR- of BAT-nummer gekoppeld.</p>
                     )}
                     {(productie.briefnummers.length > 0 || productie.batchnummers.length > 0) && (
