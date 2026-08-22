@@ -17,6 +17,13 @@ describe('Off-Market AI beheer', () => {
     expect(panel).toMatch(/Master switch/);
   });
 
+  it('biedt aparte automatische Radar-schakelaar en selectiegrenzen', () => {
+    expect(panel).toMatch(/Radar automatisch verrijken/);
+    expect(panel).toMatch(/ai-auto-enrich-switch/);
+    expect(panel).toMatch(/maximaal aantal dagen oud/);
+    expect(panel).toMatch(/batch per worker-run/);
+  });
+
   it('biedt aanvraag-, dag- en maandlimieten', () => {
     expect(panel).toMatch(/Max\. aanvragen per dag/);
     expect(panel).toMatch(/Max\. kosten per dag/);
@@ -26,7 +33,7 @@ describe('Off-Market AI beheer', () => {
   it('slaat geen API-key in browserconfig op', () => {
     expect(panel).not.toMatch(/type=["']password["']/);
     expect(panel).not.toMatch(/set.*API_KEY/i);
-    expect(panel).toMatch(/server-side Supabase secret/);
+    expect(panel).toMatch(/API-keys blijven server-side/);
   });
 
   it('toont instellingen logisch boven de AI-achterstand', () => {
