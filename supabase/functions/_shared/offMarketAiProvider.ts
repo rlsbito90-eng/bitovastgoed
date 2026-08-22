@@ -110,6 +110,7 @@ async function invokeOpenAiCompatible(
     },
     body: JSON.stringify({
       model: request.model,
+      ...(request.provider === 'openai' ? { reasoning_effort: 'none' } : {}),
       messages: [
         { role: 'system', content: request.systemPrompt },
         { role: 'user', content: request.userMessage },

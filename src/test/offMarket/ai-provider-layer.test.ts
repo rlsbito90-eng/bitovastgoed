@@ -28,6 +28,10 @@ describe('Off-Market AI providerlaag', () => {
     expect(bron).toContain("tool_choice: { type: 'tool', name: request.tool.name, disable_parallel_tool_use: true }");
   });
 
+  it('zet OpenAI Chat Completions tool-calls expliciet op reasoning_effort none', () => {
+    expect(bron).toContain("request.provider === 'openai' ? { reasoning_effort: 'none' } : {}");
+  });
+
   it('registreert usage provider-onafhankelijk voor latere kostenbewaking', () => {
     expect(bron).toContain('inputTokens');
     expect(bron).toContain('outputTokens');
