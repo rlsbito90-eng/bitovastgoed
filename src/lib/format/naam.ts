@@ -9,6 +9,7 @@
 //   - Tussenvoegsels blijven voluit.
 //   - Koppelteken-voornamen worden apart afgekort ("A.M. de Vries").
 //   - Reeds-afgekorte namen blijven ongemoeid ("P.J. Achternaam").
+//   - Samengestelde geadresseerden blijven ongemoeid ("Mevrouw X en de heer Y").
 //   - Kadaster-biografieregels zoals "Geboren 29-04-1959 te AMSTERDAM"
 //     horen nooit bij de briefnaam en worden defensief verwijderd.
 //   - Lege/onzekere input crasht niet en retourneert origineel.
@@ -78,9 +79,22 @@ export function isRechtspersoonNaam(naam: string | null | undefined): boolean {
 }
 
 /**
+ * Kadaster kan meerdere natuurlijke personen als één geadresseerdennaam
+ * aanleveren, bijvoorbeeld "Mevrouw E.G. Engwirda en de heer P.T.C. Rotteveel".
+ * Zo'n samengestelde naam mag nooit als één persoon naar initialen worden
+ * teruggebracht; dat leverde o.a. "M.E.E.E. de heer ..." op.
+ */
+function isSamengesteldePersoonsnaam(naam: string): boolean {
+  const heeftTweeAansprekingen = /\b(?:heer|mevrouw)\b.*\b(?:en|&)\b.*\b(?:heer|mevrouw)\b/i.test(naam);
+  const tweedeAansprekingNaEn = /\b(?:en|&)\s+(?:(?:de|het)\s+)?(?:heer|mevrouw)\b/i.test(naam);
+  return heeftTweeAansprekingen || tweedeAansprekingNaEn;
+}
+
+/**
  * Zet een volledige natuurlijk-persoonsnaam om naar voorletters + achternaam.
  * Retourneert de originele string bij lege input, reeds-afgekorte namen,
- * rechtspersonen of wanneer geen achternaam kan worden bepaald.
+ * samengestelde geadresseerden, rechtspersonen of wanneer geen achternaam kan
+ * worden bepaald.
  */
 export function naarVoorlettersAchternaam(
   naam: string | null | undefined,
@@ -90,6 +104,7 @@ export function naarVoorlettersAchternaam(
   if (!trimmed) return '';
   if (isAlAfgkort(trimmed)) return trimmed;
   if (isRechtspersoonNaam(trimmed)) return trimmed;
+  if (isSamengesteldePersoonsnaam(trimmed)) return trimmed;
 
   const parts = trimmed.split(/\s+/);
   if (parts.length === 1) return trimmed;
