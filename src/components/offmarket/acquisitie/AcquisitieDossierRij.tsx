@@ -5,7 +5,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import GeadresseerdenLijst from './GeadresseerdenLijst';
+import GeadresseerdenLijst, { weergavenaamGeadresseerde } from './GeadresseerdenLijst';
 import SelecteerbareDossierRij from './SelecteerbareDossierRij';
 
 interface GeadresseerdeVoorDossierRij {
@@ -32,6 +32,18 @@ interface ProductieIdentiteit {
   briefnummers: string[];
   batchnummers: string[];
 }
+
+interface SignaalPresentatie {
+  aiScore: number | null;
+  kadasteradvies: string | null;
+}
+
+const ADVIES_LABEL: Record<string, string> = {
+  laag: 'Laag',
+  voorzichtig: 'Voorzichtig',
+  aanbevolen: 'Aanbevolen',
+  sterk_aanbevolen: 'Sterk aanbevolen',
+};
 
 function tekstUitNode(node: ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node);
@@ -62,27 +74,87 @@ function verzamelProductieIdentiteit(node: ReactNode, resultaat: ProductieIdenti
   });
 }
 
+function tekstVoorTestId(node: ReactNode, gezocht: string): string | null {
+  let gevonden: string | null = null;
+  Children.forEach(node, (child) => {
+    if (gevonden || !isValidElement(child)) return;
+    const element = child as ReactElement<any>;
+    if (element.props['data-testid'] === gezocht) {
+      const tekst = tekstUitNode(element);
+      if (tekst) gevonden = tekst;
+      return;
+    }
+    gevonden = tekstVoorTestId(element.props.children, gezocht);
+  });
+  return gevonden;
+}
+
+function bevatTestId(node: ReactNode, gezocht: string): boolean {
+  let gevonden = false;
+  Children.forEach(node, (child) => {
+    if (gevonden || !isValidElement(child)) return;
+    const element = child as ReactElement<any>;
+    if (element.props['data-testid'] === gezocht) {
+      gevonden = true;
+      return;
+    }
+    gevonden = bevatTestId(element.props.children, gezocht);
+  });
+  return gevonden;
+}
+
+function vindSignaalPresentatie(node: ReactNode): SignaalPresentatie {
+  let resultaat: SignaalPresentatie = { aiScore: null, kadasteradvies: null };
+  Children.forEach(node, (child) => {
+    if (!isValidElement(child)) return;
+    const element = child as ReactElement<any>;
+    const signaal = element.props?.signaal;
+    if (signaal && typeof signaal === 'object') {
+      if (typeof signaal.ai_score === 'number' && Number.isFinite(signaal.ai_score)) {
+        resultaat.aiScore = signaal.ai_score;
+      }
+      if (typeof signaal.kadasteradvies === 'string' && signaal.kadasteradvies) {
+        resultaat.kadasteradvies = signaal.kadasteradvies;
+      }
+    }
+    const childResultaat = vindSignaalPresentatie(element.props.children);
+    if (resultaat.aiScore == null && childResultaat.aiScore != null) resultaat.aiScore = childResultaat.aiScore;
+    if (!resultaat.kadasteradvies && childResultaat.kadasteradvies) resultaat.kadasteradvies = childResultaat.kadasteradvies;
+  });
+  return resultaat;
+}
+
 function eigenaarLabel(geadresseerden: GeadresseerdeVoorDossierRij[]): string | null {
   const eerste = geadresseerden[0];
   if (!eerste) return null;
-  return eerste.bedrijfsnaam?.trim() || eerste.naam?.trim() || null;
+  const label = weergavenaamGeadresseerde(eerste).trim();
+  return label && label !== '(zonder naam)' ? label : null;
 }
 
 function isOpvolgingsActie(werkbak: string, actieCategorie?: string | null): boolean {
   return werkbak === 'actie' && Boolean(actieCategorie?.startsWith('opvolging_'));
 }
 
+function zonderOpvolgingNodig(tekst: string | null): string | null {
+  if (!tekst) return null;
+  const schoon = tekst.replace(/\s*Opvolging nodig\s*/gi, ' ').replace(/\s+/g, ' ').trim();
+  return schoon || null;
+}
+
+function opvolgStatusRegel(procesDatum: string | null, heeftRespons: boolean): string | null {
+  if (heeftRespons) return procesDatum;
+  if (!procesDatum) return 'Geen respons';
+  const datum = procesDatum.replace(/\.$/, '');
+  return `Geen respons · ${datum}`;
+}
+
 /**
  * Volledige presentatielaag voor één dossier in de acquisitieselectie.
  *
- * Opvolging is bewust actiegericht: BR/BAT-identiteit en de volledige
- * geadresseerdenkaart blijven beschikbaar, maar staan secundair en inklapbaar.
- * Andere werkbakken behouden de bestaande presentatie ongewijzigd.
- *
- * Belangrijk: de bestaande hoofdinhoud wordt niet gekloond of herschreven.
- * Alleen de visuele zichtbaarheid van secundaire badges verandert in Opvolgen.
- * Zo blijven de bestaande React Query-/dropdowncomponenten exact dezelfde boom
- * houden als in de overige werkbakken.
+ * Opvolging is bewust actiegericht: de hoofdkaart toont uitsluitend informatie
+ * die nodig is om te beslissen wat nu moet gebeuren. Productie-identiteit,
+ * toevoegmoment en volledige geadresseerdendetails blijven beschikbaar onder
+ * de inklapbare detailsecties. Andere werkbakken blijven ongewijzigd.
  */
 export default function AcquisitieDossierRij({
   geselecteerd,
@@ -101,19 +173,42 @@ export default function AcquisitieDossierRij({
 
   const eigenaar = eigenaarLabel(geadresseerden);
   const meerdereGeadresseerden = geadresseerden.length > 1;
-  const briefSamenvatting = productie.briefnummers.length > 1
-    ? `${productie.briefnummers.length} brieven verzonden`
-    : productie.briefnummers.length === 1
-      ? 'Brief verstuurd'
-      : fase === 'email_verzonden'
-        ? 'E-mail verzonden'
-        : 'Benadering geregistreerd';
+  const briefstatus = opvolging
+    ? zonderOpvolgingNodig(tekstVoorTestId(hoofdinhoud, 'acquisitie-rij-briefstatus'))
+    : null;
+  const procesDatum = opvolging
+    ? tekstVoorTestId(hoofdinhoud, 'acquisitie-rij-procesdatum')
+    : null;
+  const toegevoegd = opvolging
+    ? tekstVoorTestId(hoofdinhoud, 'acquisitie-rij-toegevoegd')
+    : null;
+  const heeftRespons = opvolging && bevatTestId(hoofdinhoud, 'acquisitie-rij-respons');
+  const statusRegel = opvolging ? opvolgStatusRegel(procesDatum, heeftRespons) : null;
+  const presentatie = opvolging ? vindSignaalPresentatie(hoofdinhoud) : { aiScore: null, kadasteradvies: null };
+  const adviesLabel = presentatie.kadasteradvies ? ADVIES_LABEL[presentatie.kadasteradvies] ?? null : null;
+  const aiAdviesLabel = presentatie.aiScore != null && adviesLabel
+    ? `AI ${Math.round(presentatie.aiScore)} · ${adviesLabel}`
+    : presentatie.aiScore != null
+      ? `AI ${Math.round(presentatie.aiScore)}`
+      : adviesLabel;
+
+  const heeftBriefVerzending = Boolean(
+    briefstatus || productie.briefnummers.length > 0 || productie.batchnummers.length > 0,
+  );
 
   const verbergFormeleBriefstatus = opvolging && productie.briefnummers.length > 0;
   const hoofdinhoudClass = opvolging
     ? [
         "[&_[data-testid='acquisitie-rij-briefnummer']]:hidden",
         "[&_[data-testid='acquisitie-rij-batchnummer']]:hidden",
+        "[&_[data-testid='acquisitie-rij-eigenaarproces']]:hidden",
+        "[&_[data-testid='acquisitie-rij-procesdatum']]:hidden",
+        "[&_[data-testid='acquisitie-rij-toegevoegd']]:hidden",
+        "[&_[data-testid='acquisitie-rij-redentekst']]:hidden",
+        "[&_[data-testid='acquisitie-rij-opvolging-nodig']]:hidden",
+        "[&_[data-testid='acquisitie-rij-ai-score']]:hidden",
+        "[&_[data-testid='kadasteradvies-badge']]:hidden",
+        "[&_[data-testid='bag-kaart-badge']]:hidden",
         verbergFormeleBriefstatus ? "[&_[data-testid='acquisitie-rij-briefstatus']]:hidden" : '',
       ].filter(Boolean).join(' ')
     : '';
@@ -133,28 +228,38 @@ export default function AcquisitieDossierRij({
 
           {opvolging ? (
             <div className="mt-2 space-y-2" data-testid="acquisitie-opvolgen-compact">
-              <div
-                className="rounded-md border border-border/70 bg-muted/15 px-2.5 py-2 text-[11px]"
-                data-testid="acquisitie-opvolgen-samenvatting"
-              >
-                {eigenaar && (
-                  <p className="font-medium text-foreground break-words">
-                    {eigenaar}
-                    {meerdereGeadresseerden ? ` · +${geadresseerden.length - 1} geadresseerde${geadresseerden.length - 1 === 1 ? '' : 'n'}` : ''}
-                  </p>
-                )}
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
-                  <span className="font-medium text-foreground">{briefSamenvatting}</span>
-                  {productie.briefnummers.length > 0 && (
-                    <span>{productie.briefnummers.length} BR</span>
+              {(eigenaar || statusRegel || aiAdviesLabel) && (
+                <div
+                  className="rounded-md border border-border/70 bg-muted/15 px-2.5 py-2 text-[11px]"
+                  data-testid="acquisitie-opvolgen-samenvatting"
+                >
+                  {eigenaar && (
+                    <p className="font-medium text-foreground break-words">
+                      {eigenaar}
+                      {meerdereGeadresseerden ? ` · +${geadresseerden.length - 1} geadresseerde${geadresseerden.length - 1 === 1 ? '' : 'n'}` : ''}
+                    </p>
                   )}
-                  {productie.batchnummers.length > 0 && (
-                    <span>{productie.batchnummers.length} {productie.batchnummers.length === 1 ? 'batch' : 'batches'}</span>
+                  {(statusRegel || aiAdviesLabel) && (
+                    <div className={`${eigenaar ? 'mt-1.5' : ''} flex flex-wrap items-center gap-1.5`}>
+                      {statusRegel && (
+                        <span className="text-muted-foreground" data-testid="acquisitie-opvolgen-statusregel">
+                          {statusRegel}
+                        </span>
+                      )}
+                      {aiAdviesLabel && (
+                        <span
+                          data-testid="acquisitie-opvolgen-ai-advies"
+                          className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-100/70 px-2 py-0.5 font-medium text-emerald-950"
+                        >
+                          {aiAdviesLabel}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
+              )}
 
-              {(productie.briefnummers.length > 0 || productie.batchnummers.length > 0) && (
+              {heeftBriefVerzending && (
                 <details
                   className="group rounded-md border border-border/70 bg-background"
                   data-testid="acquisitie-opvolgen-brief-verzending"
@@ -166,6 +271,11 @@ export default function AcquisitieDossierRij({
                     <span className="ml-1 hidden text-muted-foreground group-open:inline">⌄</span>
                   </summary>
                   <div className="border-t border-border/60 px-2.5 py-2 text-[10px] text-muted-foreground">
+                    {briefstatus && (
+                      <p className="mb-1.5" data-testid="acquisitie-opvolgen-briefstatus-detail">
+                        <span className="font-medium text-foreground">Status:</span> {briefstatus}
+                      </p>
+                    )}
                     {productie.briefnummers.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1.5" data-testid="acquisitie-opvolgen-briefnummers">
                         <span className="mr-1 font-medium text-foreground">Brief:</span>
@@ -186,14 +296,19 @@ export default function AcquisitieDossierRij({
                         ))}
                       </div>
                     )}
-                    <p className="mt-2 leading-relaxed">
-                      Batch is alleen herkomstinformatie; de opvolglijst blijft op werkvolgorde staan.
-                    </p>
+                    {productie.briefnummers.length === 0 && productie.batchnummers.length === 0 && (
+                      <p>Er is nog geen formeel BR- of BAT-nummer gekoppeld.</p>
+                    )}
+                    {(productie.briefnummers.length > 0 || productie.batchnummers.length > 0) && (
+                      <p className="mt-2 leading-relaxed">
+                        Batch is alleen herkomstinformatie; de opvolglijst blijft op werkvolgorde staan.
+                      </p>
+                    )}
                   </div>
                 </details>
               )}
 
-              {geadresseerden.length > 0 && (
+              {(geadresseerden.length > 0 || toegevoegd) && (
                 <details
                   className="group rounded-md border border-border/70 bg-background"
                   data-testid="acquisitie-opvolgen-historie-details"
@@ -205,6 +320,11 @@ export default function AcquisitieDossierRij({
                     <span className="ml-1 hidden text-muted-foreground group-open:inline">⌄</span>
                   </summary>
                   <div className="border-t border-border/60 px-2.5 pb-2">
+                    {toegevoegd && (
+                      <p className="pt-2 text-[10px] text-muted-foreground" data-testid="acquisitie-opvolgen-toegevoegd-detail">
+                        {toegevoegd}
+                      </p>
+                    )}
                     <GeadresseerdenLijst geadresseerden={geadresseerden} />
                   </div>
                 </details>
@@ -215,7 +335,7 @@ export default function AcquisitieDossierRij({
           )}
         </div>
         <div
-          className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0"
+          className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0 [&_[data-testid='acquisitie-selectie-verwerk']]:order-first"
           data-no-row-select="true"
         >
           {acties}
