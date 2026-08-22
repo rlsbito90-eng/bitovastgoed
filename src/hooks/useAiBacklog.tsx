@@ -18,11 +18,6 @@ const PAGE_SIZE = 1000;
 const SELECT_FIELDS =
   'id, titel, adres, postcode, plaats, bron_url, status, gearchiveerd_op, ai_score, ai_status, ai_skip_reden';
 
-/**
- * Telling van signalen zonder AI-score die voldoen aan de basis-WHERE.
- * Defensieve `magAiAutoVerrijken`-filter gebeurt pas in de runner-snapshot,
- * dus dit getal kan een fractie hoger zijn dan het uiteindelijke snapshot.
- */
 export function useAiBacklogCount() {
   return useQuery({
     queryKey: BACKLOG_KEY,
@@ -42,7 +37,6 @@ export function useAiBacklogCount() {
   });
 }
 
-/** Bouw eenmalig de snapshot van geschikte signaal-ID's. */
 async function bouwSnapshot(): Promise<string[]> {
   const ids: string[] = [];
   let offset = 0;
@@ -67,14 +61,13 @@ async function bouwSnapshot(): Promise<string[]> {
     if (batch.length < PAGE_SIZE) break;
     offset += PAGE_SIZE;
   }
-  // Dedupe — defensief; range zou geen dubbels mogen geven.
   return Array.from(new Set(ids));
 }
 
-/** Roep `off-market-enrich-signaal` rechtstreeks aan (zonder BAG-cascade). */
+/** Budgetguard en providerkeuze worden volledig server-side in v2 afgedwongen. */
 async function invokeEnrichDirect(signaalId: string): Promise<AiBacklogInvokeResult> {
-  const { data, error } = await supabase.functions.invoke('off-market-enrich-signaal', {
-    body: { signaal_id: signaalId, force: false, cascade_bag: false },
+  const { data, error } = await supabase.functions.invoke('off-market-enrich-signaal-v2', {
+    body: { signaal_id: signaalId, force: false },
   });
   if (error) return { ok: false, error: error.message ?? 'invoke-fout' };
   const respErr = (data as { error?: string } | null)?.error;
