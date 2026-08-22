@@ -17,6 +17,7 @@ import KadasteradviesBadge from './KadasteradviesBadge';
 import BagVboLijst from './BagVboLijst';
 import BagMatchResolver from './BagMatchResolver';
 import BagIdCopy from './BagIdCopy';
+import EnergiePrestatieKaart from './EnergiePrestatieKaart';
 
 interface Props {
   signaal: OffMarketSignaal;
@@ -52,6 +53,11 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
   const pandTotaalOpp = (s.bag_pandcontext_totaal_opp_m2 as number | null | undefined) ?? totaalOpp;
   const pandcontextIncompleet = (s.bag_pandcontext_incompleet as boolean | null | undefined) === true;
   const pandcontextBron = (s.bag_pandcontext_bron as string | null | undefined) ?? null;
+  const gekozenPandId = vbos?.find((v) =>
+    v.is_doelobject === true ||
+    (gekozenVboId && v.vbo_id === gekozenVboId) ||
+    (gekozenNaId && v.nummeraanduiding_id === gekozenNaId),
+  )?.pandid ?? ((s.bag_pand_ids as string[] | null | undefined)?.[0] ?? null);
 
   const onzeker = matchKw === 'onzeker' || bagStatus === 'meerdere_matches';
   const toonResolver = !!(kandidaten && kandidaten.length > 0) || onzeker;
@@ -60,7 +66,6 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
   const advies = berekenKadasteradvies(s as unknown as SignaalBagInput);
   // V2.5 — toon definitief advies pas wanneer BAG echt verrijkt is.
   const adviesToegestaan = bagVerrijkt;
-
 
   const bag = useBagVerrijken();
   const ai = useEnrichSignaal();
@@ -136,7 +141,6 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
             <FileSearch className="h-3.5 w-3.5" />
             Kadaster ophalen
           </Button>
-
         </div>
       </div>
 
@@ -204,6 +208,15 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
         );
       })()}
 
+      <EnergiePrestatieKaart
+        bagVboId={gekozenVboId}
+        bagNummeraanduidingId={gekozenNaId}
+        bagPandId={gekozenPandId}
+        adres={gekozenAdres ?? signaal.adres}
+        postcode={signaal.postcode}
+        plaats={(s.plaats as string | null | undefined) ?? null}
+      />
+
       {/* V2.4 — BAG-pandcontext */}
       <div data-testid="bag-pandcontext-sectie" className="space-y-3">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">BAG-pandcontext</p>
@@ -222,9 +235,7 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
             </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
-              Matchkwaliteit / pandstatus
-            </p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Matchkwaliteit / pandstatus</p>
             <p className="text-foreground" data-testid="bag-matchkwaliteit">
               {matchKw ?? '—'}{pandStatus ? ` · ${pandStatus}` : ''}
             </p>
@@ -278,8 +289,6 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
           Kies eerst de juiste BAG-match om het Kadasteradvies te berekenen.
         </div>
       )}
-
-
     </section>
   );
 }
