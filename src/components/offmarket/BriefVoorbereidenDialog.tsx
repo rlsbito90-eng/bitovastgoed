@@ -81,6 +81,11 @@ function isEchteWaarde(v: string | null | undefined): boolean {
   return norm !== ph;
 }
 
+function isEmailWaarde(v: string | null | undefined): boolean {
+  const schoon = v?.trim() ?? '';
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(schoon);
+}
+
 function safeFilename(s: string): string {
   return (s || 'brief')
     .replace(/[^a-zA-Z0-9 \-_]/g, '')
@@ -304,8 +309,11 @@ export default function BriefVoorbereidenDialog({
     toast.success('Verzendadres overgenomen uit Kadasterbericht');
   };
 
-  const verzendadresVoorOpslag = (): string | null =>
-    isEchteWaarde(verzendadres) ? verzendadres.trim() : null;
+  const verzendadresVoorOpslag = (): string | null => {
+    const schoon = verzendadres.trim();
+    if (kanaal === 'email') return isEmailWaarde(schoon) ? schoon : null;
+    return isEchteWaarde(schoon) ? schoon : null;
+  };
 
   // Bepaal welke campagne-stap geldt voor een nieuwe brief in dit kanaal.
   const huidigeCampagneStap = useMemo<string>(() => {
@@ -469,6 +477,10 @@ export default function BriefVoorbereidenDialog({
 
   const markeerVerstuurd = async () => {
     const isEmail = kanaal === 'email';
+    if (isEmail && !isEmailWaarde(verzendadres)) {
+      toast.error('Vul eerst een geldig e-mailadres in.');
+      return;
+    }
     if (!isEmail && !vm.heeftVerzendadres) {
       const ok = typeof window !== 'undefined'
         ? window.confirm('Er is geen verzendadres ingevuld. Weet u zeker dat u deze brief als verstuurd wilt markeren?')
@@ -654,22 +666,30 @@ export default function BriefVoorbereidenDialog({
             </div>
           )}
 
-          {/* Geadresseerde-preview — exact zoals deze in PDF/kopie verschijnt. */}
+          {/* Kanaalbewuste geadresseerde-preview. */}
           <div
             data-testid="brief-geadresseerde-preview"
             className="rounded-md border bg-muted/30 p-3 text-sm leading-relaxed"
           >
             <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
-              Geadresseerde zoals in PDF
+              {kanaal === 'email' ? 'E-mailgeadresseerde' : 'Geadresseerde zoals in PDF'}
             </div>
             {vm.bedrijfsnaam && <div>{vm.bedrijfsnaam}</div>}
             {vm.geadresseerdeNaam && <div>{vm.geadresseerdeNaam}</div>}
-            {vm.verzendadresRegels.map((r, i) => <div key={i}>{r}</div>)}
-            {(vm.bedrijfsnaam || vm.geadresseerdeNaam) && vm.verzendadresRegels.length === 0 && (
-              <div className="text-muted-foreground italic">Geen verzendadres ingevuld</div>
-            )}
-            {!vm.bedrijfsnaam && !vm.geadresseerdeNaam && vm.verzendadresRegels.length === 0 && (
-              <div className="text-muted-foreground italic">Nog geen geadresseerde-gegevens</div>
+            {kanaal === 'email' ? (
+              isEmailWaarde(verzendadres)
+                ? <div>E-mail: {verzendadres.trim()}</div>
+                : <div className="text-muted-foreground italic">Geen geldig e-mailadres ingevuld</div>
+            ) : (
+              <>
+                {vm.verzendadresRegels.map((r, i) => <div key={i}>{r}</div>)}
+                {(vm.bedrijfsnaam || vm.geadresseerdeNaam) && vm.verzendadresRegels.length === 0 && (
+                  <div className="text-muted-foreground italic">Geen verzendadres ingevuld</div>
+                )}
+                {!vm.bedrijfsnaam && !vm.geadresseerdeNaam && vm.verzendadresRegels.length === 0 && (
+                  <div className="text-muted-foreground italic">Nog geen geadresseerde-gegevens</div>
+                )}
+              </>
             )}
           </div>
 
@@ -693,21 +713,50 @@ export default function BriefVoorbereidenDialog({
             </div>
           </div>
 
-          {/* Verzendadres */}
+          {/* Contactadres: kanaal bepaalt betekenis en beschikbare hulpmiddelen. */}
           <div className="space-y-1.5">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Verzendadres</div>
-            <Label htmlFor="brief-verzend" className="sr-only">Verzendadres</Label>
-            <Textarea
-              id="brief-verzend"
-              value={verzendadres}
-              onChange={(e) => {
-                setVerzendadres(e.target.value);
-                setVerzendadresBron('handmatig');
-                setPdfVoorstelKandidaatLabel(null);
-              }}
-              placeholder={kanaal === 'email' ? '' : `Bijv. ${VERZENDADRES_PLACEHOLDER}`}
-              rows={3}
-            />
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {kanaal === 'email' ? 'E-mailadres' : 'Verzendadres'}
+            </div>
+            <Label htmlFor="brief-verzend" className="sr-only">
+              {kanaal === 'email' ? 'E-mailadres' : 'Verzendadres'}
+            </Label>
+            {kanaal === 'email' ? (
+              <>
+                <Input
+                  id="brief-verzend"
+                  type="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  value={verzendadres}
+                  onChange={(e) => {
+                    setVerzendadres(e.target.value);
+                    setVerzendadresBron('handmatig');
+                    setPdfVoorstelKandidaatLabel(null);
+                  }}
+                  placeholder="naam@bedrijf.nl"
+                />
+                {!isEmailWaarde(verzendadres) && verzendadres.trim() && (
+                  <p className="text-[11px] text-amber-600">Vul een geldig e-mailadres in.</p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Dit is het contactadres voor deze e-mail. Kadaster-postadresgegevens worden in e-mailmodus niet gebruikt.
+                </p>
+              </>
+            ) : (
+              <>
+                <Textarea
+                  id="brief-verzend"
+                  value={verzendadres}
+                  onChange={(e) => {
+                    setVerzendadres(e.target.value);
+                    setVerzendadresBron('handmatig');
+                    setPdfVoorstelKandidaatLabel(null);
+                  }}
+                  placeholder={`Bijv. ${VERZENDADRES_PLACEHOLDER}`}
+                  rows={3}
+                />
             {kadasterRecords.length > 0 && (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {overneemAdresOpties.length > 1 && (
@@ -768,11 +817,15 @@ export default function BriefVoorbereidenDialog({
                   : 'Geen verzendadres bekend. Vul dit handmatig aan voordat u de PDF genereert.'}
               </p>
             )}
+              </>
+            )}
           </div>
 
           {/* Objectomschrijving */}
           <div className="space-y-1.5">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Objectomschrijving in brief</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {kanaal === 'email' ? 'Objectomschrijving in e-mail' : 'Objectomschrijving in brief'}
+            </div>
             <Label htmlFor="brief-objomschrijving" className="sr-only">Objectomschrijving</Label>
             <Input
               id="brief-objomschrijving"
@@ -797,7 +850,7 @@ export default function BriefVoorbereidenDialog({
             <div className="pt-2">
               <Input value={objectadres} onChange={(e) => setObjectadres(e.target.value)} />
               <p className="mt-1 text-[11px]">
-                Wordt bewaard voor administratie. De brief gebruikt "Objectomschrijving in brief".
+                Wordt bewaard voor administratie. {kanaal === 'email' ? 'De e-mail gebruikt "Objectomschrijving in e-mail".' : 'De brief gebruikt "Objectomschrijving in brief".'}
               </p>
             </div>
           </details>

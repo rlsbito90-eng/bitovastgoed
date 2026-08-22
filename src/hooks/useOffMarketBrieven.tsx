@@ -123,11 +123,12 @@ export function useUpsertBrief() {
         verzendstatus: input.verzendstatus ?? 'concept',
       };
       if (input.id) {
-        // Bestaand record — wijzig kanaal/verzendstatus/status niet zomaar.
-        // status wordt geregisseerd door useMarkBriefVerstuurd; een
-        // inhoudelijke upsert mag een verstuurd record nooit terugzetten
-        // naar concept.
-        delete payload.kanaal;
+        // Bestaand concept mag van kanaal wisselen; een reeds verstuurd
+        // record behoudt zijn historische kanaal. Status/verzendstatus
+        // worden uitsluitend door useMarkBriefVerstuurd geregisseerd.
+        const { data: huidig } = await (supabase as any)
+          .from(TABLE).select('status').eq('id', input.id).maybeSingle();
+        if (huidig?.status === 'verstuurd') delete payload.kanaal;
         delete payload.verzendstatus;
         delete payload.status;
         const { data, error } = await (supabase as any)
@@ -220,6 +221,7 @@ export function useMarkBriefVerstuurd() {
       const opvolgdatum = berekenFollowUpDeadline(dagY, defaultFollowupDagen(kanaal));
       const patch: any = {
         status: 'verstuurd',
+        kanaal,
         verzonden_op: iso,
         verzendstatus: isEmail ? 'verzonden' : 'gepost',
         postdatum: dagY,
@@ -245,7 +247,7 @@ export function useMarkBriefVerstuurd() {
         brief_id: brief.id,
         geadresseerde_key: brief.geadresseerde_key ?? null,
         campagne_stap: brief.campagne_stap ?? null,
-        kanaal: brief.kanaal ?? kanaal,
+        kanaal,
         event_type: eventType,
         status: eventStatus,
         metadata: baseMeta,
@@ -256,7 +258,7 @@ export function useMarkBriefVerstuurd() {
           brief_id: brief.id,
           geadresseerde_key: brief.geadresseerde_key ?? null,
           campagne_stap: brief.campagne_stap ?? null,
-          kanaal: brief.kanaal ?? kanaal,
+          kanaal,
           event_type: 'follow_up_created',
           metadata: { taak_id: taakId, deadline: opvolgdatum, kanaal },
         });
@@ -282,8 +284,8 @@ export function useMarkBriefVerstuurd() {
               brief_id: brief.id,
               geadresseerde_key: brief.geadresseerde_key ?? null,
               campagne_stap: brief.campagne_stap ?? null,
-              kanaal: brief.kanaal ?? 'post',
-              event_type: 'posted',
+              kanaal,
+              event_type: isEmail ? 'sent' : 'posted',
               status: 'benaderd',
               metadata: {
                 statuspromotie: true,
