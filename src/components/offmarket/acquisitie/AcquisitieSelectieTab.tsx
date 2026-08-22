@@ -1040,7 +1040,10 @@ export default function AcquisitieSelectieTab() {
                               </span>
                             )}
                             {briefInfo.status === 'brief2_gepland' && (
-                              <span className="text-[10px] text-accent whitespace-nowrap">
+                              <span
+                                data-testid="acquisitie-rij-opvolging-nodig"
+                                className="text-[10px] text-accent whitespace-nowrap"
+                              >
                                 Opvolging nodig
                               </span>
                             )}
@@ -1076,7 +1079,10 @@ export default function AcquisitieSelectieTab() {
                           </span>
                         )}
                         {typeof signaal.ai_score === 'number' && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-card text-muted-foreground whitespace-nowrap">
+                          <span
+                            data-testid="acquisitie-rij-ai-score"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-card text-muted-foreground whitespace-nowrap"
+                          >
                             <Sparkles className="h-3 w-3" /> AI {signaal.ai_score}
                           </span>
                         )}
@@ -1147,7 +1153,10 @@ export default function AcquisitieSelectieTab() {
                           </p>
                         </div>
                       )}
-                      <p className="text-[11px] text-muted-foreground break-words">
+                      <p
+                        data-testid="acquisitie-rij-redentekst"
+                        className="text-[11px] text-muted-foreground break-words"
+                      >
                         {r.blokkadeReden ?? r.info.reden}
                       </p>
                       {ctx.actieCategorie === 'onderzoek' && (() => {
@@ -1171,7 +1180,7 @@ export default function AcquisitieSelectieTab() {
                     <Button
                       type="button"
                       size="sm"
-                      variant="secondary"
+                      variant="outline"
                       onClick={() => openSignaalMetContext(signaal.id)}
                       data-testid="acquisitie-selectie-open"
                     >
