@@ -1,0 +1,35 @@
+name: Temp patch acquisitie kanaalbewust
+
+on:
+  push:
+    branches:
+      - fix/acquisitie-opvolging-kanaalbewust
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/acquisitie-opvolging-kanaalbewust
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pas gerichte patch toe
+        run: python scripts/tmp-patch-acquisitie-kanaalbewust.py
+      - name: Verwijder tijdelijke patch-infrastructuur
+        run: |
+          git rm scripts/tmp-patch-acquisitie-kanaalbewust.py
+          git rm .github/workflows/tmp-patch-acquisitie-kanaalbewust.yml
+      - name: Commit en push
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx src/components/offmarket/acquisitie/AcquisitieDossierRij.tsx src/components/offmarket/acquisitie/GeadresseerdenLijst.tsx src/test/offMarket/acquisitieGeadresseerdeContact.test.ts
+          git commit -m "BUILD acquisitie: maak opvolging kanaalbewust"
+          git push origin HEAD:fix/acquisitie-opvolging-kanaalbewust
