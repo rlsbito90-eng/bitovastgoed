@@ -31,6 +31,7 @@ describe('Off-Market AI beheer', () => {
 
   it('toont instellingen logisch boven de AI-achterstand', () => {
     expect(backlog).toMatch(/OffMarketAiInstellingenPanel/);
-    expect(backlog.indexOf('<OffMarketAiInstellingenPanel')).toBeLessThan(backlog.indexOf('AI-achterstand'));
+    const render = backlog.slice(backlog.indexOf('return ('));
+    expect(render.indexOf('<OffMarketAiInstellingenPanel')).toBeLessThan(render.indexOf('AI-achterstand'));
   });
 });
