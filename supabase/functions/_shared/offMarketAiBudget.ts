@@ -3,13 +3,17 @@ export interface AiBudgetStatus {
   ai_enabled: boolean;
   provider: 'openai' | 'anthropic' | 'gemini';
   default_model: string | null;
+  pricing_model: string | null;
+  input_usd_per_million: number;
+  output_usd_per_million: number;
+  max_cost_per_request_usd: number;
   day_requests: number;
   day_cost_usd: number;
   month_cost_usd: number;
   max_requests_per_day: number;
   max_cost_per_day_usd: number;
   max_cost_per_month_usd: number;
-  reason: 'disabled' | 'daily_request_limit' | 'daily_cost_limit' | 'monthly_cost_limit' | 'config_missing' | null;
+  reason: 'disabled' | 'pricing_missing' | 'daily_request_limit' | 'daily_cost_limit' | 'monthly_cost_limit' | 'config_missing' | null;
 }
 
 type RpcClient = {
@@ -41,11 +45,19 @@ export async function getAiBudgetStatus(admin: RpcClient): Promise<AiBudgetStatu
     throw new AiBudgetError('config_missing', 'AI-providerconfiguratie ontbreekt of is ongeldig');
   }
 
+  const pricingModel = typeof raw.pricing_model === 'string' && raw.pricing_model.trim() ? raw.pricing_model.trim() : null;
+  const inputRate = numberValue(raw.input_usd_per_million);
+  const outputRate = numberValue(raw.output_usd_per_million);
+
   return {
     allowed: raw.allowed === true,
     ai_enabled: raw.ai_enabled === true,
     provider,
     default_model: typeof raw.default_model === 'string' && raw.default_model.trim() ? raw.default_model.trim() : null,
+    pricing_model: pricingModel,
+    input_usd_per_million: inputRate,
+    output_usd_per_million: outputRate,
+    max_cost_per_request_usd: numberValue(raw.max_cost_per_request_usd),
     day_requests: numberValue(raw.day_requests),
     day_cost_usd: numberValue(raw.day_cost_usd),
     month_cost_usd: numberValue(raw.month_cost_usd),
@@ -62,6 +74,7 @@ export async function requireAiBudget(admin: RpcClient): Promise<AiBudgetStatus>
 
   const labels: Record<string, string> = {
     disabled: 'AI-verrijking staat uit',
+    pricing_missing: 'AI-prijsconfiguratie ontbreekt of is ongeldig',
     daily_request_limit: 'Daglimiet voor AI-aanvragen is bereikt',
     daily_cost_limit: 'Dagbudget voor AI is bereikt',
     monthly_cost_limit: 'Maandbudget voor AI is bereikt',

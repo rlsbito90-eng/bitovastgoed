@@ -19,7 +19,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const PROMPT_VERSIE = 'v2.1-assettype-guard';
+const PROMPT_VERSIE = 'v2.2-cost-guard';
 const SCORE_GEWICHTEN = { locatie: 25, asset_match: 20, eigenaar_signaal: 25, timing: 15, fee_potentieel: 15 } as const;
 type ScoreComponent = keyof typeof SCORE_GEWICHTEN;
 const ASSETTYPES = [
@@ -190,6 +190,10 @@ Deno.serve(async (req) => {
     const budget = await requireAiBudget(admin as any);
     provider = budget.provider;
     model = normaliseModel(provider, typeof body.model === 'string' && body.model.trim() ? body.model : budget.default_model ?? resolveDefaultModel(provider));
+    const pricingModel = budget.pricing_model ? normaliseModel(provider, budget.pricing_model) : null;
+    if (!pricingModel || pricingModel !== model) {
+      throw new AiBudgetError('pricing_missing', `Geen geldige prijsconfiguratie voor ${provider}:${model}`);
+    }
 
     const { data: signaal, error: signaalError } = await admin.from('off_market_signalen').select('*').eq('id', signaalId).maybeSingle();
     if (signaalError || !signaal) return json({ error: 'Signaal niet gevonden' }, 404);
@@ -217,7 +221,8 @@ Deno.serve(async (req) => {
       userMessage: 'Beoordeel dit signaal:\n\n' + JSON.stringify(payload, null, 2),
       tool: TOOL, maxOutputTokens: 1200,
     });
-    const cost = estimateCostUsd(result.usage);
+    const cost = estimateCostUsd(result.usage, budget.input_usd_per_million, budget.output_usd_per_million);
+    if (cost == null) throw new Error('AI-kosten konden niet betrouwbaar worden berekend');
     const update = mapUpdate(result.output, provider, result.model);
     const { error: updateError } = await admin.from('off_market_signalen').update(update).eq('id', signaalId);
     if (updateError) throw new Error(`AI-signaalupdate mislukt: ${updateError.message}`);
