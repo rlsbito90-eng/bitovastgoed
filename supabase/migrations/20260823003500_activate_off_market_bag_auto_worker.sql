@@ -21,11 +21,14 @@ SELECT cron.schedule(
   '*/5 * * * *',
   $cron$
   SELECT net.http_post(
-    url := current_setting('app.settings.supabase_url', true) || '/functions/v1/off-market-bag-auto-worker',
+    url := 'https://vyjocdlwfxrblusfngfq.supabase.co/functions/v1/off-market-bag-auto-worker',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'x-cron-secret', (
-        SELECT value FROM public.off_market_runtime_secrets WHERE key = 'cron_secret' LIMIT 1
+        SELECT value
+        FROM public.off_market_runtime_secrets
+        WHERE key = 'cron_secret'
+        LIMIT 1
       )
     ),
     body := '{}'::jsonb,
