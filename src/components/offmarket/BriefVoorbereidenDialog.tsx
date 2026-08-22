@@ -165,6 +165,14 @@ export default function BriefVoorbereidenDialog({
   // V2.2 — kanaal & e-mailprofiel
   const initialKanaal: Kanaal = (initialBrief?.kanaal as Kanaal | undefined) ?? 'post';
   const [kanaal, setKanaal] = useState<Kanaal>(initialKanaal);
+  const [postAdresDraft, setPostAdresDraft] = useState(
+    initialKanaal === 'post' ? (initialBrief?.verzendadres ?? prefill.verzendadres) : prefill.verzendadres,
+  );
+  const [emailAdresDraft, setEmailAdresDraft] = useState(
+    initialKanaal === 'email' && isEmailWaarde(initialBrief?.verzendadres)
+      ? initialBrief!.verzendadres!.trim()
+      : '',
+  );
   const [emailProfiel, setEmailProfiel] = useState<EmailProfiel>('algemene_acquisitie');
   // Houd bij of de gebruiker de e-mailtekst handmatig heeft aangepast,
   // zodat we templates niet ongevraagd overschrijven.
@@ -193,7 +201,15 @@ export default function BriefVoorbereidenDialog({
       setBrieftekst(initialBrief.brieftekst ?? '');
       setBriefId(initialBrief.id);
       setOnderwerpHandmatig(true);
-      setKanaal((initialBrief.kanaal as Kanaal | undefined) ?? 'post');
+      const bestaandKanaal = (initialBrief.kanaal as Kanaal | undefined) ?? 'post';
+      setKanaal(bestaandKanaal);
+      if (bestaandKanaal === 'email') {
+        setEmailAdresDraft(isEmailWaarde(adresInitial) ? adresInitial.trim() : '');
+        setPostAdresDraft(prefill.verzendadres ?? '');
+      } else {
+        setPostAdresDraft(adresInitial);
+        setEmailAdresDraft('');
+      }
       setEmailTekstHandmatig(true);
       setVerzendadresBron('bestaand');
       setPdfVoorstelKandidaatLabel(null);
@@ -214,6 +230,8 @@ export default function BriefVoorbereidenDialog({
 
     const initAdres = forced?.verzendadres ?? prefill.verzendadres;
     setVerzendadres(initAdres);
+    setPostAdresDraft(initAdres);
+    setEmailAdresDraft('');
     setVerzendadresBron(isEchteWaarde(initAdres) ? 'kandidaat' : 'leeg');
     setPdfVoorstelKandidaatLabel(null);
     setObjectadres(prefill.objectadres);
@@ -246,6 +264,24 @@ export default function BriefVoorbereidenDialog({
     [eigenaarNaam, eigenaarBedrijfsnaam, verzendadres, objectomschrijving, onderwerp, brieftekst],
   );
 
+  const handleKanaalWissel = (nieuwKanaal: Kanaal) => {
+    if (nieuwKanaal === kanaal) return;
+
+    if (kanaal === 'email') {
+      setEmailAdresDraft(isEmailWaarde(verzendadres) ? verzendadres.trim() : emailAdresDraft);
+    } else if (kanaal === 'post') {
+      setPostAdresDraft(isEchteWaarde(verzendadres) ? verzendadres : postAdresDraft);
+    }
+
+    const volgendAdres = nieuwKanaal === 'email'
+      ? emailAdresDraft
+      : (postAdresDraft || prefill.verzendadres || '');
+    setVerzendadres(volgendAdres);
+    setVerzendadresBron(isEchteWaarde(volgendAdres) ? 'handmatig' : 'leeg');
+    setPdfVoorstelKandidaatLabel(null);
+    setKanaal(nieuwKanaal);
+  };
+
   const handleKandidaatWissel = (label: string) => {
     if (label === kandidaatLabel) return;
     const k = prefill.kandidaten.find(x => x.label === label);
@@ -256,7 +292,7 @@ export default function BriefVoorbereidenDialog({
     //    — vraag bevestiging.
     //  - Anders: vul het structured adres van de nieuwe kandidaat in,
     //    of laat het veld leeg.
-    const nieuwAdres = k?.verzendadres ?? '';
+    const nieuwAdres = kanaal === 'email' ? '' : (k?.verzendadres ?? '');
     const huidigHandmatig = verzendadresBron === 'handmatig' && isEchteWaarde(verzendadres);
     const pdfVoorVorigeKandidaat = verzendadresBron === 'pdf-voorstel'
       && pdfVoorstelKandidaatLabel !== label;
@@ -267,6 +303,7 @@ export default function BriefVoorbereidenDialog({
       if (!ok) return;
     }
     setKandidaatLabel(label);
+    if (kanaal === 'email') setEmailAdresDraft('');
     if (k) {
       const velden = bepaalNaamVelden(k, !initialBrief);
       setEigenaarNaam(velden.naam);
@@ -304,6 +341,7 @@ export default function BriefVoorbereidenDialog({
     setEigenaarNaam(k.naam ?? eigenaarNaam);
     setEigenaarBedrijfsnaam(k.bedrijfsnaam ?? eigenaarBedrijfsnaam);
     setVerzendadres(k.verzendadres);
+    setPostAdresDraft(k.verzendadres);
     setVerzendadresBron('kandidaat');
     setPdfVoorstelKandidaatLabel(null);
     toast.success('Verzendadres overgenomen uit Kadasterbericht');
@@ -609,7 +647,7 @@ export default function BriefVoorbereidenDialog({
                 aria-selected={kanaal === k}
                 data-state={kanaal === k ? 'active' : 'inactive'}
                 data-testid={`brief-kanaal-${k}`}
-                onClick={() => setKanaal(k)}
+                onClick={() => handleKanaalWissel(k)}
                 className="glass-tab-pill text-xs px-3 py-1.5"
               >
                 {k === 'post' ? 'Post' : 'E-mail'}
@@ -732,6 +770,7 @@ export default function BriefVoorbereidenDialog({
                   value={verzendadres}
                   onChange={(e) => {
                     setVerzendadres(e.target.value);
+                    setEmailAdresDraft(e.target.value);
                     setVerzendadresBron('handmatig');
                     setPdfVoorstelKandidaatLabel(null);
                   }}
@@ -751,6 +790,7 @@ export default function BriefVoorbereidenDialog({
                   value={verzendadres}
                   onChange={(e) => {
                     setVerzendadres(e.target.value);
+                    setPostAdresDraft(e.target.value);
                     setVerzendadresBron('handmatig');
                     setPdfVoorstelKandidaatLabel(null);
                   }}
@@ -787,6 +827,7 @@ export default function BriefVoorbereidenDialog({
               kandidaatRecordId={geselecteerdeKandidaat?.recordId ?? null}
               onPick={(adres, naam, bedrijfsnaam) => {
                 setVerzendadres(adres);
+                setPostAdresDraft(adres);
                 setVerzendadresBron('pdf-voorstel');
                 setPdfVoorstelKandidaatLabel(kandidaatLabel);
                 // Natuurlijke persoon: zet "Naam" om naar voorletters +

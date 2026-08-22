@@ -6,6 +6,8 @@ describe('Post/E-mail semantiek', () => {
     const bron = readFileSync('src/components/offmarket/BriefVoorbereidenDialog.tsx', 'utf8');
     expect(bron).toContain("kanaal === 'email' ? 'E-mailadres' : 'Verzendadres'");
     expect(bron).toContain('Kadaster-postadresgegevens worden in e-mailmodus niet gebruikt.');
+    expect(bron).toContain('handleKanaalWissel');
+    expect(bron).toContain("const nieuwAdres = kanaal === 'email' ? ''");
     expect(bron).toContain("toast.error('Vul eerst een geldig e-mailadres in.')");
   });
 
