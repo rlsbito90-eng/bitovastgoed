@@ -12,6 +12,9 @@ type Provider = 'openai' | 'anthropic' | 'gemini';
 
 interface AiConfig {
   ai_enabled: boolean;
+  auto_enrich_enabled: boolean;
+  auto_max_age_days: number;
+  auto_batch_size: number;
   provider: Provider;
   default_model: string | null;
   max_requests_per_day: number;
@@ -49,7 +52,7 @@ export default function OffMarketAiInstellingenPanel() {
     try {
       const { data: cfg, error: cfgError } = await db
         .from('off_market_ai_config')
-        .select('ai_enabled,provider,default_model,max_requests_per_day,max_cost_per_day_usd,max_cost_per_month_usd,updated_at')
+        .select('ai_enabled,auto_enrich_enabled,auto_max_age_days,auto_batch_size,provider,default_model,max_requests_per_day,max_cost_per_day_usd,max_cost_per_month_usd,updated_at')
         .eq('id', true)
         .single();
       if (cfgError) throw cfgError;
@@ -59,13 +62,15 @@ export default function OffMarketAiInstellingenPanel() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const { data: runs, error: runsError } = await db
         .from('off_market_ai_runs')
-        .select('run_op,kosten,succes')
-        .gte('run_op', monthStart.toISOString())
-        .eq('succes', true);
+        .select('run_op,kosten,succes,provider')
+        .gte('run_op', monthStart.toISOString());
       if (runsError) throw runsError;
 
       const normalized: AiConfig = {
         ...cfg,
+        auto_enrich_enabled: cfg.auto_enrich_enabled === true,
+        auto_max_age_days: Number(cfg.auto_max_age_days ?? 30),
+        auto_batch_size: Number(cfg.auto_batch_size ?? 10),
         max_requests_per_day: Number(cfg.max_requests_per_day ?? 0),
         max_cost_per_day_usd: Number(cfg.max_cost_per_day_usd ?? 0),
         max_cost_per_month_usd: Number(cfg.max_cost_per_month_usd ?? 0),
@@ -76,9 +81,11 @@ export default function OffMarketAiInstellingenPanel() {
       let dayRequests = 0, dayCost = 0, monthCost = 0;
       for (const run of runs ?? []) {
         const cost = Number(run.kosten ?? 0);
-        if (cost <= 0) continue;
-        monthCost += cost;
-        if (new Date(run.run_op) >= dayStart) { dayRequests += 1; dayCost += cost; }
+        if (run.succes === true && cost > 0) monthCost += cost;
+        if (new Date(run.run_op) >= dayStart) {
+          if (run.provider) dayRequests += 1;
+          if (run.succes === true && cost > 0) dayCost += cost;
+        }
       }
       setUsage({ dayRequests, dayCost, monthCost });
     } catch (e) {
@@ -100,6 +107,9 @@ export default function OffMarketAiInstellingenPanel() {
       const { data: authData } = await supabase.auth.getUser();
       const patch = {
         ai_enabled: form.ai_enabled,
+        auto_enrich_enabled: form.auto_enrich_enabled,
+        auto_max_age_days: Math.max(1, Math.min(90, Math.floor(Number(form.auto_max_age_days) || 30))),
+        auto_batch_size: Math.max(1, Math.min(25, Math.floor(Number(form.auto_batch_size) || 10))),
         provider: form.provider,
         default_model: form.default_model?.trim() || null,
         max_requests_per_day: Math.max(0, Math.floor(Number(form.max_requests_per_day) || 0)),
@@ -131,7 +141,7 @@ export default function OffMarketAiInstellingenPanel() {
           <p className="text-sm font-medium text-foreground">AI-verrijking staat {form.ai_enabled ? 'AAN' : 'UIT'}</p>
           <p className="text-xs text-muted-foreground mt-1">
             {form.ai_enabled
-              ? 'Nieuwe AI-aanvragen zijn toegestaan zolang de ingestelde dag- en maandlimieten niet zijn bereikt.'
+              ? `Nieuwe AI-aanvragen zijn toegestaan binnen de limieten. Automatische Radar-verrijking staat ${form.auto_enrich_enabled ? 'AAN' : 'UIT'}.`
               : 'Er kan geen betaalde AI-provider-call worden uitgevoerd. Radar en gratis GEO blijven onafhankelijk werken.'}
           </p>
         </div>
@@ -151,6 +161,25 @@ export default function OffMarketAiInstellingenPanel() {
           </div>
           <Switch checked={form.ai_enabled} onCheckedChange={(v) => setForm(p => p ? { ...p, ai_enabled: v } : p)} />
         </div>
+
+        <div className="sm:col-span-2 flex items-center justify-between gap-4 rounded-md border border-border/60 px-3 py-3">
+          <div>
+            <p className="text-sm font-medium">Radar automatisch verrijken</p>
+            <p className="text-xs text-muted-foreground">Alleen recente sterke herpositioneringssignalen. Werkt uitsluitend als de master switch ook aan staat.</p>
+          </div>
+          <Switch
+            checked={form.auto_enrich_enabled}
+            onCheckedChange={(v) => setForm(p => p ? { ...p, auto_enrich_enabled: v } : p)}
+            data-testid="ai-auto-enrich-switch"
+          />
+        </div>
+
+        <Field label="Auto-selectie: maximaal aantal dagen oud">
+          <Input type="number" min={1} max={90} value={form.auto_max_age_days} onChange={(e) => setForm(p => p ? { ...p, auto_max_age_days: Number(e.target.value) } : p)} />
+        </Field>
+        <Field label="Auto-selectie: batch per worker-run">
+          <Input type="number" min={1} max={25} value={form.auto_batch_size} onChange={(e) => setForm(p => p ? { ...p, auto_batch_size: Number(e.target.value) } : p)} />
+        </Field>
 
         <Field label="Provider">
           <Select value={form.provider} onValueChange={(v) => setForm(p => p ? { ...p, provider: v as Provider, default_model: null } : p)}>
@@ -177,7 +206,7 @@ export default function OffMarketAiInstellingenPanel() {
 
       <div className="text-xs text-muted-foreground flex items-start gap-2 rounded-md bg-muted/40 border border-border/60 px-3 py-2">
         <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
-        <span>API-keys worden bewust niet in deze browserinstellingen opgeslagen. Die horen uitsluitend als server-side Supabase secret te bestaan. Kadaster wordt door deze AI-laag nooit automatisch aangeroepen.</span>
+        <span>Automatische selectie gebruikt eerst gratis/deterministische Radar-regels. API-keys blijven server-side. BAG en Kadaster worden door deze AI-laag nooit automatisch aangeroepen.</span>
       </div>
 
       <div className="flex justify-end">
