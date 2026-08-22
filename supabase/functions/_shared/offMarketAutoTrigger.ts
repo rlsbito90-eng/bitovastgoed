@@ -1,9 +1,12 @@
 // Server-side port van src/lib/offMarket/bag/autoTrigger.ts (pure functies, geen netwerkcalls).
-// Gebruikt door off-market-normalize-ruw (AI/GEO) en off-market-enrich-signaal (BAG-cascade)
-// om server-side te bepalen of automatische verrijking is toegestaan.
+// Gebruikt door off-market-normalize-ruw en legacy BAG-cascade guards.
 //
-// Houd deze logica in sync met de client-helpers in src/lib/offMarket/bag/autoTrigger.ts.
-// Kadaster wordt nooit geraakt.
+// Belangrijk productieprincipe sinds de dedicated workers:
+// - normalizer start AI/GEO niet meer rechtstreeks;
+// - AI loopt via off-market-ai-auto-worker;
+// - GEO loopt via de dedicated GEO-cron/function;
+// - BAG loopt via off-market-bag-auto-worker;
+// - Kadaster wordt nooit automatisch geraakt.
 
 export interface SignaalAutoInput {
   id?: string;
@@ -100,9 +103,9 @@ export function magAiAutoVerrijken(s: SignaalAutoInput): TriggerBeslissing {
 }
 
 /**
- * Server-side BAG-cascade guard. Wordt aangeroepen ná succesvolle AI-persist.
- * Strenger dan de client-helper: blokkeert ook fout/geen_match/meerdere_matches
- * om automatische retries te voorkomen. Handmatige BAG-knop kan altijd nog.
+ * Legacy/server-side BAG-cascade guard. Nieuwe automatische BAG-verrijking
+ * loopt via off-market-bag-auto-worker en hoeft niet vanuit normalisatie/AI
+ * direct gestart te worden.
  */
 export function magBagAutoVerrijken(s: SignaalAutoInput): TriggerBeslissing {
   if (isArchief(s)) return { toegestaan: false, reden: 'gearchiveerd of afgevallen' };
@@ -134,8 +137,14 @@ export function magBagAutoVerrijken(s: SignaalAutoInput): TriggerBeslissing {
   return { toegestaan: false, reden: `ai_score ${score} onvoldoende` };
 }
 
-/** Hard cap voor automatische AI-triggers per normalize-run. */
-export const AI_TRIGGER_CAP_PER_RUN = 50;
+/**
+ * Directe normalizer→AI-invocations zijn uitgeschakeld.
+ * Automatische AI-selectie loopt uitsluitend via off-market-ai-auto-worker.
+ */
+export const AI_TRIGGER_CAP_PER_RUN = 0;
 
-/** Hard cap voor automatische GEO-triggers per normalize-run. */
-export const GEO_TRIGGER_CAP_PER_RUN = 25;
+/**
+ * Legacy export; directe normalizer→GEO-invocations zijn uitgeschakeld.
+ * GEO loopt uitsluitend via de dedicated GEO-cron/function.
+ */
+export const GEO_TRIGGER_CAP_PER_RUN = 0;
