@@ -205,9 +205,10 @@ export default function AcquisitieDossierRij({
         "[&_[data-testid='acquisitie-rij-procesdatum']]:hidden",
         "[&_[data-testid='acquisitie-rij-toegevoegd']]:hidden",
         "[&_[data-testid='acquisitie-rij-redentekst']]:hidden",
+        "[&_[data-testid='acquisitie-rij-opvolging-nodig']]:hidden",
+        "[&_[data-testid='acquisitie-rij-ai-score']]:hidden",
         "[&_[data-testid='kadasteradvies-badge']]:hidden",
         "[&_[data-testid='bag-kaart-badge']]:hidden",
-        "[&_span:has(.lucide-sparkles)]:hidden",
         verbergFormeleBriefstatus ? "[&_[data-testid='acquisitie-rij-briefstatus']]:hidden" : '',
       ].filter(Boolean).join(' ')
     : '';
