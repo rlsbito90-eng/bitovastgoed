@@ -135,11 +135,11 @@ export default function BagOverzichtKaart({ signaal, onOpenKadaster }: Props) {
             onClick={bagVerrijkt ? onOpenKadaster : undefined}
             disabled={!bagVerrijkt}
             aria-disabled={!bagVerrijkt}
-            title={!bagVerrijkt ? 'Kies eerst een geldige BAG-match.' : undefined}
+            title={!bagVerrijkt ? 'Kies eerst een geldige BAG-match.' : 'Open het handmatige Kadaster- en eigenaarsonderzoek.'}
             data-testid="kadaster-ophalen-knop"
           >
             <FileSearch className="h-3.5 w-3.5" />
-            Kadaster ophalen
+            Naar Kadasteronderzoek
           </Button>
         </div>
       </div>
