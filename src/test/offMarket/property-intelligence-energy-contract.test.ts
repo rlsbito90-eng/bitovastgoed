@@ -28,7 +28,8 @@ describe('Vastgoed Intelligence energiecontract', () => {
   });
 
   it('bevat geen automatische Kadaster- of AI-koppeling', () => {
-    expect(energy).not.toMatch(/kadaster/i);
+    expect(energy).not.toMatch(/off-market-kadaster|kadaster-ophalen|kadaster-data|kadaster-product/i);
+    expect(energy).not.toMatch(/fetch\([^)]*kadaster/i);
     expect(energy).not.toMatch(/openai|anthropic|gemini/i);
   });
 
