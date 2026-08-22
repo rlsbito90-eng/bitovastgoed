@@ -27,6 +27,13 @@ describe('Vastgoed Intelligence energiecontract', () => {
     expect(energy).toContain("bag_vbo_id: bagVboId");
   });
 
+  it('mapt de actuele EP-Online v5 NTA-velden en behandelt ontbrekende getallen als null', () => {
+    expect(energy).toContain("value === null || value === undefined || value === ''");
+    expect(energy).toContain("'PrimaireFossieleEnergie'");
+    expect(energy).toContain("'Geldig_tot'");
+    expect(energy).toContain("energie_index: num(");
+  });
+
   it('bevat geen automatische Kadaster- of AI-koppeling', () => {
     expect(energy).not.toMatch(/off-market-kadaster|kadaster-ophalen|kadaster-data|kadaster-product/i);
     expect(energy).not.toMatch(/fetch\([^)]*kadaster/i);
