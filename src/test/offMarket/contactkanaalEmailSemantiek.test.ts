@@ -15,5 +15,6 @@ describe('Post/E-mail semantiek', () => {
     const bron = readFileSync('src/hooks/useOffMarketBrieven.tsx', 'utf8');
     expect(bron).toContain("status: 'verstuurd',\n        kanaal,");
     expect(bron).toContain("event_type: isEmail ? 'sent' : 'posted'");
+    expect(bron).toContain('if (!input.kanaal_wijzigen) delete payload.kanaal;');
   });
 });

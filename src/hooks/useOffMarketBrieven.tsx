@@ -95,7 +95,7 @@ export function useUpsertBrief() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (
-      input: BriefInsert & { id?: string },
+      input: BriefInsert & { id?: string; kanaal_wijzigen?: boolean },
     ): Promise<OffMarketBrief> => {
       const { data: u } = await supabase.auth.getUser();
       // Bereken geadresseerde_key wanneer niet meegegeven.
@@ -123,12 +123,10 @@ export function useUpsertBrief() {
         verzendstatus: input.verzendstatus ?? 'concept',
       };
       if (input.id) {
-        // Bestaand concept mag van kanaal wisselen; een reeds verstuurd
-        // record behoudt zijn historische kanaal. Status/verzendstatus
-        // worden uitsluitend door useMarkBriefVerstuurd geregisseerd.
-        const { data: huidig } = await (supabase as any)
-          .from(TABLE).select('status').eq('id', input.id).maybeSingle();
-        if (huidig?.status === 'verstuurd') delete payload.kanaal;
+        // Historisch contract: een generieke inhoudelijke update verandert
+        // het kanaal niet impliciet. Alleen de kanaalkeuze in de
+        // voorbereidingsflow mag dit expliciet doen voor een concept.
+        if (!input.kanaal_wijzigen) delete payload.kanaal;
         delete payload.verzendstatus;
         delete payload.status;
         const { data, error } = await (supabase as any)

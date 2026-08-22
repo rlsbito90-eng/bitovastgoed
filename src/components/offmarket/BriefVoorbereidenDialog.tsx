@@ -373,6 +373,7 @@ export default function BriefVoorbereidenDialog({
         aanhef, onderwerp, brieftekst,
         status,
         kanaal,
+        kanaal_wijzigen: !!briefId && initialBrief?.status !== 'verstuurd',
         campagne_stap: huidigeCampagneStap as any,
       });
       setBriefId(res.id);
