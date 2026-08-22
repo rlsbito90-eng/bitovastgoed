@@ -17,6 +17,7 @@ describe('Off-Market BAG auto worker', () => {
 
   it('houdt de batch bewust begrensd', () => {
     expect(source).toContain('const batchLimit = 15');
+    expect(source).toContain('.limit(batchLimit)');
   });
 
   it('roept uitsluitend de BAG resolver aan en nooit Kadaster of AI', () => {
