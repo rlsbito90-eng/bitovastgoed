@@ -38,6 +38,19 @@ describe('Off-Market AI enrich V2 contract', () => {
     expect(bron.indexOf("ai_status: 'niet_verrijkt'")).toBeGreaterThan(bron.indexOf('catch (error)'));
   });
 
+  it('beperkt AI-assettype tot geldige CRM-enumwaarden', () => {
+    expect(bron).toContain("'appartementencomplex'");
+    expect(bron).toContain("'transformatieobject'");
+    expect(bron).toContain("enum: [...ASSETTYPES]");
+    expect(bron).toContain('normaliseAssettype(output.geclassificeerd_assettype)');
+  });
+
+  it('mag een AI-run pas succesvol loggen nadat de signaalupdate is geslaagd', () => {
+    expect(bron).toContain('const { error: updateError }');
+    expect(bron).toContain('if (updateError) throw new Error(`AI-signaalupdate mislukt: ${updateError.message}`)');
+    expect(bron.indexOf('if (updateError) throw new Error')).toBeLessThan(bron.indexOf('provider_request_id: result.requestId'));
+  });
+
   it('redigeert API-sleutels uit opgeslagen foutmeldingen', () => {
     expect(bron).toContain('safeErrorMessage');
     expect(bron).toContain('[REDACTED]');
