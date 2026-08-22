@@ -31,7 +31,8 @@ SELECT cron.schedule(
           LIMIT 1
         )
       ),
-      body := '{}'::jsonb
+      body := '{}'::jsonb,
+      timeout_milliseconds := 120000
     );
   $cron$
 );
