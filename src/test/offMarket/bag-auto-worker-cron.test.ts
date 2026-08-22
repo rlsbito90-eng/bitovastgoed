@@ -19,8 +19,9 @@ describe('BAG auto-worker cron', () => {
   });
 
   it('gebruikt alleen de server-side cron secret', () => {
-    expect(migration).toContain('off_market_runtime_secrets');
-    expect(migration).toContain("where key = 'cron_secret'");
+    const lower = migration.toLowerCase();
+    expect(lower).toContain('off_market_runtime_secrets');
+    expect(lower).toContain("where key = 'cron_secret'");
     expect(migration).not.toMatch(/kadaster-objectinformatie|openai|anthropic|gemini/i);
   });
 });
