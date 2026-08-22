@@ -26,6 +26,7 @@ function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 function num(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
@@ -148,10 +149,27 @@ Deno.serve(async (req) => {
       energielabel: text(pick(p, 'Energieklasse', 'energieklasse', 'Energielabel', 'energielabel', 'Labelklasse', 'labelklasse')),
       gebouwklasse: text(pick(p, 'Gebouwklasse', 'gebouwklasse')),
       gebruiksfunctie: text(pick(p, 'Gebruiksfunctie', 'gebruiksfunctie', 'Gebouwtype', 'gebouwtype')),
+      // EnergieIndex is vooral relevant voor oudere registratiemethodieken. Ontbrekend is null, nooit 0.
       energie_index: num(pick(p, 'EnergieIndex', 'energieIndex', 'energie_index')),
-      primair_fossiel_energiegebruik: num(pick(p, 'PrimairFossielEnergiegebruik', 'primairFossielEnergiegebruik', 'primair_fossiel_energiegebruik')),
+      // EP-Online v5 gebruikt bij NTA 8800 o.a. `PrimaireFossieleEnergie`.
+      primair_fossiel_energiegebruik: num(pick(
+        p,
+        'PrimaireFossieleEnergie',
+        'primaireFossieleEnergie',
+        'PrimairFossielEnergiegebruik',
+        'primairFossielEnergiegebruik',
+        'primair_fossiel_energiegebruik',
+      )),
       registratiedatum: date(pick(p, 'Registratiedatum', 'registratiedatum', 'RegistratieDatum')),
-      geldig_tot: date(pick(p, 'GeldigTot', 'geldigTot', 'Geldigheidsdatum', 'geldigheidsdatum')),
+      geldig_tot: date(pick(
+        p,
+        'Geldig_tot',
+        'geldig_tot',
+        'GeldigTot',
+        'geldigTot',
+        'Geldigheidsdatum',
+        'geldigheidsdatum',
+      )),
       status: text(pick(p, 'Status', 'status')),
       match_kwaliteit: 'exact',
       bron: 'ep_online',
