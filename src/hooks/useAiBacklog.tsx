@@ -14,9 +14,7 @@ import type { SignaalBagInput } from '@/lib/offMarket/bag/types';
 
 const BACKLOG_KEY = ['off-market-ai-backlog-count'] as const;
 const PAGE_SIZE = 1000;
-
-const SELECT_FIELDS =
-  'id, titel, adres, postcode, plaats, bron_url, status, gearchiveerd_op, ai_score, ai_status, ai_skip_reden';
+const SELECT_FIELDS = 'id, titel, adres, postcode, plaats, bron_url, status, gearchiveerd_op, ai_score, ai_status, ai_skip_reden';
 
 export function useAiBacklogCount() {
   return useQuery({
@@ -67,7 +65,7 @@ async function bouwSnapshot(): Promise<string[]> {
 /** Budgetguard en providerkeuze worden volledig server-side in v2 afgedwongen. */
 async function invokeEnrichDirect(signaalId: string): Promise<AiBacklogInvokeResult> {
   const { data, error } = await supabase.functions.invoke('off-market-enrich-signaal-v2', {
-    body: { signaal_id: signaalId, force: false },
+    body: { signaal_id: signaalId, force: false, cascade_bag: false },
   });
   if (error) return { ok: false, error: error.message ?? 'invoke-fout' };
   const respErr = (data as { error?: string } | null)?.error;
@@ -91,12 +89,7 @@ export function useAiBacklogVerwerken(): UseAiBacklogVerwerken {
     mutationFn: async (): Promise<AiBacklogResult> => {
       setProgress(null);
       const snapshot = await bouwSnapshot();
-      const initial: AiBacklogProgress = {
-        verwerkt: 0,
-        geslaagd: 0,
-        mislukt: 0,
-        resterend: snapshot.length,
-      };
+      const initial: AiBacklogProgress = { verwerkt: 0, geslaagd: 0, mislukt: 0, resterend: snapshot.length };
       setProgress(initial);
       return verwerkAiAchterstand({
         snapshot,
