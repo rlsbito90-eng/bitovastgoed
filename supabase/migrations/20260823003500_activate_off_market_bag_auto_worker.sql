@@ -20,19 +20,18 @@ SELECT cron.schedule(
   'off-market-bag-auto-five-minutely',
   '*/5 * * * *',
   $cron$
-  SELECT net.http_post(
-    url := 'https://vyjocdlwfxrblusfngfq.supabase.co/functions/v1/off-market-bag-auto-worker',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'x-cron-secret', (
-        SELECT value
-        FROM public.off_market_runtime_secrets
-        WHERE key = 'cron_secret'
-        LIMIT 1
-      )
-    ),
-    body := '{}'::jsonb,
-    timeout_milliseconds := 120000
-  );
+    SELECT net.http_post(
+      url := 'https://vyjocdlwfxrblusfngfq.supabase.co/functions/v1/off-market-bag-auto-worker',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'x-cron-secret', (
+          SELECT value
+          FROM public.off_market_runtime_secrets
+          WHERE key = 'cron_secret'
+          LIMIT 1
+        )
+      ),
+      body := '{}'::jsonb
+    );
   $cron$
 );
