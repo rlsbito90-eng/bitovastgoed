@@ -1,6 +1,5 @@
-// V2.7 — Server-side cascade is voortaan canoniek.
-// Deze hook triggert GEEN client-side BAG-cascade meer; off-market-enrich-signaal
-// regelt de BAG-fan-out met x-cron-secret en EdgeRuntime.waitUntil.
+// Provider-onafhankelijke AI-verrijking via de budget-guarded v2 Edge Function.
+// Deze hook triggert geen client-side BAG- of Kadaster-cascade.
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,7 +13,7 @@ export function useEnrichSignaal() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ signaalId, force, model }: EnrichArgs) => {
-      const { data, error } = await supabase.functions.invoke('off-market-enrich-signaal', {
+      const { data, error } = await supabase.functions.invoke('off-market-enrich-signaal-v2', {
         body: { signaal_id: signaalId, force: !!force, ...(model ? { model } : {}) },
       });
       if (error) throw new Error(error.message ?? 'AI-verrijking mislukt');
