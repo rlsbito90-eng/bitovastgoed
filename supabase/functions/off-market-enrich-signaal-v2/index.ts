@@ -106,6 +106,14 @@ function clip(value: unknown, max: number): string | null {
   return text.slice(0, max);
 }
 
+function safeErrorMessage(error: unknown): string {
+  const raw = error instanceof Error ? error.message : 'Onbekende fout';
+  return raw
+    .replace(/sk-(?:proj-)?[A-Za-z0-9_\-]{12,}/g, '[REDACTED]')
+    .replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, 'Bearer [REDACTED]')
+    .slice(0, 1000);
+}
+
 function clampScore(value: unknown): number {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
@@ -188,6 +196,11 @@ Deno.serve(async (req) => {
 
   const started = Date.now();
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  let signaalId: string | null = null;
+  let provider: AiProvider | null = null;
+  let model: string | null = null;
+  let inputHash: string | null = null;
+  let providerAttemptStarted = false;
 
   try {
     const providedCron = req.headers.get('x-cron-secret');
@@ -207,14 +220,14 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const signaalId = typeof body.signaal_id === 'string' ? body.signaal_id : null;
+    signaalId = typeof body.signaal_id === 'string' ? body.signaal_id : null;
     const force = body.force === true;
     if (!signaalId) return json({ error: 'signaal_id verplicht' }, 400);
 
     // HARD STOP vóór enige provider-call.
     const budget = await requireAiBudget(admin as any);
-    const provider = budget.provider;
-    const model = normaliseModel(provider, typeof body.model === 'string' && body.model.trim()
+    provider = budget.provider;
+    model = normaliseModel(provider, typeof body.model === 'string' && body.model.trim()
       ? body.model
       : budget.default_model ?? resolveDefaultModel(provider));
 
@@ -226,7 +239,7 @@ Deno.serve(async (req) => {
     if (signaalError || !signaal) return json({ error: 'Signaal niet gevonden' }, 404);
 
     const payload = buildPayload(signaal as Record<string, unknown>);
-    const inputHash = await sha256Hex(stableStringify({ provider, model, prompt: PROMPT_VERSIE, payload }));
+    inputHash = await sha256Hex(stableStringify({ provider, model, prompt: PROMPT_VERSIE, payload }));
 
     if (!force) {
       const { data: cached } = await admin
@@ -258,6 +271,7 @@ Deno.serve(async (req) => {
     }
 
     await admin.from('off_market_signalen').update({ ai_status: 'bezig' }).eq('id', signaalId);
+    providerAttemptStarted = true;
 
     const result = await invokeAiProvider({
       provider,
@@ -288,10 +302,30 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, cached: false, provider, model: result.model, cost_usd: cost, update });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Onbekende fout';
+    const message = safeErrorMessage(error);
     const status = error instanceof AiBudgetError ? 402
       : error instanceof AiProviderError ? (error.status === 429 ? 429 : 502)
       : 500;
+
+    // Alleen een echte providerpoging krijgt een failure-run. Budget/auth-fouten tellen niet als providerrequest.
+    if (providerAttemptStarted && signaalId) {
+      await admin.from('off_market_signalen').update({ ai_status: 'niet_verrijkt' }).eq('id', signaalId);
+      await admin.from('off_market_ai_runs').insert({
+        signaal_id: signaalId,
+        provider,
+        model,
+        prompt_versie: PROMPT_VERSIE,
+        input_hash: inputHash,
+        output: null,
+        kosten: null,
+        input_tokens: null,
+        output_tokens: null,
+        latentie_ms: Date.now() - started,
+        succes: false,
+        fout: message,
+      });
+    }
+
     return json({ error: message, blocked: error instanceof AiBudgetError }, status);
   }
 });

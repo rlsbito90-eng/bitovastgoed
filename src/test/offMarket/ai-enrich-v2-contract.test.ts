@@ -16,7 +16,7 @@ describe('Off-Market AI enrich V2 contract', () => {
   });
 
   it('kiest provider vanuit centrale configuratie en niet hardcoded', () => {
-    expect(bron).toContain('const provider = budget.provider');
+    expect(bron).toContain('provider = budget.provider');
     expect(bron).toContain('budget.default_model ?? resolveDefaultModel(provider)');
     expect(bron).not.toContain('GEMINI_API_KEY');
     expect(bron).not.toContain('OPENAI_API_KEY');
@@ -28,6 +28,19 @@ describe('Off-Market AI enrich V2 contract', () => {
     expect(bron).toContain('input_tokens: result.usage.inputTokens');
     expect(bron).toContain('output_tokens: result.usage.outputTokens');
     expect(bron).toContain('kosten: cost');
+  });
+
+  it('audit providerfouten en laat een signaal niet op bezig hangen', () => {
+    expect(bron).toContain('providerAttemptStarted = true');
+    expect(bron).toContain("ai_status: 'niet_verrijkt'");
+    expect(bron).toContain('succes: false');
+    expect(bron).toContain('fout: message');
+    expect(bron.indexOf("ai_status: 'niet_verrijkt'")).toBeGreaterThan(bron.indexOf('catch (error)'));
+  });
+
+  it('redigeert API-sleutels uit opgeslagen foutmeldingen', () => {
+    expect(bron).toContain('safeErrorMessage');
+    expect(bron).toContain('[REDACTED]');
   });
 
   it('start geen BAG- of Kadaster-cascade', () => {
