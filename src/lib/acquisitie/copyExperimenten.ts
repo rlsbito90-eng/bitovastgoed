@@ -19,20 +19,40 @@ export interface CopyVariantToewijzing {
   hypothese: string;
 }
 
+const CONTROLE_VARIANT: CopyVariantDefinitie = {
+  code: 'A',
+  naam: 'Controle',
+  hypothese: 'Huidige standaardtekst als controlevariant.',
+  actief: true,
+};
+
+const SPLITSING_BRIEF_1_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B',
+  naam: 'Kort/direct',
+  hypothese: 'Een kortere, object- en splitsingsgerichte eerste brief met één laagdrempelige CTA verhoogt de kwalitatieve respons ten opzichte van de algemene controlebrief.',
+  actief: true,
+};
+
 /**
- * Startcontract: alleen de huidige tekst is actief als controlevariant A.
- * Nieuwe Claude-varianten worden later expliciet aan deze lijst toegevoegd.
- * De selector is al deterministisch, zodat A/B-toewijzing niet opnieuw rolt
- * wanneer een gebruiker hetzelfde dossier opnieuw opent.
+ * Algemene fallback blijft controle A. Alleen experimenten die inhoudelijk
+ * gereed en expliciet geactiveerd zijn krijgen hier extra challengers.
  */
-export const COPY_VARIANTEN: CopyVariantDefinitie[] = [
-  {
-    code: 'A',
-    naam: 'Controle',
-    hypothese: 'Huidige standaardtekst als controlevariant.',
-    actief: true,
-  },
-];
+export const COPY_VARIANTEN: CopyVariantDefinitie[] = [CONTROLE_VARIANT];
+
+function standaardVariantenVoorExperiment(args: {
+  profiel: string;
+  kanaal: Kanaal;
+  campagneStap: string;
+}): CopyVariantDefinitie[] {
+  if (
+    args.profiel === 'splitsingspotentie'
+    && args.kanaal === 'post'
+    && args.campagneStap === 'brief_1'
+  ) {
+    return [CONTROLE_VARIANT, SPLITSING_BRIEF_1_VARIANT_B];
+  }
+  return COPY_VARIANTEN;
+}
 
 const schoon = (v: unknown) => String(v ?? '').trim().toLowerCase();
 
@@ -80,8 +100,9 @@ export function kiesCopyVariant(args: {
   geadresseerdeKey?: string | null;
   varianten?: CopyVariantDefinitie[];
 }): CopyVariantToewijzing {
-  const actief = (args.varianten ?? COPY_VARIANTEN).filter(v => v.actief);
-  const kandidaten = actief.length > 0 ? actief : COPY_VARIANTEN.filter(v => v.code === 'A');
+  const bron = args.varianten ?? standaardVariantenVoorExperiment(args);
+  const actief = bron.filter(v => v.actief);
+  const kandidaten = actief.length > 0 ? actief : [CONTROLE_VARIANT];
   const identiteit = [args.signaalId, args.geadresseerdeKey ?? '', args.kanaal, args.campagneStap, args.profiel].join('|');
   const gekozen = kandidaten[stabieleHash(identiteit) % kandidaten.length];
   const variantKey = `${args.profiel}:${args.kanaal}:${args.campagneStap}:${gekozen.code}`;
