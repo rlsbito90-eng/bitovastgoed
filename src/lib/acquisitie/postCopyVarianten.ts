@@ -16,6 +16,7 @@ const SPLITSING_BRIEF_1_B_KEY = 'splitsingspotentie:post:brief_1:B';
 const SPLITSING_BRIEF_2_A_KEY = 'splitsingspotentie:post:brief_2:A';
 const SPLITSING_BRIEF_2_B_KEY = 'splitsingspotentie:post:brief_2:B';
 const SPLITSING_BRIEF_3_A_KEY = 'splitsingspotentie:post:brief_3:A';
+const SPLITSING_BRIEF_3_B_KEY = 'splitsingspotentie:post:brief_3:B';
 
 export function bouwPostVariantTemplate({
   toewijzing,
@@ -104,6 +105,38 @@ export function bouwPostVariantTemplate({
         'Als dit op dit moment niet speelt, laat ik het voor nu hierbij. Mocht dat in de toekomst veranderen, dan weet u mij uiteraard te vinden.',
         '',
         'Staat u open voor een korte kennismaking, dan hoor ik graag van u.',
+        '',
+        'Met vriendelijke groet,',
+        '',
+        BITO_CONTACT.naam,
+        BITO_CONTACT.functie,
+        BITO_CONTACT.bedrijf,
+        '',
+        `T: ${BITO_CONTACT.telefoon}`,
+        `E: ${BITO_CONTACT.email}`,
+        `W: ${BITO_CONTACT.website}`,
+      ].join('\n'),
+    };
+  }
+
+  if (toewijzing.variantKey === SPLITSING_BRIEF_3_B_KEY && toewijzing.variantCode === 'B') {
+    const objectRef = object || 'uw vastgoed';
+    const onderwerp = object
+      ? `Uw pand aan ${object}`
+      : 'Uw vastgoed';
+
+    return {
+      onderwerp,
+      brieftekst: [
+        aanhef,
+        '',
+        `Nog één keer kort over ${objectRef}, gezien de mogelijke splitsings- of uitpondingspotentie ervan.`,
+        '',
+        'Speelt verkoop van dit pand, ander vastgoed of een bredere portefeuille nu of op termijn, dan kom ik graag vrijblijvend met u in contact.',
+        '',
+        'Speelt dit op dit moment niet, dan laat ik het voor nu rusten. Verandert dat op een later moment, dan weet u mij te vinden.',
+        '',
+        'Interesse? Een kort telefoongesprek of e-mail is voldoende.',
         '',
         'Met vriendelijke groet,',
         '',

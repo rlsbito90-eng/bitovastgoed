@@ -40,6 +40,13 @@ const SPLITSING_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
   actief: true,
 };
 
+const SPLITSING_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B',
+  naam: 'Compacte afsluiting',
+  hypothese: 'Een compactere, strakker afrondende Brief 3 verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-A.',
+  actief: true,
+};
+
 /**
  * Algemene fallback blijft controle A. Alleen experimenten die inhoudelijk
  * gereed en expliciet geactiveerd zijn krijgen hier extra challengers.
@@ -54,6 +61,7 @@ function standaardVariantenVoorExperiment(args: {
   if (args.profiel === 'splitsingspotentie' && args.kanaal === 'post') {
     if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, SPLITSING_BRIEF_1_VARIANT_B];
     if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, SPLITSING_BRIEF_2_VARIANT_B];
+    if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, SPLITSING_BRIEF_3_VARIANT_B];
   }
   return COPY_VARIANTEN;
 }

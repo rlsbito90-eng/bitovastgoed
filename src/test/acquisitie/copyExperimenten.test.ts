@@ -24,7 +24,7 @@ describe('acquisitie copy-experimenten', () => {
     expect(keuze.hypothese).toContain('controlevariant');
   });
 
-  it.each(['brief_1', 'brief_2'])('verdeelt Splitsingspotentie Post %s stabiel over A en B', (campagneStap) => {
+  it.each(['brief_1', 'brief_2', 'brief_3'])('verdeelt Splitsingspotentie Post %s stabiel over A en B', (campagneStap) => {
     const identiteiten = [
       ['signaal-1', 'eigenaar-1'], ['signaal-1', 'xyz'], ['abc', 'eigenaar-1'], ['abc', 'xyz'],
       ['s1', 'jan'], ['s1', 'bedrijf'], ['signaal-a', 'a'], ['123', 'b'],
