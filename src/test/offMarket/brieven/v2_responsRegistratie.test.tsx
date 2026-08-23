@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const eventInsertMock = vi.fn((_payload: any) => Promise.resolve({ error: null }));
 const briefUpdateMock = vi.fn();
+const briefEqMock = vi.fn();
 const fromMock = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -18,22 +19,26 @@ vi.mock('@/integrations/supabase/client', () => ({
 beforeEach(() => {
   eventInsertMock.mockClear();
   briefUpdateMock.mockClear();
+  briefEqMock.mockClear();
   fromMock.mockReset();
   fromMock.mockImplementation((tabel: string) => {
     if (tabel === 'off_market_brieven') {
       return {
         update: (patch: any) => {
           briefUpdateMock(patch);
-          return {
-            eq: () => ({
-              select: () => ({
-                single: () => Promise.resolve({
-                  data: { id: 'b-1', signaal_id: 's1', ...patch },
-                  error: null,
-                }),
+          const chain: any = {
+            eq: (kolom: string, waarde: unknown) => {
+              briefEqMock(kolom, waarde);
+              return chain;
+            },
+            select: () => ({
+              single: () => Promise.resolve({
+                data: { id: 'b-1', signaal_id: 's1', status: 'verstuurd', ...patch },
+                error: null,
               }),
             }),
           };
+          return chain;
         },
       };
     }
@@ -49,6 +54,12 @@ function wrap() {
   return ({ children }: any) => (
     <QueryClientProvider client={qc}>{children}</QueryClientProvider>
   );
+}
+
+function verwachtExacteVerzondenBriefFilters() {
+  expect(briefEqMock).toHaveBeenCalledWith('id', 'b-1');
+  expect(briefEqMock).toHaveBeenCalledWith('signaal_id', 's1');
+  expect(briefEqMock).toHaveBeenCalledWith('status', 'verstuurd');
 }
 
 describe('responsRegistratie — V2', () => {
@@ -67,6 +78,7 @@ describe('responsRegistratie — V2', () => {
       responsdatum: '2026-06-15',
       respons_samenvatting: 'Wil bellen volgende week.',
     }));
+    verwachtExacteVerzondenBriefFilters();
     expect(eventInsertMock).toHaveBeenCalledTimes(1);
     expect(eventInsertMock.mock.calls[0][0]).toMatchObject({
       event_type: 'response_received',
@@ -87,6 +99,7 @@ describe('responsRegistratie — V2', () => {
       responsstatus: 'retour_post',
       verzendstatus: 'retour',
     }));
+    verwachtExacteVerzondenBriefFilters();
     expect(eventInsertMock.mock.calls[0][0]).toMatchObject({
       event_type: 'returned_mail',
     });
