@@ -15,7 +15,7 @@ describe('acquisitie copy-experimenten', () => {
     expect(bepaalPostCopyProfiel({ ...basisSignaal, assettype: 'kantoor' })).toBe('commercieel_vastgoed');
   });
 
-  it('geeft nieuwe communicatie standaard controlevariant A', () => {
+  it('houdt niet-geactiveerde experimenten op controlevariant A', () => {
     const keuze = kiesCopyVariant({
       profiel: 'woonvorming', kanaal: 'post', campagneStap: 'brief_1', signaalId: 'signaal-1', geadresseerdeKey: 'eigenaar-1',
     });
@@ -24,7 +24,29 @@ describe('acquisitie copy-experimenten', () => {
     expect(keuze.hypothese).toContain('controlevariant');
   });
 
-  it('kiest stabiel wanneer later meerdere varianten actief zijn', () => {
+  it('verdeelt Splitsingspotentie Post Brief 1 stabiel over A en B', () => {
+    const codes = new Set<string>();
+    for (let i = 0; i < 100; i += 1) {
+      const keuze = kiesCopyVariant({
+        profiel: 'splitsingspotentie',
+        kanaal: 'post',
+        campagneStap: 'brief_1',
+        signaalId: `signaal-${i}`,
+        geadresseerdeKey: `eigenaar-${i}`,
+      });
+      codes.add(keuze.variantCode);
+      expect(keuze).toEqual(kiesCopyVariant({
+        profiel: 'splitsingspotentie',
+        kanaal: 'post',
+        campagneStap: 'brief_1',
+        signaalId: `signaal-${i}`,
+        geadresseerdeKey: `eigenaar-${i}`,
+      }));
+    }
+    expect(codes).toEqual(new Set(['A', 'B']));
+  });
+
+  it('respecteert expliciet aangeleverde varianten voor toekomstige experimenten', () => {
     const varianten: CopyVariantDefinitie[] = [
       { code: 'A', naam: 'Controle', hypothese: 'controle', actief: true },
       { code: 'B', naam: 'Kort/direct', hypothese: 'kortere tekst verhoogt respons', actief: true },
