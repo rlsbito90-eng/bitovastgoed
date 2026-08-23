@@ -138,7 +138,7 @@ Geef alleen aan of de tekst `KLAAR VOOR A/B-TEST` is of `EERST AANPASSEN`, met m
 
 Na goedkeuring wordt Variant B als aparte, versievaste template geregistreerd onder:
 
-`splitstingspotentie:post:brief_1:B`
+`splitingspotentie:post:brief_1:B`
 
 De CRM verdeelt nieuwe communicatie automatisch tussen A en B volgens de actieve experimentgewichten. Dezelfde communicatie houdt zijn eenmaal toegewezen variant. Resultaten worden centraal gevolgd in Conversie & experimenten volgens het Experiment Playbook.
 
