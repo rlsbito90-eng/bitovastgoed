@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { beoordeelExperiment, type ExperimentVariantRij } from '@/lib/acquisitie/experimentPlaybook';
 
-const variant = (code: string, verzonden: number, positiefPct: number): ExperimentVariantRij => ({
+const variant = (code: string, verzonden: number, kwalitatiefPct: number): ExperimentVariantRij => ({
   sleutel: `x:${code}`,
   label: `Variant ${code}`,
   variantCode: code,
   isControl: code === 'A',
   verzonden,
   reacties: 0,
-  positieveReacties: Math.round((positiefPct / 100) * verzonden),
+  positieveReacties: Math.round((kwalitatiefPct / 100) * verzonden),
+  kwalitatieveReacties: Math.round((kwalitatiefPct / 100) * verzonden),
+  gekwalificeerdeLeads: 0,
   responspercentage: 0,
-  positieveResponspercentage: positiefPct,
+  positieveResponspercentage: kwalitatiefPct,
+  kwalitatieveResponspercentage: kwalitatiefPct,
+  gekwalificeerdeLeadPercentage: 0,
 });
 
 const basis = {
@@ -36,14 +40,14 @@ describe('acquisitie experiment playbook', () => {
     expect(model.checks.minimumVolume).toBe(false);
   });
 
-  it('markeert pas bij streefvolume en duidelijke uplift een kandidaat-winnaar', () => {
+  it('markeert pas bij streefvolume en duidelijke uplift in kwalitatieve respons een kandidaat-winnaar', () => {
     const model = beoordeelExperiment({ ...basis, varianten: [variant('A', 80, 5), variant('B', 80, 9)] });
     expect(model.status).toBe('kandidaat_winnaar');
     expect(model.kandidaatVariantCode).toBe('B');
     expect(model.checks.streefvolume).toBe(true);
   });
 
-  it('promoveert niets wanneer het verschil te klein is', () => {
+  it('promoveert niets wanneer het kwalitatieve verschil te klein is', () => {
     const model = beoordeelExperiment({ ...basis, varianten: [variant('A', 80, 5), variant('B', 80, 6)] });
     expect(model.status).toBe('beslismoment');
     expect(model.kandidaatVariantCode).toBeNull();
