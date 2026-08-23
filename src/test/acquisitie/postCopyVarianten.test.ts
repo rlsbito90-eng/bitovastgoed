@@ -210,4 +210,44 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
     expect(template.brieftekst).not.toContain('laatste keer');
   });
+
+  it('bouwt Woonvorming Brief 3 controle A als rustige sequence-afsluiting met context', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'woonvorming',
+        variantKey: 'woonvorming:post:brief_3:A',
+        variantCode: 'A',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Over uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Ik neem nog één keer kort contact met u op over Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('woonvormingsontwikkeling of -vergunning rond het object');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('laat ik het voor nu hierbij');
+    expect(template.brieftekst).toContain('Mocht dat in de toekomst veranderen');
+    expect(template.brieftekst).not.toContain('nooit meer');
+  });
+
+  it('bouwt de goedgekeurde Woonvorming Brief 3 challenger B met natuurlijke opening', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'woonvorming',
+        variantKey: 'woonvorming:post:brief_3:B',
+        variantCode: 'B',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Ik kom nog even terug op Voorbeeldstraat 10 te Amsterdam, waarover ik u eerder schreef.');
+    expect(template.brieftekst).toContain('kom ik graag vrijblijvend met u in contact');
+    expect(template.brieftekst).toContain('laat ik het voor nu rusten');
+    expect(template.brieftekst).toContain('Verandert dat op een later moment, dan weet u mij te vinden');
+    expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
+    expect(template.brieftekst).not.toContain('Nog één keer kort');
+    expect(template.brieftekst).not.toContain('woonvormingsontwikkeling of -vergunning rond het object');
+    expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
+  });
 });
