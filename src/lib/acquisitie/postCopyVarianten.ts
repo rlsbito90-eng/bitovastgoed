@@ -13,12 +13,47 @@ export interface PostVariantTemplate {
 }
 
 const SPLITSING_BRIEF_1_B_KEY = 'splitsingspotentie:post:brief_1:B';
+const SPLITSING_BRIEF_2_A_KEY = 'splitsingspotentie:post:brief_2:A';
 
 export function bouwPostVariantTemplate({
   toewijzing,
   aanhef,
   objectomschrijving,
 }: PostVariantTemplateInput): PostVariantTemplate {
+  const object = objectomschrijving.trim();
+
+  if (toewijzing.variantKey === SPLITSING_BRIEF_2_A_KEY && toewijzing.variantCode === 'A') {
+    const objectRef = object ? `het vastgoed aan ${object}` : 'uw vastgoed';
+    const onderwerp = object
+      ? `Nogmaals over het vastgoed aan ${object}`
+      : 'Nogmaals over uw vastgoed';
+
+    return {
+      onderwerp,
+      brieftekst: [
+        aanhef,
+        '',
+        `Enige tijd geleden stuurde ik u een brief naar aanleiding van ${objectRef}. Mogelijk kwam mijn eerdere bericht op een minder geschikt moment, daarom neem ik kort opnieuw contact met u op.`,
+        '',
+        'Het object sluit vanwege de mogelijke splitsings- of uitpondingspotentie aan bij vastgoed waar professionele beleggers en ontwikkelaars regelmatig naar zoeken.',
+        '',
+        'Mocht verkoop van dit pand nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Ook wanneer dit specifieke object niet speelt, maar u ander vastgoed of een bredere portefeuille heeft waarvoor verkoop of een marktverkenning relevant kan zijn, hoor ik dat graag.',
+        '',
+        'Staat u open voor een korte kennismaking, dan hoor ik graag van u.',
+        '',
+        'Met vriendelijke groet,',
+        '',
+        BITO_CONTACT.naam,
+        BITO_CONTACT.functie,
+        BITO_CONTACT.bedrijf,
+        '',
+        `T: ${BITO_CONTACT.telefoon}`,
+        `E: ${BITO_CONTACT.email}`,
+        `W: ${BITO_CONTACT.website}`,
+      ].join('\n'),
+    };
+  }
+
   if (toewijzing.variantKey !== SPLITSING_BRIEF_1_B_KEY || toewijzing.variantCode !== 'B') {
     return {
       onderwerp: bepaalOnderwerp(objectomschrijving),
@@ -26,7 +61,6 @@ export function bouwPostVariantTemplate({
     };
   }
 
-  const object = objectomschrijving.trim();
   const objectZin = object
     ? `Ik neem contact met u op naar aanleiding van het vastgoed aan ${object}.`
     : 'Ik neem contact met u op naar aanleiding van uw vastgoedbezit.';

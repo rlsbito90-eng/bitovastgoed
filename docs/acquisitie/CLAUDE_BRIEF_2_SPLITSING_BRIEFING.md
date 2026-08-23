@@ -26,7 +26,7 @@ Onderwerp: Nogmaals over het vastgoed aan [OBJECTOMSCHRIJVING]
 
 Geachte heer/mevrouw,
 
-Enige tijd geleden stuurde ik u een brief naar aanleiding van het vastgoed aan [OBJECTOMSCHRIJVING]. Mogelijk kwam mijn eerdere bericht op een minder geschikt moment, daarom neem ik nog eenmaal kort contact met u op.
+Enige tijd geleden stuurde ik u een brief naar aanleiding van het vastgoed aan [OBJECTOMSCHRIJVING]. Mogelijk kwam mijn eerdere bericht op een minder geschikt moment, daarom neem ik kort opnieuw contact met u op.
 
 Het object sluit vanwege de mogelijke splitsings- of uitpondingspotentie aan bij vastgoed waar professionele beleggers en ontwikkelaars regelmatig naar zoeken.
 
