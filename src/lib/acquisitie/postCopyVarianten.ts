@@ -59,7 +59,7 @@ function woonvormingTemplate(
         '',
         `Mijn naam is ${BITO_CONTACT.naam}, eigenaar van ${BITO_CONTACT.bedrijf}. Ik neem contact met u op naar aanleiding van het vastgoed aan ${objectRef}.`,
         '',
-        'Rond het object is een woonvormingsontwikkeling of -vergunning gesignaleerd. Dat hoeft uiteraard niets te zeggen over eventuele verkoopplannen, maar dit soort situaties kan samengaan met een bredere vastgoedbeslissing of herpositionering.',
+        'Rond het object is een woonvormingsvergunning gesignaleerd. Binnen mijn netwerk is regelmatig vraag naar vastgoed waarbij het creëren van aanvullende zelfstandige woonruimte speelt. Dat hoeft uiteraard niets te zeggen over eventuele verkoopplannen, maar vormt voor mij wel een concrete aanleiding om vrijblijvend contact met u te zoeken.',
         '',
         'Mocht verkoop van dit pand nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Dit geldt ook wanneer u ander vastgoed of een bredere portefeuille heeft waarvoor verkoop of een marktverkenning relevant kan zijn.',
         '',
@@ -76,7 +76,7 @@ function woonvormingTemplate(
       brieftekst: metHandtekening([
         aanhef,
         '',
-        `Mijn naam is ${BITO_CONTACT.naam} van ${BITO_CONTACT.bedrijf}. Rond ${objectRef} is een woonvormingsontwikkeling of -vergunning gesignaleerd — dat is voor mij de aanleiding om contact met u op te nemen.`,
+        `Mijn naam is ${BITO_CONTACT.naam} van ${BITO_CONTACT.bedrijf}. Rond ${objectRef} is een woonvormingsvergunning gesignaleerd — dat is voor mij de aanleiding om contact met u op te nemen.`,
         '',
         'Speelt verkoop van dit pand, ander vastgoed of een bredere portefeuille nu of op termijn, dan kom ik graag vrijblijvend met u in contact. Speelt dit niet, dan is dat uiteraard geen probleem; ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug.',
         '',
@@ -91,7 +91,7 @@ function woonvormingTemplate(
       brieftekst: metHandtekening([
         aanhef,
         '',
-        `Enige tijd geleden schreef ik u over ${objectRef}, naar aanleiding van een woonvormingsontwikkeling of -vergunning rond het object. Mogelijk kwam mijn eerdere bericht op een minder geschikt moment, daarom neem ik kort opnieuw contact met u op.`,
+        `Enige tijd geleden schreef ik u over ${objectRef}, naar aanleiding van een woonvormingsvergunning rond het object. Mogelijk kwam mijn eerdere bericht op een minder geschikt moment, daarom neem ik kort opnieuw contact met u op.`,
         '',
         'Mocht verkoop van dit pand nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Ook wanneer dit specifieke object niet speelt, maar ander vastgoed of een bredere portefeuille mogelijk relevant is, hoor ik dat graag.',
         '',
@@ -121,7 +121,7 @@ function woonvormingTemplate(
       brieftekst: metHandtekening([
         aanhef,
         '',
-        `Ik neem nog één keer kort contact met u op over ${objectRef}. Eerder schreef ik u hierover naar aanleiding van een woonvormingsontwikkeling of -vergunning rond het object.`,
+        `Ik neem nog één keer kort contact met u op over ${objectRef}. Eerder schreef ik u hierover naar aanleiding van een woonvormingsvergunning rond het object.`,
         '',
         'Mocht verkoop van dit pand, ander vastgoed of een bredere portefeuille nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact.',
         '',
@@ -203,7 +203,7 @@ function kamerverhuurTemplate(
         '',
         'Mocht verkoop van dit pand nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Ook wanneer dit specifieke object niet speelt, maar ander vastgoed of een bredere portefeuille mogelijk relevant is, hoor ik dat graag.',
         '',
-        'Staat u open voor een korte kennismaking, dan hoor ik graag van u.',
+        'Staat u open voor een korte kennismaking, dan hoor ik dat graag.',
       ]),
     };
   }
@@ -377,6 +377,28 @@ function splitsingTemplate(
   object: string,
 ): PostVariantTemplate | null {
   const objectRef = object || 'uw vastgoed';
+
+  if (isVariant(toewijzing, SPLITSING, 1, 'A')) {
+    const objectZin = object
+      ? `Ik neem contact met u op naar aanleiding van het vastgoed aan ${object}.`
+      : 'Ik neem contact met u op naar aanleiding van uw vastgoedbezit.';
+    return {
+      onderwerp: object ? `Interesse in uw pand aan ${object}` : 'Interesse in uw vastgoed',
+      brieftekst: metHandtekening([
+        aanhef,
+        '',
+        `Mijn naam is ${BITO_CONTACT.naam}, eigenaar van ${BITO_CONTACT.bedrijf}. ${objectZin}`,
+        '',
+        'Binnen mijn netwerk is regelmatig vraag naar panden met splitsings- of uitpondingspotentie. De mogelijke splitsingspotentie van dit object is daarom voor mij aanleiding om vrijblijvend contact met u op te nemen.',
+        '',
+        'Mocht verkoop van dit pand nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Dit geldt ook wanneer u ander vastgoed of een bredere portefeuille heeft waarvoor verkoop of een marktverkenning relevant kan zijn.',
+        '',
+        'Indien verkoop op dit moment niet speelt, is dat uiteraard geen probleem. Ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug.',
+        '',
+        'Staat u open voor een korte kennismaking, dan hoor ik graag van u.',
+      ]),
+    };
+  }
 
   if (isVariant(toewijzing, SPLITSING, 2, 'A')) {
     const vastgoedRef = object ? `het vastgoed aan ${object}` : 'uw vastgoed';
