@@ -63,7 +63,7 @@ function verwachtExacteVerzondenBriefFilters() {
 }
 
 describe('responsRegistratie — V2', () => {
-  it('slaat responsstatus/datum/samenvatting op en schrijft response_received event', async () => {
+  it('slaat responsstatus, commerciële richting en samenvatting op en schrijft response_received event', async () => {
     const { result } = renderHook(() => useRegistreerRespons(), { wrapper: wrap() });
     await result.current.mutateAsync({
       brief_id: 'b-1',
@@ -71,18 +71,21 @@ describe('responsRegistratie — V2', () => {
       responsstatus: 'interesse',
       responsdatum: '2026-06-15',
       respons_kanaal: 'email',
-      respons_samenvatting: 'Wil bellen volgende week.',
+      respons_samenvatting: 'Wil niet verkopen, zoekt zelf vastgoed.',
+      respons_richting: 'koper',
     });
     expect(briefUpdateMock).toHaveBeenCalledWith(expect.objectContaining({
       responsstatus: 'interesse',
       responsdatum: '2026-06-15',
-      respons_samenvatting: 'Wil bellen volgende week.',
+      respons_samenvatting: 'Wil niet verkopen, zoekt zelf vastgoed.',
+      respons_richting: 'koper',
     }));
     verwachtExacteVerzondenBriefFilters();
     expect(eventInsertMock).toHaveBeenCalledTimes(1);
     expect(eventInsertMock.mock.calls[0][0]).toMatchObject({
       event_type: 'response_received',
       status: 'interesse',
+      metadata: expect.objectContaining({ respons_richting: 'koper' }),
     });
   });
 
@@ -98,6 +101,7 @@ describe('responsRegistratie — V2', () => {
     expect(briefUpdateMock).toHaveBeenCalledWith(expect.objectContaining({
       responsstatus: 'retour_post',
       verzendstatus: 'retour',
+      respons_richting: 'overig_onbekend',
     }));
     verwachtExacteVerzondenBriefFilters();
     expect(eventInsertMock.mock.calls[0][0]).toMatchObject({
