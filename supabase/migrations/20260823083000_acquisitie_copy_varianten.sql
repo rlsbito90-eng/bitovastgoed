@@ -132,18 +132,31 @@ declare
   v_seed text;
   v_variant public.acquisitie_copy_varianten%rowtype;
 begin
-  -- Een expliciet meegegeven variant blijft leidend; deze trigger rolt nooit
-  -- opnieuw bij updates of bij een al gelabeld concept.
-  if new.copy_variant_key is not null then
-    return new;
-  end if;
-
   v_kanaal := coalesce(nullif(new.kanaal::text, ''), 'post');
   v_stap := coalesce(
     nullif(new.campagne_stap::text, ''),
     case when v_kanaal = 'email' then 'email_1' else 'brief_1' end
   );
-  v_profiel := coalesce(public.acquisitie_copy_profiel_v1(new.signaal_id), 'algemene_acquisitie');
+  v_profiel := coalesce(nullif(new.copy_profiel, ''), public.acquisitie_copy_profiel_v1(new.signaal_id), 'algemene_acquisitie');
+
+  -- Als de voorbereidingsflow al een variantcode heeft vastgelegd, koppel
+  -- uitsluitend de canonieke variant-id; rol nooit opnieuw.
+  if new.copy_variant_key is not null and new.copy_variant_code is not null then
+    select v.* into v_variant
+    from public.acquisitie_copy_varianten v
+    where v.profiel = v_profiel
+      and v.kanaal = v_kanaal
+      and v.campagne_stap = v_stap
+      and v.variant_code = new.copy_variant_code
+    limit 1;
+
+    if v_variant.id is not null then
+      new.copy_variant_id := v_variant.id;
+      new.copy_profiel := v_profiel;
+      new.copy_hypothese := coalesce(new.copy_hypothese, v_variant.hypothese);
+    end if;
+    return new;
+  end if;
 
   select coalesce(sum(v.gewicht), 0)
     into v_totaal_gewicht
@@ -160,7 +173,11 @@ begin
   v_seed := concat_ws('|', new.signaal_id::text, coalesce(new.geadresseerde_key, ''), v_kanaal, v_stap, v_profiel);
   v_pick := mod(abs(hashtext(v_seed)::bigint), v_totaal_gewicht);
 
-  select q.* into v_variant
+  select
+    q.id, q.profiel, q.kanaal, q.campagne_stap, q.variant_code,
+    q.naam, q.hypothese, q.template_key, q.actief, q.is_control,
+    q.gewicht, q.created_at, q.updated_at
+  into v_variant
   from (
     select
       v.*,
