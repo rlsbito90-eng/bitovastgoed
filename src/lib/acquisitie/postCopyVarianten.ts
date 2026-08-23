@@ -17,6 +17,8 @@ const SPLITSING_BRIEF_2_A_KEY = 'splitsingspotentie:post:brief_2:A';
 const SPLITSING_BRIEF_2_B_KEY = 'splitsingspotentie:post:brief_2:B';
 const SPLITSING_BRIEF_3_A_KEY = 'splitsingspotentie:post:brief_3:A';
 const SPLITSING_BRIEF_3_B_KEY = 'splitsingspotentie:post:brief_3:B';
+const WOONVORMING_BRIEF_1_A_KEY = 'woonvorming:post:brief_1:A';
+const WOONVORMING_BRIEF_1_B_KEY = 'woonvorming:post:brief_1:B';
 
 export function bouwPostVariantTemplate({
   toewijzing,
@@ -135,6 +137,70 @@ export function bouwPostVariantTemplate({
         'Speelt verkoop van dit pand, ander vastgoed of een bredere portefeuille nu of op termijn, dan kom ik graag vrijblijvend met u in contact.',
         '',
         'Speelt dit op dit moment niet, dan laat ik het voor nu rusten. Verandert dat op een later moment, dan weet u mij te vinden.',
+        '',
+        'Interesse? Een kort telefoongesprek of e-mail is voldoende.',
+        '',
+        'Met vriendelijke groet,',
+        '',
+        BITO_CONTACT.naam,
+        BITO_CONTACT.functie,
+        BITO_CONTACT.bedrijf,
+        '',
+        `T: ${BITO_CONTACT.telefoon}`,
+        `E: ${BITO_CONTACT.email}`,
+        `W: ${BITO_CONTACT.website}`,
+      ].join('\n'),
+    };
+  }
+
+  if (toewijzing.variantKey === WOONVORMING_BRIEF_1_A_KEY && toewijzing.variantCode === 'A') {
+    const objectRef = object || 'uw vastgoed';
+    const onderwerp = object
+      ? `Interesse in uw pand aan ${object}`
+      : 'Interesse in uw vastgoed';
+
+    return {
+      onderwerp,
+      brieftekst: [
+        aanhef,
+        '',
+        `Mijn naam is ${BITO_CONTACT.naam}, eigenaar van ${BITO_CONTACT.bedrijf}. Ik neem contact met u op naar aanleiding van het vastgoed aan ${objectRef}.`,
+        '',
+        'Rond het object is een woonvormingsontwikkeling of -vergunning gesignaleerd. Dat hoeft uiteraard niets te zeggen over eventuele verkoopplannen, maar dit soort situaties kan samengaan met een bredere vastgoedbeslissing of herpositionering.',
+        '',
+        'Mocht verkoop van dit pand nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Dit geldt ook wanneer u ander vastgoed of een bredere portefeuille heeft waarvoor verkoop of een marktverkenning relevant kan zijn.',
+        '',
+        'Indien verkoop op dit moment niet speelt, is dat uiteraard geen probleem. Ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug.',
+        '',
+        'Staat u open voor een korte kennismaking, dan hoor ik graag van u.',
+        '',
+        'Met vriendelijke groet,',
+        '',
+        BITO_CONTACT.naam,
+        BITO_CONTACT.functie,
+        BITO_CONTACT.bedrijf,
+        '',
+        `T: ${BITO_CONTACT.telefoon}`,
+        `E: ${BITO_CONTACT.email}`,
+        `W: ${BITO_CONTACT.website}`,
+      ].join('\n'),
+    };
+  }
+
+  if (toewijzing.variantKey === WOONVORMING_BRIEF_1_B_KEY && toewijzing.variantCode === 'B') {
+    const objectRef = object || 'uw vastgoed';
+    const onderwerp = object
+      ? `Uw pand aan ${object}`
+      : 'Uw vastgoed';
+
+    return {
+      onderwerp,
+      brieftekst: [
+        aanhef,
+        '',
+        `Mijn naam is ${BITO_CONTACT.naam} van ${BITO_CONTACT.bedrijf}. Rond ${objectRef} is een woonvormingsontwikkeling of -vergunning gesignaleerd — dat is voor mij de aanleiding om contact met u op te nemen.`,
+        '',
+        'Speelt verkoop van dit pand, ander vastgoed of een bredere portefeuille nu of op termijn, dan kom ik graag vrijblijvend met u in contact. Speelt dit niet, dan is dat uiteraard geen probleem; ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug.',
         '',
         'Interesse? Een kort telefoongesprek of e-mail is voldoende.',
         '',
