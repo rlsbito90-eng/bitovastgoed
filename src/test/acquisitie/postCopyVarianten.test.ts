@@ -78,4 +78,24 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('laatste keer');
     expect(template.brieftekst).not.toContain('nog eenmaal');
   });
+
+  it('bouwt Splitsingspotentie Brief 3 als gecontroleerde afsluiting met ruimte voor nurture', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'splitsingspotentie',
+        variantKey: 'splitsingspotentie:post:brief_3:A',
+        variantCode: 'A',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Over uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Ik neem nog één keer kort contact met u op');
+    expect(template.brieftekst).toContain('mogelijke splitsings- of uitpondingspotentie');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('laat ik het voor nu hierbij');
+    expect(template.brieftekst).toContain('Mocht dat in de toekomst veranderen');
+    expect(template.brieftekst).not.toContain('nooit meer');
+    expect(template.brieftekst).not.toContain('definitief');
+  });
 });
