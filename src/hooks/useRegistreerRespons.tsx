@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { logBriefEvent } from '@/lib/offMarket/brieven/events';
 import type { Responsstatus } from '@/lib/offMarket/brieven/respons';
+import type { ResponsRichting } from '@/lib/offMarket/brieven/responsRichting';
 import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 
@@ -17,6 +18,7 @@ export interface RegistreerResponsInput {
   responsdatum: string;          // YYYY-MM-DD
   respons_kanaal?: Kanaal | null;
   respons_samenvatting?: string | null;
+  respons_richting?: ResponsRichting | null;
 }
 
 export function useRegistreerRespons() {
@@ -28,6 +30,7 @@ export function useRegistreerRespons() {
         responsdatum: input.responsdatum,
         respons_kanaal: input.respons_kanaal ?? null,
         respons_samenvatting: input.respons_samenvatting ?? null,
+        respons_richting: input.respons_richting ?? 'overig_onbekend',
       };
       // Retour post zet ook verzendstatus.
       if (input.responsstatus === 'retour_post') {
@@ -53,7 +56,10 @@ export function useRegistreerRespons() {
         kanaal: input.respons_kanaal ?? null,
         event_type: input.responsstatus === 'retour_post' ? 'returned_mail' : 'response_received',
         status: input.responsstatus,
-        metadata: { samenvatting: input.respons_samenvatting ?? null },
+        metadata: {
+          samenvatting: input.respons_samenvatting ?? null,
+          respons_richting: input.respons_richting ?? 'overig_onbekend',
+        },
       });
 
       return data as OffMarketBrief;
