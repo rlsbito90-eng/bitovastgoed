@@ -692,7 +692,7 @@ export default function BriefVoorbereidenDialog({
 
           <div className="rounded-md border border-dashed border-border bg-muted/10 px-3 py-2 text-xs" data-testid="brief-copy-variant">
             <div className="font-medium text-foreground">
-              Testvariant {initialBrief?.copy_variant_code ?? copyToewijzing.variantCode} · {initialBrief?.copy_variant_code ? 'vastgelegd' : 'controle'}
+              Testvariant {initialBrief?.copy_variant_code ?? copyToewijzing.variantCode} · {initialBrief?.copy_variant_code ? 'vastgelegd' : copyToewijzing.variantNaam.toLowerCase()}
             </div>
             <div className="mt-0.5 text-muted-foreground">
               {copyProfielLabel(initialBrief?.copy_profiel ?? copyToewijzing.profiel)} · {initialBrief?.copy_hypothese ?? copyToewijzing.hypothese}
