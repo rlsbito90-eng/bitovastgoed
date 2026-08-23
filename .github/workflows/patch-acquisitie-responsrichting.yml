@@ -1,0 +1,107 @@
+name: Patch acquisitie responsrichting
+on:
+  push:
+    branches: [feat/acquisitie-responsrichting]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'PATCHBOT responsrichting') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/acquisitie-responsrichting
+      - name: Pas responsrichting toe
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def rep(path, old, new):
+              p=Path(path); s=p.read_text()
+              if old not in s: raise SystemExit(f'anchor ontbreekt: {path}: {old[:80]}')
+              p.write_text(s.replace(old,new,1))
+
+          rep('src/hooks/useOffMarketBrieven.tsx',
+              "  respons_samenvatting?: string | null;\n",
+              "  respons_samenvatting?: string | null;\n  respons_richting?: 'verkoper' | 'koper' | 'beide' | 'overig_onbekend' | null;\n")
+
+          rep('src/hooks/useRegistreerRespons.tsx',
+              "import type { Responsstatus } from '@/lib/offMarket/brieven/respons';\n",
+              "import type { Responsstatus } from '@/lib/offMarket/brieven/respons';\nimport type { ResponsRichting } from '@/lib/offMarket/brieven/responsRichting';\n")
+          rep('src/hooks/useRegistreerRespons.tsx',
+              "  respons_samenvatting?: string | null;\n}",
+              "  respons_samenvatting?: string | null;\n  respons_richting?: ResponsRichting | null;\n}")
+          rep('src/hooks/useRegistreerRespons.tsx',
+              "        respons_samenvatting: input.respons_samenvatting ?? null,\n",
+              "        respons_samenvatting: input.respons_samenvatting ?? null,\n        respons_richting: input.respons_richting ?? 'overig_onbekend',\n")
+          rep('src/hooks/useRegistreerRespons.tsx',
+              "        metadata: { samenvatting: input.respons_samenvatting ?? null },\n",
+              "        metadata: { samenvatting: input.respons_samenvatting ?? null, respons_richting: input.respons_richting ?? 'overig_onbekend' },\n")
+
+          rep('src/components/offmarket/brieven/RegistreerResponsDialog.tsx',
+              "import { KANAAL_LABEL, type Kanaal } from '@/lib/offMarket/brieven/verzendstatus';\n",
+              "import { KANAAL_LABEL, type Kanaal } from '@/lib/offMarket/brieven/verzendstatus';\nimport { RESPONS_RICHTING_LABEL, RESPONS_RICHTING_VOLGORDE, type ResponsRichting } from '@/lib/offMarket/brieven/responsRichting';\n")
+          rep('src/components/offmarket/brieven/RegistreerResponsDialog.tsx',
+              "  const [samenvatting, setSamenvatting] = useState('');\n",
+              "  const [samenvatting, setSamenvatting] = useState('');\n  const [responsRichting, setResponsRichting] = useState<ResponsRichting>('overig_onbekend');\n")
+          rep('src/components/offmarket/brieven/RegistreerResponsDialog.tsx',
+              "    setSamenvatting(brief?.respons_samenvatting ?? '');\n",
+              "    setSamenvatting(brief?.respons_samenvatting ?? '');\n    setResponsRichting((brief?.respons_richting as ResponsRichting | null | undefined) ?? 'overig_onbekend');\n")
+          rep('src/components/offmarket/brieven/RegistreerResponsDialog.tsx',
+              "  }, [open, brief?.id, brief?.responsstatus, brief?.responsdatum, brief?.respons_kanaal, brief?.respons_samenvatting, initialResponsstatus]);\n",
+              "  }, [open, brief?.id, brief?.responsstatus, brief?.responsdatum, brief?.respons_kanaal, brief?.respons_samenvatting, brief?.respons_richting, initialResponsstatus]);\n")
+          rep('src/components/offmarket/brieven/RegistreerResponsDialog.tsx',
+              "        respons_samenvatting: samenvatting.trim() || null,\n",
+              "        respons_samenvatting: samenvatting.trim() || null,\n        respons_richting: responsRichting,\n")
+          rep('src/components/offmarket/brieven/RegistreerResponsDialog.tsx',
+              "    notities: `Vervolg op respons \\\"${RESPONS_LABEL[responsstatus]}\\\" via ${KANAAL_LABEL[respons_kanaal]}.${samenvatting.trim() ? `\\n\\n${samenvatting.trim()}` : ''}`,\n",
+              "    notities: `Vervolg op respons \\\"${RESPONS_LABEL[responsstatus]}\\\" · ${RESPONS_RICHTING_LABEL[responsRichting]} via ${KANAAL_LABEL[respons_kanaal]}.${samenvatting.trim() ? `\\n\\n${samenvatting.trim()}` : ''}`,\n")
+          rep('src/components/offmarket/brieven/RegistreerResponsDialog.tsx',
+              "          <div className=\"grid grid-cols-2 gap-3\">\n",
+              "          <div className=\"space-y-1.5\">\n            <Label>Commerciële richting</Label>\n            <Select value={responsRichting} onValueChange={(v) => setResponsRichting(v as ResponsRichting)}>\n              <SelectTrigger data-testid=\"respons-richting-trigger\"><SelectValue /></SelectTrigger>\n              <SelectContent>\n                {RESPONS_RICHTING_VOLGORDE.map((r) => (\n                  <SelectItem key={r} value={r}>{RESPONS_RICHTING_LABEL[r]}</SelectItem>\n                ))}\n              </SelectContent>\n            </Select>\n            <p className=\"text-[11px] leading-relaxed text-muted-foreground\">Leg apart vast of deze reactie aanbod, een zoekvraag, beide of iets anders oplevert.</p>\n          </div>\n\n          <div className=\"grid grid-cols-2 gap-3\">\n")
+
+          rep('src/hooks/useAcquisitieConversieDashboard.ts',
+              ".select('id,campagne_stap,copy_profiel,copy_variant_key,copy_variant_code,copy_hypothese')",
+              ".select('id,campagne_stap,copy_profiel,copy_variant_key,copy_variant_code,copy_hypothese,respons_richting')")
+
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "  copy_hypothese?: string | null;\n}",
+              "  copy_hypothese?: string | null;\n  respons_richting?: string | null;\n}")
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "  gekwalificeerdeLeads: number;\n  responspercentage: number;",
+              "  gekwalificeerdeLeads: number;\n  verkoperReacties: number;\n  koperReacties: number;\n  gekwalificeerdeVerkoperLeads: number;\n  gekwalificeerdeKoperLeads: number;\n  responspercentage: number;")
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "  gekwalificeerdeLeadPercentage: number;\n}",
+              "  gekwalificeerdeLeadPercentage: number;\n  verkoperResponspercentage: number;\n  koperResponspercentage: number;\n}")
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "  gekwalificeerdeLeads = 0,\n): ConversieRij {",
+              "  gekwalificeerdeLeads = 0,\n  verkoperReacties = 0,\n  koperReacties = 0,\n  gekwalificeerdeVerkoperLeads = 0,\n  gekwalificeerdeKoperLeads = 0,\n): ConversieRij {")
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "    gekwalificeerdeLeads,\n    responspercentage: pct(reacties, verzonden),",
+              "    gekwalificeerdeLeads,\n    verkoperReacties,\n    koperReacties,\n    gekwalificeerdeVerkoperLeads,\n    gekwalificeerdeKoperLeads,\n    responspercentage: pct(reacties, verzonden),")
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "    gekwalificeerdeLeadPercentage: pct(gekwalificeerdeLeads, verzonden),\n",
+              "    gekwalificeerdeLeadPercentage: pct(gekwalificeerdeLeads, verzonden),\n    verkoperResponspercentage: pct(verkoperReacties, verzonden),\n    koperResponspercentage: pct(koperReacties, verzonden),\n")
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "      const gekwalificeerde = ids.filter(id => gekwalificeerdPerBrief.has(id)).length;\n      return maakRij(sleutel, groep.label, ids.length, reacties, positieve, kwalitatieve, gekwalificeerde);",
+              "      const gekwalificeerde = ids.filter(id => gekwalificeerdPerBrief.has(id)).length;\n      const verkoper = ids.filter(id => reactiePerBrief.has(id) && ['verkoper','beide'].includes(metaPerBrief.get(id)?.respons_richting ?? '')).length;\n      const koper = ids.filter(id => reactiePerBrief.has(id) && ['koper','beide'].includes(metaPerBrief.get(id)?.respons_richting ?? '')).length;\n      const gekwalificeerdeVerkoper = ids.filter(id => gekwalificeerdPerBrief.has(id) && ['verkoper','beide'].includes(metaPerBrief.get(id)?.respons_richting ?? '')).length;\n      const gekwalificeerdeKoper = ids.filter(id => gekwalificeerdPerBrief.has(id) && ['koper','beide'].includes(metaPerBrief.get(id)?.respons_richting ?? '')).length;\n      return maakRij(sleutel, groep.label, ids.length, reacties, positieve, kwalitatieve, gekwalificeerde, verkoper, koper, gekwalificeerdeVerkoper, gekwalificeerdeKoper);")
+
+          rep('src/components/acquisitie/AcquisitieConversieDashboard.tsx',
+              "                <th className=\"px-4 py-2 text-right font-medium\">Qualified</th>\n",
+              "                <th className=\"px-3 py-2 text-right font-medium\">Verkoper</th>\n                <th className=\"px-3 py-2 text-right font-medium\">Koper</th>\n                <th className=\"px-4 py-2 text-right font-medium\">Qualified</th>\n")
+          rep('src/components/acquisitie/AcquisitieConversieDashboard.tsx',
+              "                  <td className=\"px-4 py-2.5 text-right font-mono-data\">\n                    {rij.gekwalificeerdeLeads}",
+              "                  <td className=\"px-3 py-2.5 text-right font-mono-data\">{rij.verkoperReacties}</td>\n                  <td className=\"px-3 py-2.5 text-right font-mono-data\">{rij.koperReacties}</td>\n                  <td className=\"px-4 py-2.5 text-right font-mono-data\">\n                    {rij.gekwalificeerdeLeads}")
+          rep('src/components/acquisitie/AcquisitieConversieDashboard.tsx',
+              "        <Metric label=\"Qualified leads\" value={String(model.totaal.gekwalificeerdeLeads)} detail={`${pct(model.totaal.gekwalificeerdeLeadPercentage)} van verzonden`} />\n",
+              "        <Metric label=\"Qualified leads\" value={String(model.totaal.gekwalificeerdeLeads)} detail={`${pct(model.totaal.gekwalificeerdeLeadPercentage)} van verzonden`} />\n        <Metric label=\"Verkopersreacties\" value={String(model.totaal.verkoperReacties)} detail={`${pct(model.totaal.verkoperResponspercentage)} van verzonden`} />\n        <Metric label=\"Kopersreacties\" value={String(model.totaal.koperReacties)} detail={`${pct(model.totaal.koperResponspercentage)} van verzonden`} />\n")
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "PATCHBOT responsrichting — koppel UI en conversiemeting"
+          git push origin HEAD:feat/acquisitie-responsrichting
