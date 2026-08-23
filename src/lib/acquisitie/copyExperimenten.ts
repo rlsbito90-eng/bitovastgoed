@@ -54,6 +54,13 @@ const WOONVORMING_BRIEF_1_VARIANT_B: CopyVariantDefinitie = {
   actief: true,
 };
 
+const WOONVORMING_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B',
+  naam: 'Compact/direct',
+  hypothese: 'Een compactere follow-up die het eerdere contact kort benoemt, de woonvormingscontext niet opnieuw uitlegt en sneller naar de commerciële opening en CTA gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-follow-up.',
+  actief: true,
+};
+
 /**
  * Algemene fallback blijft controle A. Alleen experimenten die inhoudelijk
  * gereed en expliciet geactiveerd zijn krijgen hier extra challengers.
@@ -70,8 +77,9 @@ function standaardVariantenVoorExperiment(args: {
     if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, SPLITSING_BRIEF_2_VARIANT_B];
     if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, SPLITSING_BRIEF_3_VARIANT_B];
   }
-  if (args.profiel === 'woonvorming' && args.kanaal === 'post' && args.campagneStap === 'brief_1') {
-    return [CONTROLE_VARIANT, WOONVORMING_BRIEF_1_VARIANT_B];
+  if (args.profiel === 'woonvorming' && args.kanaal === 'post') {
+    if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_1_VARIANT_B];
+    if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_2_VARIANT_B];
   }
   return COPY_VARIANTEN;
 }
