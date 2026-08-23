@@ -13,7 +13,7 @@ export function useAcquisitieConversieDashboard(jaar = new Date().getFullYear())
     queryFn: async (): Promise<AcquisitieConversieEvent[]> => {
       const { data, error } = await (supabase as any)
         .from('acquisitie_tracking_events_v1')
-        .select('occurred_at,acquisitie_bron,event_type,brief_id,kanaal,telt_verzonden_communicatie,telt_reactie,telt_positieve_reactie')
+        .select('occurred_at,acquisitie_bron,event_type,brief_id,kanaal,status,telt_verzonden_communicatie,telt_reactie,telt_positieve_reactie')
         .not('brief_id', 'is', null)
         .order('occurred_at', { ascending: true });
       if (error) throw new Error(error.message);

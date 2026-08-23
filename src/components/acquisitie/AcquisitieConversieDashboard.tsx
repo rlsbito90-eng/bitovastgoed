@@ -16,14 +16,15 @@ function ConversieTabel({ titel, toelichting, rijen }: { titel: string; toelicht
         <div className="px-4 py-5 text-sm text-muted-foreground">Nog onvoldoende verzenddata.</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-muted/20 text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 text-left font-medium">Groep</th>
                 <th className="px-3 py-2 text-right font-medium">Verzonden</th>
                 <th className="px-3 py-2 text-right font-medium">Reacties</th>
                 <th className="px-3 py-2 text-right font-medium">Respons</th>
-                <th className="px-4 py-2 text-right font-medium">Positief</th>
+                <th className="px-3 py-2 text-right font-medium">Kwalitatief</th>
+                <th className="px-4 py-2 text-right font-medium">Qualified</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -33,8 +34,11 @@ function ConversieTabel({ titel, toelichting, rijen }: { titel: string; toelicht
                   <td className="px-3 py-2.5 text-right font-mono-data">{rij.verzonden}</td>
                   <td className="px-3 py-2.5 text-right font-mono-data">{rij.reacties}</td>
                   <td className="px-3 py-2.5 text-right font-mono-data">{pct(rij.responspercentage)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono-data">
+                    {rij.kwalitatieveReacties} <span className="text-muted-foreground">· {pct(rij.kwalitatieveResponspercentage)}</span>
+                  </td>
                   <td className="px-4 py-2.5 text-right font-mono-data">
-                    {rij.positieveReacties} <span className="text-muted-foreground">· {pct(rij.positieveResponspercentage)}</span>
+                    {rij.gekwalificeerdeLeads} <span className="text-muted-foreground">· {pct(rij.gekwalificeerdeLeadPercentage)}</span>
                   </td>
                 </tr>
               ))}
@@ -80,10 +84,11 @@ export default function AcquisitieConversieDashboard() {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <Metric label="Verzonden" value={String(model.totaal.verzonden)} detail="Unieke communicaties" />
         <Metric label="Reacties" value={String(model.totaal.reacties)} detail={`${pct(model.totaal.responspercentage)} respons`} />
-        <Metric label="Positieve reacties" value={String(model.totaal.positieveReacties)} detail={`${pct(model.totaal.positieveResponspercentage)} van verzonden`} />
+        <Metric label="Kwalitatieve reacties" value={String(model.totaal.kwalitatieveReacties)} detail={`${pct(model.totaal.kwalitatieveResponspercentage)} van verzonden`} />
+        <Metric label="Gekwalificeerde leads" value={String(model.totaal.gekwalificeerdeLeads)} detail={`${pct(model.totaal.gekwalificeerdeLeadPercentage)} van verzonden`} />
         <Metric
           label="Attributiecontrole"
           value={model.reactiesZonderVerzending === 0 ? '100%' : `${model.reactiesZonderVerzending} los`}
@@ -91,17 +96,19 @@ export default function AcquisitieConversieDashboard() {
         />
       </div>
 
+      <ResponsKwaliteit model={model.responsKwaliteit} />
+
       <ExperimentPlaybook experimenten={model.experimenten} />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ConversieTabel
           titel="Per contactkanaal"
-          toelichting="Respons is gekoppeld aan het kanaal van de oorspronkelijke verzending."
+          toelichting="Respons is gekoppeld aan het kanaal van de oorspronkelijke verzending. Kwalitatief = interesse of gesprek gepland; qualified = gesprek gepland."
           rijen={model.perKanaal}
         />
         <ConversieTabel
           titel="Per touchpoint"
-          toelichting="Hier worden Brief 1, E-mail 1 en toekomstige opvolgstappen naast elkaar vergelijkbaar."
+          toelichting="Brief 1, E-mail 1 en toekomstige opvolgstappen zijn vergelijkbaar op volume én leadkwaliteit."
           rijen={model.perTouchpoint}
         />
       </div>
@@ -114,7 +121,7 @@ export default function AcquisitieConversieDashboard() {
 
       <ConversieTabel
         titel="Per tekstvariant"
-        toelichting="Nieuwe communicaties krijgen een vaste variantidentiteit. Historische verzendingen zonder variant blijven buiten deze vergelijking."
+        toelichting="Varianten worden nu ook vergeleken op kwalitatieve respons en gekwalificeerde leads. Historische verzendingen zonder variant blijven buiten deze vergelijking."
         rijen={model.perVariant}
       />
 
@@ -131,6 +138,31 @@ export default function AcquisitieConversieDashboard() {
   );
 }
 
+function ResponsKwaliteit({ model }: { model: ReturnType<typeof useAcquisitieConversieDashboard>['model']['responsKwaliteit'] }) {
+  const totaal = model.ongeclassificeerd + model.negatief + model.neutraalInfo + model.positiefGesprek + model.gekwalificeerdeLead;
+  return (
+    <div className="rounded-md border border-border overflow-hidden" data-testid="acquisitie-responskwaliteit">
+      <div className="border-b border-border px-4 py-3">
+        <h3 className="text-sm font-semibold text-foreground">Responskwaliteit</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Afgeleid van de canonieke responsstatus. Geen extra administratie: bestaande registratie wordt automatisch vertaald naar een kwaliteitsniveau.
+        </p>
+      </div>
+      {totaal === 0 ? (
+        <div className="px-4 py-5 text-sm text-muted-foreground">Nog geen inhoudelijke reacties in dit verzendcohort.</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-5">
+          <QualityCell label="Ongeclassificeerd" value={model.ongeclassificeerd} detail="Nog beoordelen" />
+          <QualityCell label="Negatief" value={model.negatief} detail="Geen vervolg" />
+          <QualityCell label="Neutraal / info" value={model.neutraalInfo} detail="Later of meer info" />
+          <QualityCell label="Positief gesprek" value={model.positiefGesprek} detail="Concrete interesse" />
+          <QualityCell label="Qualified lead" value={model.gekwalificeerdeLead} detail="Gesprek gepland" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExperimentPlaybook({ experimenten }: { experimenten: ReturnType<typeof useAcquisitieConversieDashboard>['model']['experimenten'] }) {
   const regels = ACQUISITIE_EXPERIMENT_PLAYBOOK;
   const actief = experimenten.filter(e => e.varianten.some(v => v.verzonden > 0));
@@ -144,7 +176,7 @@ function ExperimentPlaybook({ experimenten }: { experimenten: ReturnType<typeof 
             <h3 className="text-sm font-semibold text-foreground">Experiment playbook</h3>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Automatische verdeling, vaste spelregels en een handmatig beslismoment. Geen variant wordt op basis van een vroege uitschieter automatisch winnaar.
+            Automatische verdeling, vaste spelregels en een handmatig beslismoment. Kandidaat-winnaars worden nu richtinggevend beoordeeld op kwalitatieve respons, niet op ruwe respons alleen.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
@@ -185,9 +217,10 @@ function ExperimentPlaybook({ experimenten }: { experimenten: ReturnType<typeof 
                       <span className="text-xs font-medium text-foreground">Variant {variant.variantCode}{variant.isControl ? ' · controle' : ''}</span>
                       <span className="text-[11px] text-muted-foreground">n={variant.verzonden}</span>
                     </div>
-                    <div className="mt-2 flex gap-4 text-xs">
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                       <span>Respons <strong className="font-mono-data text-foreground">{pct(variant.responspercentage)}</strong></span>
-                      <span>Positief <strong className="font-mono-data text-foreground">{pct(variant.positieveResponspercentage)}</strong></span>
+                      <span>Kwalitatief <strong className="font-mono-data text-foreground">{pct(variant.kwalitatieveResponspercentage)}</strong></span>
+                      <span>Qualified <strong className="font-mono-data text-foreground">{pct(variant.gekwalificeerdeLeadPercentage)}</strong></span>
                     </div>
                   </div>
                 ))}
@@ -218,6 +251,16 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-xl font-semibold font-mono-data text-foreground">{value}</div>
       <div className="mt-1 text-[11px] text-muted-foreground">{detail}</div>
+    </div>
+  );
+}
+
+function QualityCell({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return (
+    <div className="bg-card px-3 py-3">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lg font-semibold font-mono-data text-foreground">{value}</div>
+      <div className="mt-0.5 text-[10px] text-muted-foreground">{detail}</div>
     </div>
   );
 }
