@@ -1,4 +1,9 @@
 import { copyProfielLabel } from '@/lib/acquisitie/copyExperimenten';
+import {
+  beoordeelExperiment,
+  type ExperimentPlaybookModel,
+  type ExperimentVariantRij,
+} from '@/lib/acquisitie/experimentPlaybook';
 
 export interface AcquisitieConversieEvent {
   occurred_at: string;
@@ -36,6 +41,7 @@ export interface AcquisitieConversieDashboardModel {
   perTouchpoint: ConversieRij[];
   perMaand: ConversieRij[];
   perVariant: ConversieRij[];
+  experimenten: ExperimentPlaybookModel[];
   variantGelabeld: number;
   variantOngelabeld: number;
   reactiesZonderVerzending: number;
@@ -77,6 +83,7 @@ export function bouwAcquisitieConversieDashboard(
   events: AcquisitieConversieEvent[],
   briefMeta: AcquisitieBriefMeta[],
   jaar: number,
+  nu = new Date(),
 ): AcquisitieConversieDashboardModel {
   const metaPerBrief = new Map(briefMeta.map(rij => [rij.id, rij]));
   const verzonden = events.filter(event => event.telt_verzonden_communicatie === true && event.brief_id);
@@ -153,6 +160,64 @@ export function bouwAcquisitieConversieDashboard(
     return [sleutel, `${profiel} · ${stap} · Variant ${code}`];
   }, gelabeldeVarianten).sort((a, b) => b.verzonden - a.verzonden);
 
+  const experimentGroepen = new Map<string, {
+    profiel: string;
+    kanaal: string;
+    campagneStap: string;
+    eersteVerzending: string;
+    briefIds: string[];
+  }>();
+
+  for (const [briefId, event] of gelabeldeVarianten) {
+    const meta = metaPerBrief.get(briefId);
+    if (!meta?.copy_profiel || !meta.campagne_stap) continue;
+    const kanaal = event.kanaal || 'onbekend';
+    const sleutel = `${meta.copy_profiel}:${kanaal}:${meta.campagne_stap}`;
+    const bestaand = experimentGroepen.get(sleutel);
+    const eersteVerzending = bestaand && new Date(bestaand.eersteVerzending) < new Date(event.occurred_at)
+      ? bestaand.eersteVerzending
+      : event.occurred_at;
+    experimentGroepen.set(sleutel, {
+      profiel: meta.copy_profiel,
+      kanaal,
+      campagneStap: meta.campagne_stap,
+      eersteVerzending,
+      briefIds: [...(bestaand?.briefIds ?? []), briefId],
+    });
+  }
+
+  const experimenten = [...experimentGroepen.entries()].map(([sleutel, groep]) => {
+    const variantenMap = new Map<string, string[]>();
+    for (const briefId of groep.briefIds) {
+      const code = metaPerBrief.get(briefId)?.copy_variant_code || '?';
+      variantenMap.set(code, [...(variantenMap.get(code) ?? []), briefId]);
+    }
+    const varianten: ExperimentVariantRij[] = [...variantenMap.entries()].map(([code, ids]) => {
+      const reacties = ids.filter(id => reactiePerBrief.has(id)).length;
+      const positieve = ids.filter(id => positiefPerBrief.has(id)).length;
+      return {
+        ...maakRij(`${sleutel}:${code}`, `Variant ${code}`, ids.length, reacties, positieve),
+        variantCode: code,
+        isControl: code === 'A',
+      };
+    }).sort((a, b) => a.variantCode.localeCompare(b.variantCode));
+
+    return beoordeelExperiment({
+      sleutel,
+      label: `${copyProfielLabel(groep.profiel)} · ${touchpointLabel(groep.campagneStap)}`,
+      profiel: groep.profiel,
+      kanaal: groep.kanaal,
+      campagneStap: groep.campagneStap,
+      eersteVerzending: groep.eersteVerzending,
+      varianten,
+      nu,
+    });
+  }).sort((a, b) => {
+    const statusVolgorde = ['kandidaat_winnaar', 'beslismoment', 'dataverzameling', 'opstart', 'wacht_op_challenger'];
+    const statusDelta = statusVolgorde.indexOf(a.status) - statusVolgorde.indexOf(b.status);
+    return statusDelta || a.label.localeCompare(b.label);
+  });
+
   const totaalVerzonden = jaarVerzendingen.length;
   const totaalReacties = reactiePerBrief.size;
   const totaalPositief = positiefPerBrief.size;
@@ -167,6 +232,7 @@ export function bouwAcquisitieConversieDashboard(
     perTouchpoint,
     perMaand,
     perVariant,
+    experimenten,
     variantGelabeld: gelabeldeVarianten.length,
     variantOngelabeld: totaalVerzonden - gelabeldeVarianten.length,
     reactiesZonderVerzending,
