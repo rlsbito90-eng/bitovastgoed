@@ -61,6 +61,13 @@ const WOONVORMING_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
   actief: true,
 };
 
+const WOONVORMING_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B',
+  naam: 'Compacte afsluiting',
+  hypothese: 'Een compactere Brief 3 die minder terugblikt op de eerdere sequence en sneller naar de commerciële opening en rustige afronding gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-afsluiter.',
+  actief: true,
+};
+
 /**
  * Algemene fallback blijft controle A. Alleen experimenten die inhoudelijk
  * gereed en expliciet geactiveerd zijn krijgen hier extra challengers.
@@ -80,6 +87,7 @@ function standaardVariantenVoorExperiment(args: {
   if (args.profiel === 'woonvorming' && args.kanaal === 'post') {
     if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_1_VARIANT_B];
     if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_2_VARIANT_B];
+    if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_3_VARIANT_B];
   }
   return COPY_VARIANTEN;
 }
