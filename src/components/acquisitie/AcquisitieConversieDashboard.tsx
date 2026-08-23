@@ -52,7 +52,7 @@ function ConversieTabel({ titel, toelichting, rijen }: { titel: string; toelicht
 
 export default function AcquisitieConversieDashboard() {
   const jaar = new Date().getFullYear();
-  const { model, isLoading, error } = useAcquisitieConversieDashboard(jaar);
+  const { model, richting, isLoading, error } = useAcquisitieConversieDashboard(jaar);
 
   if (isLoading) {
     return <section className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">Conversiedashboard laden…</section>;
@@ -97,6 +97,7 @@ export default function AcquisitieConversieDashboard() {
       </div>
 
       <ResponsKwaliteit model={model.responsKwaliteit} />
+      <ResponsRichting model={richting} />
 
       <ExperimentPlaybook experimenten={model.experimenten} />
 
@@ -158,6 +159,46 @@ function ResponsKwaliteit({ model }: { model: ReturnType<typeof useAcquisitieCon
           <QualityCell label="Positief gesprek" value={model.positiefGesprek} detail="Concrete interesse" />
           <QualityCell label="Qualified lead" value={model.gekwalificeerdeLead} detail="Gesprek gepland" />
         </div>
+      )}
+    </div>
+  );
+}
+
+function ResponsRichting({ model }: { model: ReturnType<typeof useAcquisitieConversieDashboard>['richting'] }) {
+  const bekend = model.verkoperReacties + model.koperReacties + model.beideReacties;
+  const totaal = bekend + model.onbekendReacties;
+  return (
+    <div className="rounded-md border border-border overflow-hidden" data-testid="acquisitie-responsrichting">
+      <div className="border-b border-border px-4 py-3">
+        <h3 className="text-sm font-semibold text-foreground">Commerciële richting</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Scheidt verkoopaanbod van nieuwe koopvraag. Een reactie kan dus commercieel waardevol zijn zonder dat de eigenaar wil verkopen.
+        </p>
+      </div>
+      {totaal === 0 ? (
+        <div className="px-4 py-5 text-sm text-muted-foreground">Nog geen reacties met commerciële richting vastgelegd.</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+            <QualityCell label="Verkoper / aanbod" value={model.verkoperReacties} detail={`Qualified: ${model.gekwalificeerdeVerkoperLeads}`} />
+            <QualityCell label="Koper / zoekvraag" value={model.koperReacties} detail={`Qualified: ${model.gekwalificeerdeKoperLeads}`} />
+            <QualityCell label="Beide" value={model.beideReacties} detail="Aanbod én zoekvraag" />
+            <QualityCell label="Overig / onbekend" value={model.onbekendReacties} detail="Nog classificeren" />
+          </div>
+          {model.perVariant.length > 0 && (
+            <div className="border-t border-border px-4 py-3">
+              <div className="text-xs font-medium text-foreground">Richting per tekstvariant</div>
+              <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+                {model.perVariant.map(row => (
+                  <div key={row.sleutel} className="flex flex-wrap items-center justify-between gap-2">
+                    <span>{row.label}</span>
+                    <span className="font-mono-data">verkoper {row.verkoperReacties} · koper {row.koperReacties} · Q-seller {row.gekwalificeerdeVerkoperLeads} · Q-buyer {row.gekwalificeerdeKoperLeads}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
