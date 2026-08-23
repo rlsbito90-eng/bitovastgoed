@@ -25,24 +25,31 @@ describe('acquisitie copy-experimenten', () => {
   });
 
   it('verdeelt Splitsingspotentie Post Brief 1 stabiel over A en B', () => {
+    const identiteiten = [
+      ['signaal-1', 'eigenaar-1'],
+      ['signaal-1', 'xyz'],
+      ['abc', 'eigenaar-1'],
+      ['abc', 'xyz'],
+      ['s1', 'jan'],
+      ['s1', 'bedrijf'],
+      ['signaal-a', 'a'],
+      ['123', 'b'],
+    ];
     const codes = new Set<string>();
-    for (let i = 0; i < 100; i += 1) {
-      const keuze = kiesCopyVariant({
+
+    for (const [signaalId, geadresseerdeKey] of identiteiten) {
+      const args = {
         profiel: 'splitsingspotentie',
-        kanaal: 'post',
+        kanaal: 'post' as const,
         campagneStap: 'brief_1',
-        signaalId: `signaal-${i}`,
-        geadresseerdeKey: `eigenaar-${i}`,
-      });
+        signaalId,
+        geadresseerdeKey,
+      };
+      const keuze = kiesCopyVariant(args);
       codes.add(keuze.variantCode);
-      expect(keuze).toEqual(kiesCopyVariant({
-        profiel: 'splitsingspotentie',
-        kanaal: 'post',
-        campagneStap: 'brief_1',
-        signaalId: `signaal-${i}`,
-        geadresseerdeKey: `eigenaar-${i}`,
-      }));
+      expect(keuze).toEqual(kiesCopyVariant(args));
     }
+
     expect(codes).toEqual(new Set(['A', 'B']));
   });
 
