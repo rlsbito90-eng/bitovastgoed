@@ -24,26 +24,16 @@ describe('acquisitie copy-experimenten', () => {
     expect(keuze.hypothese).toContain('controlevariant');
   });
 
-  it('verdeelt Splitsingspotentie Post Brief 1 stabiel over A en B', () => {
+  it.each(['brief_1', 'brief_2'])('verdeelt Splitsingspotentie Post %s stabiel over A en B', (campagneStap) => {
     const identiteiten = [
-      ['signaal-1', 'eigenaar-1'],
-      ['signaal-1', 'xyz'],
-      ['abc', 'eigenaar-1'],
-      ['abc', 'xyz'],
-      ['s1', 'jan'],
-      ['s1', 'bedrijf'],
-      ['signaal-a', 'a'],
-      ['123', 'b'],
+      ['signaal-1', 'eigenaar-1'], ['signaal-1', 'xyz'], ['abc', 'eigenaar-1'], ['abc', 'xyz'],
+      ['s1', 'jan'], ['s1', 'bedrijf'], ['signaal-a', 'a'], ['123', 'b'],
     ];
     const codes = new Set<string>();
 
     for (const [signaalId, geadresseerdeKey] of identiteiten) {
       const args = {
-        profiel: 'splitsingspotentie',
-        kanaal: 'post' as const,
-        campagneStap: 'brief_1',
-        signaalId,
-        geadresseerdeKey,
+        profiel: 'splitsingspotentie', kanaal: 'post' as const, campagneStap, signaalId, geadresseerdeKey,
       };
       const keuze = kiesCopyVariant(args);
       codes.add(keuze.variantCode);
