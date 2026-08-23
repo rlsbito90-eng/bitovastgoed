@@ -44,3 +44,4 @@ replaceOnce(
 );
 
 console.log('brief2-splitsing patch applied');
+// trigger workflow
