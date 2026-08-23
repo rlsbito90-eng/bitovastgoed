@@ -157,7 +157,7 @@ export function bouwBriefTekst({ aanhef, objectadres }: BriefTekstInput): string
     '',
     'Mocht u op dit moment, of wellicht op termijn, overwegen om dit pand, ander vastgoed of een bredere vastgoedportefeuille te verkopen, dan kom ik graag op een laagdrempelige manier met u in contact. Een eerste gesprek verplicht uiteraard tot niets en kan ook uitsluitend oriënterend zijn.',
     '',
-    `${BITO_CONTACT.bedrijf} werkt voornamelijk met professionele marktpartijen en begeleidt vastgoedtrajecten op een zorgvuldige en discrete manier. Indien verkoop voor u niet speelt, dan kunt u deze brief uiteraard als niet verzonden beschouwen. Mocht u echter openstaan voor een eerste kennismaking of marktverkenning, dan denk ik graag met u mee over de mogelijkheden.`,
+    `${BITO_CONTACT.bedrijf} werkt voornamelijk met professionele marktpartijen en begeleidt vastgoedtrajecten op een zorgvuldige en discrete manier. Indien verkoop op dit moment niet speelt, is dat uiteraard geen probleem. Ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug. Mocht u echter openstaan voor een eerste kennismaking of marktverkenning, dan denk ik graag met u mee over de mogelijkheden.`,
     '',
     'Ik hoor graag of er vragen zijn of interesse is.',
     '',
