@@ -49,6 +49,11 @@ export interface OffMarketBrief {
   responsdatum?: string | null;
   respons_kanaal?: string | null;
   respons_samenvatting?: string | null;
+  // Copy-experimentidentiteit — nullable voor historische communicatie.
+  copy_profiel?: string | null;
+  copy_variant_key?: string | null;
+  copy_variant_code?: string | null;
+  copy_hypothese?: string | null;
 }
 
 export interface BriefInsert {
@@ -66,6 +71,10 @@ export interface BriefInsert {
   campagne_stap?: CampagneStap | 'email_1' | 'email_2' | 'email_3' | null;
   geadresseerde_key?: string | null;
   verzendstatus?: Verzendstatus | null;
+  copy_profiel?: string | null;
+  copy_variant_key?: string | null;
+  copy_variant_code?: string | null;
+  copy_hypothese?: string | null;
 }
 
 const TABLE = 'off_market_brieven';
@@ -122,6 +131,12 @@ export function useUpsertBrief() {
         geadresseerde_key: key,
         verzendstatus: input.verzendstatus ?? 'concept',
       };
+      // Variantvelden worden alleen geraakt wanneer de voorbereidingsflow ze
+      // expliciet meegeeft. Zo blijven historische/verstuurde records immutable.
+      if (input.copy_profiel !== undefined) payload.copy_profiel = input.copy_profiel;
+      if (input.copy_variant_key !== undefined) payload.copy_variant_key = input.copy_variant_key;
+      if (input.copy_variant_code !== undefined) payload.copy_variant_code = input.copy_variant_code;
+      if (input.copy_hypothese !== undefined) payload.copy_hypothese = input.copy_hypothese;
       if (input.id) {
         // Historisch contract: een generieke inhoudelijke update verandert
         // het kanaal niet impliciet. Alleen de kanaalkeuze in de

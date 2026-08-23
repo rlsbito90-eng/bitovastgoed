@@ -1,3 +1,5 @@
+import { copyProfielLabel } from '@/lib/acquisitie/copyExperimenten';
+
 export interface AcquisitieConversieEvent {
   occurred_at: string;
   acquisitie_bron: string | null;
@@ -12,6 +14,10 @@ export interface AcquisitieConversieEvent {
 export interface AcquisitieBriefMeta {
   id: string;
   campagne_stap: string | null;
+  copy_profiel?: string | null;
+  copy_variant_key?: string | null;
+  copy_variant_code?: string | null;
+  copy_hypothese?: string | null;
 }
 
 export interface ConversieRij {
@@ -29,6 +35,9 @@ export interface AcquisitieConversieDashboardModel {
   perKanaal: ConversieRij[];
   perTouchpoint: ConversieRij[];
   perMaand: ConversieRij[];
+  perVariant: ConversieRij[];
+  variantGelabeld: number;
+  variantOngelabeld: number;
   reactiesZonderVerzending: number;
 }
 
@@ -98,9 +107,12 @@ export function bouwAcquisitieConversieDashboard(
     positiefPerBrief.add(event.brief_id);
   }
 
-  const groepen = (sleutelFn: (briefId: string, event: AcquisitieConversieEvent) => [string, string]) => {
+  const groepen = (
+    sleutelFn: (briefId: string, event: AcquisitieConversieEvent) => [string, string],
+    bron: Array<[string, AcquisitieConversieEvent]> = jaarVerzendingen,
+  ) => {
     const map = new Map<string, { label: string; ids: Set<string> }>();
-    for (const [briefId, event] of jaarVerzendingen) {
+    for (const [briefId, event] of bron) {
       const [sleutel, label] = sleutelFn(briefId, event);
       const groep = map.get(sleutel) ?? { label, ids: new Set<string>() };
       groep.ids.add(briefId);
@@ -131,6 +143,16 @@ export function bouwAcquisitieConversieDashboard(
     return [sleutel, label];
   }).sort((a, b) => a.sleutel.localeCompare(b.sleutel));
 
+  const gelabeldeVarianten = jaarVerzendingen.filter(([briefId]) => !!metaPerBrief.get(briefId)?.copy_variant_key);
+  const perVariant = groepen((briefId) => {
+    const meta = metaPerBrief.get(briefId);
+    const sleutel = meta?.copy_variant_key || 'onbekend';
+    const profiel = copyProfielLabel(meta?.copy_profiel);
+    const stap = touchpointLabel(meta?.campagne_stap || 'onbekend');
+    const code = meta?.copy_variant_code || '?';
+    return [sleutel, `${profiel} · ${stap} · Variant ${code}`];
+  }, gelabeldeVarianten).sort((a, b) => b.verzonden - a.verzonden);
+
   const totaalVerzonden = jaarVerzendingen.length;
   const totaalReacties = reactiePerBrief.size;
   const totaalPositief = positiefPerBrief.size;
@@ -144,6 +166,9 @@ export function bouwAcquisitieConversieDashboard(
     perKanaal,
     perTouchpoint,
     perMaand,
+    perVariant,
+    variantGelabeld: gelabeldeVarianten.length,
+    variantOngelabeld: totaalVerzonden - gelabeldeVarianten.length,
     reactiesZonderVerzending,
   };
 }

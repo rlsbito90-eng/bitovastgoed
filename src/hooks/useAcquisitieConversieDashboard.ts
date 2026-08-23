@@ -27,7 +27,7 @@ export function useAcquisitieConversieDashboard(jaar = new Date().getFullYear())
     queryFn: async (): Promise<AcquisitieBriefMeta[]> => {
       const { data, error } = await (supabase as any)
         .from('off_market_brieven')
-        .select('id,campagne_stap')
+        .select('id,campagne_stap,copy_profiel,copy_variant_key,copy_variant_code,copy_hypothese')
         .is('archived_at', null);
       if (error) throw new Error(error.message);
       return (data ?? []) as AcquisitieBriefMeta[];

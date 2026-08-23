@@ -109,12 +109,18 @@ export default function AcquisitieConversieDashboard() {
         rijen={model.perMaand}
       />
 
+      <ConversieTabel
+        titel="Per tekstvariant"
+        toelichting="Nieuwe communicaties krijgen een vaste variantidentiteit. Historische verzendingen zonder variant blijven buiten deze vergelijking."
+        rijen={model.perVariant}
+      />
+
       <div className="rounded-md border border-dashed border-border bg-muted/10 p-4 flex gap-3">
         <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div>
-          <div className="text-sm font-medium text-foreground">A/B-testlaag voorbereid</div>
+          <div className="text-sm font-medium text-foreground">Experimentdekking · {model.variantGelabeld}/{model.totaal.verzonden}</div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Het dashboard is nu de centrale analyseplek. Tekstvariant A/B is nog niet als afzonderlijk meetveld gemodelleerd; daarom toont de app bewust nog geen schijnwinnaar. De volgende tranche koppelt iedere verzending aan een vaste variant en hypothese, waarna dezelfde tabel automatisch per variant kan vergelijken.
+            Vanaf deze release wordt de toegewezen variant per communicatie vastgelegd. {model.variantOngelabeld > 0 ? `${model.variantOngelabeld} historische verzending(en) hebben bewust geen variantlabel.` : 'Alle gemeten verzendingen hebben een variantlabel.'} Er wordt pas een winnaarstatus toegevoegd wanneer er meerdere inhoudelijke varianten actief zijn en voldoende datavolume is.
           </p>
         </div>
       </div>
