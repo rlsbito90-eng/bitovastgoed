@@ -49,6 +49,7 @@ import {
 } from '@/lib/offMarket/email/emailProfielen';
 import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import { bepaalCopyProfiel, kiesCopyVariant, copyProfielLabel } from '@/lib/acquisitie/copyExperimenten';
+import { bouwPostVariantTemplate } from '@/lib/acquisitie/postCopyVarianten';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
@@ -321,7 +322,12 @@ export default function BriefVoorbereidenDialog({
   };
 
   const herstelStandaard = () => {
-    setBrieftekst(bouwBriefTekst({ aanhef, objectadres: objectomschrijving }));
+    if (kanaal === 'post') {
+      const template = bouwPostVariantTemplate({ toewijzing: copyToewijzing, aanhef, objectomschrijving });
+      setBrieftekst(template.brieftekst);
+    } else {
+      setBrieftekst(bouwBriefTekst({ aanhef, objectadres: objectomschrijving }));
+    }
     toast.success('Standaardtekst hersteld');
   };
 
@@ -368,6 +374,19 @@ export default function BriefVoorbereidenDialog({
       geadresseerdeKey: initialBrief?.geadresseerde_key ?? kandidaatLabel ?? null,
     });
   }, [signaal, kanaal, emailProfiel, huidigeCampagneStap, initialBrief?.geadresseerde_key, kandidaatLabel]);
+
+  // Eerste echte post-copytest. Alleen een nieuw, nog niet opgeslagen concept
+  // met toegewezen challenger B krijgt automatisch de varianttekst.
+  // Controle A en bestaande/historische brieven behouden exact hun bestaande flow.
+  useEffect(() => {
+    if (!open || initialBrief || kanaal !== 'post' || copyToewijzing.variantCode !== 'B') return;
+    const template = bouwPostVariantTemplate({ toewijzing: copyToewijzing, aanhef, objectomschrijving });
+    if (!onderwerpHandmatig) setOnderwerp(template.onderwerp);
+    setBrieftekst(template.brieftekst);
+  }, [
+    open, initialBrief, kanaal, copyToewijzing.variantKey, copyToewijzing.variantCode,
+    aanhef, objectomschrijving, onderwerpHandmatig,
+  ]);
 
   const ensureBriefOpgeslagen = async (status: 'concept' | 'verstuurd' = 'concept'): Promise<string | null> => {
     try {
@@ -673,7 +692,7 @@ export default function BriefVoorbereidenDialog({
 
           <div className="rounded-md border border-dashed border-border bg-muted/10 px-3 py-2 text-xs" data-testid="brief-copy-variant">
             <div className="font-medium text-foreground">
-              Testvariant {initialBrief?.copy_variant_code ?? copyToewijzing.variantCode} · {initialBrief?.copy_variant_code ? 'vastgelegd' : 'controle'}
+              Testvariant {initialBrief?.copy_variant_code ?? copyToewijzing.variantCode} · {initialBrief?.copy_variant_code ? 'vastgelegd' : copyToewijzing.variantNaam.toLowerCase()}
             </div>
             <div className="mt-0.5 text-muted-foreground">
               {copyProfielLabel(initialBrief?.copy_profiel ?? copyToewijzing.profiel)} · {initialBrief?.copy_hypothese ?? copyToewijzing.hypothese}
