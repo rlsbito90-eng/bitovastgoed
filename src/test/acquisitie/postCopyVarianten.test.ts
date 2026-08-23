@@ -98,4 +98,40 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('nooit meer');
     expect(template.brieftekst).not.toContain('definitief');
   });
+
+  it('bouwt de goedgekeurde compacte Splitsingspotentie Brief 3 challenger B', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'splitsingspotentie',
+        variantKey: 'splitsingspotentie:post:brief_3:B',
+        variantCode: 'B',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toBe([
+      'Geachte heer/mevrouw,',
+      '',
+      'Nog één keer kort over Voorbeeldstraat 10 te Amsterdam, gezien de mogelijke splitsings- of uitpondingspotentie ervan.',
+      '',
+      'Speelt verkoop van dit pand, ander vastgoed of een bredere portefeuille nu of op termijn, dan kom ik graag vrijblijvend met u in contact.',
+      '',
+      'Speelt dit op dit moment niet, dan laat ik het voor nu rusten. Verandert dat op een later moment, dan weet u mij te vinden.',
+      '',
+      'Interesse? Een kort telefoongesprek of e-mail is voldoende.',
+      '',
+      'Met vriendelijke groet,',
+      '',
+      'Ramysh Bito',
+      'Eigenaar & Vastgoedadviseur',
+      'Bito Vastgoed',
+      '',
+      'T: +31 6 16 98 76 06',
+      'E: info@bitovastgoed.nl',
+      'W: www.bitovastgoed.nl',
+    ].join('\n'));
+    expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
+    expect(template.brieftekst).not.toContain('laat ik het hier rusten');
+  });
 });

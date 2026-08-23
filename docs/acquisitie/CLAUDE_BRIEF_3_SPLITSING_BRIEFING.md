@@ -45,8 +45,33 @@ T: +31 6 16 98 76 06
 E: info@bitovastgoed.nl
 W: www.bitovastgoed.nl
 
+## Goedgekeurde productievariant B
+Onderwerp: Uw pand aan [OBJECTOMSCHRIJVING]
+
+Geachte heer/mevrouw,
+
+Nog één keer kort over [OBJECTOMSCHRIJVING], gezien de mogelijke splitsings- of uitpondingspotentie ervan.
+
+Speelt verkoop van dit pand, ander vastgoed of een bredere portefeuille nu of op termijn, dan kom ik graag vrijblijvend met u in contact.
+
+Speelt dit op dit moment niet, dan laat ik het voor nu rusten. Verandert dat op een later moment, dan weet u mij te vinden.
+
+Interesse? Een kort telefoongesprek of e-mail is voldoende.
+
+Met vriendelijke groet,
+
+Ramysh Bito
+Eigenaar & Vastgoedadviseur
+Bito Vastgoed
+
+T: +31 6 16 98 76 06
+E: info@bitovastgoed.nl
+W: www.bitovastgoed.nl
+
 ## Hypothese voor challenger B
-Een nog compactere afsluitende brief die de sequence expliciet maar vriendelijk afrondt en één duidelijke commerciële opening + CTA bevat, verhoogt de kwalitatieve verkopersrespons bij ontvangers die twee eerdere touches niet hebben beantwoord.
+Een compactere, strakker afrondende Brief 3 verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-A.
+
+Primaire KPI: kwalitatieve verkopersrespons.
 
 ## Wat Claude moet veranderen
 Maak één betekenisvol andere challenger B. Test primair **afrondingsstijl + compactheid**. De challenger mag directer zijn dan A, maar moet professioneel en rustig blijven.
@@ -76,4 +101,4 @@ De beoogde sleutel na review is:
 
 `splitsingspotentie:post:brief_3:B`
 
-**Niet activeren zonder inhoudelijke review.**
+**Status:** inhoudelijk goedgekeurd en als 50/50-challenger naast controle-A geactiveerd.
