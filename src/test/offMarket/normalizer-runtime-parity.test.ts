@@ -16,6 +16,13 @@ const placeMigration = fs.readFileSync(
   'utf8',
 );
 
+function zonderSqlComments(sql: string): string {
+  return sql
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('--'))
+    .join('\n');
+}
+
 describe('Off-Market normalizer production parity', () => {
   it('hydrateert cron-auth alleen server-side en importeert lokaal', () => {
     expect(runtime).toContain("Deno.env.get('OFF_MARKET_CRON_SECRET')");
@@ -30,12 +37,13 @@ describe('Off-Market normalizer production parity', () => {
   });
 
   it('guardt alleen bewezen plaatsruis en gebruikt bron-gemeente als fallback', () => {
+    const executableSql = zonderSqlComments(placeMigration);
     for (const token of ['vormen', 'omzetten', 'bouwkundig', 'splitsing']) {
-      expect(placeMigration.toLowerCase()).toContain(token);
+      expect(executableSql.toLowerCase()).toContain(token);
     }
-    expect(placeMigration).toMatch(/\^Z20/);
-    expect(placeMigration).toContain("config->>'gemeente'");
-    expect(placeMigration).not.toMatch(/udenhout|hoek|dieren/i);
+    expect(executableSql).toMatch(/\^Z20/);
+    expect(executableSql).toContain("config->>'gemeente'");
+    expect(executableSql).not.toMatch(/udenhout|hoek|dieren/i);
   });
 
   it('voegt geen automatische Kadasteractie toe', () => {
