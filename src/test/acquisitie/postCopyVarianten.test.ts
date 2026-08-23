@@ -58,4 +58,24 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('laatste keer');
     expect(template.brieftekst).not.toContain('nog eenmaal');
   });
+
+  it('bouwt de compacte Splitsingspotentie Brief 2 challenger B zonder de sequence af te sluiten', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'splitsingspotentie',
+        variantKey: 'splitsingspotentie:post:brief_2:B',
+        variantCode: 'B',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Kort nogmaals — Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Enige tijd geleden schreef ik u over Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('mogelijke splitsings- of uitpondingspotentie');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
+    expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
+    expect(template.brieftekst).not.toContain('laatste keer');
+    expect(template.brieftekst).not.toContain('nog eenmaal');
+  });
 });
