@@ -18,6 +18,13 @@ export type ExperimentStatus =
 export interface ExperimentVariantRij extends ConversieRij {
   variantCode: string;
   isControl: boolean;
+  verkoperReacties: number;
+  kwalitatieveVerkoperReacties: number;
+  gekwalificeerdeVerkoperLeads: number;
+  koperReacties: number;
+  gekwalificeerdeKoperLeads: number;
+  kwalitatieveVerkoperResponspercentage: number;
+  gekwalificeerdeVerkoperLeadPercentage: number;
 }
 
 export interface ExperimentPlaybookModel {
@@ -111,11 +118,11 @@ export function beoordeelExperiment(args: {
 
   const control = actieveVarianten.find(v => v.isControl) ?? actieveVarianten.find(v => v.variantCode === 'A') ?? null;
   const challengers = actieveVarianten.filter(v => v !== control);
-  const beste = [...challengers].sort((a, b) => b.kwalitatieveResponspercentage - a.kwalitatieveResponspercentage)[0] ?? null;
-  const absoluteUplift = control && beste ? beste.kwalitatieveResponspercentage - control.kwalitatieveResponspercentage : 0;
-  const relatieveUplift = control && beste && control.kwalitatieveResponspercentage > 0
-    ? (beste.kwalitatieveResponspercentage - control.kwalitatieveResponspercentage) / control.kwalitatieveResponspercentage
-    : (beste?.kwalitatieveResponspercentage ?? 0) > 0 ? 1 : 0;
+  const beste = [...challengers].sort((a, b) => b.kwalitatieveVerkoperResponspercentage - a.kwalitatieveVerkoperResponspercentage)[0] ?? null;
+  const absoluteUplift = control && beste ? beste.kwalitatieveVerkoperResponspercentage - control.kwalitatieveVerkoperResponspercentage : 0;
+  const relatieveUplift = control && beste && control.kwalitatieveVerkoperResponspercentage > 0
+    ? (beste.kwalitatieveVerkoperResponspercentage - control.kwalitatieveVerkoperResponspercentage) / control.kwalitatieveVerkoperResponspercentage
+    : (beste?.kwalitatieveVerkoperResponspercentage ?? 0) > 0 ? 1 : 0;
   const kandidaat = !!beste && !!control
     && absoluteUplift >= regels.minimumAbsoluteUpliftPunt
     && relatieveUplift >= regels.minimumRelatieveUplift;
@@ -126,7 +133,7 @@ export function beoordeelExperiment(args: {
       looptijdDagen,
       status: 'kandidaat_winnaar',
       statusLabel: statusLabel.kandidaat_winnaar,
-      advies: `Variant ${beste!.variantCode} presteert richtinggevend beter op kwalitatieve respons. Beoordeel leadkwaliteit en inhoud vóór promotie.`,
+      advies: `Variant ${beste!.variantCode} presteert richtinggevend beter op kwalitatieve verkopersrespons. Controleer qualified seller leads en inhoud vóór promotie.`,
       kandidaatVariantCode: beste!.variantCode,
       checks: { meerdereVarianten, minimumLooptijd, minimumVolume, streefvolume },
     };
@@ -138,7 +145,7 @@ export function beoordeelExperiment(args: {
     status: 'beslismoment',
     statusLabel: statusLabel.beslismoment,
     advies: streefvolume
-      ? 'Er is voldoende volume voor een inhoudelijke beoordeling, maar nog geen duidelijke kandidaat-winnaar op kwalitatieve respons.'
+      ? 'Er is voldoende volume voor een inhoudelijke beoordeling, maar nog geen duidelijke kandidaat-winnaar op kwalitatieve verkopersrespons.'
       : `Minimumvolume is bereikt. Laat bij voorkeur doorlopen richting ${regels.streefPerVariant} verzendingen per variant voordat je promoveert.`,
     kandidaatVariantCode: kandidaat ? beste?.variantCode ?? null : null,
     checks: { meerdereVarianten, minimumLooptijd, minimumVolume, streefvolume },

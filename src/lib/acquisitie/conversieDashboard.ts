@@ -24,6 +24,7 @@ export interface AcquisitieBriefMeta {
   copy_variant_key?: string | null;
   copy_variant_code?: string | null;
   copy_hypothese?: string | null;
+  respons_richting?: string | null;
 }
 
 export type ResponsKwaliteit =
@@ -258,6 +259,19 @@ export function bouwAcquisitieConversieDashboard(
     const varianten: ExperimentVariantRij[] = [...variantenMap.entries()].map(([code, ids]) => {
       const reacties = ids.filter(id => reactiePerBrief.has(id)).length;
       const positieve = ids.filter(id => positiefPerBrief.has(id)).length;
+      const isVerkoper = (id: string) => {
+        const richting = metaPerBrief.get(id)?.respons_richting;
+        return richting === 'verkoper' || richting === 'beide';
+      };
+      const isKoper = (id: string) => {
+        const richting = metaPerBrief.get(id)?.respons_richting;
+        return richting === 'koper' || richting === 'beide';
+      };
+      const verkoperReacties = ids.filter(id => reactiePerBrief.has(id) && isVerkoper(id)).length;
+      const kwalitatieveVerkoperReacties = ids.filter(id => kwalitatiefPerBrief.has(id) && isVerkoper(id)).length;
+      const gekwalificeerdeVerkoperLeads = ids.filter(id => gekwalificeerdPerBrief.has(id) && isVerkoper(id)).length;
+      const koperReacties = ids.filter(id => reactiePerBrief.has(id) && isKoper(id)).length;
+      const gekwalificeerdeKoperLeads = ids.filter(id => gekwalificeerdPerBrief.has(id) && isKoper(id)).length;
       return {
         ...maakRij(
           `${sleutel}:${code}`,
@@ -270,6 +284,13 @@ export function bouwAcquisitieConversieDashboard(
         ),
         variantCode: code,
         isControl: code === 'A',
+        verkoperReacties,
+        kwalitatieveVerkoperReacties,
+        gekwalificeerdeVerkoperLeads,
+        koperReacties,
+        gekwalificeerdeKoperLeads,
+        kwalitatieveVerkoperResponspercentage: pct(kwalitatieveVerkoperReacties, ids.length),
+        gekwalificeerdeVerkoperLeadPercentage: pct(gekwalificeerdeVerkoperLeads, ids.length),
       };
     }).sort((a, b) => a.variantCode.localeCompare(b.variantCode));
 
