@@ -58,8 +58,8 @@ export function bouwPostVariantTemplate({
   if (toewijzing.variantKey === SPLITSING_BRIEF_2_B_KEY && toewijzing.variantCode === 'B') {
     const objectRef = object || 'uw vastgoed';
     const onderwerp = object
-      ? `Kort nogmaals — ${object}`
-      : 'Kort nogmaals — uw vastgoed';
+      ? `Uw pand aan ${object}`
+      : 'Uw vastgoed';
 
     return {
       onderwerp,
