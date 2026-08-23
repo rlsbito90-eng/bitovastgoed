@@ -134,4 +134,40 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
     expect(template.brieftekst).not.toContain('laat ik het hier rusten');
   });
+
+  it('bouwt Woonvorming Brief 1 controle A met expliciete context en relativering', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'woonvorming',
+        variantKey: 'woonvorming:post:brief_1:A',
+        variantCode: 'A',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Interesse in uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('woonvormingsontwikkeling of -vergunning gesignaleerd');
+    expect(template.brieftekst).toContain('Dat hoeft uiteraard niets te zeggen over eventuele verkoopplannen');
+    expect(template.brieftekst).toContain('bredere vastgoedbeslissing of herpositionering');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('kom eventueel op een later moment nog eens bij u terug');
+  });
+
+  it('bouwt Woonvorming Brief 1 challenger B als kortere objectgerichte variant', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'woonvorming',
+        variantKey: 'woonvorming:post:brief_1:B',
+        variantCode: 'B',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Rond Voorbeeldstraat 10 te Amsterdam is een woonvormingsontwikkeling of -vergunning gesignaleerd');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
+    expect(template.brieftekst).not.toContain('bredere vastgoedbeslissing of herpositionering');
+    expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
+  });
 });
