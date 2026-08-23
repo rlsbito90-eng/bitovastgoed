@@ -11,9 +11,10 @@ afterEach(() => {
 });
 
 describe('stickySelectieIndicator', () => {
-  it('leest het canonieke bulkselectie-aantal uit de bestaande toolbar', () => {
+  it('leest zowel de oude als actuele bulkselectie-aanduiding', () => {
     expect(leesAantalGeselecteerdUitBulkTekst('12 signalen · 18 geadresseerden · 9 brieven')).toBe(12);
-    expect(leesAantalGeselecteerdUitBulkTekst('0 signalen · 0 geadresseerden · 0 brieven')).toBe(0);
+    expect(leesAantalGeselecteerdUitBulkTekst('10 geselecteerd · 5 geadresseerden · 5 brieven gereed')).toBe(10);
+    expect(leesAantalGeselecteerdUitBulkTekst('0 geselecteerd · 0 geadresseerden · 0 brieven gereed')).toBe(0);
   });
 
   it('telt de zichtbare dossierrijen', () => {
@@ -25,12 +26,12 @@ describe('stickySelectieIndicator', () => {
     expect(leesAantalZichtbaar()).toBe(3);
   });
 
-  it('toont onderaan alleen bij een actieve selectie en wist via de bestaande bulkactie', () => {
+  it('toont onderaan bij de actuele bulktekst en wist via de bestaande bulkactie', () => {
     const wis = vi.fn();
     document.body.innerHTML = `
       <div data-testid="acquisitie-bulk-toolbar">
         <button id="wis">Wis selectie</button>
-        <span data-testid="acquisitie-bulk-telling">5 signalen · 7 geadresseerden · 5 brieven</span>
+        <span data-testid="acquisitie-bulk-telling">5 geselecteerd · 7 geadresseerden · 5 brieven gereed</span>
       </div>
       <ul data-testid="acquisitie-selectie-lijst">
         <li></li><li></li><li></li>
@@ -47,7 +48,7 @@ describe('stickySelectieIndicator', () => {
     expect(wis).toHaveBeenCalledTimes(1);
 
     const telling = document.querySelector('[data-testid="acquisitie-bulk-telling"]');
-    if (telling) telling.textContent = '0 signalen · 0 geadresseerden · 0 brieven';
+    if (telling) telling.textContent = '0 geselecteerd · 0 geadresseerden · 0 brieven gereed';
     synchroniseerStickySelectieIndicator();
     expect(document.querySelector('[data-testid="acquisitie-sticky-selectieteller"]')).toBeNull();
   });
@@ -56,7 +57,7 @@ describe('stickySelectieIndicator', () => {
     document.body.innerHTML = `
       <div data-testid="acquisitie-bulk-toolbar">
         <button>Wis selectie</button>
-        <span data-testid="acquisitie-bulk-telling">5 signalen · 7 geadresseerden · 5 brieven</span>
+        <span data-testid="acquisitie-bulk-telling">5 geselecteerd · 7 geadresseerden · 5 brieven gereed</span>
       </div>
       <ul data-testid="acquisitie-selectie-lijst"><li></li><li></li></ul>
     `;

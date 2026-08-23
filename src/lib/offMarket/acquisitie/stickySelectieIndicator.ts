@@ -10,7 +10,7 @@ let gebruikers = 0;
 let synchronisatieGepland = false;
 
 export function leesAantalGeselecteerdUitBulkTekst(tekst: string | null | undefined): number {
-  const match = String(tekst ?? '').trim().match(/^(\d+)\s+signalen\b/i);
+  const match = String(tekst ?? '').trim().match(/^(\d+)\s+(?:signalen|geselecteerd)\b/i);
   return match ? Number(match[1]) : 0;
 }
 
