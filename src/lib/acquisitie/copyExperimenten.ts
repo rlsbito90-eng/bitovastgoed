@@ -68,6 +68,27 @@ const WOONVORMING_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
   actief: true,
 };
 
+const TRANSFORMATIE_BRIEF_1_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B',
+  naam: 'Kort/direct',
+  hypothese: 'Een brief die het transformatie- of herontwikkelingssignaal kort als aanleiding benoemt zonder het te duiden en sneller naar de commerciële opening en CTA gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de meer uitleggevende controlevariant.',
+  actief: true,
+};
+
+const TRANSFORMATIE_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B',
+  naam: 'Compact/direct',
+  hypothese: 'Een follow-up die het oorspronkelijke signaal niet herhaalt en direct doorgaat naar de vraag of verkoop speelt, verlaagt de leesdrempel en verhoogt de kwalitatieve verkopersrespons ten opzichte van de langere controle-follow-up.',
+  actief: true,
+};
+
+const TRANSFORMATIE_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B',
+  naam: 'Compacte afsluiting',
+  hypothese: 'Een compactere Brief 3 die minder terugblikt op het oorspronkelijke signaal en sneller naar de commerciële opening en een rustige afronding gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-afsluiter.',
+  actief: true,
+};
+
 /**
  * Algemene fallback blijft controle A. Alleen experimenten die inhoudelijk
  * gereed en expliciet geactiveerd zijn krijgen hier extra challengers.
@@ -88,6 +109,11 @@ function standaardVariantenVoorExperiment(args: {
     if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_1_VARIANT_B];
     if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_2_VARIANT_B];
     if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_3_VARIANT_B];
+  }
+  if (args.profiel === 'transformatie_herontwikkeling' && args.kanaal === 'post') {
+    if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, TRANSFORMATIE_BRIEF_1_VARIANT_B];
+    if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, TRANSFORMATIE_BRIEF_2_VARIANT_B];
+    if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, TRANSFORMATIE_BRIEF_3_VARIANT_B];
   }
   return COPY_VARIANTEN;
 }
