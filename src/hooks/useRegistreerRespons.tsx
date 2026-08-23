@@ -33,10 +33,14 @@ export function useRegistreerRespons() {
       if (input.responsstatus === 'retour_post') {
         patch.verzendstatus = 'retour';
       }
+      // Respons hoort altijd bij de exacte, reeds verzonden brief binnen
+      // hetzelfde signaal. Zo kan een fout/stale UI-id geen andere brief raken.
       const { data, error } = await (supabase as any)
         .from('off_market_brieven')
         .update(patch)
         .eq('id', input.brief_id)
+        .eq('signaal_id', input.signaal_id)
+        .eq('status', 'verstuurd')
         .select()
         .single();
       if (error) throw new Error(error.message);
@@ -57,6 +61,7 @@ export function useRegistreerRespons() {
     onSuccess: (b) => {
       qc.invalidateQueries({ queryKey: ['off_market_brieven', b.signaal_id] });
       qc.invalidateQueries({ queryKey: ['off_market_brief_events', b.signaal_id] });
+      qc.invalidateQueries({ queryKey: ['acquisitie-conversie-dashboard'] });
     },
   });
 }
