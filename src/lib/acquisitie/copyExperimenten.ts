@@ -120,18 +120,61 @@ function standaardVariantenVoorExperiment(args: {
 
 const schoon = (v: unknown) => String(v ?? '').trim().toLowerCase();
 
-export function bepaalPostCopyProfiel(signaal: Pick<OffMarketSignaal, 'vergunningtype' | 'potentiele_strategie' | 'assettype'>): string {
+type PostCopySignaal = Pick<
+  OffMarketSignaal,
+  'vergunningtype' | 'potentiele_strategie' | 'assettype' | 'titel' | 'omschrijving'
+>;
+
+const SPLITSING_TEKST = /\b(?:splitsingsvergunning|appartementensplitsing|kadastrale\s+splitsing|juridische\s+splitsing|(?:bouwkundig\s+)?splitsen)\b/i;
+const WOONVORMING_TEKST = /\b(?:woonvormingsvergunning|woonvorming|woningvorming)\b/i;
+const KAMERVERHUUR_TEKST = /\b(?:omzettingsvergunning|kamerverhuur(?:vergunning)?|kamergewijze(?:\s+verhuur)?|woningdelen|onzelfstandige\s+woonruimte)\b/i;
+const TRANSFORMATIE_TEKST = /\b(?:transformatie|transformeren|herontwikkeling|herontwikkelen|functiewijziging|gebruikswijziging|wijzigen\s+(?:van\s+)?(?:het\s+)?gebruik|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen)\b/i;
+const VERBOUW_NAAR_WONEN_TEKST = /\b(?:verbouwen|veranderen|vergroten|herverdelen|omvormen)\b.{0,80}\b(?:naar|tot|in)\b.{0,50}\b(?:appartement(?:en)?|woning(?:en)?|woonruimte(?:n)?|studio'?s)\b/i;
+const ONTWIKKELING_TEKST = /\b(?:nieuwbouw|woningbouwproject|projectontwikkeling|gebiedsontwikkeling|ontwikkellocatie|bouwen\s+van|oprichten|realiseren\s+van\s+(?:\d+\s+)?(?:woongebouwen?|woningen?|appartementen?|studio'?s|units)|cre[eë]ren\s+van\s+(?:\d+\s+)?appartementen?)\b/i;
+
+/**
+ * Kies het postprofiel conservatief uit de genormaliseerde velden én de
+ * feitelijke signaaltekst. De tekstuele override is bewust aanwezig omdat
+ * historische Radar-data enkele bekende parserfouten bevat, bijvoorbeeld
+ * `splitsen van een appartement` dat als `ontwikkeling` is opgeslagen door
+ * het losse woord `appartement`.
+ */
+export function bepaalPostCopyProfiel(signaal: PostCopySignaal): string {
   const vergunning = schoon(signaal.vergunningtype);
   const strategie = schoon(signaal.potentiele_strategie);
   const asset = schoon(signaal.assettype);
+  const tekst = `${schoon(signaal.titel)} ${schoon(signaal.omschrijving)}`.trim();
 
-  if (vergunning === 'splitsing' || strategie.includes('splits')) return 'splitsingspotentie';
-  if (vergunning === 'woonvorming') return 'woonvorming';
-  if (vergunning === 'omzetting') return 'kamerverhuur_verhuur_exploitatieoptimalisatie';
-  if (vergunning === 'transformatie' || vergunning === 'functiewijziging' || strategie.includes('transform') || strategie.includes('herontwikk')) {
+  if (vergunning === 'splitsing' || strategie.includes('splits') || SPLITSING_TEKST.test(tekst)) {
+    return 'splitsingspotentie';
+  }
+  if (vergunning === 'woonvorming' || WOONVORMING_TEKST.test(tekst)) return 'woonvorming';
+  if (vergunning === 'omzetting' || KAMERVERHUUR_TEKST.test(tekst)) {
+    return 'kamerverhuur_verhuur_exploitatieoptimalisatie';
+  }
+  if (
+    vergunning === 'transformatie'
+    || vergunning === 'functiewijziging'
+    || strategie.includes('transform')
+    || strategie.includes('herontwikk')
+    || asset === 'transformatieobject'
+    || TRANSFORMATIE_TEKST.test(tekst)
+    || VERBOUW_NAAR_WONEN_TEKST.test(tekst)
+  ) {
     return 'transformatie_herontwikkeling';
   }
-  if (vergunning === 'ontwikkeling' || asset === 'ontwikkellocatie') return 'ontwikkellocatie';
+
+  // `ontwikkeling` is historisch soms te ruim toegekend door het losse woord
+  // `appartement`. Vertrouw dat opgeslagen type daarom alleen zonder brontekst;
+  // zodra tekst beschikbaar is moet er ook een echte ontwikkelterm aanwezig zijn.
+  if (
+    asset === 'ontwikkellocatie'
+    || ONTWIKKELING_TEKST.test(tekst)
+    || (vergunning === 'ontwikkeling' && !tekst)
+  ) {
+    return 'ontwikkellocatie';
+  }
+
   if (asset === 'woon_winkelpand' || asset === 'gemengd_vastgoed') return 'woon_winkelpand';
   if (asset === 'vastgoedportefeuille' || strategie.includes('portefeuille')) return 'portefeuille';
   if (['kantoor', 'winkelpand', 'bedrijfscomplex', 'light_industrial', 'logistiek'].includes(asset)) return 'commercieel_vastgoed';
@@ -139,7 +182,7 @@ export function bepaalPostCopyProfiel(signaal: Pick<OffMarketSignaal, 'vergunnin
 }
 
 export function bepaalCopyProfiel(args: {
-  signaal: Pick<OffMarketSignaal, 'vergunningtype' | 'potentiele_strategie' | 'assettype'>;
+  signaal: PostCopySignaal;
   kanaal: Kanaal;
   emailProfiel?: EmailProfiel | null;
 }): string {
