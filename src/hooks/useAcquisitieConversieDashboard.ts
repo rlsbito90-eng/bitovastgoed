@@ -19,7 +19,10 @@ export function useAcquisitieConversieDashboard(jaar = new Date().getFullYear())
       if (error) throw new Error(error.message);
       return (data ?? []) as AcquisitieConversieEvent[];
     },
-    staleTime: 60_000,
+    // Conversie is operationele stuurinformatie: bij openen/terugkeren opnieuw
+    // controleren, zonder continu te pollen wanneer het scherm openstaat.
+    staleTime: 0,
+    refetchOnWindowFocus: 'always',
   });
 
   const briefMetaQuery = useQuery({
@@ -32,7 +35,8 @@ export function useAcquisitieConversieDashboard(jaar = new Date().getFullYear())
       if (error) throw new Error(error.message);
       return (data ?? []) as AcquisitieBriefMeta[];
     },
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnWindowFocus: 'always',
   });
 
   const model = useMemo(
