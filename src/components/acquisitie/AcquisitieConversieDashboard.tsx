@@ -217,7 +217,7 @@ function ExperimentPlaybook({ experimenten }: { experimenten: ReturnType<typeof 
             <h3 className="text-sm font-semibold text-foreground">Experiment playbook</h3>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Automatische verdeling, vaste spelregels en een handmatig beslismoment. Kandidaat-winnaars worden nu richtinggevend beoordeeld op kwalitatieve respons, niet op ruwe respons alleen.
+            Automatische verdeling, vaste spelregels en een handmatig beslismoment. Kandidaat-winnaars worden primair beoordeeld op kwalitatieve verkopersrespons; koperreacties blijven waardevolle secundaire opbrengst.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
@@ -259,9 +259,10 @@ function ExperimentPlaybook({ experimenten }: { experimenten: ReturnType<typeof 
                       <span className="text-[11px] text-muted-foreground">n={variant.verzonden}</span>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                      <span>Respons <strong className="font-mono-data text-foreground">{pct(variant.responspercentage)}</strong></span>
-                      <span>Kwalitatief <strong className="font-mono-data text-foreground">{pct(variant.kwalitatieveResponspercentage)}</strong></span>
-                      <span>Qualified <strong className="font-mono-data text-foreground">{pct(variant.gekwalificeerdeLeadPercentage)}</strong></span>
+                      <span>Seller kwal. <strong className="font-mono-data text-foreground">{pct(variant.kwalitatieveVerkoperResponspercentage)}</strong></span>
+                      <span>Q-seller <strong className="font-mono-data text-foreground">{pct(variant.gekwalificeerdeVerkoperLeadPercentage)}</strong></span>
+                      <span>Seller reacties <strong className="font-mono-data text-foreground">{variant.verkoperReacties}</strong></span>
+                      <span>Koperreacties <strong className="font-mono-data text-foreground">{variant.koperReacties}</strong></span>
                     </div>
                   </div>
                 ))}
