@@ -27,95 +27,87 @@ const CONTROLE_VARIANT: CopyVariantDefinitie = {
 };
 
 const SPLITSING_BRIEF_1_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Kort/direct',
+  code: 'B', naam: 'Kort/direct', actief: true,
   hypothese: 'Een kortere, object- en splitsingsgerichte eerste brief met één laagdrempelige CTA verhoogt de kwalitatieve respons ten opzichte van de algemene controlebrief.',
-  actief: true,
 };
-
 const SPLITSING_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Compact/direct',
+  code: 'B', naam: 'Compact/direct', actief: true,
   hypothese: 'Een compactere en directere follow-up met korte verwijzing naar Brief 1, één commerciële kernzin en één CTA verlaagt de leesdrempel en verhoogt de kwalitatieve verkopersrespons ten opzichte van de langere controle-follow-up.',
-  actief: true,
 };
-
 const SPLITSING_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Compacte afsluiting',
+  code: 'B', naam: 'Compacte afsluiting', actief: true,
   hypothese: 'Een compactere, strakker afrondende Brief 3 verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-A.',
-  actief: true,
 };
 
 const WOONVORMING_BRIEF_1_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Kort/direct',
+  code: 'B', naam: 'Kort/direct', actief: true,
   hypothese: 'Een kortere, objectgerichte eerste brief die de woonvormingscontext slechts als aanleiding benoemt en sneller naar de commerciële opening en CTA gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de meer uitleggevende controlevariant.',
-  actief: true,
 };
-
 const WOONVORMING_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Compact/direct',
+  code: 'B', naam: 'Compact/direct', actief: true,
   hypothese: 'Een compactere follow-up die het eerdere contact kort benoemt, de woonvormingscontext niet opnieuw uitlegt en sneller naar de commerciële opening en CTA gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-follow-up.',
-  actief: true,
+};
+const WOONVORMING_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B', naam: 'Compacte afsluiting', actief: true,
+  hypothese: 'Een compactere Brief 3 die minder terugblikt op de eerdere sequence en sneller naar de commerciële opening en rustige afronding gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-afsluiter.',
 };
 
-const WOONVORMING_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Compacte afsluiting',
-  hypothese: 'Een compactere Brief 3 die minder terugblikt op de eerdere sequence en sneller naar de commerciële opening en rustige afronding gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-afsluiter.',
-  actief: true,
+const KAMERVERHUUR_BRIEF_1_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B', naam: 'Kort/direct', actief: true,
+  hypothese: 'Een kortere eerste brief die het omzettings- of kamerverhuursignaal feitelijk benoemt en sneller naar de verkoopvraag gaat, verhoogt de kwalitatieve verkopersrespons.',
+};
+const KAMERVERHUUR_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B', naam: 'Compact/direct', actief: true,
+  hypothese: 'Een korte follow-up die alleen naar het eerdere contact verwijst en de vergunning niet opnieuw uitlegt, verlaagt de leesdrempel en verhoogt de kwalitatieve verkopersrespons.',
+};
+const KAMERVERHUUR_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
+  code: 'B', naam: 'Compacte afsluiting', actief: true,
+  hypothese: 'Een korte, rustige laatste follow-up verhoogt de kans op reactie zonder de eigenaar onnodig onder druk te zetten.',
 };
 
 const TRANSFORMATIE_BRIEF_1_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Kort/direct',
+  code: 'B', naam: 'Kort/direct', actief: true,
   hypothese: 'Een brief die het transformatie- of herontwikkelingssignaal kort als aanleiding benoemt zonder het te duiden en sneller naar de commerciële opening en CTA gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de meer uitleggevende controlevariant.',
-  actief: true,
 };
-
 const TRANSFORMATIE_BRIEF_2_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Compact/direct',
+  code: 'B', naam: 'Compact/direct', actief: true,
   hypothese: 'Een follow-up die het oorspronkelijke signaal niet herhaalt en direct doorgaat naar de vraag of verkoop speelt, verlaagt de leesdrempel en verhoogt de kwalitatieve verkopersrespons ten opzichte van de langere controle-follow-up.',
-  actief: true,
 };
-
 const TRANSFORMATIE_BRIEF_3_VARIANT_B: CopyVariantDefinitie = {
-  code: 'B',
-  naam: 'Compacte afsluiting',
+  code: 'B', naam: 'Compacte afsluiting', actief: true,
   hypothese: 'Een compactere Brief 3 die minder terugblikt op het oorspronkelijke signaal en sneller naar de commerciële opening en een rustige afronding gaat, verhoogt de kwalitatieve verkopersrespons ten opzichte van de uitgebreidere controle-afsluiter.',
-  actief: true,
 };
 
-/**
- * Algemene fallback blijft controle A. Alleen experimenten die inhoudelijk
- * gereed en expliciet geactiveerd zijn krijgen hier extra challengers.
- */
 export const COPY_VARIANTEN: CopyVariantDefinitie[] = [CONTROLE_VARIANT];
 
-function standaardVariantenVoorExperiment(args: {
-  profiel: string;
-  kanaal: Kanaal;
-  campagneStap: string;
-}): CopyVariantDefinitie[] {
-  if (args.profiel === 'splitsingspotentie' && args.kanaal === 'post') {
-    if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, SPLITSING_BRIEF_1_VARIANT_B];
-    if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, SPLITSING_BRIEF_2_VARIANT_B];
-    if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, SPLITSING_BRIEF_3_VARIANT_B];
-  }
-  if (args.profiel === 'woonvorming' && args.kanaal === 'post') {
-    if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_1_VARIANT_B];
-    if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_2_VARIANT_B];
-    if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, WOONVORMING_BRIEF_3_VARIANT_B];
-  }
-  if (args.profiel === 'transformatie_herontwikkeling' && args.kanaal === 'post') {
-    if (args.campagneStap === 'brief_1') return [CONTROLE_VARIANT, TRANSFORMATIE_BRIEF_1_VARIANT_B];
-    if (args.campagneStap === 'brief_2') return [CONTROLE_VARIANT, TRANSFORMATIE_BRIEF_2_VARIANT_B];
-    if (args.campagneStap === 'brief_3') return [CONTROLE_VARIANT, TRANSFORMATIE_BRIEF_3_VARIANT_B];
-  }
-  return COPY_VARIANTEN;
+function standaardVariantenVoorExperiment(args: { profiel: string; kanaal: Kanaal; campagneStap: string }): CopyVariantDefinitie[] {
+  if (args.kanaal !== 'post') return COPY_VARIANTEN;
+
+  const perProfiel: Record<string, Record<string, CopyVariantDefinitie>> = {
+    splitsingspotentie: {
+      brief_1: SPLITSING_BRIEF_1_VARIANT_B,
+      brief_2: SPLITSING_BRIEF_2_VARIANT_B,
+      brief_3: SPLITSING_BRIEF_3_VARIANT_B,
+    },
+    woonvorming: {
+      brief_1: WOONVORMING_BRIEF_1_VARIANT_B,
+      brief_2: WOONVORMING_BRIEF_2_VARIANT_B,
+      brief_3: WOONVORMING_BRIEF_3_VARIANT_B,
+    },
+    kamerverhuur_verhuur_exploitatieoptimalisatie: {
+      brief_1: KAMERVERHUUR_BRIEF_1_VARIANT_B,
+      brief_2: KAMERVERHUUR_BRIEF_2_VARIANT_B,
+      brief_3: KAMERVERHUUR_BRIEF_3_VARIANT_B,
+    },
+    transformatie_herontwikkeling: {
+      brief_1: TRANSFORMATIE_BRIEF_1_VARIANT_B,
+      brief_2: TRANSFORMATIE_BRIEF_2_VARIANT_B,
+      brief_3: TRANSFORMATIE_BRIEF_3_VARIANT_B,
+    },
+  };
+
+  const challenger = perProfiel[args.profiel]?.[args.campagneStap];
+  return challenger ? [CONTROLE_VARIANT, challenger] : COPY_VARIANTEN;
 }
 
 const schoon = (v: unknown) => String(v ?? '').trim().toLowerCase();
@@ -132,26 +124,15 @@ const TRANSFORMATIE_TEKST = /\b(?:transformatie|transformeren|herontwikkeling|he
 const VERBOUW_NAAR_WONEN_TEKST = /\b(?:verbouwen|veranderen|vergroten|herverdelen|omvormen)\b.{0,80}\b(?:naar|tot|in)\b.{0,50}\b(?:appartement(?:en)?|woning(?:en)?|woonruimte(?:n)?|studio'?s)\b/i;
 const ONTWIKKELING_TEKST = /\b(?:nieuwbouw|woningbouwproject|projectontwikkeling|gebiedsontwikkeling|ontwikkellocatie|bouwen\s+van|oprichten|realiseren\s+van\s+(?:\d+\s+)?(?:woongebouwen?|woningen?|appartementen?|studio'?s|units)|cre[eë]ren\s+van\s+(?:\d+\s+)?appartementen?)\b/i;
 
-/**
- * Kies het postprofiel conservatief uit de genormaliseerde velden én de
- * feitelijke signaaltekst. De tekstuele override is bewust aanwezig omdat
- * historische Radar-data enkele bekende parserfouten bevat, bijvoorbeeld
- * `splitsen van een appartement` dat als `ontwikkeling` is opgeslagen door
- * het losse woord `appartement`.
- */
 export function bepaalPostCopyProfiel(signaal: PostCopySignaal): string {
   const vergunning = schoon(signaal.vergunningtype);
   const strategie = schoon(signaal.potentiele_strategie);
   const asset = schoon(signaal.assettype);
   const tekst = `${schoon(signaal.titel)} ${schoon(signaal.omschrijving)}`.trim();
 
-  if (vergunning === 'splitsing' || strategie.includes('splits') || SPLITSING_TEKST.test(tekst)) {
-    return 'splitsingspotentie';
-  }
+  if (vergunning === 'splitsing' || strategie.includes('splits') || SPLITSING_TEKST.test(tekst)) return 'splitsingspotentie';
   if (vergunning === 'woonvorming' || WOONVORMING_TEKST.test(tekst)) return 'woonvorming';
-  if (vergunning === 'omzetting' || KAMERVERHUUR_TEKST.test(tekst)) {
-    return 'kamerverhuur_verhuur_exploitatieoptimalisatie';
-  }
+  if (vergunning === 'omzetting' || KAMERVERHUUR_TEKST.test(tekst)) return 'kamerverhuur_verhuur_exploitatieoptimalisatie';
   if (
     vergunning === 'transformatie'
     || vergunning === 'functiewijziging'
@@ -160,32 +141,18 @@ export function bepaalPostCopyProfiel(signaal: PostCopySignaal): string {
     || asset === 'transformatieobject'
     || TRANSFORMATIE_TEKST.test(tekst)
     || VERBOUW_NAAR_WONEN_TEKST.test(tekst)
-  ) {
-    return 'transformatie_herontwikkeling';
-  }
+  ) return 'transformatie_herontwikkeling';
 
-  // `ontwikkeling` is historisch soms te ruim toegekend door het losse woord
-  // `appartement`. Vertrouw dat opgeslagen type daarom alleen zonder brontekst;
-  // zodra tekst beschikbaar is moet er ook een echte ontwikkelterm aanwezig zijn.
-  if (
-    asset === 'ontwikkellocatie'
-    || ONTWIKKELING_TEKST.test(tekst)
-    || (vergunning === 'ontwikkeling' && !tekst)
-  ) {
+  if (asset === 'ontwikkellocatie' || ONTWIKKELING_TEKST.test(tekst) || (vergunning === 'ontwikkeling' && !tekst)) {
     return 'ontwikkellocatie';
   }
-
   if (asset === 'woon_winkelpand' || asset === 'gemengd_vastgoed') return 'woon_winkelpand';
   if (asset === 'vastgoedportefeuille' || strategie.includes('portefeuille')) return 'portefeuille';
   if (['kantoor', 'winkelpand', 'bedrijfscomplex', 'light_industrial', 'logistiek'].includes(asset)) return 'commercieel_vastgoed';
   return 'algemene_acquisitie';
 }
 
-export function bepaalCopyProfiel(args: {
-  signaal: PostCopySignaal;
-  kanaal: Kanaal;
-  emailProfiel?: EmailProfiel | null;
-}): string {
+export function bepaalCopyProfiel(args: { signaal: PostCopySignaal; kanaal: Kanaal; emailProfiel?: EmailProfiel | null }): string {
   if (args.kanaal === 'email' && args.emailProfiel) return args.emailProfiel;
   return bepaalPostCopyProfiel(args.signaal);
 }
