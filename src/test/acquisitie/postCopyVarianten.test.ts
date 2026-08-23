@@ -59,7 +59,7 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('nog eenmaal');
   });
 
-  it('bouwt de compacte Splitsingspotentie Brief 2 challenger B zonder de sequence af te sluiten', () => {
+  it('bouwt de compacte Splitsingspotentie Brief 2 challenger B met rustige objectgerichte onderwerpregel', () => {
     const template = bouwPostVariantTemplate({
       ...basis,
       toewijzing: {
@@ -69,7 +69,7 @@ describe('post copyvarianten', () => {
       },
     });
 
-    expect(template.onderwerp).toBe('Kort nogmaals — Voorbeeldstraat 10 te Amsterdam');
+    expect(template.onderwerp).toBe('Uw pand aan Voorbeeldstraat 10 te Amsterdam');
     expect(template.brieftekst).toContain('Enige tijd geleden schreef ik u over Voorbeeldstraat 10 te Amsterdam');
     expect(template.brieftekst).toContain('mogelijke splitsings- of uitpondingspotentie');
     expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
