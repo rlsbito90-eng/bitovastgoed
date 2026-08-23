@@ -25,7 +25,7 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('kosteloos');
   });
 
-  it('valt voor controle A terug op de bestaande standaardbrief', () => {
+  it('valt voor controle A terug op de bestaande standaardbrief met open opvolglogica', () => {
     const template = bouwPostVariantTemplate({
       ...basis,
       toewijzing: {
@@ -36,6 +36,7 @@ describe('post copyvarianten', () => {
     });
 
     expect(template.brieftekst).toContain('professionele beleggers, ontwikkelaars en vastgoedondernemers');
-    expect(template.brieftekst).toContain('als niet verzonden beschouwen');
+    expect(template.brieftekst).toContain('kom eventueel op een later moment nog eens bij u terug');
+    expect(template.brieftekst).not.toContain('als niet verzonden beschouwen');
   });
 });
