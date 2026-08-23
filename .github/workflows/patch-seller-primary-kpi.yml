@@ -1,0 +1,87 @@
+name: Patch seller primary KPI
+on:
+  push:
+    branches: [feat/acquisitie-seller-primary-kpi]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'PATCHBOT seller primary') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/acquisitie-seller-primary-kpi
+      - name: Pas seller-primary experimentsturing toe
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def rep(path, old, new):
+              p = Path(path)
+              s = p.read_text()
+              if old not in s:
+                  raise SystemExit(f'patroon niet gevonden in {path}: {old[:80]!r}')
+              p.write_text(s.replace(old, new, 1))
+
+          # Conversiemodel: commerciële richting beschikbaar maken voor de experimentvarianten.
+          rep('src/lib/acquisitie/conversieDashboard.ts',
+              "  copy_hypothese?: string | null;\n}",
+              "  copy_hypothese?: string | null;\n  respons_richting?: string | null;\n}")
+
+          old = """    const varianten: ExperimentVariantRij[] = [...variantenMap.entries()].map(([code, ids]) => {\n      const reacties = ids.filter(id => reactiePerBrief.has(id)).length;\n      const positieve = ids.filter(id => positiefPerBrief.has(id)).length;\n      return {\n        ...maakRij(\n          `${sleutel}:${code}`,\n          `Variant ${code}`,\n          ids.length,\n          reacties,\n          positieve,\n          ids.filter(id => kwalitatiefPerBrief.has(id)).length,\n          ids.filter(id => gekwalificeerdPerBrief.has(id)).length,\n        ),\n        variantCode: code,\n        isControl: code === 'A',\n      };\n    }).sort((a, b) => a.variantCode.localeCompare(b.variantCode));\n"""
+          new = """    const varianten: ExperimentVariantRij[] = [...variantenMap.entries()].map(([code, ids]) => {\n      const reacties = ids.filter(id => reactiePerBrief.has(id)).length;\n      const positieve = ids.filter(id => positiefPerBrief.has(id)).length;\n      const isVerkoper = (id: string) => {\n        const richting = metaPerBrief.get(id)?.respons_richting;\n        return richting === 'verkoper' || richting === 'beide';\n      };\n      const isKoper = (id: string) => {\n        const richting = metaPerBrief.get(id)?.respons_richting;\n        return richting === 'koper' || richting === 'beide';\n      };\n      const verkoperReacties = ids.filter(id => reactiePerBrief.has(id) && isVerkoper(id)).length;\n      const kwalitatieveVerkoperReacties = ids.filter(id => kwalitatiefPerBrief.has(id) && isVerkoper(id)).length;\n      const gekwalificeerdeVerkoperLeads = ids.filter(id => gekwalificeerdPerBrief.has(id) && isVerkoper(id)).length;\n      const koperReacties = ids.filter(id => reactiePerBrief.has(id) && isKoper(id)).length;\n      const gekwalificeerdeKoperLeads = ids.filter(id => gekwalificeerdPerBrief.has(id) && isKoper(id)).length;\n      return {\n        ...maakRij(\n          `${sleutel}:${code}`,\n          `Variant ${code}`,\n          ids.length,\n          reacties,\n          positieve,\n          ids.filter(id => kwalitatiefPerBrief.has(id)).length,\n          ids.filter(id => gekwalificeerdPerBrief.has(id)).length,\n        ),\n        variantCode: code,\n        isControl: code === 'A',\n        verkoperReacties,\n        kwalitatieveVerkoperReacties,\n        gekwalificeerdeVerkoperLeads,\n        koperReacties,\n        gekwalificeerdeKoperLeads,\n        kwalitatieveVerkoperResponspercentage: pct(kwalitatieveVerkoperReacties, ids.length),\n        gekwalificeerdeVerkoperLeadPercentage: pct(gekwalificeerdeVerkoperLeads, ids.length),\n      };\n    }).sort((a, b) => a.variantCode.localeCompare(b.variantCode));\n"""
+          rep('src/lib/acquisitie/conversieDashboard.ts', old, new)
+
+          # Playbook: winnaar sturen op kwalitatieve verkopersrespons.
+          rep('src/lib/acquisitie/experimentPlaybook.ts',
+              "export interface ExperimentVariantRij extends ConversieRij {\n  variantCode: string;\n  isControl: boolean;\n}",
+              "export interface ExperimentVariantRij extends ConversieRij {\n  variantCode: string;\n  isControl: boolean;\n  verkoperReacties: number;\n  kwalitatieveVerkoperReacties: number;\n  gekwalificeerdeVerkoperLeads: number;\n  koperReacties: number;\n  gekwalificeerdeKoperLeads: number;\n  kwalitatieveVerkoperResponspercentage: number;\n  gekwalificeerdeVerkoperLeadPercentage: number;\n}")
+          rep('src/lib/acquisitie/experimentPlaybook.ts',
+              "  const beste = [...challengers].sort((a, b) => b.kwalitatieveResponspercentage - a.kwalitatieveResponspercentage)[0] ?? null;\n  const absoluteUplift = control && beste ? beste.kwalitatieveResponspercentage - control.kwalitatieveResponspercentage : 0;\n  const relatieveUplift = control && beste && control.kwalitatieveResponspercentage > 0\n    ? (beste.kwalitatieveResponspercentage - control.kwalitatieveResponspercentage) / control.kwalitatieveResponspercentage\n    : (beste?.kwalitatieveResponspercentage ?? 0) > 0 ? 1 : 0;",
+              "  const beste = [...challengers].sort((a, b) => b.kwalitatieveVerkoperResponspercentage - a.kwalitatieveVerkoperResponspercentage)[0] ?? null;\n  const absoluteUplift = control && beste ? beste.kwalitatieveVerkoperResponspercentage - control.kwalitatieveVerkoperResponspercentage : 0;\n  const relatieveUplift = control && beste && control.kwalitatieveVerkoperResponspercentage > 0\n    ? (beste.kwalitatieveVerkoperResponspercentage - control.kwalitatieveVerkoperResponspercentage) / control.kwalitatieveVerkoperResponspercentage\n    : (beste?.kwalitatieveVerkoperResponspercentage ?? 0) > 0 ? 1 : 0;")
+          rep('src/lib/acquisitie/experimentPlaybook.ts',
+              "advies: `Variant ${beste!.variantCode} presteert richtinggevend beter op kwalitatieve respons. Beoordeel leadkwaliteit en inhoud vóór promotie.`,",
+              "advies: `Variant ${beste!.variantCode} presteert richtinggevend beter op kwalitatieve verkopersrespons. Controleer qualified seller leads en inhoud vóór promotie.`,")
+          rep('src/lib/acquisitie/experimentPlaybook.ts',
+              "? 'Er is voldoende volume voor een inhoudelijke beoordeling, maar nog geen duidelijke kandidaat-winnaar op kwalitatieve respons.'",
+              "? 'Er is voldoende volume voor een inhoudelijke beoordeling, maar nog geen duidelijke kandidaat-winnaar op kwalitatieve verkopersrespons.'")
+
+          # UI: primaire KPI expliciet zichtbaar, koper als nevenopbrengst.
+          rep('src/components/acquisitie/AcquisitieConversieDashboard.tsx',
+              "Automatische verdeling, vaste spelregels en een handmatig beslismoment. Kandidaat-winnaars worden nu richtinggevend beoordeeld op kwalitatieve respons, niet op ruwe respons alleen.",
+              "Automatische verdeling, vaste spelregels en een handmatig beslismoment. Kandidaat-winnaars worden primair beoordeeld op kwalitatieve verkopersrespons; koperreacties blijven waardevolle secundaire opbrengst.")
+          rep('src/components/acquisitie/AcquisitieConversieDashboard.tsx',
+              """                    <div className=\"mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs\">\n                      <span>Respons <strong className=\"font-mono-data text-foreground\">{pct(variant.responspercentage)}</strong></span>\n                      <span>Kwalitatief <strong className=\"font-mono-data text-foreground\">{pct(variant.kwalitatieveResponspercentage)}</strong></span>\n                      <span>Qualified <strong className=\"font-mono-data text-foreground\">{pct(variant.gekwalificeerdeLeadPercentage)}</strong></span>\n                    </div>\n""",
+              """                    <div className=\"mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs\">\n                      <span>Seller kwal. <strong className=\"font-mono-data text-foreground\">{pct(variant.kwalitatieveVerkoperResponspercentage)}</strong></span>\n                      <span>Q-seller <strong className=\"font-mono-data text-foreground\">{pct(variant.gekwalificeerdeVerkoperLeadPercentage)}</strong></span>\n                      <span>Seller reacties <strong className=\"font-mono-data text-foreground\">{variant.verkoperReacties}</strong></span>\n                      <span>Koperreacties <strong className=\"font-mono-data text-foreground\">{variant.koperReacties}</strong></span>\n                    </div>\n""")
+
+          # Tests: helper en kandidaatlogica richten op seller KPI.
+          p = Path('src/test/acquisitie/experimentPlaybook.test.ts')
+          s = p.read_text()
+          s = s.replace(
+              "const variant = (code: string, verzonden: number, kwalitatiefPct: number): ExperimentVariantRij => ({",
+              "const variant = (code: string, verzonden: number, sellerPct: number, algemeenPct = sellerPct): ExperimentVariantRij => ({")
+          s = s.replace("positieveReacties: Math.round((kwalitatiefPct / 100) * verzonden),", "positieveReacties: Math.round((algemeenPct / 100) * verzonden),")
+          s = s.replace("kwalitatieveReacties: Math.round((kwalitatiefPct / 100) * verzonden),", "kwalitatieveReacties: Math.round((algemeenPct / 100) * verzonden),")
+          s = s.replace("positieveResponspercentage: kwalitatiefPct,", "positieveResponspercentage: algemeenPct,")
+          s = s.replace("kwalitatieveResponspercentage: kwalitatiefPct,", "kwalitatieveResponspercentage: algemeenPct,")
+          s = s.replace(
+              "  gekwalificeerdeLeadPercentage: 0,\n});",
+              "  gekwalificeerdeLeadPercentage: 0,\n  verkoperReacties: Math.round((sellerPct / 100) * verzonden),\n  kwalitatieveVerkoperReacties: Math.round((sellerPct / 100) * verzonden),\n  gekwalificeerdeVerkoperLeads: 0,\n  koperReacties: 0,\n  gekwalificeerdeKoperLeads: 0,\n  kwalitatieveVerkoperResponspercentage: sellerPct,\n  gekwalificeerdeVerkoperLeadPercentage: 0,\n});")
+          s = s.replace("in kwalitatieve respons een kandidaat-winnaar", "in kwalitatieve verkopersrespons een kandidaat-winnaar")
+          s = s.replace("het kwalitatieve verschil te klein is", "het seller-kwaliteitsverschil te klein is")
+          marker = "  it('promoveert niets wanneer het seller-kwaliteitsverschil te klein is', () => {"
+          if marker not in s:
+              raise SystemExit('testmarker niet gevonden')
+          extra = """  it('laat veel koperrespons niet winnen wanneer verkopersrespons achterblijft', () => {\n    const model = beoordeelExperiment({ ...basis, varianten: [variant('A', 80, 6, 6), variant('B', 80, 4, 15)] });\n    expect(model.status).toBe('beslismoment');\n    expect(model.kandidaatVariantCode).toBeNull();\n  });\n\n"""
+          s = s.replace(marker, extra + marker, 1)
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/acquisitie/conversieDashboard.ts src/lib/acquisitie/experimentPlaybook.ts src/components/acquisitie/AcquisitieConversieDashboard.tsx src/test/acquisitie/experimentPlaybook.test.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "PATCHBOT seller primary — stuur experimenten op verkopersrespons"
+          git push origin HEAD:feat/acquisitie-seller-primary-kpi
