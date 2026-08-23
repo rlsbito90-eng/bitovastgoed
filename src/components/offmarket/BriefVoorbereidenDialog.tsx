@@ -50,6 +50,8 @@ import {
 import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
 import { bepaalCopyProfiel, kiesCopyVariant, copyProfielLabel } from '@/lib/acquisitie/copyExperimenten';
 import { bouwPostVariantTemplate } from '@/lib/acquisitie/postCopyVarianten';
+import { bepaalVolgendePostCampagneStap } from '@/lib/acquisitie/postCampagneStap';
+import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
@@ -364,8 +366,23 @@ export default function BriefVoorbereidenDialog({
   const huidigeCampagneStap = useMemo<string>(() => {
     if (initialBrief?.campagne_stap) return initialBrief.campagne_stap as string;
     if (kanaal === 'email') return volgendeEmailStap(signaalBrieven);
-    return 'brief_1';
-  }, [initialBrief, kanaal, signaalBrieven]);
+    const kandidaatKey = geadresseerdeKey({
+      id: briefId ?? 'nieuw',
+      eigenaar_naam: eigenaarNaam || null,
+      eigenaar_bedrijfsnaam: eigenaarBedrijfsnaam || null,
+      verzendadres: verzendadresVoorOpslag(),
+    });
+    return bepaalVolgendePostCampagneStap({
+      brieven: signaalBrieven,
+      geadresseerdeKey: kandidaatKey,
+      eigenaarNaam,
+      eigenaarBedrijfsnaam,
+      verzendadres: verzendadresVoorOpslag(),
+    });
+  }, [
+    initialBrief, kanaal, signaalBrieven, briefId,
+    eigenaarNaam, eigenaarBedrijfsnaam, verzendadres,
+  ]);
 
   const copyToewijzing = useMemo(() => {
     const profiel = bepaalCopyProfiel({ signaal, kanaal, emailProfiel });
@@ -375,11 +392,10 @@ export default function BriefVoorbereidenDialog({
     });
   }, [signaal, kanaal, emailProfiel, huidigeCampagneStap, initialBrief?.geadresseerde_key, kandidaatLabel]);
 
-  // Eerste echte post-copytest. Alleen een nieuw, nog niet opgeslagen concept
-  // met toegewezen challenger B krijgt automatisch de varianttekst.
-  // Controle A en bestaande/historische brieven behouden exact hun bestaande flow.
+  // Nieuwe postconcepten krijgen de template van hun vastgestelde campagne-stap
+  // en variant. Bestaande/historische brieven worden nooit stilzwijgend herschreven.
   useEffect(() => {
-    if (!open || initialBrief || kanaal !== 'post' || copyToewijzing.variantCode !== 'B') return;
+    if (!open || initialBrief || kanaal !== 'post') return;
     const template = bouwPostVariantTemplate({ toewijzing: copyToewijzing, aanhef, objectomschrijving });
     if (!onderwerpHandmatig) setOnderwerp(template.onderwerp);
     setBrieftekst(template.brieftekst);
