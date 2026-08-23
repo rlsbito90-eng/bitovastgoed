@@ -21,6 +21,9 @@ import {
   type Responsstatus,
 } from '@/lib/offMarket/brieven/respons';
 import { KANAAL_LABEL, type Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
+import {
+  RESPONS_RICHTING_LABEL, RESPONS_RICHTING_VOLGORDE, type ResponsRichting,
+} from '@/lib/offMarket/brieven/responsRichting';
 import { logFollowUpCompletedVoorTaak } from '@/lib/offMarket/brieven/events';
 import { logSystemContactMoment } from '@/lib/contactMoments';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -60,6 +63,7 @@ export default function RegistreerResponsDialog({
   const [responsdatum, setResponsdatum] = useState(vandaag);
   const [respons_kanaal, setRespons_kanaal] = useState<Kanaal>(standaardKanaal);
   const [samenvatting, setSamenvatting] = useState('');
+  const [responsRichting, setResponsRichting] = useState<ResponsRichting>('overig_onbekend');
   const [maakContactmoment, setMaakContactmoment] = useState(true);
   const [maakVervolgtaak, setMaakVervolgtaak] = useState(false);
   const [bezig, setBezig] = useState(false);
@@ -72,11 +76,13 @@ export default function RegistreerResponsDialog({
   const vulFormulier = () => {
     const bestaand = brief?.responsstatus as Responsstatus | null | undefined;
     const bestaandKanaal = brief?.respons_kanaal as Kanaal | null | undefined;
+    const bestaandRichting = (brief as any)?.respons_richting as ResponsRichting | null | undefined;
     const startStatus = bestaand ?? initialResponsstatus;
     setResponsstatus(startStatus);
     setResponsdatum(brief?.responsdatum || vandaag);
     setRespons_kanaal(bestaandKanaal ?? standaardKanaal);
     setSamenvatting(brief?.respons_samenvatting ?? '');
+    setResponsRichting(bestaandRichting ?? 'overig_onbekend');
     // Bij wijzigen geen dubbel contactmoment of dubbele taak voorstellen.
     setMaakContactmoment(!bestaand);
     setMaakVervolgtaak(!bestaand && responsAdviseertVervolgtaak(startStatus));
@@ -86,7 +92,7 @@ export default function RegistreerResponsDialog({
     if (open) vulFormulier();
     // De state moet juist opnieuw worden opgebouwd wanneer een andere brief wordt geopend.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, brief?.id, brief?.responsstatus, brief?.responsdatum, brief?.respons_kanaal, brief?.respons_samenvatting, initialResponsstatus]);
+  }, [open, brief?.id, brief?.responsstatus, brief?.responsdatum, brief?.respons_kanaal, brief?.respons_samenvatting, (brief as any)?.respons_richting, initialResponsstatus]);
 
   const wijzigResponsstatus = (nieuw: Responsstatus) => {
     setResponsstatus(nieuw);
@@ -126,7 +132,7 @@ export default function RegistreerResponsDialog({
       : `Vervolg op reactie — ${brief?.eigenaar_bedrijfsnaam || brief?.eigenaar_naam || 'geadresseerde'}`,
     type: 'Follow-up',
     prioriteit: 'normaal',
-    notities: `Vervolg op respons "${RESPONS_LABEL[responsstatus]}" via ${KANAAL_LABEL[respons_kanaal]}.${samenvatting.trim() ? `\n\n${samenvatting.trim()}` : ''}`,
+    notities: `Vervolg op respons "${RESPONS_LABEL[responsstatus]}" · ${RESPONS_RICHTING_LABEL[responsRichting]} via ${KANAAL_LABEL[respons_kanaal]}.${samenvatting.trim() ? `\n\n${samenvatting.trim()}` : ''}`,
   });
 
   const uitvoeren = async () => {
@@ -142,6 +148,7 @@ export default function RegistreerResponsDialog({
         responsdatum,
         respons_kanaal,
         respons_samenvatting: samenvatting.trim() || null,
+        respons_richting: responsRichting,
       });
 
       let standaardOpvolgingAfgerond = false;
@@ -165,7 +172,7 @@ export default function RegistreerResponsDialog({
             type: respons_kanaal === 'email' ? 'email'
                 : respons_kanaal === 'telefoon' ? 'telefoon'
                 : 'notitie',
-            title: `Reactie: ${RESPONS_LABEL[responsstatus]}`,
+            title: `Reactie: ${RESPONS_LABEL[responsstatus]} · ${RESPONS_RICHTING_LABEL[responsRichting]}`,
             description: samenvatting.trim()
               || `Reactie van ${brief.eigenaar_bedrijfsnaam || brief.eigenaar_naam || 'geadresseerde'} via ${KANAAL_LABEL[respons_kanaal]}.`,
             offMarketSignaalId: signaalId,
@@ -225,6 +232,21 @@ export default function RegistreerResponsDialog({
             )}
           </div>
 
+          <div className="space-y-1.5">
+            <Label>Commerciële richting</Label>
+            <Select value={responsRichting} onValueChange={(v) => setResponsRichting(v as ResponsRichting)}>
+              <SelectTrigger data-testid="respons-richting-trigger"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {RESPONS_RICHTING_VOLGORDE.map((r) => (
+                  <SelectItem key={r} value={r}>{RESPONS_RICHTING_LABEL[r]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Leg apart vast of de reactie aanbod, een zoekvraag, beide of iets anders oplevert.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="responsdatum">Datum</Label>
@@ -260,7 +282,7 @@ export default function RegistreerResponsDialog({
 
           <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
             <strong className="font-medium text-foreground">Automatische statuslogica:</strong>{' '}
-            de respons bepaalt waar logisch de Signaalstatus. Eigenaarstatus blijft alleen aangeven of de eigenaar onbekend, te onderzoeken of gevonden is.
+            de respons bepaalt waar logisch de Signaalstatus. De commerciële richting wordt apart gemeten en verandert de oorspronkelijke objectstatus niet automatisch.
           </div>
 
           {brief?.gekoppelde_taak_id && responsVervangtStandaardOpvolging(responsstatus) && (
