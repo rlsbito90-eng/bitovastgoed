@@ -43,7 +43,7 @@ describe('acquisitie copy-experimenten', () => {
     expect(codes).toEqual(new Set(['A', 'B']));
   });
 
-  it('verdeelt Woonvorming Post Brief 1 stabiel over A en B', () => {
+  it.each(['brief_1', 'brief_2'])('verdeelt Woonvorming Post %s stabiel over A en B', (campagneStap) => {
     const identiteiten = [
       ['signaal-1', 'eigenaar-1'], ['signaal-1', 'xyz'], ['abc', 'eigenaar-1'], ['abc', 'xyz'],
       ['s1', 'jan'], ['s1', 'bedrijf'], ['signaal-a', 'a'], ['123', 'b'],
@@ -52,7 +52,7 @@ describe('acquisitie copy-experimenten', () => {
 
     for (const [signaalId, geadresseerdeKey] of identiteiten) {
       const args = {
-        profiel: 'woonvorming', kanaal: 'post' as const, campagneStap: 'brief_1', signaalId, geadresseerdeKey,
+        profiel: 'woonvorming', kanaal: 'post' as const, campagneStap, signaalId, geadresseerdeKey,
       };
       const keuze = kiesCopyVariant(args);
       codes.add(keuze.variantCode);
