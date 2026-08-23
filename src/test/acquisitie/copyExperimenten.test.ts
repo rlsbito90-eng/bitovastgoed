@@ -5,14 +5,91 @@ const basisSignaal = {
   vergunningtype: null,
   potentiele_strategie: null,
   assettype: 'wonen',
+  titel: '',
+  omschrijving: '',
 } satisfies Parameters<typeof bepaalPostCopyProfiel>[0];
 
 describe('acquisitie copy-experimenten', () => {
   it('leidt operationele profielen af uit het signaal', () => {
     expect(bepaalPostCopyProfiel({ ...basisSignaal, vergunningtype: 'splitsing' })).toBe('splitsingspotentie');
     expect(bepaalPostCopyProfiel({ ...basisSignaal, vergunningtype: 'woonvorming' })).toBe('woonvorming');
+    expect(bepaalPostCopyProfiel({ ...basisSignaal, vergunningtype: 'omzetting' })).toBe('kamerverhuur_verhuur_exploitatieoptimalisatie');
     expect(bepaalPostCopyProfiel({ ...basisSignaal, vergunningtype: 'transformatie' })).toBe('transformatie_herontwikkeling');
     expect(bepaalPostCopyProfiel({ ...basisSignaal, assettype: 'kantoor' })).toBe('commercieel_vastgoed');
+  });
+
+  it('herstelt historische splitsingssignalen die als ontwikkeling zijn opgeslagen', () => {
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      titel: 'Aangevraagde omgevingsvergunning, Westersingel 30 3014GR Rotterdam',
+      omschrijving: 'Het splitsen van het appartement op verdieping 1,2 en 3 naar 3 appartementen.',
+    })).toBe('splitsingspotentie');
+
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      omschrijving: 'bouwkundig splitsen van het woonappartement in twee woonappartementen',
+    })).toBe('splitsingspotentie');
+  });
+
+  it('routeert herontwikkeling en transformatie vóór ontwikkeling', () => {
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      assettype: 'transformatieobject',
+      omschrijving: 'Herontwikkeling van het bestaande pand naar wonen',
+    })).toBe('transformatie_herontwikkeling');
+
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      omschrijving: 'Het verbouwen van een woning naar 7 appartementen',
+    })).toBe('transformatie_herontwikkeling');
+  });
+
+  it('behandelt het losse woord appartement niet meer als voldoende bewijs voor ontwikkeling', () => {
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      omschrijving: 'Het appartement wordt intern aangepast en de entree wordt verplaatst.',
+    })).toBe('algemene_acquisitie');
+
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      omschrijving: 'Kappen van een boom tussen de appartementencomplexen.',
+    })).toBe('algemene_acquisitie');
+  });
+
+  it('houdt echte ontwikkelsignalen op Ontwikkellocatie', () => {
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      omschrijving: 'Het bouwen van 23 appartementen en kantoorruimtes',
+    })).toBe('ontwikkellocatie');
+
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'ontwikkeling',
+      omschrijving: 'Nieuwbouw van twee woongebouwen met 100 appartementen',
+    })).toBe('ontwikkellocatie');
+  });
+
+  it('houdt onttrekking bewust buiten de kamerverhuurroute', () => {
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: 'onttrekking',
+      omschrijving: 'Onttrekkingsvergunning voor een tweede woning',
+    })).toBe('algemene_acquisitie');
+  });
+
+  it('herkent kamerverhuurtermen ook wanneer het opgeslagen vergunningtype ontbreekt', () => {
+    expect(bepaalPostCopyProfiel({
+      ...basisSignaal,
+      vergunningtype: null,
+      omschrijving: 'Aanvraag kamerverhuurvergunning voor kamergewijze verhuur',
+    })).toBe('kamerverhuur_verhuur_exploitatieoptimalisatie');
   });
 
   it('houdt niet-geactiveerde experimenten op controlevariant A', () => {
