@@ -48,6 +48,7 @@ import {
   EMAIL_PROFIEL_LABEL, EMAIL_PROFIEL_VOLGORDE, type EmailProfiel,
 } from '@/lib/offMarket/email/emailProfielen';
 import type { Kanaal } from '@/lib/offMarket/brieven/verzendstatus';
+import { bepaalCopyProfiel, kiesCopyVariant, copyProfielLabel } from '@/lib/acquisitie/copyExperimenten';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { KadasterDataRecord } from '@/hooks/useKadasterDataRecords';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
@@ -360,6 +361,14 @@ export default function BriefVoorbereidenDialog({
     return 'brief_1';
   }, [initialBrief, kanaal, signaalBrieven]);
 
+  const copyToewijzing = useMemo(() => {
+    const profiel = bepaalCopyProfiel({ signaal, kanaal, emailProfiel });
+    return kiesCopyVariant({
+      profiel, kanaal, campagneStap: huidigeCampagneStap, signaalId: signaal.id,
+      geadresseerdeKey: initialBrief?.geadresseerde_key ?? kandidaatLabel ?? null,
+    });
+  }, [signaal, kanaal, emailProfiel, huidigeCampagneStap, initialBrief?.geadresseerde_key, kandidaatLabel]);
+
   const ensureBriefOpgeslagen = async (status: 'concept' | 'verstuurd' = 'concept'): Promise<string | null> => {
     try {
       const res = await upsert.mutateAsync({
@@ -375,6 +384,12 @@ export default function BriefVoorbereidenDialog({
         kanaal,
         kanaal_wijzigen: !!briefId && initialBrief?.status !== 'verstuurd',
         campagne_stap: huidigeCampagneStap as any,
+        ...(initialBrief?.status === 'verstuurd' && !initialBrief.copy_variant_key ? {} : {
+          copy_profiel: initialBrief?.copy_profiel ?? copyToewijzing.profiel,
+          copy_variant_key: initialBrief?.copy_variant_key ?? copyToewijzing.variantKey,
+          copy_variant_code: initialBrief?.copy_variant_code ?? copyToewijzing.variantCode,
+          copy_hypothese: initialBrief?.copy_hypothese ?? copyToewijzing.hypothese,
+        }),
       });
       setBriefId(res.id);
       // E-mailprofiel apart loggen als metadata-event (geen extra kolom).
@@ -654,6 +669,15 @@ export default function BriefVoorbereidenDialog({
                 {k === 'post' ? 'Post' : 'E-mail'}
               </button>
             ))}
+          </div>
+
+          <div className="rounded-md border border-dashed border-border bg-muted/10 px-3 py-2 text-xs" data-testid="brief-copy-variant">
+            <div className="font-medium text-foreground">
+              Testvariant {initialBrief?.copy_variant_code ?? copyToewijzing.variantCode} · {initialBrief?.copy_variant_code ? 'vastgelegd' : 'controle'}
+            </div>
+            <div className="mt-0.5 text-muted-foreground">
+              {copyProfielLabel(initialBrief?.copy_profiel ?? copyToewijzing.profiel)} · {initialBrief?.copy_hypothese ?? copyToewijzing.hypothese}
+            </div>
           </div>
 
           {kanaal === 'email' && (
