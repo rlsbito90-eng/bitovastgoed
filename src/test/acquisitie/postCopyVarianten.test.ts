@@ -250,4 +250,118 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('woonvormingsontwikkeling of -vergunning rond het object');
     expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
   });
+
+  it('bouwt Transformatie Brief 1 controle A met expliciete context en relativering', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'transformatie_herontwikkeling',
+        variantKey: 'transformatie_herontwikkeling:post:brief_1:A',
+        variantCode: 'A',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Interesse in uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('ontwikkeling of vergunning gesignaleerd die betrekking heeft op transformatie, functiewijziging of herontwikkeling');
+    expect(template.brieftekst).toContain('Dat hoeft uiteraard niets te zeggen over eventuele verkoopplannen');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('kom eventueel op een later moment nog eens bij u terug');
+  });
+
+  it('bouwt Transformatie Brief 1 challenger B als directere commerciële opening', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'transformatie_herontwikkeling',
+        variantKey: 'transformatie_herontwikkeling:post:brief_1:B',
+        variantCode: 'B',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Voorbeeldstraat 10 te Amsterdam — vraag over de mogelijkheden');
+    expect(template.brieftekst).toContain('Rond Voorbeeldstraat 10 te Amsterdam is een ontwikkeling of vergunning gesignaleerd met betrekking tot transformatie, functiewijziging of herontwikkeling');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
+    expect(template.brieftekst).not.toContain('Dat hoeft uiteraard niets te zeggen over eventuele verkoopplannen');
+    expect(template.brieftekst).not.toContain('bredere vastgoedbeslissing of herpositionering');
+    expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
+  });
+
+  it('bouwt Transformatie Brief 2 controle A als herkenbare follow-up met signaalcontext', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'transformatie_herontwikkeling',
+        variantKey: 'transformatie_herontwikkeling:post:brief_2:A',
+        variantCode: 'A',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Nogmaals over uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Enige tijd geleden schreef ik u over Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('ontwikkeling of vergunning rond transformatie, functiewijziging of herontwikkeling');
+    expect(template.brieftekst).toContain('daarom neem ik kort opnieuw contact met u op');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).not.toContain('laatste keer');
+  });
+
+  it('bouwt Transformatie Brief 2 challenger B zonder herhaling van het signaal', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'transformatie_herontwikkeling',
+        variantKey: 'transformatie_herontwikkeling:post:brief_2:B',
+        variantCode: 'B',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Enige tijd geleden schreef ik u over Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('voor het geval mijn eerdere brief op een minder geschikt moment kwam');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
+    expect(template.brieftekst).not.toContain('transformatie, functiewijziging of herontwikkeling');
+    expect(template.brieftekst).not.toContain('mijn brief u destijds niet bereikte');
+    expect(template.brieftekst).not.toContain('Kort nogmaals —');
+  });
+
+  it('bouwt Transformatie Brief 3 controle A als rustige afsluiting met context', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'transformatie_herontwikkeling',
+        variantKey: 'transformatie_herontwikkeling:post:brief_3:A',
+        variantCode: 'A',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Over uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Ik neem nog één keer kort contact met u op over Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('transformatie, functiewijziging of herontwikkeling');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('laat ik het voor nu hierbij');
+    expect(template.brieftekst).toContain('Mocht dat in de toekomst veranderen');
+    expect(template.brieftekst).not.toContain('nooit meer');
+  });
+
+  it('bouwt Transformatie Brief 3 challenger B met natuurlijke opening en rustige afronding', () => {
+    const template = bouwPostVariantTemplate({
+      ...basis,
+      toewijzing: {
+        profiel: 'transformatie_herontwikkeling',
+        variantKey: 'transformatie_herontwikkeling:post:brief_3:B',
+        variantCode: 'B',
+      },
+    });
+
+    expect(template.onderwerp).toBe('Uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Ik kom nog even terug op Voorbeeldstraat 10 te Amsterdam, waarover ik u eerder schreef.');
+    expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
+    expect(template.brieftekst).toContain('laat ik het hierbij voor nu rusten');
+    expect(template.brieftekst).toContain('Verandert dat op een later moment, dan weet u mij te vinden');
+    expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
+    expect(template.brieftekst).not.toContain('transformatie, functiewijziging of herontwikkeling');
+    expect(template.brieftekst).not.toContain('Ik kom graag nog eenmaal terug');
+    expect(template.brieftekst).not.toContain('Nog één keer kort');
+  });
 });
