@@ -25,7 +25,7 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('kosteloos');
   });
 
-  it('valt voor Brief 1 controle A terug op de bestaande standaardbrief met open opvolglogica', () => {
+  it('bouwt Splitsingspotentie Brief 1-A als profielspecifieke netwerkvariant zonder brede opsomming', () => {
     const template = bouwPostVariantTemplate({
       ...basis,
       toewijzing: {
@@ -35,9 +35,11 @@ describe('post copyvarianten', () => {
       },
     });
 
-    expect(template.brieftekst).toContain('professionele beleggers, ontwikkelaars en vastgoedondernemers');
+    expect(template.onderwerp).toBe('Interesse in uw pand aan Voorbeeldstraat 10 te Amsterdam');
+    expect(template.brieftekst).toContain('Binnen mijn netwerk is regelmatig vraag naar panden met splitsings- of uitpondingspotentie');
+    expect(template.brieftekst).toContain('mogelijke splitsingspotentie van dit object');
     expect(template.brieftekst).toContain('kom eventueel op een later moment nog eens bij u terug');
-    expect(template.brieftekst).not.toContain('als niet verzonden beschouwen');
+    expect(template.brieftekst).not.toContain('beleggings-, verhuur-, splitsings-, transformatie- of ontwikkelpotentie');
   });
 
   it('bouwt voor Splitsingspotentie Brief 2 een echte follow-up als controle A', () => {
@@ -135,7 +137,7 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).not.toContain('laat ik het hier rusten');
   });
 
-  it('bouwt Woonvorming Brief 1 controle A met expliciete context en relativering', () => {
+  it('bouwt Woonvorming Brief 1 controle A met concrete vergunningcontext en relativering', () => {
     const template = bouwPostVariantTemplate({
       ...basis,
       toewijzing: {
@@ -146,11 +148,12 @@ describe('post copyvarianten', () => {
     });
 
     expect(template.onderwerp).toBe('Interesse in uw pand aan Voorbeeldstraat 10 te Amsterdam');
-    expect(template.brieftekst).toContain('woonvormingsontwikkeling of -vergunning gesignaleerd');
+    expect(template.brieftekst).toContain('woonvormingsvergunning gesignaleerd');
+    expect(template.brieftekst).toContain('aanvullende zelfstandige woonruimte');
     expect(template.brieftekst).toContain('Dat hoeft uiteraard niets te zeggen over eventuele verkoopplannen');
-    expect(template.brieftekst).toContain('bredere vastgoedbeslissing of herpositionering');
     expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
     expect(template.brieftekst).toContain('kom eventueel op een later moment nog eens bij u terug');
+    expect(template.brieftekst).not.toContain('woonvormingsontwikkeling of -vergunning');
   });
 
   it('bouwt Woonvorming Brief 1 challenger B als kortere objectgerichte variant', () => {
@@ -164,10 +167,10 @@ describe('post copyvarianten', () => {
     });
 
     expect(template.onderwerp).toBe('Uw pand aan Voorbeeldstraat 10 te Amsterdam');
-    expect(template.brieftekst).toContain('Rond Voorbeeldstraat 10 te Amsterdam is een woonvormingsontwikkeling of -vergunning gesignaleerd');
+    expect(template.brieftekst).toContain('Rond Voorbeeldstraat 10 te Amsterdam is een woonvormingsvergunning gesignaleerd');
     expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
     expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
-    expect(template.brieftekst).not.toContain('bredere vastgoedbeslissing of herpositionering');
+    expect(template.brieftekst).not.toContain('aanvullende zelfstandige woonruimte');
     expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
   });
 
@@ -183,7 +186,7 @@ describe('post copyvarianten', () => {
 
     expect(template.onderwerp).toBe('Nogmaals over uw pand aan Voorbeeldstraat 10 te Amsterdam');
     expect(template.brieftekst).toContain('Enige tijd geleden schreef ik u over Voorbeeldstraat 10 te Amsterdam');
-    expect(template.brieftekst).toContain('woonvormingsontwikkeling of -vergunning rond het object');
+    expect(template.brieftekst).toContain('woonvormingsvergunning rond het object');
     expect(template.brieftekst).toContain('daarom neem ik kort opnieuw contact met u op');
     expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
     expect(template.brieftekst).not.toContain('laatste keer');
@@ -205,7 +208,7 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
     expect(template.brieftekst).toContain('kom ik graag vrijblijvend met u in contact');
     expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
-    expect(template.brieftekst).not.toContain('woonvormingsontwikkeling of -vergunning rond het object');
+    expect(template.brieftekst).not.toContain('woonvormingsvergunning rond het object');
     expect(template.brieftekst).not.toContain('mijn brief u destijds niet bereikte');
     expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
     expect(template.brieftekst).not.toContain('laatste keer');
@@ -223,7 +226,7 @@ describe('post copyvarianten', () => {
 
     expect(template.onderwerp).toBe('Over uw pand aan Voorbeeldstraat 10 te Amsterdam');
     expect(template.brieftekst).toContain('Ik neem nog één keer kort contact met u op over Voorbeeldstraat 10 te Amsterdam');
-    expect(template.brieftekst).toContain('woonvormingsontwikkeling of -vergunning rond het object');
+    expect(template.brieftekst).toContain('woonvormingsvergunning rond het object');
     expect(template.brieftekst).toContain('ander vastgoed of een bredere portefeuille');
     expect(template.brieftekst).toContain('laat ik het voor nu hierbij');
     expect(template.brieftekst).toContain('Mocht dat in de toekomst veranderen');
@@ -247,7 +250,7 @@ describe('post copyvarianten', () => {
     expect(template.brieftekst).toContain('Verandert dat op een later moment, dan weet u mij te vinden');
     expect(template.brieftekst).toContain('Een kort telefoongesprek of e-mail is voldoende');
     expect(template.brieftekst).not.toContain('Nog één keer kort');
-    expect(template.brieftekst).not.toContain('woonvormingsontwikkeling of -vergunning rond het object');
+    expect(template.brieftekst).not.toContain('woonvormingsvergunning rond het object');
     expect(template.brieftekst).not.toContain('denk ik graag vrijblijvend met u mee');
   });
 
