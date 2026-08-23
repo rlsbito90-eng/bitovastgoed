@@ -11,6 +11,7 @@ export interface AcquisitieConversieEvent {
   event_type: string;
   brief_id: string | null;
   kanaal: string | null;
+  status?: string | null;
   telt_verzonden_communicatie: boolean | null;
   telt_reactie: boolean | null;
   telt_positieve_reactie: boolean | null;
@@ -25,14 +26,33 @@ export interface AcquisitieBriefMeta {
   copy_hypothese?: string | null;
 }
 
+export type ResponsKwaliteit =
+  | 'ongeclassificeerd'
+  | 'negatief'
+  | 'neutraal_info'
+  | 'positief_gesprek'
+  | 'gekwalificeerde_lead';
+
 export interface ConversieRij {
   sleutel: string;
   label: string;
   verzonden: number;
   reacties: number;
   positieveReacties: number;
+  kwalitatieveReacties: number;
+  gekwalificeerdeLeads: number;
   responspercentage: number;
   positieveResponspercentage: number;
+  kwalitatieveResponspercentage: number;
+  gekwalificeerdeLeadPercentage: number;
+}
+
+export interface ResponsKwaliteitSamenvatting {
+  ongeclassificeerd: number;
+  negatief: number;
+  neutraalInfo: number;
+  positiefGesprek: number;
+  gekwalificeerdeLead: number;
 }
 
 export interface AcquisitieConversieDashboardModel {
@@ -42,6 +62,7 @@ export interface AcquisitieConversieDashboardModel {
   perMaand: ConversieRij[];
   perVariant: ConversieRij[];
   experimenten: ExperimentPlaybookModel[];
+  responsKwaliteit: ResponsKwaliteitSamenvatting;
   variantGelabeld: number;
   variantOngelabeld: number;
   reactiesZonderVerzending: number;
@@ -67,15 +88,39 @@ const touchpointLabel = (stap: string) => {
   return stap || 'Onbekend touchpoint';
 };
 
-function maakRij(sleutel: string, label: string, verzonden: number, reacties: number, positieveReacties: number): ConversieRij {
+/**
+ * Strikte kwaliteitsindeling voor experimentsturing. Dit verandert de bestaande
+ * responsstatus niet; het is een afgeleide meetlaag bovenop de canonieke status.
+ */
+export function classificeerResponsKwaliteit(status: string | null | undefined): ResponsKwaliteit {
+  if (status === 'gesprek_gepland') return 'gekwalificeerde_lead';
+  if (status === 'interesse') return 'positief_gesprek';
+  if (status === 'wil_meer_informatie' || status === 'later_opnieuw_benaderen') return 'neutraal_info';
+  if (status === 'niet_geinteresseerd' || status === 'verkocht_of_niet_relevant' || status === 'afgevallen') return 'negatief';
+  return 'ongeclassificeerd';
+}
+
+function maakRij(
+  sleutel: string,
+  label: string,
+  verzonden: number,
+  reacties: number,
+  positieveReacties: number,
+  kwalitatieveReacties = 0,
+  gekwalificeerdeLeads = 0,
+): ConversieRij {
   return {
     sleutel,
     label,
     verzonden,
     reacties,
     positieveReacties,
+    kwalitatieveReacties,
+    gekwalificeerdeLeads,
     responspercentage: pct(reacties, verzonden),
     positieveResponspercentage: pct(positieveReacties, verzonden),
+    kwalitatieveResponspercentage: pct(kwalitatieveReacties, verzonden),
+    gekwalificeerdeLeadPercentage: pct(gekwalificeerdeLeads, verzonden),
   };
 }
 
@@ -114,6 +159,22 @@ export function bouwAcquisitieConversieDashboard(
     positiefPerBrief.add(event.brief_id);
   }
 
+  const kwaliteitPerBrief = new Map<string, ResponsKwaliteit>();
+  for (const [briefId, event] of reactiePerBrief.entries()) {
+    kwaliteitPerBrief.set(briefId, classificeerResponsKwaliteit(event.status));
+  }
+
+  const kwalitatiefPerBrief = new Set(
+    [...kwaliteitPerBrief.entries()]
+      .filter(([, kwaliteit]) => kwaliteit === 'positief_gesprek' || kwaliteit === 'gekwalificeerde_lead')
+      .map(([briefId]) => briefId),
+  );
+  const gekwalificeerdPerBrief = new Set(
+    [...kwaliteitPerBrief.entries()]
+      .filter(([, kwaliteit]) => kwaliteit === 'gekwalificeerde_lead')
+      .map(([briefId]) => briefId),
+  );
+
   const groepen = (
     sleutelFn: (briefId: string, event: AcquisitieConversieEvent) => [string, string],
     bron: Array<[string, AcquisitieConversieEvent]> = jaarVerzendingen,
@@ -129,7 +190,9 @@ export function bouwAcquisitieConversieDashboard(
       const ids = [...groep.ids];
       const reacties = ids.filter(id => reactiePerBrief.has(id)).length;
       const positieve = ids.filter(id => positiefPerBrief.has(id)).length;
-      return maakRij(sleutel, groep.label, ids.length, reacties, positieve);
+      const kwalitatieve = ids.filter(id => kwalitatiefPerBrief.has(id)).length;
+      const gekwalificeerde = ids.filter(id => gekwalificeerdPerBrief.has(id)).length;
+      return maakRij(sleutel, groep.label, ids.length, reacties, positieve, kwalitatieve, gekwalificeerde);
     });
   };
 
@@ -196,7 +259,15 @@ export function bouwAcquisitieConversieDashboard(
       const reacties = ids.filter(id => reactiePerBrief.has(id)).length;
       const positieve = ids.filter(id => positiefPerBrief.has(id)).length;
       return {
-        ...maakRij(`${sleutel}:${code}`, `Variant ${code}`, ids.length, reacties, positieve),
+        ...maakRij(
+          `${sleutel}:${code}`,
+          `Variant ${code}`,
+          ids.length,
+          reacties,
+          positieve,
+          ids.filter(id => kwalitatiefPerBrief.has(id)).length,
+          ids.filter(id => gekwalificeerdPerBrief.has(id)).length,
+        ),
         variantCode: code,
         isControl: code === 'A',
       };
@@ -221,18 +292,36 @@ export function bouwAcquisitieConversieDashboard(
   const totaalVerzonden = jaarVerzendingen.length;
   const totaalReacties = reactiePerBrief.size;
   const totaalPositief = positiefPerBrief.size;
+  const totaalKwalitatief = kwalitatiefPerBrief.size;
+  const totaalGekwalificeerd = gekwalificeerdPerBrief.size;
+
+  const responsKwaliteit: ResponsKwaliteitSamenvatting = {
+    ongeclassificeerd: 0,
+    negatief: 0,
+    neutraalInfo: 0,
+    positiefGesprek: 0,
+    gekwalificeerdeLead: 0,
+  };
+  for (const kwaliteit of kwaliteitPerBrief.values()) {
+    if (kwaliteit === 'negatief') responsKwaliteit.negatief += 1;
+    else if (kwaliteit === 'neutraal_info') responsKwaliteit.neutraalInfo += 1;
+    else if (kwaliteit === 'positief_gesprek') responsKwaliteit.positiefGesprek += 1;
+    else if (kwaliteit === 'gekwalificeerde_lead') responsKwaliteit.gekwalificeerdeLead += 1;
+    else responsKwaliteit.ongeclassificeerd += 1;
+  }
 
   const reactiesZonderVerzending = events.filter(event =>
     event.telt_reactie === true && event.brief_id && !verzondenPerBrief.has(event.brief_id),
   ).length;
 
   return {
-    totaal: maakRij('totaal', `${jaar}`, totaalVerzonden, totaalReacties, totaalPositief),
+    totaal: maakRij('totaal', `${jaar}`, totaalVerzonden, totaalReacties, totaalPositief, totaalKwalitatief, totaalGekwalificeerd),
     perKanaal,
     perTouchpoint,
     perMaand,
     perVariant,
     experimenten,
+    responsKwaliteit,
     variantGelabeld: gelabeldeVarianten.length,
     variantOngelabeld: totaalVerzonden - gelabeldeVarianten.length,
     reactiesZonderVerzending,
