@@ -1,0 +1,44 @@
+name: Patch controle-opvolgzin
+
+on:
+  push:
+    branches:
+      - fix/acquisitie-controle-opvolgzin
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/acquisitie-controle-opvolgzin
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch copy en voeg regressietest toe
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/offMarket/brief.ts')
+          text = p.read_text()
+          old = "Indien verkoop voor u niet speelt, dan kunt u deze brief uiteraard als niet verzonden beschouwen."
+          new = "Indien verkoop op dit moment niet speelt, is dat uiteraard geen probleem. Ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug."
+          if old not in text:
+              raise SystemExit('Oude afsluitzin niet gevonden; patch afgebroken')
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+
+          test = Path('src/test/acquisitie/controleBriefOpvolgzin.test.ts')
+          test.write_text("""import { describe, expect, it } from 'vitest';\nimport { bouwBriefTekst } from '@/lib/offMarket/brief';\n\ndescribe('controlebrief opvolglogica', () => {\n  it('houdt ruimte voor een latere opvolging en sluit het contact niet af', () => {\n    const tekst = bouwBriefTekst({\n      aanhef: 'Geachte heer/mevrouw,',\n      objectadres: 'Voorbeeldstraat 10 te Amsterdam',\n    });\n\n    expect(tekst).toContain('Indien verkoop op dit moment niet speelt, is dat uiteraard geen probleem.');\n    expect(tekst).toContain('kom eventueel op een later moment nog eens bij u terug');\n    expect(tekst).not.toContain('als niet verzonden beschouwen');\n  });\n});\n""")
+          PY
+          rm .github/workflows/patch-controle-opvolgzin.yml
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/offMarket/brief.ts src/test/acquisitie/controleBriefOpvolgzin.test.ts .github/workflows/patch-controle-opvolgzin.yml
+          git commit -m "FIX acquisitie: houd controlebrief open voor opvolging"
+          git push origin HEAD:fix/acquisitie-controle-opvolgzin
