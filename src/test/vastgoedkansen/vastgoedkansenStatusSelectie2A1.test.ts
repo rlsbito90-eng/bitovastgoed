@@ -18,10 +18,12 @@ describe('BUILD 2.0A.1 — Vastgoedkansen status & selectie', () => {
     expect(hook).toContain("archived_at:null");
   });
 
-  it('ondersteunt individueel en bulk selecteren in de lijst', () => {
-    expect(pagina).toContain('Selecteren');
+  it('ondersteunt directe individuele en bulkselectie zonder aparte selectiemodus', () => {
+    expect(pagina).not.toContain('selectieModus');
+    expect(pagina).not.toContain('Stop selecteren');
+    expect(pagina).toContain('aria-label={`Selecteer ${kansTitel(kans)}`}');
     expect(pagina).toContain('Selecteer alle zichtbare vastgoedkansen');
-    expect(pagina).toContain('geselecteerd.size');
+    expect(pagina).toContain('geselecteerd.size > 0');
     expect(pagina).toContain('toggleKans');
     expect(pagina).toContain('toggleAlles');
   });
