@@ -1,7 +1,6 @@
-// V48 — "Verwerk selectie" gebruikt geselecteerde rijen.
-// Wanneer er rijen via de bulkcheckbox zijn aangevinkt, verandert de
-// knop-tekst naar "Verwerk geselecteerde (n)" en verwerkt FocusModus
-// alléén die subset.
+// V48 — "Verwerk selectie" gebruikt geselecteerde Radar-rijen.
+// Wanneer Radar-rijen via de bulkcheckbox zijn aangevinkt, maakt de
+// knop expliciet dat de FocusModus alleen de Radar-subset verwerkt.
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -120,10 +119,10 @@ describe('V48 Verwerk selectie — subset bij bulkselectie', () => {
     render(wrap(<AcquisitieSelectieTab />));
     const knop = await screen.findByTestId('acquisitie-verwerk-selectie');
     expect(knop.textContent).toMatch(/^Verwerk (Actie|selectie)/);
-    expect(knop).not.toHaveTextContent(/geselecteerde/i);
+    expect(knop).not.toHaveTextContent(/Radar-selectie/i);
   });
 
-  it('met 2 geselecteerde rijen toont knop "Verwerk geselecteerde (2)" en focusmodus krijgt subset', async () => {
+  it('met 2 geselecteerde Radar-rijen toont "Verwerk Radar-selectie (2)" en focusmodus krijgt alleen die subset', async () => {
     const user = userEvent.setup();
     render(wrap(<AcquisitieSelectieTab />));
     const rijen = await screen.findAllByTestId('acquisitie-selectie-rij');
@@ -134,7 +133,7 @@ describe('V48 Verwerk selectie — subset bij bulkselectie', () => {
 
     const knop = screen.getByTestId('acquisitie-verwerk-selectie');
     await waitFor(() => {
-      expect(knop).toHaveTextContent('Verwerk geselecteerde (2)');
+      expect(knop).toHaveTextContent('Verwerk Radar-selectie (2)');
     });
 
     await user.click(knop);
