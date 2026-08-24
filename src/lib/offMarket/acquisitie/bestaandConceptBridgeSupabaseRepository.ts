@@ -15,7 +15,7 @@ export interface KoppelBestaandConceptCommand {
   inhoudSnapshot:Record<string,unknown>;
   geadresseerdeSnapshot:Record<string,unknown>;
 }
-export interface BestaandConceptBridgeResultaat { briefId:string; signaalId:string|null; vastgoedkansId:string|null; briefVersieId:string; versienummer:number; }
+export interface BestaandConceptBridgeResultaat { briefId:string; signaalId:string|null; vastgoedkansId?:string|null; briefVersieId:string; versienummer:number; }
 export interface BestaandConceptBridgeRepository { koppelBestaandConcept(command:KoppelBestaandConceptCommand):Promise<BestaandConceptBridgeResultaat>; }
 
 function rij(data:unknown):Record<string,unknown>{const waarde=Array.isArray(data)?data[0]:data;if(!waarde||typeof waarde!=='object')throw new Error('Bestaand-concept-bridge RPC gaf geen resultaat.');return waarde as Record<string,unknown>}
@@ -37,6 +37,8 @@ export function maakBestaandConceptBridgeSupabaseRepository(input:{activatie:Pro
     if((signaalId??null)!==(command.signaalId??null))throw new Error('Bestaand-concept-bridge RPC gaf een ander signaal terug dan het commando.');
     if((vastgoedkansId??null)!==(command.vastgoedkansId??null))throw new Error('Bestaand-concept-bridge RPC gaf een andere Vastgoedkans terug dan het commando.');
     if(!Number.isInteger(versienummer)||versienummer<1)throw new Error('Bestaand-concept-bridge RPC gaf een ongeldig versienummer.');
-    return{briefId,signaalId,vastgoedkansId,briefVersieId,versienummer};
+    return isPandenverkenner
+      ? {briefId,signaalId,vastgoedkansId,briefVersieId,versienummer}
+      : {briefId,signaalId,briefVersieId,versienummer};
   }};
 }
