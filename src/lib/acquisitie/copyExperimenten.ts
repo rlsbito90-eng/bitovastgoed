@@ -130,17 +130,28 @@ export function bepaalPostCopyProfiel(signaal: PostCopySignaal): string {
   const asset = schoon(signaal.assettype);
   const tekst = `${schoon(signaal.titel)} ${schoon(signaal.omschrijving)}`.trim();
 
-  if (vergunning === 'splitsing' || strategie.includes('splits') || SPLITSING_TEKST.test(tekst)) return 'splitsingspotentie';
-  if (vergunning === 'woonvorming' || WOONVORMING_TEKST.test(tekst)) return 'woonvorming';
-  if (vergunning === 'omzetting' || KAMERVERHUUR_TEKST.test(tekst)) return 'kamerverhuur_verhuur_exploitatieoptimalisatie';
+  // Expliciete vergunningtypes zijn brondata en winnen altijd van afgeleide strategievelden.
+  // Dit voorkomt o.a. dat oude woonvormingsrecords met strategie "Splitsingspotentie"
+  // de verkeerde brief krijgen.
+  if (vergunning === 'splitsing') return 'splitsingspotentie';
+  if (vergunning === 'woonvorming') return 'woonvorming';
+  if (vergunning === 'omzetting') return 'kamerverhuur_verhuur_exploitatieoptimalisatie';
+  if (vergunning === 'transformatie' || vergunning === 'functiewijziging') return 'transformatie_herontwikkeling';
+
+  // Sterke inhoudelijke signalen winnen vervolgens van afgeleide strategie/asset-fallbacks.
+  if (WOONVORMING_TEKST.test(tekst)) return 'woonvorming';
+  if (KAMERVERHUUR_TEKST.test(tekst)) return 'kamerverhuur_verhuur_exploitatieoptimalisatie';
+  if (SPLITSING_TEKST.test(tekst)) return 'splitsingspotentie';
+  if (TRANSFORMATIE_TEKST.test(tekst) || VERBOUW_NAAR_WONEN_TEKST.test(tekst)) {
+    return 'transformatie_herontwikkeling';
+  }
+
+  // Pas daarna mogen afgeleide velden sturen.
+  if (strategie.includes('splits')) return 'splitsingspotentie';
   if (
-    vergunning === 'transformatie'
-    || vergunning === 'functiewijziging'
-    || strategie.includes('transform')
+    strategie.includes('transform')
     || strategie.includes('herontwikk')
     || asset === 'transformatieobject'
-    || TRANSFORMATIE_TEKST.test(tekst)
-    || VERBOUW_NAAR_WONEN_TEKST.test(tekst)
   ) return 'transformatie_herontwikkeling';
 
   if (asset === 'ontwikkellocatie' || ONTWIKKELING_TEKST.test(tekst) || (vergunning === 'ontwikkeling' && !tekst)) {
