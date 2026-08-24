@@ -57,19 +57,22 @@ export function bouwProductiekernSnapshotsUitLegacyBrief(brief:ProductieConceptB
   if(!brief.eigenaar_naam?.trim()&&!brief.eigenaar_bedrijfsnaam?.trim()&&!(objectpost&&brief.geadresseerde_label?.trim()))throw new Error('Geadresseerde naam/bedrijfsnaam of een geldige eigenaar-objectadresroute is verplicht.');
   const adres=parseProductiekernVerzendadres(brief.verzendadres);
   const brieftekst=vereist(brief.brieftekst,'Brieftekst is verplicht.');
+  const geadresseerde:GeadresseerdeSnapshot={
+    naam:brief.eigenaar_naam?.trim()||null,
+    bedrijfsnaam:brief.eigenaar_bedrijfsnaam?.trim()||null,
+    aanhef:brief.aanhef?.trim()||null,
+    straatHuisnummer:adres.straatHuisnummer,postcode:adres.postcode,plaats:adres.plaats,land:adres.land,
+    bron:objectpost?'objectadres':'legacy_concept',
+    verificatiestatus:'onbekend',
+    relatieId:null,
+    ...(objectpost?{
+      geadresseerdeLabel:brief.geadresseerde_label?.trim()||null,
+      adresseerwijze:'eigenaar_objectadres' as const,
+    }:{}),
+  };
   return{
     inhoud:{onderwerp:brief.onderwerp?.trim()||null,brieftekst,objectadres:brief.objectadres?.trim()||null,objectomschrijving:brief.objectomschrijving?.trim()||null,templateId:null,templateVersie:null},
-    geadresseerde:{
-      naam:brief.eigenaar_naam?.trim()||null,
-      bedrijfsnaam:brief.eigenaar_bedrijfsnaam?.trim()||null,
-      geadresseerdeLabel:brief.geadresseerde_label?.trim()||null,
-      adresseerwijze:objectpost?'eigenaar_objectadres':'eigenaar_bekend',
-      aanhef:brief.aanhef?.trim()||null,
-      straatHuisnummer:adres.straatHuisnummer,postcode:adres.postcode,plaats:adres.plaats,land:adres.land,
-      bron:objectpost?'objectadres':'legacy_concept',
-      verificatiestatus:objectpost?'onbekend':'handmatig_gecontroleerd',
-      relatieId:null,
-    },
+    geadresseerde,
   };
 }
 
