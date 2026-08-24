@@ -46,9 +46,12 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(formeleBriefBron).not.toContain('BITO_LOGO_URL');
   });
 
-  it('verbergt bulkproductieacties totdat de gebruiker daadwerkelijk regels selecteert', () => {
-    expect(selectieBron).toContain('bulkSelectie.size > 0 && (');
-    expect(selectieBron).toContain('Conceptbrieven &amp; productie');
+  it('verbergt productieacties totdat daadwerkelijk dossiers van de betreffende bron zijn geselecteerd', () => {
+    expect(selectieBron).toContain('totaalSelectie > 0 && (');
+    expect(selectieBron).toContain('bulkSelectie.size > 0 &&');
+    expect(selectieBron).toContain('bulkVastgoedkansSelectie.size > 0 &&');
+    expect(selectieBron).toContain('Radar-productie');
+    expect(selectieBron).toContain('Pandenverkenner-brieven');
     expect(selectieBron).not.toContain('Selecteer alle geschikte');
   });
 
