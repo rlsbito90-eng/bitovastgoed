@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Archive, CheckSquare2, Database, Filter, MapPin, Pencil, PlayCircle, Plus, Radar, RotateCcw, Search, X } from 'lucide-react';
+import { AlertTriangle, Archive, Database, Filter, MapPin, Pencil, PlayCircle, Plus, Radar, RotateCcw, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -85,7 +85,6 @@ export default function VastgoedkansenPage() {
   const [sortering, setSortering] = useState<VastgoedkansSortering>(init.sortering);
   const [filters, setFilters] = useState<VastgoedkansLijstFilters>(init.filters);
   const [form, setForm] = useState<{ open: boolean; kans: Vastgoedkans | null }>({ open: false, kans: null });
-  const [selectieModus, setSelectieModus] = useState(false);
   const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
   const [bevestigActie, setBevestigActie] = useState<'archiveren' | 'heropenen' | null>(null);
   const [bulkBezig, setBulkBezig] = useState(false);
@@ -157,7 +156,6 @@ export default function VastgoedkansenPage() {
     else listIds.forEach((id) => volgende.add(id));
     return volgende;
   });
-  const stopSelecteren = () => { setSelectieModus(false); setGeselecteerd(new Set()); };
 
   const bewaarOpenContext = (kans: Vastgoedkans) => {
     bewaarVastgoedkansWerkcontext({
@@ -244,10 +242,6 @@ export default function VastgoedkansenPage() {
       title="Vastgoedkansen"
       subtitle="List Workspace voor beoordelen, selecteren en doorwerken naar acquisitie."
       actions={<div className="flex flex-wrap gap-2">
-        <Button variant={selectieModus ? 'secondary' : 'outline'} onClick={() => selectieModus ? stopSelecteren() : setSelectieModus(true)}>
-          {selectieModus ? <X className="mr-1.5 h-4 w-4" /> : <CheckSquare2 className="mr-1.5 h-4 w-4" />}
-          {selectieModus ? 'Stop selecteren' : 'Selecteren'}
-        </Button>
         <Button variant="outline" onClick={() => setForm({ open: true, kans: null })}><Plus className="mr-1.5 h-4 w-4" />Nieuwe kans</Button>
         <Button asChild><Link to="/vastgoedkansen/vinden"><Radar className="mr-1.5 h-4 w-4" />Panden vinden</Link></Button>
       </div>}
@@ -299,7 +293,7 @@ export default function VastgoedkansenPage() {
       </div>
     </section>
 
-    {selectieModus && <section className="section-card space-y-3 p-3 sm:p-4" data-testid="vastgoedkansen-bulk-workspace">
+    {geselecteerd.size > 0 && <section className="section-card space-y-3 p-3 sm:p-4" data-testid="vastgoedkansen-bulk-workspace">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Checkbox checked={alleZichtbaarGeselecteerd} onCheckedChange={toggleAlles} aria-label="Selecteer alle zichtbare vastgoedkansen" />
@@ -336,7 +330,7 @@ export default function VastgoedkansenPage() {
           const actie = bepaalVastgoedkansActieContextMetTaak(kans, leidendeTaak);
           const taakWaarschuwing = bepaalVastgoedkansTaakConsistentie(kans, leidendeTaak);
           return <div key={kans.id} className={`flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5 ${vastgoedkansStatusRowClass(kans.status)}`}>
-            {selectieModus && <Checkbox className="mt-1 shrink-0" checked={geselecteerd.has(kans.id)} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />}
+            <Checkbox className="mt-1 shrink-0" checked={geselecteerd.has(kans.id)} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Link to={`/vastgoedkansen/${kans.id}`} onClick={() => bewaarOpenContext(kans)} className="min-w-0 break-words text-sm font-medium hover:text-primary hover:underline">{kansTitel(kans)}</Link>
@@ -359,7 +353,7 @@ export default function VastgoedkansenPage() {
               {werkbak === 'archief' && kans.archivedAt && <p className="mt-1 text-xs text-muted-foreground">Gearchiveerd {new Date(kans.archivedAt).toLocaleDateString('nl-NL')}{kans.archivedReason ? ` · ${kans.archivedReason}` : ''}</p>}
               {kans.redenInteressant && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{kans.redenInteressant}</p>}
             </div>
-            {!selectieModus && <Button size="icon" variant="ghost" onClick={() => setForm({ open: true, kans })} aria-label="Bewerken" className="shrink-0"><Pencil className="h-4 w-4" /></Button>}
+            <Button size="icon" variant="ghost" onClick={() => setForm({ open: true, kans })} aria-label="Bewerken" className="shrink-0"><Pencil className="h-4 w-4" /></Button>
           </div>;
         })}
       </div>}
