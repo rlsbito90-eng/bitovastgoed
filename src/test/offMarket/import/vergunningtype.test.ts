@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   detectVergunningtype,
   detectAanvraagOfBesluit,
+  detectStrategie,
   parseAdres,
 } from '@/lib/offMarket/import/normalize';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
@@ -11,9 +12,12 @@ describe('detectVergunningtype', () => {
   it('herkent splitsing', () => {
     expect(detectVergunningtype('Aanvraag splitsingsvergunning Hoofdweg 160')).toBe('splitsing');
     expect(detectVergunningtype('Kadastrale splitsing pand')).toBe('splitsing');
+    expect(detectVergunningtype('het splitsen van de woning in 3 appartementen')).toBe('splitsing');
+    expect(detectVergunningtype('bouwkundig splitsen van 1 naar 2 appartementen')).toBe('splitsing');
   });
   it('herkent woonvorming', () => {
     expect(detectVergunningtype('Woonvormingsvergunning toegekend')).toBe('woonvorming');
+    expect(detectVergunningtype('Aanvraag woonvorming voor twee zelfstandige woonruimten')).toBe('woonvorming');
   });
   it('herkent omzetting', () => {
     expect(detectVergunningtype('Omzettingsvergunning naar onzelfstandige woonruimte')).toBe('omzetting');
@@ -24,16 +28,33 @@ describe('detectVergunningtype', () => {
   });
   it('herkent functiewijziging', () => {
     expect(detectVergunningtype('Wijzigen gebruik kantoor')).toBe('functiewijziging');
+    expect(detectVergunningtype('het wijzigen van het gebruik van bedrijfsruimte naar woonruimte')).toBe('functiewijziging');
   });
   it('herkent transformatie', () => {
     expect(detectVergunningtype('Transformatie kantoor naar wonen')).toBe('transformatie');
+    expect(detectVergunningtype('het transformeren van een kantoor naar 16 appartementen')).toBe('transformatie');
   });
-  it('herkent ontwikkeling', () => {
+  it('herkent ontwikkeling alleen bij een expliciet ontwikkelsignaal', () => {
     expect(detectVergunningtype('Nieuwbouw appartementencomplex')).toBe('ontwikkeling');
+    expect(detectVergunningtype('realiseren van 20 appartementen')).toBe('ontwikkeling');
+    expect(detectVergunningtype('verbouwen bestaand appartement')).toBe('overig');
   });
   it('valt terug op overig', () => {
     expect(detectVergunningtype('Iets totaal anders')).toBe('overig');
     expect(detectVergunningtype('')).toBe('overig');
+  });
+});
+
+describe('detectStrategie', () => {
+  it('labelt woonvorming niet als Splitsingspotentie', () => {
+    expect(detectStrategie('Aanvraag woonvormingsvergunning voor twee zelfstandige woonruimten')).toBeNull();
+  });
+  it('herkent echte splitsingspotentie', () => {
+    expect(detectStrategie('bouwkundig splitsen van een woning naar twee appartementen')).toBe('Splitsingspotentie');
+  });
+  it('herkent transformatie en functiewijziging', () => {
+    expect(detectStrategie('transformeren van kantoor naar wonen')).toBe('Transformatie');
+    expect(detectStrategie('wijzigen van het gebruik van winkel naar wonen')).toBe('Transformatie');
   });
 });
 
