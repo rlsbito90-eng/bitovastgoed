@@ -46,6 +46,7 @@ import {
   VASTGOEDKANS_TAAK_PRIORITEIT_LABEL,
 } from '@/lib/vastgoedkansTakenWerkvoorraad';
 import { VASTGOEDKANS_STATUS_PRESENTATIE, vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';
+import { isInteractiefVastgoedkansRijDoel } from '@/lib/vastgoedkansRijSelectie';
 import VastgoedkansFormDialog from '@/components/forms/VastgoedkansFormDialog';
 import PandenverkennerBulkBriefDialog from '@/components/acquisitie/PandenverkennerBulkBriefDialog';
 import PandenverkennerBulkKadasterDialog from '@/components/acquisitie/PandenverkennerBulkKadasterDialog';
@@ -329,8 +330,18 @@ export default function VastgoedkansenPage() {
           const leidendeTaak = werkbak === 'archief' ? null : taakPerKansId.get(kans.id) ?? null;
           const actie = bepaalVastgoedkansActieContextMetTaak(kans, leidendeTaak);
           const taakWaarschuwing = bepaalVastgoedkansTaakConsistentie(kans, leidendeTaak);
-          return <div key={kans.id} className={`flex min-w-0 items-start gap-3 px-4 py-3 sm:px-5 ${vastgoedkansStatusRowClass(kans.status)}`}>
-            <Checkbox className="mt-1 shrink-0" checked={geselecteerd.has(kans.id)} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />
+          const isGeselecteerd = geselecteerd.has(kans.id);
+          return <div
+            key={kans.id}
+            data-testid="vastgoedkans-selecteerbare-rij"
+            data-selected={isGeselecteerd ? 'true' : 'false'}
+            onClick={(event) => {
+              if (isInteractiefVastgoedkansRijDoel(event.target)) return;
+              toggleKans(kans.id);
+            }}
+            className={`flex min-w-0 cursor-pointer items-start gap-3 px-4 py-3 transition-colors sm:px-5 ${vastgoedkansStatusRowClass(kans.status)} ${isGeselecteerd ? 'ring-1 ring-inset ring-primary/30 bg-primary/5' : 'hover:bg-muted/30'}`}
+          >
+            <Checkbox className="mt-1 shrink-0" checked={isGeselecteerd} onCheckedChange={() => toggleKans(kans.id)} aria-label={`Selecteer ${kansTitel(kans)}`} />
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Link to={`/vastgoedkansen/${kans.id}`} onClick={() => bewaarOpenContext(kans)} className="min-w-0 break-words text-sm font-medium hover:text-primary hover:underline">{kansTitel(kans)}</Link>
