@@ -121,10 +121,10 @@ const ASSETTYPE_KEYWORDS: Array<[RegExp, string]> = [
   [/\b(appartementencomplex|appartementengebouw)\b/i, 'appartementencomplex'],
   [/\b(studentenhuisvesting|studentenwoning(?:en)?|studentencomplex)\b/i, 'studentenhuisvesting'],
   [/\b(woonhuis|herenhuis|grachtenpand|eengezinswoning)\b/i, 'woonhuis'],
-  [/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling)\b/i, 'transformatieobject'],
+  [/\b(transformatie|transformeren|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|herontwikkeling|herontwikkelen)\b/i, 'transformatieobject'],
   [/\b(woon[-\s]?\/?winkelpand|woon\s+winkel)\b/i, 'woon_winkelpand'],
   [/\b(gemengd\s+vastgoed|gemengde\s+bestemming)\b/i, 'gemengd_vastgoed'],
-  [/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrecht(?:en)?|woonvormingsvergunning|woonvorming|woningvorm(?:ing|en)|omzettingsvergunning|onttrekkingsvergunning|onttrekking\s+woonruimte|samenvoegen\s+woonruimte|kamergewijze\s+verhuur|kamerverhuur|woningdelen|woonfunctie|appartement(?:en)?)\b/i, 'wonen'],
+  [/\b(splitsingsvergunning|(?:bouwkundig\s+)?splitsen|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrecht(?:en)?|woonvormingsvergunning|woonvorming|woningvorm(?:ing|en)|omzettingsvergunning|onttrekkingsvergunning|onttrekking\s+woonruimte|samenvoegen\s+woonruimte|kamergewijze\s+verhuur|kamerverhuur|woningdelen|woonfunctie|appartement(?:en)?)\b/i, 'wonen'],
   [/\b(ontwikkellocatie|bouwkavel)\b/i, 'ontwikkellocatie'],
   [/\b(light\s*industrial)\b/i, 'light_industrial'],
   [/\b(logistiek|distributiecentrum|dc\b)/i, 'logistiek'],
@@ -139,9 +139,9 @@ function detectAssettype(t: string): string {
 }
 function detectStrategie(text: string): string | null {
   if (!text) return null;
-  if (/\b(splitsingsvergunning|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|woonvormingsvergunning|woonvorming|kadastrale\s+splitsing|juridische\s+splitsing)\b/i.test(text)) return 'Splitsingspotentie';
+  if (/\b(splitsingsvergunning|(?:bouwkundig\s+)?splitsen|splitsen\s+in\s+appartementsrechten|appartementensplitsing|appartementsrechten|kadastrale\s+splitsing|juridische\s+splitsing)\b/i.test(text)) return 'Splitsingspotentie';
   if (/\b(uitponding|uitponden)\b/i.test(text)) return 'Uitponding';
-  if (/\b(transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen)\b/i.test(text)) return 'Transformatie';
+  if (/\b(transformatie|transformeren|herontwikkeling|herontwikkelen|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|functiewijziging|gebruikswijziging|wijzigen\s+(?:van\s+)?(?:het\s+)?gebruik)\b/i.test(text)) return 'Transformatie';
   return null;
 }
 const SIGNAALTYPE_KEYWORDS: Array<[RegExp, string]> = [
@@ -164,13 +164,13 @@ type Vergunningtype =
 type AanvraagOfBesluit = 'aanvraag' | 'besluit' | 'melding' | 'onbekend';
 
 const VERGUNNINGTYPE_PATTERNS: Array<[RegExp, Vergunningtype]> = [
-  [/\bsplitsingsvergunning\b|\bsplitsing\b|appartementsrecht|uitponding|kadastrale\s+splitsing|juridische\s+splitsing/i, 'splitsing'],
-  [/woonvormingsvergunning|woningvorm(?:ing|en)/i, 'woonvorming'],
-  [/omzettingsvergunning|onzelfstandige\s+woonruimte|kamergewijze|kamerverhuur|woningdelen/i, 'omzetting'],
+  [/\b(?:splitsingsvergunning|appartementensplitsing|kadastrale\s+splitsing|juridische\s+splitsing|(?:bouwkundig\s+)?splitsen)\b|appartementsrecht|uitponding/i, 'splitsing'],
+  [/\b(?:woonvormingsvergunning|woonvorming|woningvorm(?:ing|en))\b/i, 'woonvorming'],
+  [/\b(?:omzettingsvergunning|omzetting|onzelfstandige\s+woonruimte|kamergewijze(?:\s+verhuur)?|kamerverhuur(?:vergunning)?|woningdelen)\b/i, 'omzetting'],
   [/onttrekkingsvergunning|onttrekking/i, 'onttrekking'],
-  [/functiewijziging|wijzigen\s+gebruik|gebruikswijziging/i, 'functiewijziging'],
-  [/transformatie|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|bergingen?\s+naar\s+woonruimte/i, 'transformatie'],
-  [/woningbouwproject|nieuwbouw|projectontwikkeling|gebiedsontwikkeling|herontwikkeling|appartement/i, 'ontwikkeling'],
+  [/\b(?:functiewijziging|gebruikswijziging|wijzigen\s+(?:van\s+)?(?:het\s+)?gebruik|wijzigen\s+gebruik)\b/i, 'functiewijziging'],
+  [/\b(?:transformatie|transformeren|kantoor\s+naar\s+wonen|winkel\s+naar\s+wonen|bergingen?\s+naar\s+woonruimte)\b/i, 'transformatie'],
+  [/\b(?:woningbouwproject|nieuwbouw|projectontwikkeling|gebiedsontwikkeling|ontwikkellocatie|bouwkavel|bouwen\s+van|oprichten|realiseren\s+van\s+(?:\d+\s+)?(?:woongebouwen?|woningen?|appartementen?|studio'?s|units))\b/i, 'ontwikkeling'],
 ];
 function detectVergunningtype(text: string): Vergunningtype {
   if (!text) return 'overig';
