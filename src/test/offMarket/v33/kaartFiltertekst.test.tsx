@@ -15,6 +15,10 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
   useIsInAcquisitieSelectie: () => false,
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useVerwijderVastgoedkansUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/hooks/useVastgoedkansen', () => ({
+  useVastgoedkansen: () => ({ getKansById: () => undefined }),
 }));
 
 vi.mock('@/components/offmarket/kaart/OffMarketKaart', () => ({
@@ -53,7 +57,6 @@ describe('OffMarket kaart-tab: filtertekst', () => {
   it('hoofdtabbar bevat zowel mobiel "Selectie" als desktop "Acquisitieselectie" label', () => {
     renderPage();
     const tab = screen.getByTestId('off-market-tab-acquisitieselectie');
-    // Beide spans zijn in de DOM (CSS verbergt één), dus beide teksten staan in textContent.
     expect(tab.textContent).toMatch(/Selectie \(0\)/);
     expect(tab.textContent).toMatch(/Acquisitieselectie \(0\)/);
   });
@@ -61,6 +64,6 @@ describe('OffMarket kaart-tab: filtertekst', () => {
   it('klik op selectie-tab toont AcquisitieSelectieTab', () => {
     renderPage();
     fireEvent.click(screen.getByTestId('off-market-tab-acquisitieselectie'));
-    expect(screen.getByText(/Nog geen signalen in selectie/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nog geen dossiers in selectie/i)).toBeInTheDocument();
   });
 });
