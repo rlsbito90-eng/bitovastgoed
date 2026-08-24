@@ -20,10 +20,13 @@ describe('detectAssettype – wonen/splitsing', () => {
 });
 
 describe('detectStrategie', () => {
-  it('splitsingssignalen → Splitsingspotentie', () => {
+  it('echte splitsingssignalen → Splitsingspotentie', () => {
     expect(detectStrategie('splitsingsvergunning ingediend')).toBe('Splitsingspotentie');
-    expect(detectStrategie('woonvormingsvergunning verleend')).toBe('Splitsingspotentie');
     expect(detectStrategie('splitsen in appartementsrechten')).toBe('Splitsingspotentie');
+    expect(detectStrategie('bouwkundig splitsen van een woning')).toBe('Splitsingspotentie');
+  });
+  it('woonvorming is geen splitsingsstrategie', () => {
+    expect(detectStrategie('woonvormingsvergunning verleend')).toBeNull();
   });
   it('uitponding → Uitponding', () => {
     expect(detectStrategie('plan tot uitponden van complex')).toBe('Uitponding');
@@ -31,6 +34,7 @@ describe('detectStrategie', () => {
   });
   it('transformatie → Transformatie', () => {
     expect(detectStrategie('transformatie kantoor naar wonen')).toBe('Transformatie');
+    expect(detectStrategie('wijzigen van het gebruik van winkel naar wonen')).toBe('Transformatie');
   });
   it('geen match → null', () => {
     expect(detectStrategie('nieuwbouw bedrijfshal')).toBeNull();
