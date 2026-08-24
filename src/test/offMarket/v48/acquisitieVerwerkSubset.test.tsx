@@ -62,6 +62,10 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
   useActieveSelectieIds: () => new Set(mockSignalen.map((s) => s.id)),
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useVerwijderVastgoedkansUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/hooks/useVastgoedkansen', () => ({
+  useVastgoedkansen: () => ({ getKansById: () => undefined }),
 }));
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: mockSignalen }),
@@ -115,7 +119,6 @@ describe('V48 Verwerk selectie — subset bij bulkselectie', () => {
   it('zonder selectie toont knop "Verwerk selectie"', async () => {
     render(wrap(<AcquisitieSelectieTab />));
     const knop = await screen.findByTestId('acquisitie-verwerk-selectie');
-    // Fase 1: default werkbak is "Actie"; knop toont "Verwerk Actie (n)".
     expect(knop.textContent).toMatch(/^Verwerk (Actie|selectie)/);
     expect(knop).not.toHaveTextContent(/geselecteerde/i);
   });
@@ -126,7 +129,6 @@ describe('V48 Verwerk selectie — subset bij bulkselectie', () => {
     const rijen = await screen.findAllByTestId('acquisitie-selectie-rij');
     expect(rijen.length).toBe(3);
 
-    // Vink de eerste twee rijen aan.
     await user.click(within(rijen[0]).getByTestId('acquisitie-rij-bulkcheck'));
     await user.click(within(rijen[1]).getByTestId('acquisitie-rij-bulkcheck'));
 
@@ -135,7 +137,6 @@ describe('V48 Verwerk selectie — subset bij bulkselectie', () => {
       expect(knop).toHaveTextContent('Verwerk geselecteerde (2)');
     });
 
-    // Klik op de knop → focusmodus opent met teller "1 van 2".
     await user.click(knop);
     const focus = await screen.findByTestId('focus-modus');
     expect(within(focus).getByText(/Focus · 1 van 2/i)).toBeInTheDocument();
