@@ -54,7 +54,9 @@ export function kiesPandenverkennerVariant(input: PandenverkennerCopyInput): Cop
     kanaal: 'post',
     campagneStap: 'brief_1',
     signaalId: input.vastgoedkansId,
-    geadresseerdeKey: input.geadresseerdeKey,
+    // Pandenverkenner meet één copyvariant per pand/profiel/stap. Een latere
+    // eigenaar- of adresverrijking mag dezelfde prospect niet van variant laten wisselen.
+    geadresseerdeKey: null,
     varianten: VARIANTEN,
   });
 }
