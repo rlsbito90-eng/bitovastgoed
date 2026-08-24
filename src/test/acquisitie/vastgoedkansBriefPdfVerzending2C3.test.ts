@@ -33,8 +33,8 @@ describe('BUILD 2.0C.3 — Vastgoedkans PDF en verzending registreren', () => {
     expect(hook).toContain("event_type: 'pdf_generated'");
   });
 
-  it('maakt duidelijk dat markeren geen verzending uitvoert', () => {
-    expect(kaart).toContain('Deze handeling verstuurt zelf niets.');
+  it('maakt duidelijk dat markeren alleen de werkelijke postverzending registreert', () => {
+    expect(kaart).toContain('Bevestig dit alleen nadat de brief daadwerkelijk op de post is gedaan.');
     expect(kaart).toContain('Bevestig verzending');
   });
 
