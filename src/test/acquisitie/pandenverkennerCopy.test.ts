@@ -42,6 +42,17 @@ describe('Pandenverkenner Brief 1 A/B', () => {
     expect(a.profiel).toBe('pandenverkenner_woon_winkelpand');
   });
 
+  it('houdt dezelfde variant als eigenaar of postadres later wordt verrijkt', () => {
+    const algemeen = kiesPandenverkennerVariant(basis);
+    const verrijkt = kiesPandenverkennerVariant({
+      ...basis,
+      geadresseerdeKey: 'eigenaar|abcdef',
+      eigenaarBevestigd: true,
+    });
+    expect(verrijkt.variantCode).toBe(algemeen.variantCode);
+    expect(verrijkt.variantKey).toBe(algemeen.variantKey);
+  });
+
   it('gebruikt bij onbekende eigenaar nooit "uw pand"', () => {
     const toewijzing = { ...kiesPandenverkennerVariant(basis), variantCode: 'A' as const };
     const brief = bouwPandenverkennerBrief1(basis, toewijzing);
