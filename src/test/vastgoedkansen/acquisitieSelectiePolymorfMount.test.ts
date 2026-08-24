@@ -16,9 +16,10 @@ describe('Acquisitieselectie — uniforme bronpresentatie', () => {
 
   it('biedt een bronfilter voor Alles, Radar en Pandenverkenner', () => {
     expect(selectieTab).toContain('data-testid="acquisitie-bronfilter"');
-    expect(selectieTab).toContain('acquisitie-bron-alles');
-    expect(selectieTab).toContain('acquisitie-bron-radar');
-    expect(selectieTab).toContain('acquisitie-bron-pandenverkenner');
+    expect(selectieTab).toContain('data-testid={`acquisitie-bron-${bron}`}');
+    expect(selectieTab).toContain("['alles', `Alles (");
+    expect(selectieTab).toContain("['radar', `Radar (");
+    expect(selectieTab).toContain("['pandenverkenner', `Pandenverkenner (");
   });
 
   it('houdt de productie-routes onder de VastgoedkansenProvider', () => {
