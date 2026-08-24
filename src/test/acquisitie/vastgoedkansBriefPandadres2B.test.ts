@@ -8,18 +8,20 @@ const bron = fs.readFileSync(
 );
 
 describe('BUILD 2.0B — pandadres en eigenaaradres blijven gescheiden', () => {
-  it('gebruikt bij BAG-pandniveau zonder vaste VBO het pandadres voor onderwerp en brieftekst', () => {
+  it('gebruikt bij BAG-pandniveau zonder vaste VBO het pandadres voor onderwerp en Pandenverkenner-copy', () => {
     expect(bron).toContain('function pandAdresVoorBrief');
     expect(bron).toContain("replace(/-(?:H|[1-4])$/i, '')");
     expect(bron).toContain('Boolean(kans?.bagPandId)');
     expect(bron).toContain('Boolean(kans?.bagVerblijfsobjectId)');
     expect(bron).toContain('bepaalOnderwerp(objectomschrijving)');
-    expect(bron).toContain('bouwBriefTekst({ aanhef, objectadres: objectomschrijving })');
+    expect(bron).toContain('bouwPandenverkennerBrief1');
+    expect(bron).toContain('objectomschrijving');
   });
 
-  it('houdt het correspondentieadres uitsluitend in de geadresseerdevelden', () => {
+  it('houdt correspondentieadres en objectadres als afzonderlijke conceptvelden', () => {
     expect(bron).toContain('const verzendadres = [eigenaar.adres?.trim(), plaatsregel]');
-    expect(bron).toContain('setVerzendadres(velden.verzendadres)');
+    expect(bron).toContain('setVerzendadres(velden.verzendadres || objectVerzendadres)');
+    expect(bron).toContain('objectVerzendadres');
     expect(bron).not.toContain('bepaalOnderwerp(velden.verzendadres)');
   });
 
@@ -29,7 +31,9 @@ describe('BUILD 2.0B — pandadres en eigenaaradres blijven gescheiden', () => {
     expect(bron).toContain('function formatteerPlaats');
   });
 
-  it('toont de textarea-placeholder als echte regelovergang', () => {
-    expect(bron).toContain("placeholder={'Straat en huisnummer\\nPostcode en plaats'}");
+  it('bouwt voor algemene eigenaarspost een volledig object-verzendadres', () => {
+    expect(bron).toContain('const objectVerzendadres = [');
+    expect(bron).toContain("setGeadresseerdeLabel(ALGEMENE_EIGENAAR_LABEL)");
+    expect(bron).toContain("setAdresseerwijze('eigenaar_objectadres')");
   });
 });
