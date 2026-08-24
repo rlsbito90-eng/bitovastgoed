@@ -1,6 +1,7 @@
 import type { OperationeleWerkbak } from './operationeleWerkbak';
 import { parseProductieNummer } from './productieIdentiteit';
 
+export type ProductieBronType = 'off_market_radar' | 'pandenverkenner';
 export type Briefstatus = 'concept' | 'definitief' | 'geannuleerd';
 export type Briefversiestatus = 'actief' | 'vervallen' | 'verzonden';
 export type Printbatchstatus =
@@ -20,6 +21,12 @@ export type Batchdocumentstatus = 'actief' | 'vervallen';
 export interface GeadresseerdeSnapshot {
   naam: string | null;
   bedrijfsnaam: string | null;
+  /**
+   * Expliciete labelregel voor objectpost zonder bevestigde eigenaar,
+   * bijvoorbeeld "Aan de eigenaar van". Dit is géén eigenaarnaam.
+   */
+  geadresseerdeLabel?: string | null;
+  adresseerwijze?: 'eigenaar_bekend' | 'eigenaar_objectadres' | null;
   aanhef: string | null;
   straatHuisnummer: string;
   postcode: string;
@@ -41,7 +48,8 @@ export interface InhoudSnapshot {
 
 export interface AcquisitiedossierContract {
   selectieId: string;
-  signaalId: string;
+  signaalId: string | null;
+  vastgoedkansId: string | null;
   objectId: string | null;
   verwerkingGestartOp: string | null;
   verwerkingGestartDoor: string | null;
@@ -53,7 +61,8 @@ export interface AcquisitiedossierContract {
 export interface BriefContract {
   id: string;
   briefnummer: string | null;
-  signaalId: string;
+  signaalId: string | null;
+  vastgoedkansId: string | null;
   selectieId: string | null;
   objectId: string | null;
   relatieId: string | null;
@@ -81,6 +90,7 @@ export interface BriefversieContract {
 export interface PrintbatchContract {
   id: string;
   batchnummer: string;
+  bronType: ProductieBronType;
   status: Printbatchstatus;
   documentversie: number;
   aanvullingOpBatchId: string | null;
@@ -128,11 +138,20 @@ export function isGeldigeBatchovergang(
   return van === naar || BATCH_OVERGANGEN[van].includes(naar);
 }
 
+export function valideerDossierbron(input: { signaalId?: string | null; vastgoedkansId?: string | null }): string[] {
+  return Number(Boolean(input.signaalId?.trim())) + Number(Boolean(input.vastgoedkansId?.trim())) === 1
+    ? []
+    : ['Exact één dossierbron (Radar-signaal of Vastgoedkans) is verplicht.'];
+}
+
 export function valideerGeadresseerdeSnapshot(
   snapshot: GeadresseerdeSnapshot,
 ): string[] {
   const fouten: string[] = [];
-  if (!snapshot.naam?.trim() && !snapshot.bedrijfsnaam?.trim()) {
+  const objectpost = snapshot.adresseerwijze === 'eigenaar_objectadres';
+  if (objectpost) {
+    if (!snapshot.geadresseerdeLabel?.trim()) fouten.push('Geadresseerdelabel is verplicht bij eigenaar-objectadres.');
+  } else if (!snapshot.naam?.trim() && !snapshot.bedrijfsnaam?.trim()) {
     fouten.push('Naam of bedrijfsnaam is verplicht.');
   }
   if (!snapshot.straatHuisnummer.trim()) fouten.push('Straat en huisnummer zijn verplicht.');
@@ -143,7 +162,7 @@ export function valideerGeadresseerdeSnapshot(
 }
 
 export function valideerBriefcontract(brief: BriefContract): string[] {
-  const fouten: string[] = [];
+  const fouten: string[] = [...valideerDossierbron(brief)];
   if (brief.briefnummer) {
     const parsed = parseProductieNummer(brief.briefnummer);
     if (!parsed || parsed.type !== 'brief') fouten.push('Briefnummer is ongeldig.');
@@ -185,6 +204,7 @@ export function valideerPrintbatch(batch: PrintbatchContract): string[] {
   const fouten: string[] = [];
   const parsed = parseProductieNummer(batch.batchnummer);
   if (!parsed || parsed.type !== 'batch') fouten.push('Batchnummer is ongeldig.');
+  if (!['off_market_radar', 'pandenverkenner'].includes(batch.bronType)) fouten.push('Batchbron is ongeldig.');
   if (!Number.isInteger(batch.documentversie) || batch.documentversie < 1) {
     fouten.push('Documentversie moet minimaal 1 zijn.');
   }
