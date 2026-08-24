@@ -1,7 +1,6 @@
-// V48 — "Verwerk selectie" gebruikt geselecteerde rijen.
-// Wanneer er rijen via de bulkcheckbox zijn aangevinkt, verandert de
-// knop-tekst naar "Verwerk geselecteerde (n)" en verwerkt FocusModus
-// alléén die subset.
+// V48 — "Verwerk selectie" gebruikt geselecteerde Radar-rijen.
+// Wanneer Radar-rijen via de bulkcheckbox zijn aangevinkt, maakt de
+// knop expliciet dat de FocusModus alleen de Radar-subset verwerkt.
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -62,6 +61,10 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
   useActieveSelectieIds: () => new Set(mockSignalen.map((s) => s.id)),
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useVerwijderVastgoedkansUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/hooks/useVastgoedkansen', () => ({
+  useVastgoedkansen: () => ({ getKansById: () => undefined }),
 }));
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: mockSignalen }),
@@ -115,27 +118,24 @@ describe('V48 Verwerk selectie — subset bij bulkselectie', () => {
   it('zonder selectie toont knop "Verwerk selectie"', async () => {
     render(wrap(<AcquisitieSelectieTab />));
     const knop = await screen.findByTestId('acquisitie-verwerk-selectie');
-    // Fase 1: default werkbak is "Actie"; knop toont "Verwerk Actie (n)".
     expect(knop.textContent).toMatch(/^Verwerk (Actie|selectie)/);
-    expect(knop).not.toHaveTextContent(/geselecteerde/i);
+    expect(knop).not.toHaveTextContent(/Radar-selectie/i);
   });
 
-  it('met 2 geselecteerde rijen toont knop "Verwerk geselecteerde (2)" en focusmodus krijgt subset', async () => {
+  it('met 2 geselecteerde Radar-rijen toont "Verwerk Radar-selectie (2)" en focusmodus krijgt alleen die subset', async () => {
     const user = userEvent.setup();
     render(wrap(<AcquisitieSelectieTab />));
     const rijen = await screen.findAllByTestId('acquisitie-selectie-rij');
     expect(rijen.length).toBe(3);
 
-    // Vink de eerste twee rijen aan.
     await user.click(within(rijen[0]).getByTestId('acquisitie-rij-bulkcheck'));
     await user.click(within(rijen[1]).getByTestId('acquisitie-rij-bulkcheck'));
 
     const knop = screen.getByTestId('acquisitie-verwerk-selectie');
     await waitFor(() => {
-      expect(knop).toHaveTextContent('Verwerk geselecteerde (2)');
+      expect(knop).toHaveTextContent('Verwerk Radar-selectie (2)');
     });
 
-    // Klik op de knop → focusmodus opent met teller "1 van 2".
     await user.click(knop);
     const focus = await screen.findByTestId('focus-modus');
     expect(within(focus).getByText(/Focus · 1 van 2/i)).toBeInTheDocument();

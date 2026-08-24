@@ -65,6 +65,10 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
   useActieveSelectieIds: () => new Set(['sig-1']),
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useVerwijderVastgoedkansUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/hooks/useVastgoedkansen', () => ({
+  useVastgoedkansen: () => ({ getKansById: () => undefined }),
 }));
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: mockSignalen }),
@@ -160,7 +164,6 @@ describe('V46 AcquisitieSelectieTab — rij-controls', () => {
     render(wrap(<AcquisitieSelectieTab />));
     const trigger = await screen.findByTestId('status-wijzig-compact');
     await user.click(trigger);
-    // Kies een willekeurige niet-huidige optie
     const opt = await screen.findByTestId('status-optie-te_onderzoeken');
     await user.click(opt);
     await waitFor(() => {
@@ -192,18 +195,11 @@ describe('V46 AcquisitieSelectieTab — rij-controls', () => {
   });
 
   it('toont "Opvolging nodig" bij brief2_gepland', async () => {
-    mockBrieven = [
-      brief({ id: 'b1', status: 'verstuurd', verzonden_op: '2026-06-21T10:00:00Z', geadresseerde_key: 'g-1' }),
-    ];
-    mockTaken = [{
-      id: 't1', titel: 'Brief 2 opvolgen', status: 'open',
-      offMarketSignaalId: 'sig-1', softDeletedAt: null, deadline: '2026-07-15',
-    }];
+    mockBrieven = [brief({ id: 'b1', status: 'verstuurd', verzonden_op: '2026-06-21T10:00:00Z', geadresseerde_key: 'g-1' })];
+    mockTaken = [{ id: 't1', titel: 'Brief 2 opvolgen', status: 'open', offMarketSignaalId: 'sig-1', softDeletedAt: null, deadline: '2026-07-15' }];
     render(wrap(<AcquisitieSelectieTab />));
     const cel = await screen.findByTestId('acquisitie-rij-briefstatus');
-    await waitFor(() => {
-      expect(within(cel).getByText('Opvolging nodig')).toBeInTheDocument();
-    });
+    await waitFor(() => { expect(within(cel).getByText('Opvolging nodig')).toBeInTheDocument(); });
   });
 
   it('klik op briefstatus-badge doet GEEN update-call', async () => {

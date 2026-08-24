@@ -7,11 +7,19 @@ const selectieTab = fs.readFileSync(
 );
 const crmApp = fs.readFileSync('src/CrmProtectedApp.tsx', 'utf8');
 
-describe('BUILD 2.0A.3 — polymorfe selectie mountgrens', () => {
-  it('mount de Vastgoedkansen-sectie alleen wanneer de selectie Vastgoedkansen bevat', () => {
-    expect(selectieTab).toContain(
-      '{heeftVastgoedkansen && <VastgoedkansenInAcquisitieSelectie items={items} />}',
-    );
+describe('Acquisitieselectie — uniforme bronpresentatie', () => {
+  it('laat Vastgoedkansen aansluiten op dezelfde resultatenlijst in plaats van een aparte sectie', () => {
+    expect(selectieTab).not.toContain('VastgoedkansenInAcquisitieSelectie');
+    expect(selectieTab).toContain('VastgoedkansAcquisitieRij');
+    expect(selectieTab).toContain('data-testid="acquisitie-selectie-lijst"');
+  });
+
+  it('biedt een bronfilter voor Alles, Radar en Pandenverkenner', () => {
+    expect(selectieTab).toContain('data-testid="acquisitie-bronfilter"');
+    expect(selectieTab).toContain('data-testid={`acquisitie-bron-${bron}`}');
+    expect(selectieTab).toContain("['alles', `Alles (");
+    expect(selectieTab).toContain("['radar', `Radar (");
+    expect(selectieTab).toContain("['pandenverkenner', `Pandenverkenner (");
   });
 
   it('houdt de productie-routes onder de VastgoedkansenProvider', () => {

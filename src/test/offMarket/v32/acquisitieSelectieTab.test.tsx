@@ -37,6 +37,10 @@ vi.mock('@/hooks/useAcquisitieSelectie', () => ({
   useIsInAcquisitieSelectie: () => true,
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useVerwijderVastgoedkansUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/hooks/useVastgoedkansen', () => ({
+  useVastgoedkansen: () => ({ getKansById: () => undefined }),
 }));
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: mockSignalen }),
@@ -53,7 +57,7 @@ describe('AcquisitieSelectieTab', () => {
   it('toont een duidelijke empty state', () => {
     mockItems = [];
     render(wrap(<AcquisitieSelectieTab />));
-    expect(screen.getByText(/Nog geen signalen in selectie/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nog geen dossiers in selectie/i)).toBeInTheDocument();
   });
 
   it('toont uitsluitend actieve selectie-items', () => {
