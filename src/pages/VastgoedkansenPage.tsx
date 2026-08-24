@@ -47,6 +47,8 @@ import {
 } from '@/lib/vastgoedkansTakenWerkvoorraad';
 import { VASTGOEDKANS_STATUS_PRESENTATIE, vastgoedkansStatusChipClass, vastgoedkansStatusRowClass } from '@/lib/vastgoedkansStatusPresentation';
 import VastgoedkansFormDialog from '@/components/forms/VastgoedkansFormDialog';
+import PandenverkennerBulkBriefDialog from '@/components/acquisitie/PandenverkennerBulkBriefDialog';
+import PandenverkennerBulkKadasterDialog from '@/components/acquisitie/PandenverkennerBulkKadasterDialog';
 
 const selectClass = 'h-10 rounded-md border border-input bg-background px-3 text-sm';
 const SORTERING_LABEL: Record<VastgoedkansSortering, string> = {
@@ -89,6 +91,8 @@ export default function VastgoedkansenPage() {
   const [bulkBezig, setBulkBezig] = useState(false);
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkPrioriteit, setBulkPrioriteit] = useState('');
+  const [bulkBriefOpen, setBulkBriefOpen] = useState(false);
+  const [bulkKadasterOpen, setBulkKadasterOpen] = useState(false);
   const [alleenControleNodig, setAlleenControleNodig] = useState(false);
   const hervat = useMemo(() => leesVastgoedkansWerkcontext(), [kansen.length]);
   const hervatKans = hervat ? kansen.find((kans) => kans.id === hervat.kansId) : null;
@@ -134,6 +138,10 @@ export default function VastgoedkansenPage() {
   const geselecteerdZichtbaar = useMemo(
     () => [...geselecteerd].filter((id) => zichtbareIdSet.has(id)),
     [geselecteerd, zichtbareIdSet],
+  );
+  const geselecteerdeKansen = useMemo(
+    () => list.filter((kans) => geselecteerd.has(kans.id)),
+    [list, geselecteerd],
   );
   const alleZichtbaarGeselecteerd = list.length > 0 && list.every((kans) => geselecteerd.has(kans.id));
   const actieveFilters = telActieveVastgoedkansFilters(filters);
@@ -301,6 +309,8 @@ export default function VastgoedkansenPage() {
           {werkbak === 'archief'
             ? <Button variant="outline" disabled={geselecteerdZichtbaar.length === 0} onClick={() => setBevestigActie('heropenen')}><RotateCcw className="mr-1.5 h-4 w-4" />Heropenen</Button>
             : <>
+              <Button variant="outline" disabled={geselecteerdZichtbaar.length === 0 || bulkBezig} onClick={() => setBulkKadasterOpen(true)}>Bulk Kadaster</Button>
+              <Button variant="outline" disabled={geselecteerdZichtbaar.length === 0 || bulkBezig} onClick={() => setBulkBriefOpen(true)}>Brieven voorbereiden</Button>
               <Button variant="secondary" disabled={geselecteerdZichtbaar.length === 0 || voegToeAanAcquisitie.isPending || bulkBezig} onClick={() => void voegSelectieToeAanAcquisitie()}>Naar acquisitieselectie</Button>
               <Button variant="outline" disabled={geselecteerdZichtbaar.length === 0 || bulkBezig} onClick={() => setBevestigActie('archiveren')}><Archive className="mr-1.5 h-4 w-4" />Archiveren</Button>
             </>}
@@ -357,6 +367,8 @@ export default function VastgoedkansenPage() {
 
     <div className="flex min-w-0 gap-2 rounded-lg border border-dashed p-4 text-xs text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" /><p>Open een kans om binnen exact deze gefilterde en gesorteerde lijst met vorige/volgende door te werken.</p></div>
     <VastgoedkansFormDialog open={form.open} onOpenChange={(open) => setForm({ open, kans: open ? form.kans : null })} kans={form.kans} />
+    <PandenverkennerBulkKadasterDialog open={bulkKadasterOpen} onOpenChange={setBulkKadasterOpen} kansen={geselecteerdeKansen} />
+    <PandenverkennerBulkBriefDialog open={bulkBriefOpen} onOpenChange={setBulkBriefOpen} kansen={geselecteerdeKansen} />
 
     <AlertDialog open={bevestigActie !== null} onOpenChange={(open) => { if (!open && !bulkBezig) setBevestigActie(null); }}>
       <AlertDialogContent>
