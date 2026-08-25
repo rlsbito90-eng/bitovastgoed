@@ -57,6 +57,8 @@ export function amsterdamRingLigging(signaal: OffMarketSignaal): AmsterdamRingLi
   if (!isAmsterdam(signaal)) return 'niet_amsterdam';
 
   const s = signaal as any;
+  if (s.lat == null || s.lng == null || s.lat === '' || s.lng === '') return 'onbekend';
+
   const lat = Number(s.lat);
   const lng = Number(s.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return 'onbekend';
