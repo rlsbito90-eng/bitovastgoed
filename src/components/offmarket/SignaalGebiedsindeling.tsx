@@ -10,6 +10,7 @@ import {
   formatGebiedsindeling, formatGeoBron, formatGeoDatum, formatGeoStatus,
   verrijkSignaalGeo, type OffMarketGeoStatus,
 } from '@/lib/offMarket/geo';
+import { AMSTERDAM_RING_LABEL, amsterdamRingLigging } from '@/lib/offMarket/amsterdamRing';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 
 interface Props { signaal: OffMarketSignaal; }
@@ -20,12 +21,14 @@ export default function SignaalGebiedsindeling({ signaal }: Props) {
   const s = signaal as any;
   const status = (s.geo_status ?? 'niet_verrijkt') as OffMarketGeoStatus;
   const heeftCoords = s.lat != null && s.lng != null;
+  const ringLigging = amsterdamRingLigging(signaal);
 
   const kopieer = async () => {
     const txt = [
       s.geo_gemeente_naam && `Gemeente: ${s.geo_gemeente_naam}`,
       s.geo_wijk_naam && `Wijk: ${s.geo_wijk_naam}`,
       s.geo_buurt_naam && `Buurt: ${s.geo_buurt_naam}`,
+      ringLigging !== 'niet_amsterdam' && `Ligging: ${AMSTERDAM_RING_LABEL[ringLigging]}`,
     ].filter(Boolean).join('\n');
     if (!txt) { toast.error('Geen gebiedsinfo om te kopiëren.'); return; }
     try { await navigator.clipboard.writeText(txt); toast.success('Gebiedsinfo gekopieerd.'); }
@@ -80,6 +83,7 @@ export default function SignaalGebiedsindeling({ signaal }: Props) {
           <Row label="Gemeente" value={s.geo_gemeente_naam} />
           <Row label="Wijk" value={s.geo_wijk_naam} />
           <Row label="Buurt" value={s.geo_buurt_naam} />
+          {ringLigging !== 'niet_amsterdam' && <Row label="Ligging" value={AMSTERDAM_RING_LABEL[ringLigging]} />}
           <Row label="Status" value={formatGeoStatus(status)} />
           <Row label="Bron" value={formatGeoBron(s.geo_bron)} />
           <Row label="Laatst verrijkt" value={formatGeoDatum(s.geo_verrijkt_op)} />
