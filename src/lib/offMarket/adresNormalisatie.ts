@@ -57,6 +57,14 @@ const PLAATS_UITZONDERINGEN: Record<string, string> = {
   'dordrecht': 'Dordrecht',
 };
 
+const BESCHRIJVINGS_PATROON = /\b(?:splits(?:en|ing)|gebouw|appartementsrecht(?:en)?|omzetten|omzetting|woning(?:en)?|kamer(?:s)?|realiseren|wijzigen|verbouwen|adres)\b/i;
+const STRAAT_SUFFIX = '(?:straat|weg|laan|gracht|kade|plein|singel|dijk|hof|pad|steeg|boulevard|plantsoen|markt|wal|baan|park|allee|avenue|erf)';
+const HUISNUMMER = '\\d{1,5}[A-Za-z]?(?:[-/]?[A-Za-z0-9]+)?';
+const ADRES_IN_TEKST_RE = new RegExp(
+  `\\b([A-ZÀ-Ýa-zà-ÿ'’.-]+(?:\\s+[A-ZÀ-Ýa-zà-ÿ'’.-]+){0,5}${STRAAT_SUFFIX}\\s+${HUISNUMMER}(?:(?:\\s*,\\s*|\\s+en\\s+)${HUISNUMMER})*)\\b`,
+  'i',
+);
+
 function titleCaseToken(token: string): string {
   if (!token) return token;
   // Houd reeds gemengd geschreven tokens (bv. McDonald) intact, behalve full-upper of full-lower.
@@ -116,13 +124,47 @@ interface SignaalAdresInput {
   titel?: string | null;
 }
 
+function extractAdresUitTekst(raw: string | null | undefined): string {
+  const schoon = cleanAdres(raw);
+  if (!schoon) return '';
+
+  const suffixMatch = schoon.match(ADRES_IN_TEKST_RE);
+  if (suffixMatch?.[1]) return suffixMatch[1].replace(/\s+/g, ' ').trim();
+
+  // Korte adressen zonder klassiek straat-suffix (bv. "Dam 1" / "Rokin 50")
+  // accepteren we alleen wanneer de hele waarde compact is en geen omschrijving bevat.
+  if (!BESCHRIJVINGS_PATROON.test(schoon)
+      && schoon.split(/\s+/).length <= 6
+      && /\b\d{1,5}[A-Za-z]?(?:[-/]?[A-Za-z0-9]+)?\b/.test(schoon)) {
+    return schoon;
+  }
+
+  return '';
+}
+
+/**
+ * Kies het meest betrouwbare display-adres uit de beschikbare signaalvelden.
+ * Een vervuild `adres`-veld met vergunningomschrijving krijgt geen voorrang
+ * boven een herleidbaar straat+huisnummer uit `titel`.
+ */
+export function resolveSignaalAdres(signaal: SignaalAdresInput): string {
+  const direct = cleanAdres(signaal.adres ?? '');
+  const directExtract = extractAdresUitTekst(signaal.adres);
+  const titelExtract = extractAdresUitTekst(signaal.titel);
+
+  if (directExtract && !BESCHRIJVINGS_PATROON.test(direct)) return directExtract;
+  if (titelExtract) return titelExtract;
+  if (directExtract) return directExtract;
+  return direct;
+}
+
 /**
  * Display-string voor adres + plaats. Voorbeeld: "Voorbeeldstraat 12 · Amsterdam".
  * - Ontdubbelt als de plaats al in het adres voorkomt.
  * - Toont geen losse separator wanneer een veld ontbreekt.
  */
 export function formatSignaalAdres(signaal: SignaalAdresInput): string {
-  const adres = cleanAdres(signaal.adres ?? '');
+  const adres = resolveSignaalAdres(signaal);
   const plaats = cleanPlaats(signaal.plaats ?? '');
   const adresHeeftPlaats =
     !!plaats && adres.toLowerCase().endsWith(plaats.toLowerCase());
