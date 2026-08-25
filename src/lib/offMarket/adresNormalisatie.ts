@@ -59,9 +59,11 @@ const PLAATS_UITZONDERINGEN: Record<string, string> = {
 
 const BESCHRIJVINGS_PATROON = /\b(?:splits(?:en|ing)|gebouw|appartementsrecht(?:en)?|omzetten|omzetting|woning(?:en)?|kamer(?:s)?|realiseren|wijzigen|verbouwen|adres)\b/i;
 const STRAAT_SUFFIX = '(?:straat|weg|laan|gracht|kade|plein|singel|dijk|hof|pad|steeg|boulevard|plantsoen|markt|wal|baan|park|allee|avenue|erf)';
-const HUISNUMMER = '\\d{1,5}[A-Za-z]?(?:[-/]?[A-Za-z0-9]+)?';
-const ADRES_IN_TEKST_RE = new RegExp(
-  `\\b([A-ZÀ-Ýa-zà-ÿ'’.-]+(?:\\s+[A-ZÀ-Ýa-zà-ÿ'’.-]+){0,5}${STRAAT_SUFFIX}\\s+${HUISNUMMER}(?:(?:\\s*,\\s*|\\s+en\\s+)${HUISNUMMER})*)\\b`,
+// Een toevoeging krijgt alleen een extra deel wanneer er daadwerkelijk een - of / staat.
+// Zo blijft "487, 489, 491" een reeks huisnummers en wordt 489 niet opgeslokt als toevoeging van 487.
+const HUISNUMMER = '\\d{1,5}[A-Za-z]?(?:[-/][A-Za-z0-9]+)?';
+const ADRES_VANAF_BEGIN_RE = new RegExp(
+  `^(.+?${STRAAT_SUFFIX})\\s+(${HUISNUMMER}(?:(?:\\s*,\\s*|\\s+en\\s+)${HUISNUMMER})*)`,
   'i',
 );
 
@@ -106,17 +108,52 @@ function basicCleanAdres(raw: string | null | undefined): string {
 }
 
 /**
- * Maak een adresveld schoon. Als een vervuild adresveld nog een volledige
- * vergunningsomschrijving bevat, haal daar eerst het herleidbare straatadres uit.
+ * Knip een expliciete omschrijvingsprefix weg. We nemen bewust de laatste
+ * "(op) adres"-marker, zodat tekst vóór de werkelijke straatnaam nooit onderdeel
+ * van het gevonden adres kan worden.
+ */
+function vanafExplicieteAdresMarker(s: string): string {
+  const marker = /\b(?:op\s+adres|adres)\s+/gi;
+  let laatsteEinde = -1;
+  let match: RegExpExecArray | null;
+  while ((match = marker.exec(s)) !== null) laatsteEinde = marker.lastIndex;
+  return laatsteEinde >= 0 ? s.slice(laatsteEinde).trim() : s;
+}
+
+function extractAdresUitSchoneTekst(schoon: string): string {
+  if (!schoon) return '';
+
+  // Bron-/titeltekst kan na het adres nog postcode en plaats bevatten. Die hoeven
+  // niet in de hoofdnaam van het object terecht te komen.
+  const kandidaat = vanafExplicieteAdresMarker(schoon)
+    .replace(/\s+\d{4}\s?[A-Z]{2}\b.*$/i, '')
+    .trim();
+
+  const streetMatch = kandidaat.match(ADRES_VANAF_BEGIN_RE);
+  if (streetMatch?.[1] && streetMatch?.[2]) {
+    return `${streetMatch[1].trim()} ${streetMatch[2].replace(/\s+/g, ' ').trim()}`;
+  }
+
+  // Korte adressen zonder klassiek straat-suffix (bv. Dam 1 / Rokin 50).
+  if (!BESCHRIJVINGS_PATROON.test(kandidaat)
+      && kandidaat.split(/\s+/).length <= 6
+      && new RegExp(`\\b${HUISNUMMER}\\b`, 'i').test(kandidaat)) {
+    return kandidaat;
+  }
+
+  return '';
+}
+
+/**
+ * Maak een adresveld schoon. Een reeds correct adres blijft exact behouden;
+ * alleen bij duidelijke vergunning-/omschrijvingstekst proberen we een straatadres
+ * uit die tekst te isoleren.
  */
 export function cleanAdres(raw: string | null | undefined): string {
   const schoon = basicCleanAdres(raw);
   if (!schoon) return '';
-  const match = schoon.match(ADRES_IN_TEKST_RE);
-  if (match?.[1] && BESCHRIJVINGS_PATROON.test(schoon)) {
-    return match[1].replace(/\s+/g, ' ').trim();
-  }
-  return schoon;
+  if (!BESCHRIJVINGS_PATROON.test(schoon)) return schoon;
+  return extractAdresUitSchoneTekst(schoon) || schoon;
 }
 
 interface SignaalAdresInput {
@@ -128,33 +165,26 @@ interface SignaalAdresInput {
 
 function extractAdresUitTekst(raw: string | null | undefined): string {
   const schoon = basicCleanAdres(raw);
-  if (!schoon) return '';
-
-  const suffixMatch = schoon.match(ADRES_IN_TEKST_RE);
-  if (suffixMatch?.[1]) return suffixMatch[1].replace(/\s+/g, ' ').trim();
-
-  if (!BESCHRIJVINGS_PATROON.test(schoon)
-      && schoon.split(/\s+/).length <= 6
-      && /\b\d{1,5}[A-Za-z]?(?:[-/]?[A-Za-z0-9]+)?\b/.test(schoon)) {
-    return schoon;
-  }
-
-  return '';
+  return extractAdresUitSchoneTekst(schoon);
 }
 
 /**
  * Kies het meest betrouwbare display-adres uit de beschikbare signaalvelden.
- * Een vervuild `adres`-veld met vergunningomschrijving krijgt geen voorrang
- * boven een herleidbaar straat+huisnummer uit `titel`.
+ * Een reeds correct `adres` blijft leidend. Alleen wanneer dat veld duidelijk
+ * een vergunningomschrijving is, proberen we eerst een bruikbaar adres uit de
+ * titel en daarna uit het vervuilde adresveld te halen.
  */
 export function resolveSignaalAdres(signaal: SignaalAdresInput): string {
   const directRuw = basicCleanAdres(signaal.adres);
-  const directExtract = extractAdresUitTekst(signaal.adres);
-  const titelExtract = extractAdresUitTekst(signaal.titel);
 
-  if (directExtract && !BESCHRIJVINGS_PATROON.test(directRuw)) return directExtract;
+  if (directRuw && !BESCHRIJVINGS_PATROON.test(directRuw)) return directRuw;
+
+  const titelExtract = extractAdresUitTekst(signaal.titel);
   if (titelExtract) return titelExtract;
+
+  const directExtract = extractAdresUitTekst(signaal.adres);
   if (directExtract) return directExtract;
+
   return directRuw;
 }
 
