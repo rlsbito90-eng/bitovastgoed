@@ -27,8 +27,6 @@ const PLAATS_NOISE_WOORDEN = [
   'verleend', 'verleende', 'ingetrokken', 'geweigerd', 'geweigerde',
 ];
 
-/** Nette schrijfwijze van veel voorkomende NL plaatsnamen (uitzonderingen
- *  op simpele Title Case). Key is lowercase. */
 const PLAATS_UITZONDERINGEN: Record<string, string> = {
   'amsterdam': 'Amsterdam',
   'rotterdam': 'Rotterdam',
@@ -59,11 +57,11 @@ const PLAATS_UITZONDERINGEN: Record<string, string> = {
 
 const BESCHRIJVINGS_PATROON = /\b(?:splits(?:en|ing)|gebouw|appartementsrecht(?:en)?|omzetten|omzetting|woning(?:en)?|kamer(?:s)?|realiseren|wijzigen|verbouwen|adres)\b/i;
 const STRAAT_SUFFIX = '(?:straat|weg|laan|gracht|kade|plein|singel|dijk|hof|pad|steeg|boulevard|plantsoen|markt|wal|baan|park|allee|avenue|erf)';
-// Een toevoeging krijgt alleen een extra deel wanneer er daadwerkelijk een - of / staat.
-// Zo blijft "487, 489, 491" een reeks huisnummers en wordt 489 niet opgeslokt als toevoeging van 487.
 const HUISNUMMER = '\\d{1,5}[A-Za-z]?(?:[-/][A-Za-z0-9]+)?';
+// schoonAdresTekst normaliseert komma's naar spaties. Daarom ondersteunen we hier
+// zowel "487, 489" uit ruwe bronlogica als de genormaliseerde vorm "487 489".
 const ADRES_VANAF_BEGIN_RE = new RegExp(
-  `^(.+?${STRAAT_SUFFIX})\\s+(${HUISNUMMER}(?:(?:\\s*,\\s*|\\s+en\\s+)${HUISNUMMER})*)`,
+  `^(.+?${STRAAT_SUFFIX})\\s+(${HUISNUMMER}(?:(?:\\s*,\\s*|\\s+en\\s+|\\s+)${HUISNUMMER})*)`,
   'i',
 );
 
@@ -107,11 +105,6 @@ function basicCleanAdres(raw: string | null | undefined): string {
   return schoon.replace(/[\s,;:.\-]+$/g, '').trim();
 }
 
-/**
- * Knip een expliciete omschrijvingsprefix weg. We nemen bewust de laatste
- * "(op) adres"-marker, zodat tekst vóór de werkelijke straatnaam nooit onderdeel
- * van het gevonden adres kan worden.
- */
 function vanafExplicieteAdresMarker(s: string): string {
   const marker = /\b(?:op\s+adres|adres)\s+/gi;
   let laatsteEinde = -1;
@@ -123,18 +116,21 @@ function vanafExplicieteAdresMarker(s: string): string {
 function extractAdresUitSchoneTekst(schoon: string): string {
   if (!schoon) return '';
 
-  // Bron-/titeltekst kan na het adres nog postcode en plaats bevatten. Die hoeven
-  // niet in de hoofdnaam van het object terecht te komen.
   const kandidaat = vanafExplicieteAdresMarker(schoon)
     .replace(/\s+\d{4}\s?[A-Z]{2}\b.*$/i, '')
     .trim();
 
   const streetMatch = kandidaat.match(ADRES_VANAF_BEGIN_RE);
   if (streetMatch?.[1] && streetMatch?.[2]) {
-    return `${streetMatch[1].trim()} ${streetMatch[2].replace(/\s+/g, ' ').trim()}`;
+    // Reeksen worden voor display teruggebracht naar een leesbare kommavorm.
+    const nummers = streetMatch[2]
+      .replace(/\s+en\s+/gi, ' ')
+      .replace(/\s*,\s*/g, ' ')
+      .trim()
+      .split(/\s+/);
+    return `${streetMatch[1].trim()} ${nummers.join(', ')}`;
   }
 
-  // Korte adressen zonder klassiek straat-suffix (bv. Dam 1 / Rokin 50).
   if (!BESCHRIJVINGS_PATROON.test(kandidaat)
       && kandidaat.split(/\s+/).length <= 6
       && new RegExp(`\\b${HUISNUMMER}\\b`, 'i').test(kandidaat)) {
@@ -144,11 +140,6 @@ function extractAdresUitSchoneTekst(schoon: string): string {
   return '';
 }
 
-/**
- * Maak een adresveld schoon. Een reeds correct adres blijft exact behouden;
- * alleen bij duidelijke vergunning-/omschrijvingstekst proberen we een straatadres
- * uit die tekst te isoleren.
- */
 export function cleanAdres(raw: string | null | undefined): string {
   const schoon = basicCleanAdres(raw);
   if (!schoon) return '';
@@ -168,15 +159,8 @@ function extractAdresUitTekst(raw: string | null | undefined): string {
   return extractAdresUitSchoneTekst(schoon);
 }
 
-/**
- * Kies het meest betrouwbare display-adres uit de beschikbare signaalvelden.
- * Een reeds correct `adres` blijft leidend. Alleen wanneer dat veld duidelijk
- * een vergunningomschrijving is, proberen we eerst een bruikbaar adres uit de
- * titel en daarna uit het vervuilde adresveld te halen.
- */
 export function resolveSignaalAdres(signaal: SignaalAdresInput): string {
   const directRuw = basicCleanAdres(signaal.adres);
-
   if (directRuw && !BESCHRIJVINGS_PATROON.test(directRuw)) return directRuw;
 
   const titelExtract = extractAdresUitTekst(signaal.titel);
