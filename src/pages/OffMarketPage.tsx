@@ -22,6 +22,7 @@ import {
   scrollElementIntoListView,
 } from '@/lib/listNavigation';
 import { compareRelevantie, relevantieBucket } from '@/lib/offMarket/relevantie';
+import { amsterdamRingLigging, isBinnenAmsterdamRing, type AmsterdamRingLigging } from '@/lib/offMarket/amsterdamRing';
 import OffMarketKaart from '@/components/offmarket/kaart/OffMarketKaart';
 import { matchBucket, DATUMBUCKET_LABEL, type DatumBucket } from '@/lib/offMarket/kaart/datumbucket';
 import {
@@ -33,6 +34,7 @@ import {
 } from '@/lib/offMarket/types';
 
 type Tab = 'dashboard' | 'signalen' | 'kaart' | 'acquisitieselectie';
+type RingFilter = Extract<AmsterdamRingLigging, 'binnen_ring' | 'buiten_ring' | 'onbekend'> | '';
 
 const selectCls = 'h-9 rounded-md border border-input bg-background px-2 text-sm';
 
@@ -43,6 +45,7 @@ export default function OffMarketPage() {
     () => signalen.filter((signaal) => signaal.status === 'nieuw_signaal').length,
     [signalen],
   );
+  const binnenRingCount = useMemo(() => signalen.filter(isBinnenAmsterdamRing).length, [signalen]);
 
   const [tab, setTabState] = useState<Tab>(() => {
     try {
@@ -83,6 +86,7 @@ export default function OffMarketPage() {
   const [geoGemeenteFilter, setGeoGemeenteFilter] = useStored<string>('geo_gemeente', '');
   const [geoWijkFilter, setGeoWijkFilter] = useStored<string>('geo_wijk', '');
   const [geoBuurtFilter, setGeoBuurtFilter] = useStored<string>('geo_buurt', '');
+  const [ringFilter, setRingFilter] = useStored<RingFilter>('ring', '');
   const [bucketFilter, setBucketFilterRaw] = useState<number | null>(() => {
     try {
       const v = sessionStorage.getItem('off-market-filter:bucket');
@@ -134,6 +138,7 @@ export default function OffMarketPage() {
       if (geoGemeenteFilter && a.geo_gemeente_naam !== geoGemeenteFilter) return false;
       if (geoWijkFilter && a.geo_wijk_naam !== geoWijkFilter) return false;
       if (geoBuurtFilter && a.geo_buurt_naam !== geoBuurtFilter) return false;
+      if (ringFilter && amsterdamRingLigging(s) !== ringFilter) return false;
       if (regioFilter) {
         const blob = `${s.provincie ?? ''} ${s.regio ?? ''}`.toLowerCase();
         if (!blob.includes(regioFilter.toLowerCase())) return false;
@@ -144,7 +149,7 @@ export default function OffMarketPage() {
       }
       return true;
     });
-  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, geoGemeenteFilter, geoWijkFilter, geoBuurtFilter]);
+  }, [signalen, zoek, statusFilter, prioFilter, assetFilter, regioFilter, bronFilter, aiStatusFilter, geoGemeenteFilter, geoWijkFilter, geoBuurtFilter, ringFilter]);
 
   const nieuwePreBucket = useMemo(
     () => preBucket.filter((signaal) => signaal.status === 'nieuw_signaal'),
@@ -235,6 +240,10 @@ export default function OffMarketPage() {
   if (geoGemeenteFilter) activeFilters.push({ key: 'geo_g', label: `Gemeente: ${geoGemeenteFilter}`, clear: () => { setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter(''); } });
   if (geoWijkFilter) activeFilters.push({ key: 'geo_w', label: `Wijk: ${geoWijkFilter}`, clear: () => { setGeoWijkFilter(''); setGeoBuurtFilter(''); } });
   if (geoBuurtFilter) activeFilters.push({ key: 'geo_b', label: `Buurt: ${geoBuurtFilter}`, clear: () => setGeoBuurtFilter('') });
+  if (ringFilter) {
+    const label = ringFilter === 'binnen_ring' ? 'Binnen ring' : ringFilter === 'buiten_ring' ? 'Buiten ring' : 'Ringligging onbekend';
+    activeFilters.push({ key: 'ring', label: `Ligging: ${label}`, clear: () => setRingFilter('') });
+  }
   if (bucketFilter !== null) {
     const found = bucketTellingen.find(b => b.rang === bucketFilter);
     if (found) activeFilters.push({ key: 'bucket', label: `Type: ${found.label}`, clear: () => setBucketFilter(null) });
@@ -242,7 +251,12 @@ export default function OffMarketPage() {
   const wisAlleFilters = () => {
     setZoek(''); setStatusFilter(''); setPrioFilter(''); setAssetFilter('');
     setRegioFilter(''); setBronFilter(''); setAiStatusFilter(''); setBucketFilter(null);
-    setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter('');
+    setGeoGemeenteFilter(''); setGeoWijkFilter(''); setGeoBuurtFilter(''); setRingFilter('');
+  };
+
+  const openBinnenRing = () => {
+    setRingFilter('binnen_ring');
+    setTab('signalen');
   };
 
   return (
@@ -267,7 +281,7 @@ export default function OffMarketPage() {
 
       {tab === 'dashboard' && (
         <section className="space-y-4">
-          <OffMarketKpi />
+          <OffMarketKpi binnenRingCount={binnenRingCount} onBinnenRingClick={openBinnenRing} />
           {signalen.length === 0 && (
             <div className="rounded-lg border border-border/70 bg-card px-5 py-10 text-center">
               <p className="text-sm text-muted-foreground">
@@ -325,6 +339,12 @@ export default function OffMarketPage() {
               disabled={geoOpties.buurten.length === 0}>
               <option value="">Alle buurten</option>
               {geoOpties.buurten.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select className={selectCls} value={ringFilter} onChange={e => setRingFilter(e.target.value as RingFilter)}>
+              <option value="">Alle liggingen</option>
+              <option value="binnen_ring">Binnen ring</option>
+              <option value="buiten_ring">Buiten ring</option>
+              <option value="onbekend">Onbekend</option>
             </select>
             {tab === 'signalen' && (
               <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end">
