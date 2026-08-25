@@ -1,6 +1,6 @@
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 
-export type AmsterdamRingLigging = 'binnen_ring' | 'buiten_ring' | 'onbekend';
+export type AmsterdamRingLigging = 'binnen_ring' | 'buiten_ring' | 'onbekend' | 'niet_amsterdam';
 
 /**
  * Praktische acquisitie-afbakening voor "Amsterdam binnen de ring":
@@ -54,9 +54,11 @@ function isAmsterdam(signaal: OffMarketSignaal): boolean {
 }
 
 export function amsterdamRingLigging(signaal: OffMarketSignaal): AmsterdamRingLigging {
-  if (!isAmsterdam(signaal)) return 'buiten_ring';
+  if (!isAmsterdam(signaal)) return 'niet_amsterdam';
 
   const s = signaal as any;
+  if (s.lat == null || s.lng == null || s.lat === '' || s.lng === '') return 'onbekend';
+
   const lat = Number(s.lat);
   const lng = Number(s.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return 'onbekend';
@@ -72,4 +74,5 @@ export const AMSTERDAM_RING_LABEL: Record<AmsterdamRingLigging, string> = {
   binnen_ring: 'Binnen ring',
   buiten_ring: 'Buiten ring',
   onbekend: 'Onbekend',
+  niet_amsterdam: 'Niet Amsterdam',
 };

@@ -11,6 +11,7 @@ import {
   type OffMarketEigenaarstatus,
 } from '@/lib/offMarket/types';
 import { relevantieBucket } from '@/lib/offMarket/relevantie';
+import { isBinnenAmsterdamRing } from '@/lib/offMarket/amsterdamRing';
 import { cleanPlaats, cleanAdres, formatSignaalAdres } from '@/lib/offMarket/adresNormalisatie';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getListScrollY, saveListLastViewed } from '@/lib/listNavigation';
@@ -117,6 +118,14 @@ function brondatumOfCreated(s: OffMarketSignaal): string | null {
   return s.bron_datum ?? s.created_at ?? null;
 }
 
+function BinnenRingBadge() {
+  return (
+    <span className="inline-flex w-fit px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/35 bg-accent/10 text-accent whitespace-nowrap">
+      Binnen ring
+    </span>
+  );
+}
+
 /** Centrale kolomconfiguratie — basis voor toekomstige kolomkiezer (D.1.6). */
 export interface SignalenKolomCtx {
   relatieNaam: (id: string | null) => string | null;
@@ -160,9 +169,10 @@ export const SIGNALEN_KOLOMMEN: SignalenKolom[] = [
         ? [a.geo_gemeente_naam, a.geo_buurt_naam ?? a.geo_wijk_naam].filter(Boolean).join(' · ')
         : null;
       return (
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-0.5">
           <p className="text-sm text-foreground truncate">{cleanAdres(s.adres) || '—'}</p>
           {gebied && <p className="text-[11px] text-muted-foreground truncate">{gebied}</p>}
+          {isBinnenAmsterdamRing(s) && <BinnenRingBadge />}
         </div>
       );
     },
@@ -378,7 +388,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
     return (
       <div className="px-5 py-12 text-center">
         <p className="text-sm text-muted-foreground">
-          Nog geen off-market signalen. Voeg later handmatig signalen toe of activeer een bron.
+          Geen signalen binnen de huidige filters.
         </p>
       </div>
     );
@@ -553,6 +563,7 @@ export default function SignalenTable({ signalen, laden, zichtbareKolommen, high
                         {vergunningLabel(s)}
                       </span>
                       {selectieIds.has(s.id) && <InSelectieBadge />}
+                      {isBinnenAmsterdamRing(s) && <BinnenRingBadge />}
                       {isHighlighted && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded border border-accent/40 bg-accent/15 text-accent">
                           <Eye className="h-3 w-3" /> Laatst bekeken
