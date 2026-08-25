@@ -5,6 +5,7 @@ import {
   formatSignaalAdres,
   formatSignaalTitel,
   normalizeImportedAddressFields,
+  resolveSignaalAdres,
 } from '@/lib/offMarket/adresNormalisatie';
 
 describe('cleanPlaats', () => {
@@ -45,8 +46,31 @@ describe('cleanAdres', () => {
   it('trimt trailing leestekens', () => {
     expect(cleanAdres('Voorbeeldstraat 12,')).toBe('Voorbeeldstraat 12');
   });
+  it('haalt straatadres uit een vervuilde vergunningomschrijving', () => {
+    expect(cleanAdres('splitsen van het gebouw in 2 appartementsrechten op adres Admiraal De Ruijterweg 487'))
+      .toBe('Admiraal De Ruijterweg 487');
+  });
   it('lege input → lege string', () => {
     expect(cleanAdres(null)).toBe('');
+  });
+});
+
+describe('resolveSignaalAdres', () => {
+  it('verkiest herleidbaar adres uit titel boven vervuild adresveld', () => {
+    expect(resolveSignaalAdres({
+      adres: 'splitsen van het gebouw in 2 appartementsrechten',
+      titel: 'Aanvraag splitsingsvergunning Admiraal De Ruijterweg 487, 489, 491, 493',
+      plaats: 'Amsterdam',
+    })).toBe('Admiraal De Ruijterweg 487, 489, 491, 493');
+  });
+
+  it('behoudt een normaal compact adres', () => {
+    expect(resolveSignaalAdres({ adres: 'Amundsenweg 22-1', titel: 'Omzettingsvergunning' }))
+      .toBe('Amundsenweg 22-1');
+  });
+
+  it('ondersteunt korte straatnamen zonder suffix', () => {
+    expect(resolveSignaalAdres({ adres: 'Dam 1' })).toBe('Dam 1');
   });
 });
 

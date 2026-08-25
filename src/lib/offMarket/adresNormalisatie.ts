@@ -27,8 +27,6 @@ const PLAATS_NOISE_WOORDEN = [
   'verleend', 'verleende', 'ingetrokken', 'geweigerd', 'geweigerde',
 ];
 
-/** Nette schrijfwijze van veel voorkomende NL plaatsnamen (uitzonderingen
- *  op simpele Title Case). Key is lowercase. */
 const PLAATS_UITZONDERINGEN: Record<string, string> = {
   'amsterdam': 'Amsterdam',
   'rotterdam': 'Rotterdam',
@@ -57,9 +55,18 @@ const PLAATS_UITZONDERINGEN: Record<string, string> = {
   'dordrecht': 'Dordrecht',
 };
 
+const BESCHRIJVINGS_PATROON = /\b(?:splits(?:en|ing)|gebouw|appartementsrecht(?:en)?|omzetten|omzetting|woning(?:en)?|kamer(?:s)?|realiseren|wijzigen|verbouwen|adres)\b/i;
+const STRAAT_SUFFIX = '(?:straat|weg|laan|gracht|kade|plein|singel|dijk|hof|pad|steeg|boulevard|plantsoen|markt|wal|baan|park|allee|avenue|erf)';
+const HUISNUMMER = '\\d{1,5}[A-Za-z]?(?:[-/][A-Za-z0-9]+)?';
+// schoonAdresTekst normaliseert komma's naar spaties. Daarom ondersteunen we hier
+// zowel "487, 489" uit ruwe bronlogica als de genormaliseerde vorm "487 489".
+const ADRES_VANAF_BEGIN_RE = new RegExp(
+  `^(.+?${STRAAT_SUFFIX})\\s+(${HUISNUMMER}(?:(?:\\s*,\\s*|\\s+en\\s+|\\s+)${HUISNUMMER})*)`,
+  'i',
+);
+
 function titleCaseToken(token: string): string {
   if (!token) return token;
-  // Houd reeds gemengd geschreven tokens (bv. McDonald) intact, behalve full-upper of full-lower.
   const isAllUpper = token === token.toUpperCase();
   const isAllLower = token === token.toLowerCase();
   if (!isAllUpper && !isAllLower) return token;
@@ -73,16 +80,11 @@ function titleCasePlaats(s: string): string {
     .join('');
 }
 
-/**
- * Maak een plaatsveld schoon: strip vergunnings-/bekendmakingsruis en
- * normaliseer hoofdletters. Lege/ongeldige input → lege string.
- */
 export function cleanPlaats(raw: string | null | undefined): string {
   if (!raw) return '';
   let t = String(raw).replace(/\s+/g, ' ').trim();
   if (!t) return '';
 
-  // Splits op tokens en filter noise-woorden eruit (case-insensitive).
   const tokens = t.split(' ');
   const filtered = tokens.filter(tok => {
     const low = tok.toLowerCase().replace(/[.,;:]+$/g, '');
@@ -94,19 +96,55 @@ export function cleanPlaats(raw: string | null | undefined): string {
   t = filtered.join(' ').replace(/\s+/g, ' ').trim();
   const low = t.toLowerCase();
   if (PLAATS_UITZONDERINGEN[low]) return PLAATS_UITZONDERINGEN[low];
-
-  // Probeer ook prefix-match (bv. "amsterdam zuid" → "Amsterdam Zuid")
   return titleCasePlaats(t);
 }
 
-/**
- * Maak een adresveld schoon. Hergebruikt de bestaande noise-filter uit
- * `onderzoeksAdres.ts` en trimt trailing leestekens.
- */
-export function cleanAdres(raw: string | null | undefined): string {
+function basicCleanAdres(raw: string | null | undefined): string {
   if (!raw) return '';
   const schoon = schoonAdresTekst(raw);
   return schoon.replace(/[\s,;:.\-]+$/g, '').trim();
+}
+
+function vanafExplicieteAdresMarker(s: string): string {
+  const marker = /\b(?:op\s+adres|adres)\s+/gi;
+  let laatsteEinde = -1;
+  let match: RegExpExecArray | null;
+  while ((match = marker.exec(s)) !== null) laatsteEinde = marker.lastIndex;
+  return laatsteEinde >= 0 ? s.slice(laatsteEinde).trim() : s;
+}
+
+function extractAdresUitSchoneTekst(schoon: string): string {
+  if (!schoon) return '';
+
+  const kandidaat = vanafExplicieteAdresMarker(schoon)
+    .replace(/\s+\d{4}\s?[A-Z]{2}\b.*$/i, '')
+    .trim();
+
+  const streetMatch = kandidaat.match(ADRES_VANAF_BEGIN_RE);
+  if (streetMatch?.[1] && streetMatch?.[2]) {
+    // Reeksen worden voor display teruggebracht naar een leesbare kommavorm.
+    const nummers = streetMatch[2]
+      .replace(/\s+en\s+/gi, ' ')
+      .replace(/\s*,\s*/g, ' ')
+      .trim()
+      .split(/\s+/);
+    return `${streetMatch[1].trim()} ${nummers.join(', ')}`;
+  }
+
+  if (!BESCHRIJVINGS_PATROON.test(kandidaat)
+      && kandidaat.split(/\s+/).length <= 6
+      && new RegExp(`\\b${HUISNUMMER}\\b`, 'i').test(kandidaat)) {
+    return kandidaat;
+  }
+
+  return '';
+}
+
+export function cleanAdres(raw: string | null | undefined): string {
+  const schoon = basicCleanAdres(raw);
+  if (!schoon) return '';
+  if (!BESCHRIJVINGS_PATROON.test(schoon)) return schoon;
+  return extractAdresUitSchoneTekst(schoon) || schoon;
 }
 
 interface SignaalAdresInput {
@@ -116,16 +154,28 @@ interface SignaalAdresInput {
   titel?: string | null;
 }
 
-/**
- * Display-string voor adres + plaats. Voorbeeld: "Voorbeeldstraat 12 · Amsterdam".
- * - Ontdubbelt als de plaats al in het adres voorkomt.
- * - Toont geen losse separator wanneer een veld ontbreekt.
- */
+function extractAdresUitTekst(raw: string | null | undefined): string {
+  const schoon = basicCleanAdres(raw);
+  return extractAdresUitSchoneTekst(schoon);
+}
+
+export function resolveSignaalAdres(signaal: SignaalAdresInput): string {
+  const directRuw = basicCleanAdres(signaal.adres);
+  if (directRuw && !BESCHRIJVINGS_PATROON.test(directRuw)) return directRuw;
+
+  const titelExtract = extractAdresUitTekst(signaal.titel);
+  if (titelExtract) return titelExtract;
+
+  const directExtract = extractAdresUitTekst(signaal.adres);
+  if (directExtract) return directExtract;
+
+  return directRuw;
+}
+
 export function formatSignaalAdres(signaal: SignaalAdresInput): string {
-  const adres = cleanAdres(signaal.adres ?? '');
+  const adres = resolveSignaalAdres(signaal);
   const plaats = cleanPlaats(signaal.plaats ?? '');
-  const adresHeeftPlaats =
-    !!plaats && adres.toLowerCase().endsWith(plaats.toLowerCase());
+  const adresHeeftPlaats = !!plaats && adres.toLowerCase().endsWith(plaats.toLowerCase());
 
   if (adres && plaats && !adresHeeftPlaats) return `${adres} · ${plaats}`;
   if (adres) return adres;
@@ -133,15 +183,10 @@ export function formatSignaalAdres(signaal: SignaalAdresInput): string {
   return '';
 }
 
-/**
- * Titel-display: gebruikt `signaal.titel` indien aanwezig, strip alleen
- * leidende/afsluitende vergunningsruis. Valt anders terug op het schone adres.
- */
 export function formatSignaalTitel(signaal: SignaalAdresInput): string {
   const ruweTitel = (signaal.titel ?? '').replace(/\s+/g, ' ').trim();
   if (ruweTitel) {
     let t = ruweTitel;
-    // Verwijder vergunnings-/bekendmakingswoorden enkel aan begin of einde.
     const noise = `(?:${PLAATS_NOISE_WOORDEN.join('|')})`;
     const startRe = new RegExp(`^(?:${noise}\\b[\\s,:.-]*)+`, 'i');
     const endRe = new RegExp(`(?:[\\s,:.-]*\\b${noise})+$`, 'i');
@@ -152,10 +197,6 @@ export function formatSignaalTitel(signaal: SignaalAdresInput): string {
   return fallback || (ruweTitel || '');
 }
 
-/**
- * Voor importpad: maak {adres, postcode, plaats} schoon vóór persistentie.
- * Niet-destructief: lege strings blijven leeg (caller bepaalt fallback).
- */
 export function normalizeImportedAddressFields(input: {
   adres?: string | null;
   postcode?: string | null;
