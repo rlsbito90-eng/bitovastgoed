@@ -16,6 +16,10 @@ const batchWerkbakBron = readFileSync(
   resolve(process.cwd(), 'src/components/offmarket/acquisitie/ProductiekernPrintbatchWerkbak.tsx'),
   'utf8',
 );
+const werkbakChipsBron = readFileSync(
+  resolve(process.cwd(), 'src/components/offmarket/acquisitie/AcquisitieWerkbakChips.tsx'),
+  'utf8',
+);
 const vernieuwBron = readFileSync(
   resolve(process.cwd(), 'src/components/offmarket/acquisitie/ProductiekernBatchDocumentversieVernieuwen.tsx'),
   'utf8',
@@ -69,6 +73,7 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(selectieBron).toContain('pandenverkenner: pandenverkennerBinnenContext.length');
     expect(selectieBron).toContain('Binnen {contextLabel}');
     expect(selectieBron).toContain('totaal in Acquisitieselectie');
+    expect(werkbakChipsBron).toContain("id === 'alles' ? 'Alle dossiers'");
   });
 
   it('biedt bij een nog niet geprinte BAT een expliciete append-only kleurupgrade', () => {
