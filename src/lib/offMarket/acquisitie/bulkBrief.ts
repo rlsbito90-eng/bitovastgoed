@@ -17,9 +17,11 @@
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import {
-  bouwBriefPrefill, buildBriefViewModel,
+  bepaalAanhef, bouwBriefPrefill, buildBriefViewModel,
   type BriefViewModel,
 } from '@/lib/offMarket/brief';
+import { bepaalCopyProfiel, kiesCopyVariant } from '@/lib/acquisitie/copyExperimenten';
+import { bouwPostVariantTemplate } from '@/lib/acquisitie/postCopyVarianten';
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { isVolledigPostadres } from '@/lib/offMarket/acquisitie/readiness';
 import { canoniekeRechthebbenden } from '@/lib/offMarket/acquisitie/readinessRechthebbenden';
@@ -425,22 +427,61 @@ export function inserPayloadVoorPlanItem(args: {
   signaal: OffMarketSignaal;
   plan: PlanItem;
 }) {
-  const vm = viewModelVoorPlanItem(args);
+  return standaardtekstPayloadVoorPlanItem(args);
+}
+
+/**
+ * Payload voor een nieuw concept of een expliciet aangevraagde bulkvernieuwing.
+ * Adressering en objectomschrijving van een bestaand concept blijven intact;
+ * alleen onderwerp/brieftekst worden opnieuw uit de actuele vastgelegde
+ * copyvariant opgebouwd.
+ */
+export function standaardtekstPayloadVoorPlanItem(args: {
+  signaal: OffMarketSignaal;
+  plan: PlanItem;
+}) {
   const prefill = bouwBriefPrefill(args.signaal, [], []);
+  const kandidaat = args.plan.kandidaat;
+  const bestaande = args.plan.bestaandeBrief;
+  const eigenaarNaam = bestaande?.eigenaar_naam
+    ? naarVoorlettersAchternaam(bestaande.eigenaar_naam)
+    : kandidaat.naam;
+  const aanhef = bestaande?.aanhef?.trim() || bepaalAanhef(eigenaarNaam || null);
+  const objectomschrijving = bestaande?.objectomschrijving?.trim() || prefill.objectomschrijving;
+  const berekendeToewijzing = kiesCopyVariant({
+    profiel: bepaalCopyProfiel({ signaal: args.signaal, kanaal: 'post' }),
+    kanaal: 'post',
+    campagneStap: args.plan.campagneStap,
+    signaalId: args.signaal.id,
+    geadresseerdeKey: args.plan.geadresseerdeKey,
+  });
+  const toewijzing = bestaande?.copy_profiel && bestaande.copy_variant_key && bestaande.copy_variant_code
+    ? {
+        profiel: bestaande.copy_profiel,
+        variantKey: bestaande.copy_variant_key,
+        variantCode: bestaande.copy_variant_code,
+        hypothese: bestaande.copy_hypothese ?? berekendeToewijzing.hypothese,
+      }
+    : berekendeToewijzing;
+  const template = bouwPostVariantTemplate({ toewijzing, aanhef, objectomschrijving });
   return {
     signaal_id: args.signaal.id,
-    eigenaar_naam: vm.geadresseerdeNaam || null,
-    eigenaar_bedrijfsnaam: vm.bedrijfsnaam || null,
-    verzendadres: vm.verzendadres || null,
+    eigenaar_naam: eigenaarNaam || null,
+    eigenaar_bedrijfsnaam: bestaande?.eigenaar_bedrijfsnaam ?? kandidaat.bedrijfsnaam ?? null,
+    verzendadres: bestaande?.verzendadres ?? kandidaat.verzendadres ?? null,
     objectadres: prefill.objectadres || null,
-    objectomschrijving: vm.objectomschrijving || null,
-    aanhef: prefill.aanhef,
-    onderwerp: vm.onderwerp,
-    brieftekst: vm.brieftekst,
+    objectomschrijving: objectomschrijving || null,
+    aanhef,
+    onderwerp: template.onderwerp,
+    brieftekst: template.brieftekst,
     status: 'concept' as const,
     kanaal: 'post' as const,
     campagne_stap: args.plan.campagneStap,
     geadresseerde_key: args.plan.geadresseerdeKey,
     verzendstatus: 'concept' as const,
+    copy_profiel: toewijzing.profiel,
+    copy_variant_key: toewijzing.variantKey,
+    copy_variant_code: toewijzing.variantCode,
+    copy_hypothese: toewijzing.hypothese,
   };
 }
