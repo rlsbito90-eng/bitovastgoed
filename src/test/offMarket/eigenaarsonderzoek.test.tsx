@@ -55,12 +55,27 @@ vi.mock('react-router-dom', () => ({
   Link: ({ children, ...p }: any) => <a {...p}>{children}</a>,
 }));
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
 vi.mock('@/hooks/useOffMarketBrieven', () => ({
   useOffMarketBrievenForSignaal: () => ({ data: [], isLoading: false }),
   useUpsertBrief: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useMarkBriefVerstuurd: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}));
+
+vi.mock('@/hooks/useRadarPartyCampaignContext', () => ({
+  useRadarPartyCampaignContext: () => ({
+    isLoading: false,
+    isError: false,
+    resolveParty: () => ({ eigenaarId: null, matchStatus: 'onbekend', matchReden: null }),
+    route: () => ({
+      outcome: 'nieuwe_campagne_brief_1',
+      geadviseerdeStap: 'brief_1',
+      magAutomatischBriefMaken: true,
+      reden: 'Geen bestaande campagne.',
+    }),
+    briefContext: () => ({ campagneId: null }),
+  }),
 }));
 
 const baseSignaal = {
@@ -147,12 +162,10 @@ describe('SignaalEigenaarsonderzoekSectie — render & acties', () => {
     await waitFor(() => expect(hookMocks.mutateAsync).toHaveBeenCalled());
     const call = hookMocks.mutateAsync.mock.calls[0][0];
     expect(call.patch.eigenaar_telefoon).toBe('0612345678');
-    // Onveranderde velden blijven hun waarde houden
     expect(call.patch.eigenaar_naam).toBe('Jan Janssen');
   });
 
   it('bewerken → wijziging → annuleren stuurt geen update', async () => {
-    // confirm() altijd true zodat dirty-guard discard accepteert
     const origConfirm = window.confirm;
     window.confirm = vi.fn(() => true);
     try {
