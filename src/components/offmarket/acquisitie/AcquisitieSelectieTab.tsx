@@ -872,13 +872,13 @@ export default function AcquisitieSelectieTab() {
 
       <div
         data-testid="acquisitie-bulk-toolbar"
-        className={`section-card flex flex-col items-stretch justify-between gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center ${totaalSelectie > 0 ? 'left-1/2 z-50 w-[calc(100vw-1rem)] max-w-6xl -translate-x-1/2 border-accent/30 bg-background/95 shadow-xl backdrop-blur' : ''}`}
+        className={`section-card flex flex-col items-stretch justify-between gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center ${totaalSelectie > 0 ? 'acquisitie-selection-glass left-1/2 z-50 w-[calc(100vw-1rem)] max-w-6xl -translate-x-1/2' : ''}`}
         style={totaalSelectie > 0 ? {
           position: 'fixed',
           bottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
         } : undefined}
       >
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <div className="acquisitie-selection-summary flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {totaalSelectie === 0 ? (
             <Button type="button" variant="outline" size="sm" onClick={selecteerZichtbareBulk} disabled={totaalZichtbaar === 0} data-testid="acquisitie-bulk-selecteer-zichtbare"><Users className="h-3.5 w-3.5" />Selecteer resultaten ({totaalZichtbaar})</Button>
           ) : (
@@ -887,7 +887,7 @@ export default function AcquisitieSelectieTab() {
           {totaalSelectie > 0 && totaalZichtbaar > totaalSelectie && <Button type="button" variant="ghost" size="sm" onClick={selecteerZichtbareBulk}>Selecteer alle {totaalZichtbaar} resultaten</Button>}
         </div>
         {totaalSelectie > 0 && (
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <div className="acquisitie-selection-actions grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {bulkSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setWizardOpen(true)} data-testid="acquisitie-bulk-brieven-voorbereiden"><Mail className="h-3.5 w-3.5" />Radar-brieven</Button>}
             {bulkSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPdfOpen(true)} data-testid="acquisitie-bulk-gecombineerde-pdf"><FileDown className="h-3.5 w-3.5" />Radar-productie</Button>}
             {bulkVastgoedkansSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPandenverkennerKadasterOpen(true)} data-testid="acquisitie-bulk-kadaster-vastgoedkansen">Bulk Kadaster</Button>}
