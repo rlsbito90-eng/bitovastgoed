@@ -3,12 +3,14 @@ name: Radar party campaign CI
 on:
   pull_request:
     paths:
+      - 'src/components/offmarket/BriefVoorbereidenKnop.tsx'
+      - 'src/components/offmarket/BriefVoorbereidenDialog.tsx'
       - 'src/components/offmarket/acquisitie/**'
       - 'src/hooks/useRadarCampaignMutations.tsx'
       - 'src/hooks/useRadarPartyCampaignContext.tsx'
       - 'src/lib/offMarket/acquisitie/**'
       - 'src/test/offMarket/partyCampaign*.test.ts'
-      - 'src/test/offMarket/duplicateBrief1GuardMigration.test.ts'
+      - 'src/test/offMarket/briefVoorbereidenCampaignGate.test.ts'
       - 'supabase/migrations/*radar_*'
       - '.github/workflows/radar-party-campaign-ci.yml'
   workflow_dispatch:
@@ -30,6 +32,6 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
       - name: Party campaign routing tests
-        run: npx vitest run src/test/offMarket/partyCampaign.test.ts src/test/offMarket/partyCampaignSafety.test.ts src/test/offMarket/duplicateBrief1GuardMigration.test.ts src/test/offMarket/v37/bulkBriefPlan.test.ts
+        run: npx vitest run src/test/offMarket/partyCampaign.test.ts src/test/offMarket/partyCampaignSafety.test.ts src/test/offMarket/briefVoorbereidenCampaignGate.test.ts src/test/offMarket/v37/bulkBriefPlan.test.ts
       - name: Build
         run: npm run build
