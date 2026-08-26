@@ -1,0 +1,35 @@
+name: Apply Radar bundling return template edits
+
+on:
+  push:
+    branches:
+      - fix/radar-bundling-return-template
+    paths:
+      - '.github/scripts/apply-radar-bundling-return-template.py'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-edits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/radar-bundling-return-template
+          fetch-depth: 0
+      - name: Apply exact guarded edits
+        run: python .github/scripts/apply-radar-bundling-return-template.py
+      - name: Validate patch formatting
+        run: git diff --check
+      - name: Commit generated edits
+        run: |
+          if git diff --quiet; then
+            echo 'No generated edits needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx src/components/offmarket/BriefVoorbereidenDialog.tsx
+          git commit -m 'Herstel Radar-selectie en complete standaardtekst'
+          git push origin HEAD:fix/radar-bundling-return-template
