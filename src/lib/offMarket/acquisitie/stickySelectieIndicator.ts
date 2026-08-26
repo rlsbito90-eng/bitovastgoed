@@ -10,7 +10,7 @@ let gebruikers = 0;
 let synchronisatieGepland = false;
 
 export function leesAantalGeselecteerdUitBulkTekst(tekst: string | null | undefined): number {
-  const match = String(tekst ?? '').trim().match(/^(\d+)\s+signalen\b/i);
+  const match = String(tekst ?? '').trim().match(/^(\d+)\s+(?:signalen|geselecteerd)\b/i);
   return match ? Number(match[1]) : 0;
 }
 
@@ -65,7 +65,7 @@ function maakBar(): HTMLDivElement {
   bar.setAttribute('role', 'status');
   bar.setAttribute('aria-live', 'polite');
   bar.className = [
-    'fixed', 'bottom-4', 'left-1/2', 'z-[70]', '-translate-x-1/2',
+    'fixed', 'bottom-[calc(0.5rem+env(safe-area-inset-bottom))]', 'left-1/2', 'z-[70]', '-translate-x-1/2',
     'flex', 'max-w-[calc(100vw-2rem)]', 'items-center', 'gap-3',
     'rounded-2xl', 'border', 'border-white/30', 'dark:border-white/10',
     'bg-background/60', 'px-4', 'py-2.5',

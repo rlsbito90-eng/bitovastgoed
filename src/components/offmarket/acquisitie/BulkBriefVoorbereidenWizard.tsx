@@ -21,7 +21,7 @@ import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import { useUpsertBrief } from '@/hooks/useOffMarketBrieven';
 import {
   bouwBriefPlan, bouwKandidatenVoorSignaal, inserPayloadVoorPlanItem,
-  samenvatPlan, type BulkKandidaat, type PlanItem,
+  bouwCanoniekeRadarSelectieScope, samenvatPlan, type BulkKandidaat, type PlanItem,
 } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   CAMPAGNE_STAP_LABEL, STAP_VOLGORDE, type CampagneStap,
@@ -50,6 +50,10 @@ export default function BulkBriefVoorbereidenWizard({
   open, onClose, signalen, brieven,
 }: Props) {
   const upsert = useUpsertBrief();
+  const canoniekeScope = useMemo(
+    () => bouwCanoniekeRadarSelectieScope(signalen, brieven),
+    [signalen, brieven],
+  );
 
   // ---- Stap 0: alle kandidaten per signaal -----------------------------
   const allKandidaten = useMemo<BulkKandidaat[]>(() => {
@@ -126,12 +130,14 @@ export default function BulkBriefVoorbereidenWizard({
     return m;
   }, [signalen]);
 
-  // Toolbar-telling: signalen, geadresseerden, te maken brieven.
-  const aantalGeselecteerdeSignalen = useMemo(() => {
-    const s = new Set<string>();
-    for (const k of kandidatenInScope) s.add(k.signaalId);
-    return s.size;
-  }, [kandidatenInScope]);
+  // De signaaltelling blijft de expliciete bronselectie. Een signaal zonder
+  // kandidaat blijft dus zichtbaar en wordt hieronder verklaard.
+  const aantalGeselecteerdeSignalen = canoniekeScope.telling.signalen;
+  const signalenZonderGeadresseerde = Math.max(
+    0,
+    canoniekeScope.telling.signalen
+      - new Set(canoniekeScope.kandidaten.map((kandidaat) => kandidaat.signaalId)).size,
+  );
 
   async function bevestigOpslaan() {
     if (bezig) return; // beschermt tegen dubbelklik
@@ -224,7 +230,7 @@ export default function BulkBriefVoorbereidenWizard({
               <section className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-muted-foreground">
-                    {allKandidaten.length} geadresseerden gevonden voor {signalen.length} signaal{signalen.length === 1 ? '' : 'en'}.
+                    {allKandidaten.length} geadresseerden gevonden voor {aantalGeselecteerdeSignalen} signaal{aantalGeselecteerdeSignalen === 1 ? '' : 'en'}.
                   </p>
                   <Button
                     type="button" variant="outline" size="sm"
@@ -234,6 +240,11 @@ export default function BulkBriefVoorbereidenWizard({
                     <Users className="h-3.5 w-3.5" />
                     Selecteer alle geschikte
                   </Button>
+                  {signalenZonderGeadresseerde > 0 && (
+                    <p className="basis-full rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200" data-testid="bulk-signalen-zonder-geadresseerde">
+                      {signalenZonderGeadresseerde} geselecteerd {signalenZonderGeadresseerde === 1 ? 'signaal heeft' : 'signalen hebben'} nog geen bruikbare geadresseerde en blijft daarom zichtbaar als niet gereed.
+                    </p>
+                  )}
                 </div>
                 <ul className="rounded-md border divide-y" data-testid="bulk-kandidaten-lijst">
                   {allKandidaten.map((k) => {

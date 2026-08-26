@@ -360,8 +360,7 @@ export default function AcquisitieSelectieTab() {
   const actieveSortering: SorteerOptie = sorteerKeuze
     ?? standaardSortering(werkbak, subfilter, printPost);
 
-  const gefilterd = useMemo(() => {
-    if (bronFilter === 'pandenverkenner') return [];
+  const radarBinnenContext = useMemo(() => {
     const rijen: SorteerbareRij[] = [];
     for (const { signaal, readiness: r } of readiness.lijst) {
       const ctx = werkbakPerSignaal.get(signaal.id);
@@ -401,10 +400,14 @@ export default function AcquisitieSelectieTab() {
       return item ? { ...item, ctx: r.ctx } : null;
     }).filter((x): x is NonNullable<typeof x> => x !== null);
   }, [readiness.lijst, werkbakPerSignaal, werkbak, subfilter, printPost, actieveSortering,
-    toegevoegdOpPerSignaal, zoek, zoekActief, productieOverzicht.nummersPerSignaal, bronFilter]);
+    toegevoegdOpPerSignaal, zoek, zoekActief, productieOverzicht.nummersPerSignaal]);
 
-  const gefilterdeVastgoedkansen = useMemo(() => {
-    if (bronFilter === 'radar') return [];
+  const gefilterd = useMemo(
+    () => bronFilter === 'pandenverkenner' ? [] : radarBinnenContext,
+    [bronFilter, radarBinnenContext],
+  );
+
+  const pandenverkennerBinnenContext = useMemo(() => {
     const zichtbaar: Array<{ kans: Vastgoedkans; ctx: WerkbakContext; sorteer: SorteerbareRij }> = [];
     for (const kans of geselecteerdeVastgoedkansen) {
       const ctx = werkbakPerVastgoedkans.get(kans.id);
@@ -421,8 +424,13 @@ export default function AcquisitieSelectieTab() {
     const gesorteerd = sorteerRijen(actieveSortering, zoekActief ? 'alles' : werkbak, zichtbaar.map(x => x.sorteer));
     const byId = new Map(zichtbaar.map(x => [x.sorteer.signaalId, x]));
     return gesorteerd.map(r => byId.get(r.signaalId)).filter((x): x is NonNullable<typeof x> => Boolean(x));
-  }, [bronFilter, geselecteerdeVastgoedkansen, werkbakPerVastgoedkans, zoekActief, zoek,
+  }, [geselecteerdeVastgoedkansen, werkbakPerVastgoedkans, zoekActief, zoek,
     werkbak, subfilter, printPost, actieveSortering, toegevoegdOpPerVastgoedkans]);
+
+  const gefilterdeVastgoedkansen = useMemo(
+    () => bronFilter === 'radar' ? [] : pandenverkennerBinnenContext,
+    [bronFilter, pandenverkennerBinnenContext],
+  );
 
   const gecombineerdeVolgorde = useMemo(() => {
     const radarSort: SorteerbareRij[] = gefilterd.map(({ signaal, ctx }) => ({
@@ -681,7 +689,20 @@ export default function AcquisitieSelectieTab() {
   const geselecteerdeSignalenBulk = Array.from(bulkSelectie).map(id => signaalIndex.get(id)).filter((s): s is OffMarketSignaal => !!s);
   const totaalSelectie = bulkSelectie.size + bulkVastgoedkansSelectie.size;
   const totaalZichtbaar = gecombineerdeVolgorde.length;
-  const bronTellingen = { radar: geselecteerdeSignalen.length, pandenverkenner: geselecteerdeVastgoedkansen.length };
+  const bronTellingen = {
+    radar: radarBinnenContext.length,
+    pandenverkenner: pandenverkennerBinnenContext.length,
+  };
+  const contextTotaal = bronTellingen.radar + bronTellingen.pandenverkenner;
+  const contextLabel = zoekActief
+    ? 'zoekresultaten in alle werkbakken'
+    : werkbak === 'actie'
+      ? subfilter === 'alle'
+        ? 'Actie'
+        : subfilter === 'printen_posten'
+          ? `${ACTIE_SUBFILTER_LABEL[subfilter]} · ${PRINT_POST_LABEL[printPost]}`
+          : ACTIE_SUBFILTER_LABEL[subfilter]
+      : WERKBAK_LABEL[werkbak];
   const vkKpis = {
     signalen: geselecteerdeVastgoedkansen.length,
     geadresseerden: geselecteerdeVastgoedkansen.filter(k => Boolean(k.eigenaarNaam || (k.adres && k.postcode && k.plaats))).length,
@@ -812,6 +833,9 @@ export default function AcquisitieSelectieTab() {
           </label>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="acquisitie-bron-context">
+            Binnen {contextLabel}
+          </span>
           <div className="flex flex-wrap items-center gap-1.5" data-testid="acquisitie-bronfilter" role="group" aria-label="Filter acquisitiedossiers op bron">
             {([
               ['alles', `Alles (${bronTellingen.radar + bronTellingen.pandenverkenner})`],
@@ -823,7 +847,7 @@ export default function AcquisitieSelectieTab() {
             ))}
           </div>
           <p className="mr-auto text-[11px] text-muted-foreground">
-            {zoekActief ? `${totaalZichtbaar} resultaat${totaalZichtbaar === 1 ? '' : 'en'} · zoekt in alle werkbakken` : `Doorzoek ${tellingen.werkbak.alles} dossiers in de acquisitieselectie`}
+            {contextTotaal} {contextTotaal === 1 ? 'dossier' : 'dossiers'} in deze context · {geselecteerdeSignalen.length + geselecteerdeVastgoedkansen.length} totaal in Acquisitieselectie
           </p>
           {!zoekActief && werkbak === 'actie' && subfilter === 'printen_posten' && (
             <div className="flex flex-wrap items-center gap-1.5" data-testid="acquisitie-printpost-chips" role="group" aria-label="Printen en posten filteren">
@@ -846,7 +870,14 @@ export default function AcquisitieSelectieTab() {
         </div>
       )}
 
-      <div data-testid="acquisitie-bulk-toolbar" className="section-card flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+      <div
+        data-testid="acquisitie-bulk-toolbar"
+        className={`section-card flex flex-col items-stretch justify-between gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center ${totaalSelectie > 0 ? 'left-1/2 z-50 w-[calc(100vw-1rem)] max-w-6xl -translate-x-1/2 border-accent/30 bg-background/95 shadow-xl backdrop-blur' : ''}`}
+        style={totaalSelectie > 0 ? {
+          position: 'fixed',
+          bottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
+        } : undefined}
+      >
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {totaalSelectie === 0 ? (
             <Button type="button" variant="outline" size="sm" onClick={selecteerZichtbareBulk} disabled={totaalZichtbaar === 0} data-testid="acquisitie-bulk-selecteer-zichtbare"><Users className="h-3.5 w-3.5" />Selecteer resultaten ({totaalZichtbaar})</Button>
@@ -856,7 +887,7 @@ export default function AcquisitieSelectieTab() {
           {totaalSelectie > 0 && totaalZichtbaar > totaalSelectie && <Button type="button" variant="ghost" size="sm" onClick={selecteerZichtbareBulk}>Selecteer alle {totaalZichtbaar} resultaten</Button>}
         </div>
         {totaalSelectie > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {bulkSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setWizardOpen(true)} data-testid="acquisitie-bulk-brieven-voorbereiden"><Mail className="h-3.5 w-3.5" />Radar-brieven</Button>}
             {bulkSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPdfOpen(true)} data-testid="acquisitie-bulk-gecombineerde-pdf"><FileDown className="h-3.5 w-3.5" />Radar-productie</Button>}
             {bulkVastgoedkansSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPandenverkennerKadasterOpen(true)} data-testid="acquisitie-bulk-kadaster-vastgoedkansen">Bulk Kadaster</Button>}
@@ -865,6 +896,7 @@ export default function AcquisitieSelectieTab() {
           </div>
         )}
       </div>
+      {totaalSelectie > 0 && <div aria-hidden="true" className="h-36 sm:h-24" data-testid="acquisitie-bulk-toolbar-ruimte" />}
 
       {((!zoekActief && werkbak === 'actie' && subfilter === 'printen_posten') || (zoekActief && /^(br|bat)[\s-]*\d/i.test(zoekterm.trim()))) && productieOverzicht.actief && bronFilter !== 'pandenverkenner' && (
         <section className="section-card space-y-3 px-3 py-3" data-testid="acquisitie-printbatchbeheer">

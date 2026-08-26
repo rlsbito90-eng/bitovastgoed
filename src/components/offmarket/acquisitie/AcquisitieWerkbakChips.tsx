@@ -45,7 +45,7 @@ export default function AcquisitieWerkbakChips({
                     : 'border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                 }`}
               >
-                <span>{WERKBAK_LABEL[id]}</span>
+                <span>{id === 'alles' ? 'Alle dossiers' : WERKBAK_LABEL[id]}</span>
                 <span className={`rounded px-1.5 py-0.5 font-mono-data text-[10px] leading-none ${
                   actief ? 'bg-accent/15 text-accent' : 'bg-muted text-muted-foreground'
                 }`}>{aantal}</span>
