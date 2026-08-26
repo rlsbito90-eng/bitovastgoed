@@ -53,8 +53,6 @@ async function resolveRealEigenaarId(eigenaarId: string, signaalId: string): Pro
         bron_details: { identity_basis: 'naam_of_bedrijfsnaam_plus_volledig_postadres' },
       }).select('id').single();
       if (insert.error) {
-        // Concurrent/idempotent: een tweede gebruiker kan dezelfde sterke
-        // identiteit net hebben vastgelegd. Lees dan de unieke sleutel terug.
         const retry = await sb.from('eigenaren')
           .select('id')
           .eq('dedupe_sleutel', identityKey)
@@ -68,7 +66,6 @@ async function resolveRealEigenaarId(eigenaarId: string, signaalId: string): Pro
     }
   }
 
-  // Zorg dat deze partij voortaan expliciet aan het Radar-signaal hangt.
   const bestaandLink = await sb.from('eigenaar_koppelingen')
     .select('id')
     .eq('eigenaar_id', realId)
@@ -84,7 +81,6 @@ async function resolveRealEigenaarId(eigenaarId: string, signaalId: string): Pro
       betrouwbaarheid: identityKey ? 90 : 95,
     });
     if (link.error) {
-      // De unieke (eigenaar_id, signaal_id)-index maakt herhalen veilig.
       const retry = await sb.from('eigenaar_koppelingen')
         .select('id')
         .eq('eigenaar_id', realId)
@@ -97,6 +93,16 @@ async function resolveRealEigenaarId(eigenaarId: string, signaalId: string): Pro
   return realId;
 }
 
+function kiesBestaandeCampagne(rows: any[]): any | null {
+  if (!rows.length) return null;
+  const rang: Record<string, number> = { warm: 5, actief: 4, gepauzeerd: 3, afgerond_geen_reactie: 2, afgesloten: 1 };
+  return [...rows].sort((a, b) => {
+    const status = (rang[b.status] ?? 0) - (rang[a.status] ?? 0);
+    if (status !== 0) return status;
+    return String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''));
+  })[0];
+}
+
 /**
  * Wordt alleen aangeroepen na een expliciete gebruikersactie in de briefwizard.
  * Een nieuw signaal kan hierdoor nooit zelfstandig een campagne starten.
@@ -105,17 +111,15 @@ async function persistRouting(input: PersistRadarRoutingInput) {
   const actor = await userId();
   const realEigenaarId = await resolveRealEigenaarId(input.eigenaarId, input.signaal.id);
 
-  let { data: campagnes, error: leesFout } = await sb
+  const { data: campagnes, error: leesFout } = await sb
     .from('off_market_benadercampagnes')
     .select('*')
     .eq('eigenaar_id', realEigenaarId)
     .eq('doelstelling', DOELSTELLING)
-    .in('status', ['actief', 'gepauzeerd', 'warm'])
-    .order('created_at', { ascending: false })
-    .limit(1);
+    .order('created_at', { ascending: false });
   if (leesFout) throw leesFout;
 
-  let campagne = campagnes?.[0] ?? null;
+  let campagne = kiesBestaandeCampagne(campagnes ?? []);
   if (!campagne && input.routing.outcome === 'nieuwe_campagne_brief_1') {
     const { data, error } = await sb
       .from('off_market_benadercampagnes')
@@ -147,7 +151,6 @@ async function persistRouting(input: PersistRadarRoutingInput) {
   }
 
   if (!campagne) {
-    // Afgerond/geblokkeerd wordt nooit stil heropend.
     return { campagneId: null, bundled: false, eigenaarId: realEigenaarId };
   }
 
@@ -183,6 +186,19 @@ async function persistRouting(input: PersistRadarRoutingInput) {
       noemen_in_volgend_contact: input.routing.outcome === 'meenemen_in_vervolgbrief',
     });
     if (error) throw error;
+  } else {
+    const { error } = await sb.from('off_market_campagne_objecten')
+      .update({
+        relevantiescore: input.routing.nieuwObjectScore.score,
+        score_uitleg: {
+          redenen: input.routing.nieuwObjectScore.redenen,
+          betrouwbaarheid: input.routing.nieuwObjectScore.betrouwbaarheid,
+        },
+        noemen_in_volgend_contact: input.routing.outcome === 'meenemen_in_vervolgbrief',
+        reden_toevoeging: input.reden || input.routing.reden,
+      })
+      .eq('id', bestaandObject.id);
+    if (error) throw error;
   }
 
   if (input.gekozenStap && campagne.status === 'actief') {
@@ -213,6 +229,16 @@ async function persistRouting(input: PersistRadarRoutingInput) {
   return { campagneId: campagne.id as string, bundled: true, eigenaarId: realEigenaarId };
 }
 
+async function switchPrimary(input: { campagneId: string; signaalId: string; reden: string }) {
+  const { data, error } = await sb.rpc('off_market_set_primary_object', {
+    p_campagne_id: input.campagneId,
+    p_signaal_id: input.signaalId,
+    p_reden: input.reden,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export function usePersistRadarCampaignRouting() {
   const qc = useQueryClient();
   return useMutation({
@@ -222,6 +248,16 @@ export function usePersistRadarCampaignRouting() {
         qc.invalidateQueries({ queryKey: ['radar-party-campaign-context'] }),
         qc.invalidateQueries({ queryKey: ['off-market-acquisitie-selectie'] }),
       ]);
+    },
+  });
+}
+
+export function useSwitchRadarPrimaryObject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: switchPrimary,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['radar-party-campaign-context'] });
     },
   });
 }
