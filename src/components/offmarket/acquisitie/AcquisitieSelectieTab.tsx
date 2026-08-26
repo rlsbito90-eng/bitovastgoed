@@ -63,7 +63,6 @@ import {
   vastgoedkansZoektekst,
   type AcquisitieBronFilter,
 } from '@/lib/acquisitie/vastgoedkansWerkbak';
-import { bouwKandidatenVoorSignaal } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   ACTIE_SUBFILTER_LABEL,
   bepaalWerkbakContext,
@@ -524,10 +523,17 @@ export default function AcquisitieSelectieTab() {
 
   const bulkTotalen = useMemo(() => {
     let geadresseerden = 0; let geschikt = 0;
+    const readinessPerSignaal = new Map(readiness.lijst.map((item) => [item.signaal.id, item.readiness]));
     for (const id of bulkSelectie) {
-      const s = signaalIndex.get(id); if (!s) continue;
-      const k = bouwKandidatenVoorSignaal(s, brievenPerSignaal.get(id) ?? []);
-      geadresseerden += k.length; geschikt += k.filter(x => x.geschikt).length;
+      const signaalReadiness = readinessPerSignaal.get(id);
+      if (!signaalReadiness) continue;
+      // De rij en de bulkbar gebruiken bewust exact dezelfde geadresseerdenbron.
+      // Een geschikte kandidaat is nog geen gereedstaande brief: daarvoor moet
+      // een actief concept én een volledig postadres aanwezig zijn.
+      geadresseerden += signaalReadiness.geadresseerden.length;
+      geschikt += signaalReadiness.geadresseerden.filter((geadresseerde) =>
+        geadresseerde.heeftActiefConcept && geadresseerde.volledigPostadres,
+      ).length;
     }
     for (const id of bulkVastgoedkansSelectie) {
       const kans = geselecteerdeVastgoedkansen.find(k => k.id === id);
@@ -541,7 +547,7 @@ export default function AcquisitieSelectieTab() {
       geadresseerden,
       geschikteBrieven: geschikt,
     };
-  }, [bulkSelectie, bulkVastgoedkansSelectie, signaalIndex, brievenPerSignaal, geselecteerdeVastgoedkansen]);
+  }, [bulkSelectie, bulkVastgoedkansSelectie, readiness.lijst, geselecteerdeVastgoedkansen]);
 
   const geselecteerdeVastgoedkansenBulk = useMemo(
     () => geselecteerdeVastgoedkansen.filter(k => bulkVastgoedkansSelectie.has(k.id)),

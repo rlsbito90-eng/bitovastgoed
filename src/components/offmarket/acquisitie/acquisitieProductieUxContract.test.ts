@@ -66,6 +66,12 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(selectieBron).toContain('acquisitie-bulk-toolbar-ruimte');
   });
 
+  it('telt dezelfde geadresseerden en briefgereedheid als de zichtbare readiness-rijen', () => {
+    expect(selectieBron).toContain('signaalReadiness.geadresseerden.length');
+    expect(selectieBron).toContain('geadresseerde.heeftActiefConcept && geadresseerde.volledigPostadres');
+    expect(selectieBron).not.toContain('geschikt += k.filter(x => x.geschikt).length');
+  });
+
   it('toont bronaantallen binnen de actieve werkbak in plaats van globale totalen', () => {
     expect(selectieBron).toContain('const radarBinnenContext = useMemo');
     expect(selectieBron).toContain('const pandenverkennerBinnenContext = useMemo');
