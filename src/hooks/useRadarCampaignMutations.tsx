@@ -2,6 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { RoutingResult } from '@/lib/offMarket/acquisitie/partyCampaign';
+import {
+  decodeSynthetischeRadarPartijId,
+  parseRadarPartijSleutel,
+} from '@/lib/offMarket/acquisitie/partyIdentity';
 
 const sb = supabase as any;
 const DOELSTELLING = 'radar_acquisitie';
@@ -19,16 +23,92 @@ async function userId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
+async function resolveRealEigenaarId(eigenaarId: string, signaalId: string): Promise<string> {
+  const identityKey = decodeSynthetischeRadarPartijId(eigenaarId);
+  let realId = eigenaarId;
+
+  if (identityKey) {
+    const bestaand = await sb
+      .from('eigenaren')
+      .select('id')
+      .eq('dedupe_sleutel', identityKey)
+      .is('archived_at', null)
+      .maybeSingle();
+    if (bestaand.error) throw bestaand.error;
+
+    if (bestaand.data?.id) {
+      realId = bestaand.data.id;
+    } else {
+      const parsed = parseRadarPartijSleutel(identityKey);
+      const displayNaam = parsed.bedrijfsnaam || parsed.naam || 'Onbekende partij';
+      const insert = await sb.from('eigenaren').insert({
+        partij_type: parsed.partijType,
+        naam: displayNaam,
+        bedrijfsnaam: parsed.bedrijfsnaam,
+        adres: parsed.adres,
+        postcode: parsed.postcode,
+        bron: 'radar_briefadres',
+        bron_betrouwbaarheid: 90,
+        dedupe_sleutel: identityKey,
+        bron_details: { identity_basis: 'naam_of_bedrijfsnaam_plus_volledig_postadres' },
+      }).select('id').single();
+      if (insert.error) {
+        // Concurrent/idempotent: een tweede gebruiker kan dezelfde sterke
+        // identiteit net hebben vastgelegd. Lees dan de unieke sleutel terug.
+        const retry = await sb.from('eigenaren')
+          .select('id')
+          .eq('dedupe_sleutel', identityKey)
+          .is('archived_at', null)
+          .maybeSingle();
+        if (retry.error || !retry.data?.id) throw insert.error;
+        realId = retry.data.id;
+      } else {
+        realId = insert.data.id;
+      }
+    }
+  }
+
+  // Zorg dat deze partij voortaan expliciet aan het Radar-signaal hangt.
+  const bestaandLink = await sb.from('eigenaar_koppelingen')
+    .select('id')
+    .eq('eigenaar_id', realId)
+    .eq('signaal_id', signaalId)
+    .maybeSingle();
+  if (bestaandLink.error) throw bestaandLink.error;
+  if (!bestaandLink.data) {
+    const link = await sb.from('eigenaar_koppelingen').insert({
+      eigenaar_id: realId,
+      signaal_id: signaalId,
+      rol: 'rechthebbende',
+      bron: identityKey ? 'radar_briefadres' : 'radar_campaign_confirm',
+      betrouwbaarheid: identityKey ? 90 : 95,
+    });
+    if (link.error) {
+      // De unieke (eigenaar_id, signaal_id)-index maakt herhalen veilig.
+      const retry = await sb.from('eigenaar_koppelingen')
+        .select('id')
+        .eq('eigenaar_id', realId)
+        .eq('signaal_id', signaalId)
+        .maybeSingle();
+      if (retry.error || !retry.data) throw link.error;
+    }
+  }
+
+  return realId;
+}
+
 /**
  * Wordt alleen aangeroepen na een expliciete gebruikersactie in de briefwizard.
- * Geen nieuw signaal kan hierdoor op zichzelf een campagne starten.
+ * Een nieuw signaal kan hierdoor nooit zelfstandig een campagne starten.
  */
 async function persistRouting(input: PersistRadarRoutingInput) {
   const actor = await userId();
+  const realEigenaarId = await resolveRealEigenaarId(input.eigenaarId, input.signaal.id);
+
   let { data: campagnes, error: leesFout } = await sb
     .from('off_market_benadercampagnes')
     .select('*')
-    .eq('eigenaar_id', input.eigenaarId)
+    .eq('eigenaar_id', realEigenaarId)
     .eq('doelstelling', DOELSTELLING)
     .in('status', ['actief', 'gepauzeerd', 'warm'])
     .order('created_at', { ascending: false })
@@ -40,7 +120,7 @@ async function persistRouting(input: PersistRadarRoutingInput) {
     const { data, error } = await sb
       .from('off_market_benadercampagnes')
       .insert({
-        eigenaar_id: input.eigenaarId,
+        eigenaar_id: realEigenaarId,
         doelstelling: DOELSTELLING,
         status: 'actief',
         contact_status: 'cold',
@@ -50,12 +130,10 @@ async function persistRouting(input: PersistRadarRoutingInput) {
       .select('*')
       .single();
     if (error) {
-      // Concurrent/idempotent pad: een andere actie kan de unieke actieve campagne
-      // net hebben aangemaakt. Lees dan die rij terug, maak nooit een tweede.
       const retry = await sb
         .from('off_market_benadercampagnes')
         .select('*')
-        .eq('eigenaar_id', input.eigenaarId)
+        .eq('eigenaar_id', realEigenaarId)
         .eq('doelstelling', DOELSTELLING)
         .in('status', ['actief', 'gepauzeerd'])
         .order('created_at', { ascending: false })
@@ -69,8 +147,8 @@ async function persistRouting(input: PersistRadarRoutingInput) {
   }
 
   if (!campagne) {
-    // Een geblokkeerd/afgerond dossier wordt niet stil heropend.
-    return { campagneId: null, bundled: false };
+    // Afgerond/geblokkeerd wordt nooit stil heropend.
+    return { campagneId: null, bundled: false, eigenaarId: realEigenaarId };
   }
 
   const { data: bestaandObject, error: objectLeesFout } = await sb
@@ -115,9 +193,9 @@ async function persistRouting(input: PersistRadarRoutingInput) {
     if (error) throw error;
   }
 
-  await sb.from('off_market_campagne_events').insert({
+  const event = await sb.from('off_market_campagne_events').insert({
     campagne_id: campagne.id,
-    eigenaar_id: input.eigenaarId,
+    eigenaar_id: realEigenaarId,
     signaal_id: input.signaal.id,
     event_type: input.routing.outcome === 'nieuwe_campagne_brief_1' ? 'campaign_started' : 'signal_routed',
     reden: input.reden || input.routing.reden,
@@ -130,8 +208,9 @@ async function persistRouting(input: PersistRadarRoutingInput) {
     },
     aangemaakt_door: actor,
   });
+  if (event.error) throw event.error;
 
-  return { campagneId: campagne.id as string, bundled: true };
+  return { campagneId: campagne.id as string, bundled: true, eigenaarId: realEigenaarId };
 }
 
 export function usePersistRadarCampaignRouting() {
