@@ -80,6 +80,24 @@ describe('canonieke Radar-selectiescope', () => {
     expect(scope.telling.conceptbrieven).toBe(2);
   });
 
+  it('neemt vóór de eerste brief alle canonieke rechthebbenden uit de readiness-bron mee', () => {
+    const metRechthebbenden = {
+      ...signaal('s1'),
+      eigenaar_controle_nodig: false,
+      eigenaar_rechthebbenden: [
+        { bedrijfsnaam: 'A B.V.', kvk: '11111111', verzendadres: 'Dam 1\n1012 JS Amsterdam' },
+        { naam: 'Jan Jansen', verzendadres: 'Singel 2\n1012 AB Amsterdam' },
+      ],
+    } as any;
+
+    const scope = bouwCanoniekeRadarSelectieScope([metRechthebbenden], []);
+
+    expect(scope.telling.signalen).toBe(1);
+    expect(scope.telling.geadresseerden).toBe(2);
+    expect(scope.telling.brievenVoorTeBereiden).toBe(2);
+    expect(scope.kandidaten.map((k) => k.bedrijfsnaam ?? k.naam)).toEqual(['A B.V.', 'J. Jansen']);
+  });
+
   it('dedupliceert een hergebruikt concept op signaal en geadresseerde-key', () => {
     const bestaand = brief('b1', 's1', 'persoon-1');
     const scope = bouwCanoniekeRadarSelectieScope([signaal('s1')], [bestaand]);
