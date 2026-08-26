@@ -33,11 +33,19 @@ const mockSignalen = [
 ];
 
 vi.mock('@/hooks/useAcquisitieSelectie', () => ({
+  WERKVOORRAAD_STATUS_LABEL: {
+    actief: 'Actief',
+    gebundeld_bij_partij: 'Gebundeld bij partij',
+    eerder_benaderd: 'Eerder benaderd',
+    benadering_bepalen: 'Benadering bepalen',
+    niet_benaderen: 'Niet benaderen',
+  },
   useAcquisitieSelectie: () => ({ data: mockItems, isLoading: false }),
   useIsInAcquisitieSelectie: () => true,
   useVoegToeAanAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useVerwijderVastgoedkansUitAcquisitieSelectie: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useWijzigWerkvoorraadStatus: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@/hooks/useVastgoedkansen', () => ({
   useVastgoedkansen: () => ({ getKansById: () => undefined }),
