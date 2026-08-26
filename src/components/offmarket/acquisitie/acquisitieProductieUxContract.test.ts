@@ -67,7 +67,8 @@ describe('Acquisitieselectie productie-UX-contract', () => {
       'utf8',
     );
     expect(wizardBron).toContain('bulk-vernieuw-standaardteksten');
-    expect(wizardBron).toContain('Handmatige tekst in deze concepten wordt vervangen');
+    expect(wizardBron).toContain('Mogelijk handmatig aangepast');
+    expect(wizardBron).toContain('staat daarom standaard uit');
     expect(wizardBron).toContain("p.bestaandeBrief?.status === 'concept'");
   });
 
