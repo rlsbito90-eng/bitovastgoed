@@ -4,13 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { normaliseerPartijNaam } from '@/lib/kadaster/eigenaarInterpretatie';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
-import type { BulkKandidaat } from '@/lib/offMarket/acquisitie/bulkBrief';
+import { bouwKandidatenVoorSignaal, type BulkKandidaat } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   routeerPartijCampagne,
   type CampaignSnapshot,
   type PartyIdentity,
   type RoutingResult,
 } from '@/lib/offMarket/acquisitie/partyCampaign';
+import {
+  sterkeRadarPartijSleutel,
+  synthetischeRadarPartijId,
+} from '@/lib/offMarket/acquisitie/partyIdentity';
 
 const sb = supabase as any;
 const DOELSTELLING = 'radar_acquisitie';
@@ -21,6 +25,7 @@ interface EigenaarRow {
   naam: string;
   bedrijfsnaam: string | null;
   crm_relatie_id: string | null;
+  dedupe_sleutel?: string | null;
 }
 
 interface KoppelingRow {
@@ -54,6 +59,7 @@ interface CampaignObjectRow {
 interface ContextData {
   selectedLinks: KoppelingRow[];
   allLinks: KoppelingRow[];
+  identityOwners: EigenaarRow[];
   partySignals: OffMarketSignaal[];
   partyLetters: OffMarketBrief[];
   campaigns: CampaignRow[];
@@ -91,32 +97,56 @@ function kiesCampagne(rows: CampaignRow[]): CampaignRow | null {
   })[0];
 }
 
-async function laadContext(signaalIds: string[]): Promise<ContextData> {
-  if (signaalIds.length === 0) {
-    return {
-      selectedLinks: [], allLinks: [], partySignals: [], partyLetters: [], campaigns: [], campaignObjects: [],
-      defaultCooldownMonths: 6, primarySwitchThreshold: 15,
-    };
+async function laadContext(signalen: OffMarketSignaal[]): Promise<ContextData> {
+  const signaalIds = [...new Set(signalen.map((s) => s.id))];
+  const leeg: ContextData = {
+    selectedLinks: [], allLinks: [], identityOwners: [], partySignals: [], partyLetters: [],
+    campaigns: [], campaignObjects: [], defaultCooldownMonths: 6, primarySwitchThreshold: 15,
+  };
+  if (signaalIds.length === 0) return leeg;
+
+  const [selectedLinksRes, selectedLettersRes] = await Promise.all([
+    sb.from('eigenaar_koppelingen')
+      .select('signaal_id,eigenaar_id,betrouwbaarheid,eigenaar:eigenaren(id,partij_type,naam,bedrijfsnaam,crm_relatie_id,dedupe_sleutel)')
+      .in('signaal_id', signaalIds),
+    sb.from('off_market_brieven').select('*').in('signaal_id', signaalIds).is('archived_at', null),
+  ]);
+  if (selectedLinksRes.error) throw selectedLinksRes.error;
+  if (selectedLettersRes.error) throw selectedLettersRes.error;
+
+  const selectedLinks = (selectedLinksRes.data ?? []) as KoppelingRow[];
+  const selectedLetters = (selectedLettersRes.data ?? []) as OffMarketBrief[];
+  const lettersPerSignaal = new Map<string, OffMarketBrief[]>();
+  for (const brief of selectedLetters) {
+    const arr = lettersPerSignaal.get(brief.signaal_id) ?? [];
+    arr.push(brief);
+    lettersPerSignaal.set(brief.signaal_id, arr);
   }
 
-  const { data: selectedLinksData, error: selectedLinksError } = await sb
-    .from('eigenaar_koppelingen')
-    .select('signaal_id,eigenaar_id,betrouwbaarheid,eigenaar:eigenaren(id,partij_type,naam,bedrijfsnaam,crm_relatie_id)')
-    .in('signaal_id', signaalIds);
-  if (selectedLinksError) throw selectedLinksError;
-  const selectedLinks = (selectedLinksData ?? []) as KoppelingRow[];
-  const ownerIds = [...new Set(selectedLinks.map((r) => r.eigenaar_id).filter(Boolean))];
+  const candidateKeys = [...new Set(signalen.flatMap((s) =>
+    bouwKandidatenVoorSignaal(s, lettersPerSignaal.get(s.id) ?? [])
+      .map(sterkeRadarPartijSleutel)
+      .filter((key): key is string => Boolean(key)),
+  ))];
 
-  if (ownerIds.length === 0) {
-    return {
-      selectedLinks, allLinks: [], partySignals: [], partyLetters: [], campaigns: [], campaignObjects: [],
-      defaultCooldownMonths: 6, primarySwitchThreshold: 15,
-    };
-  }
+  const identityOwnersRes = candidateKeys.length
+    ? await sb.from('eigenaren')
+      .select('id,partij_type,naam,bedrijfsnaam,crm_relatie_id,dedupe_sleutel')
+      .in('dedupe_sleutel', candidateKeys)
+      .is('archived_at', null)
+    : { data: [], error: null };
+  if (identityOwnersRes.error) throw identityOwnersRes.error;
+  const identityOwners = (identityOwnersRes.data ?? []) as EigenaarRow[];
+
+  const ownerIds = [...new Set([
+    ...selectedLinks.map((r) => r.eigenaar_id),
+    ...identityOwners.map((r) => r.id),
+  ].filter(Boolean))];
+  if (ownerIds.length === 0) return { ...leeg, selectedLinks, identityOwners };
 
   const [linksRes, campaignsRes, configRes] = await Promise.all([
     sb.from('eigenaar_koppelingen')
-      .select('signaal_id,eigenaar_id,betrouwbaarheid,eigenaar:eigenaren(id,partij_type,naam,bedrijfsnaam,crm_relatie_id)')
+      .select('signaal_id,eigenaar_id,betrouwbaarheid,eigenaar:eigenaren(id,partij_type,naam,bedrijfsnaam,crm_relatie_id,dedupe_sleutel)')
       .in('eigenaar_id', ownerIds)
       .not('signaal_id', 'is', null),
     sb.from('off_market_benadercampagnes')
@@ -129,10 +159,12 @@ async function laadContext(signaalIds: string[]): Promise<ContextData> {
   ]);
   if (linksRes.error) throw linksRes.error;
   if (campaignsRes.error) throw campaignsRes.error;
+  if (configRes.error) throw configRes.error;
 
   const allLinks = (linksRes.data ?? []) as KoppelingRow[];
   const linkedSignalIds = [...new Set(allLinks.map((r) => r.signaal_id).filter(Boolean))];
-  const campaignIds = ((campaignsRes.data ?? []) as CampaignRow[]).map((c) => c.id);
+  const campaigns = (campaignsRes.data ?? []) as CampaignRow[];
+  const campaignIds = campaigns.map((c) => c.id);
 
   const [signalsRes, lettersRes, objectsRes] = await Promise.all([
     linkedSignalIds.length
@@ -161,11 +193,10 @@ async function laadContext(signaalIds: string[]): Promise<ContextData> {
   }
 
   return {
-    selectedLinks,
-    allLinks,
+    selectedLinks, allLinks, identityOwners,
     partySignals: (signalsRes.data ?? []) as OffMarketSignaal[],
     partyLetters: (lettersRes.data ?? []) as OffMarketBrief[],
-    campaigns: (campaignsRes.data ?? []) as CampaignRow[],
+    campaigns,
     campaignObjects: (objectsRes.data ?? []) as CampaignObjectRow[],
     defaultCooldownMonths,
     primarySwitchThreshold,
@@ -177,53 +208,77 @@ export function useRadarPartyCampaignContext(signalen: OffMarketSignaal[]) {
   const query = useQuery({
     queryKey: ['radar-party-campaign-context', signaalIds],
     enabled: signaalIds.length > 0,
-    queryFn: () => laadContext(signaalIds),
+    queryFn: () => laadContext(signalen),
   });
 
   const api = useMemo(() => {
     const data = query.data;
+
     const resolveParty = (kandidaat: BulkKandidaat): PartyIdentity => {
       if (!data) return { eigenaarId: null, matchStatus: 'onbekend', matchReden: 'Partijcontext wordt geladen.' };
       const links = data.selectedLinks.filter((l) => l.signaal_id === kandidaat.signaalId && l.eigenaar);
-      if (links.length === 0) {
-        return {
-          eigenaarId: null,
-          matchStatus: 'onbekend',
-          matchReden: 'Geen stabiele party/entity ID gekoppeld aan dit signaal. Eerst partijmatch beoordelen.',
-        };
-      }
-
       const kandidaatNaam = normaal(kandidaat.bedrijfsnaam || kandidaat.naam);
       const exact = links.filter((l) => {
         const e = l.eigenaar!;
         return kandidaatNaam && [normaal(e.bedrijfsnaam), normaal(e.naam)].filter(Boolean).includes(kandidaatNaam);
       });
       const sterke = links.filter((l) => (l.betrouwbaarheid ?? 0) >= 90);
-      const matches = exact.length === 1 ? exact : (links.length === 1 && sterke.length === 1 ? sterke : []);
-      if (matches.length !== 1) {
+      const explicieteMatch = exact.length === 1 ? exact[0] : (links.length === 1 && sterke.length === 1 ? sterke[0] : null);
+      if (explicieteMatch?.eigenaar) {
+        return {
+          eigenaarId: explicieteMatch.eigenaar_id,
+          partijType: explicieteMatch.eigenaar.partij_type,
+          crmRelatieId: explicieteMatch.eigenaar.crm_relatie_id,
+          naam: explicieteMatch.eigenaar.naam,
+          bedrijfsnaam: explicieteMatch.eigenaar.bedrijfsnaam,
+          matchStatus: 'bevestigd',
+          matchReden: exact.length === 1 ? 'Exacte expliciete eigenaar_koppeling.' : 'Enige sterke expliciete eigenaar_koppeling voor dit signaal.',
+        };
+      }
+      if (links.length > 1) {
         return {
           eigenaarId: null,
           matchStatus: 'mogelijk_dezelfde_partij',
-          matchReden: links.length > 1
-            ? 'Meerdere juridische rechthebbenden/partijmatches gevonden; kies expliciet welke partij deze geadresseerde vertegenwoordigt.'
-            : 'Partijmatch is niet betrouwbaar genoeg om automatisch een campagne te kiezen.',
+          matchReden: 'Meerdere juridische rechthebbenden/partijmatches gevonden; kies expliciet welke partij deze geadresseerde vertegenwoordigt.',
         };
       }
-      const match = matches[0];
+
+      const identityKey = sterkeRadarPartijSleutel(kandidaat);
+      if (!identityKey) {
+        return {
+          eigenaarId: null,
+          matchStatus: 'onbekend',
+          matchReden: 'Onvoldoende sterke identiteit: naam/bedrijfsnaam én volledig postadres zijn vereist.',
+        };
+      }
+      const owner = data.identityOwners.find((e) => e.dedupe_sleutel === identityKey);
+      if (owner) {
+        return {
+          eigenaarId: owner.id,
+          partijType: owner.partij_type,
+          crmRelatieId: owner.crm_relatie_id,
+          naam: owner.naam,
+          bedrijfsnaam: owner.bedrijfsnaam,
+          matchStatus: 'bevestigd',
+          matchReden: 'Sterke bestaande Radar-identiteit op naam/bedrijfsnaam + volledig postadres.',
+        };
+      }
       return {
-        eigenaarId: match.eigenaar_id,
-        partijType: match.eigenaar?.partij_type,
-        crmRelatieId: match.eigenaar?.crm_relatie_id,
-        naam: match.eigenaar?.naam,
-        bedrijfsnaam: match.eigenaar?.bedrijfsnaam,
+        eigenaarId: synthetischeRadarPartijId(identityKey),
+        partijType: kandidaat.bedrijfsnaam ? 'rechtspersoon' : kandidaat.naam ? 'natuurlijk_persoon' : 'onbekend',
+        naam: kandidaat.naam,
+        bedrijfsnaam: kandidaat.bedrijfsnaam,
         matchStatus: 'bevestigd',
-        matchReden: exact.length === 1 ? 'Exacte match binnen de expliciete eigenaar_koppelingen.' : 'Enige sterke expliciete eigenaar_koppeling voor dit signaal.',
+        matchReden: 'Nieuwe sterke Radar-identiteit; wordt pas bij expliciete briefbevestiging als partij vastgelegd.',
       };
     };
 
     const route = (signaal: OffMarketSignaal, kandidaat: BulkKandidaat): RoutingResult => {
       const partij = resolveParty(kandidaat);
       if (!data || !partij.eigenaarId) {
+        return routeerPartijCampagne({ signaal, partij, campagne: null, partijBrieven: [] });
+      }
+      if (partij.eigenaarId.startsWith('new-radar-party:')) {
         return routeerPartijCampagne({ signaal, partij, campagne: null, partijBrieven: [] });
       }
       const ownerSignalIds = new Set(
@@ -234,11 +289,7 @@ export function useRadarPartyCampaignContext(signalen: OffMarketSignaal[]) {
       const campaignRow = kiesCampagne(data.campaigns.filter((c) => c.eigenaar_id === partij.eigenaarId));
       const campagne = campaignRow ? campaignSnapshot(campaignRow, data.campaignObjects) : null;
       return routeerPartijCampagne({
-        signaal,
-        partij,
-        campagne,
-        partijBrieven,
-        partijSignalen,
+        signaal, partij, campagne, partijBrieven, partijSignalen,
         defaultCooldownMaanden: data.defaultCooldownMonths,
         primarySwitchThreshold: data.primarySwitchThreshold,
       });
@@ -247,5 +298,14 @@ export function useRadarPartyCampaignContext(signalen: OffMarketSignaal[]) {
     return { resolveParty, route };
   }, [query.data]);
 
-  return { ...query, ...api };
+  // Stabiliseer de returnwaarde. De briefwizard gebruikt deze context in memo's;
+  // een nieuw object op iedere render zou anders selectie-state opnieuw kunnen initialiseren.
+  return useMemo(() => ({
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    resolveParty: api.resolveParty,
+    route: api.route,
+  }), [query.data, query.isLoading, query.isError, query.error, api]);
 }
