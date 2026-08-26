@@ -30,6 +30,6 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
       - name: Party campaign routing tests
-        run: npx vitest run src/test/offMarket/partyCampaign.test.ts src/test/offMarket/partyCampaignIntegration.test.ts src/test/offMarket/duplicateBrief1GuardMigration.test.ts src/test/offMarket/v37/bulkBriefPlan.test.ts
+        run: npx vitest run src/test/offMarket/partyCampaign.test.ts src/test/offMarket/partyCampaignSafety.test.ts src/test/offMarket/duplicateBrief1GuardMigration.test.ts src/test/offMarket/v37/bulkBriefPlan.test.ts
       - name: Build
         run: npm run build
