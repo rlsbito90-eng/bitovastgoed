@@ -49,6 +49,13 @@ const mockSignalen = [
 ];
 
 vi.mock('@/hooks/useAcquisitieSelectie', () => ({
+  WERKVOORRAAD_STATUS_LABEL: {
+    actief: 'Actief',
+    gebundeld_bij_partij: 'Gebundeld bij partij',
+    eerder_benaderd: 'Eerder benaderd',
+    benadering_bepalen: 'Benadering bepalen',
+    niet_benaderen: 'Niet benaderen',
+  },
   useAcquisitieSelectie: () => ({
     data: mockSignalen.map((s, i) => ({
       id: `r${i}`, signaal_id: s.id, archived_at: null,
