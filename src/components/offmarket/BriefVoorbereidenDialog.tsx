@@ -326,11 +326,13 @@ export default function BriefVoorbereidenDialog({
   const herstelStandaard = () => {
     if (kanaal === 'post') {
       const template = bouwPostVariantTemplate({ toewijzing: copyToewijzing, aanhef, objectomschrijving });
+      setOnderwerp(template.onderwerp);
+      setOnderwerpHandmatig(false);
       setBrieftekst(template.brieftekst);
     } else {
       setBrieftekst(bouwBriefTekst({ aanhef, objectadres: objectomschrijving }));
     }
-    toast.success('Standaardtekst hersteld');
+    toast.success(kanaal === 'post' ? 'Standaardonderwerp en -tekst hersteld' : 'Standaardtekst hersteld');
   };
 
   const neemVerzendadresOverUitKadaster = () => {

@@ -122,6 +122,12 @@ import {
   hoortWerkbakContextBijBron,
   werkrondeBronVoorView,
 } from '@/lib/offMarket/acquisitie/werkrondeContext';
+import {
+  beperkRadarBulkSelectie,
+  leesRadarBulkSelectie,
+  schrijfRadarBulkSelectie,
+  setsZijnGelijk,
+} from '@/lib/offMarket/acquisitie/bulkSelectionPersistence';
 
 function tekstType(s: OffMarketSignaal): string {
   return acquisitieSignaalLabel(s);
@@ -515,8 +521,27 @@ export default function AcquisitieSelectieTab() {
     return [...inVolgorde, ...rest];
   }, [werkronde, gefilterd, readiness.lijst]);
 
-  const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(new Set());
+  const [bulkSelectie, setBulkSelectie] = useState<Set<string>>(() => leesRadarBulkSelectie());
   const [bulkVastgoedkansSelectie, setBulkVastgoedkansSelectie] = useState<Set<string>>(new Set());
+
+  // De handmatige Radar-selectie is onderdeel van de werksituatie. Filters,
+  // sortering en scrollpositie werden al bewaard; zonder deze selectie moest
+  // de gebruiker na detail -> terug alles opnieuw aanvinken.
+  useEffect(() => {
+    schrijfRadarBulkSelectie(bulkSelectie);
+  }, [bulkSelectie]);
+
+  // Houd een herstelde selectie schoon wanneer dossiers intussen uit de
+  // Acquisitieselectie zijn verwijderd. Wacht tot de selectiequery geladen is,
+  // anders zou een lege initiële fetch de bewaarde selectie wissen.
+  useEffect(() => {
+    if (isLoading) return;
+    const beperkt = beperkRadarBulkSelectie(
+      bulkSelectie,
+      geselecteerdeSignalen.map((signaal) => signaal.id),
+    );
+    if (!setsZijnGelijk(beperkt, bulkSelectie)) setBulkSelectie(beperkt);
+  }, [isLoading, geselecteerdeSignalen, bulkSelectie]);
   const toggleBulk = (id: string) => setBulkSelectie(prev => {
     const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
   });
