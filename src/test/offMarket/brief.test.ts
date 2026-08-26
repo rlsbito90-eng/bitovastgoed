@@ -208,6 +208,17 @@ describe('brief — tekst en prefill', () => {
     expect(t).not.toMatch(/radar/i);
     expect(t).not.toMatch(/signaal/i);
     expect(t).not.toMatch(/\[telefoonnummer\]/i);
+    expect(t).not.toContain('Vanuit mijn kantoor begeleid ik');
+    expect(t).toContain('Staat u open voor een korte kennismaking');
+  });
+
+  it('voorkomt een dubbel voorzetsel in onderwerp en brieftekst', () => {
+    expect(bepaalOnderwerp('voor Overtoom 5-H in Amsterdam'))
+      .toBe('Interesse in uw pand aan Overtoom 5-H in Amsterdam');
+    expect(bouwBriefTekst({
+      aanhef: 'Geachte heer/mevrouw,',
+      objectadres: 'voor Overtoom 5-H in Amsterdam',
+    })).toContain('vastgoed aan Overtoom 5-H in Amsterdam');
   });
 
   it('prefill vult objectomschrijving en verzendadres uit Kadaster', () => {

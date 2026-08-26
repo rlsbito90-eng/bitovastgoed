@@ -128,8 +128,12 @@ export function bepaalAanhef(_eigenaarNaam?: string | null | undefined): string 
  * Valt netjes terug op "Interesse in uw pand" wanneer geen omschrijving
  * beschikbaar is.
  */
+export function normaliseerObjectomschrijvingVoorBrief(objectomschrijving?: string | null): string {
+  return (objectomschrijving ?? '').trim().replace(/^(?:aan|voor)\s+/i, '').trim();
+}
+
 export function bepaalOnderwerp(objectomschrijving?: string | null): string {
-  const o = (objectomschrijving ?? '').trim();
+  const o = normaliseerObjectomschrijvingVoorBrief(objectomschrijving);
   return o ? `Interesse in uw pand aan ${o}` : 'Interesse in uw pand';
 }
 
@@ -144,22 +148,23 @@ export interface BriefTekstInput {
 }
 
 export function bouwBriefTekst({ aanhef, objectadres }: BriefTekstInput): string {
-  const adresZin = objectadres
-    ? `Ik neem contact met u op naar aanleiding van het vastgoed aan ${objectadres}.`
+  const objectomschrijving = normaliseerObjectomschrijvingVoorBrief(objectadres);
+  const adresZin = objectomschrijving
+    ? `Ik neem contact met u op naar aanleiding van het vastgoed aan ${objectomschrijving}.`
     : 'Ik neem contact met u op naar aanleiding van uw vastgoedbezit.';
 
   return [
     aanhef,
     '',
-    `Mijn naam is ${BITO_CONTACT.naam}, eigenaar van ${BITO_CONTACT.bedrijf}. Vanuit mijn kantoor begeleid ik professionele beleggers, ontwikkelaars en vastgoedondernemers bij de aan- en verkoop van vastgoed, vaak in discrete trajecten buiten het openbare aanbod.`,
+    `Mijn naam is ${BITO_CONTACT.naam}, eigenaar van ${BITO_CONTACT.bedrijf}. ${adresZin}`,
     '',
-    `${adresZin} Binnen mijn netwerk is er regelmatig vraag naar vastgoed in deze omgeving, met name naar panden met beleggings-, verhuur-, splitsings-, transformatie- of ontwikkelpotentie.`,
+    'Binnen mijn netwerk is regelmatig vraag naar vastgoed in deze omgeving.',
     '',
-    'Mocht u op dit moment, of wellicht op termijn, overwegen om dit pand, ander vastgoed of een bredere vastgoedportefeuille te verkopen, dan kom ik graag op een laagdrempelige manier met u in contact. Een eerste gesprek verplicht uiteraard tot niets en kan ook uitsluitend oriënterend zijn.',
+    'Mocht verkoop van dit pand nu of op termijn bespreekbaar zijn, dan kom ik graag vrijblijvend met u in contact. Dit geldt ook wanneer u ander vastgoed of een bredere portefeuille heeft waarvoor verkoop of een marktverkenning relevant kan zijn.',
     '',
-    `${BITO_CONTACT.bedrijf} werkt voornamelijk met professionele marktpartijen en begeleidt vastgoedtrajecten op een zorgvuldige en discrete manier. Indien verkoop op dit moment niet speelt, is dat uiteraard geen probleem. Ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug. Mocht u echter openstaan voor een eerste kennismaking of marktverkenning, dan denk ik graag met u mee over de mogelijkheden.`,
+    'Indien verkoop op dit moment niet speelt, is dat uiteraard geen probleem. Ik houd het graag laagdrempelig en kom eventueel op een later moment nog eens bij u terug.',
     '',
-    'Ik hoor graag of er vragen zijn of interesse is.',
+    'Staat u open voor een korte kennismaking, dan hoor ik graag van u.',
     '',
     'Met vriendelijke groet,',
     '',
@@ -793,4 +798,3 @@ export function briefAlsPlatteTekst(vm: BriefViewModel): string {
   lines.push(vm.brieftekst);
   return lines.join('\n');
 }
-

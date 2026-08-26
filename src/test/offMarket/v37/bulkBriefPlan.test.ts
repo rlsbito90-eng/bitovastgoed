@@ -111,6 +111,9 @@ describe('bulkBrief — plan', () => {
     const bestaand = brief({
       id: 'oud-concept', campagne_stap: 'brief_1', geadresseerde_key: 'k1',
       status: 'concept', brieftekst: 'Oude algemene standaardtekst',
+      objectomschrijving: 'voor Overtoom 5-H in Amsterdam',
+      onderwerp: 'Interesse in uw pand aan voor Overtoom 5-H in Amsterdam',
+      copy_profiel: 'oud_profiel', copy_variant_key: 'oude-variant', copy_variant_code: 'OUD',
     });
     const [plan] = bouwBriefPlan({ kandidaten: [k], brieven: [bestaand], campagneStap: 'brief_1' });
 
@@ -119,6 +122,10 @@ describe('bulkBrief — plan', () => {
     expect(plan.actie).toBe('hergebruiken');
     expect(payload.brieftekst).not.toBe('Oude algemene standaardtekst');
     expect(payload.brieftekst).toContain('Bito Vastgoed');
+    expect(payload.brieftekst).not.toContain('vastgoed aan voor');
+    expect(payload.onderwerp).toBe('Interesse in uw pand aan Overtoom 5-H in Amsterdam');
+    expect(payload.objectomschrijving).toBe('Overtoom 5-H in Amsterdam');
+    expect(payload.copy_variant_key).not.toBe('oude-variant');
     expect(payload.copy_variant_key).toBeTruthy();
     expect(payload.status).toBe('concept');
   });

@@ -18,6 +18,7 @@ import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import {
   bepaalAanhef, bouwBriefPrefill, buildBriefViewModel,
+  normaliseerObjectomschrijvingVoorBrief,
   type BriefViewModel,
 } from '@/lib/offMarket/brief';
 import { bepaalCopyProfiel, kiesCopyVariant } from '@/lib/acquisitie/copyExperimenten';
@@ -447,7 +448,9 @@ export function standaardtekstPayloadVoorPlanItem(args: {
     ? naarVoorlettersAchternaam(bestaande.eigenaar_naam)
     : kandidaat.naam;
   const aanhef = bestaande?.aanhef?.trim() || bepaalAanhef(eigenaarNaam || null);
-  const objectomschrijving = bestaande?.objectomschrijving?.trim() || prefill.objectomschrijving;
+  const objectomschrijving = normaliseerObjectomschrijvingVoorBrief(
+    bestaande?.objectomschrijving || prefill.objectomschrijving,
+  );
   const berekendeToewijzing = kiesCopyVariant({
     profiel: bepaalCopyProfiel({ signaal: args.signaal, kanaal: 'post' }),
     kanaal: 'post',
@@ -455,14 +458,7 @@ export function standaardtekstPayloadVoorPlanItem(args: {
     signaalId: args.signaal.id,
     geadresseerdeKey: args.plan.geadresseerdeKey,
   });
-  const toewijzing = bestaande?.copy_profiel && bestaande.copy_variant_key && bestaande.copy_variant_code
-    ? {
-        profiel: bestaande.copy_profiel,
-        variantKey: bestaande.copy_variant_key,
-        variantCode: bestaande.copy_variant_code,
-        hypothese: bestaande.copy_hypothese ?? berekendeToewijzing.hypothese,
-      }
-    : berekendeToewijzing;
+  const toewijzing = berekendeToewijzing;
   const template = bouwPostVariantTemplate({ toewijzing, aanhef, objectomschrijving });
   return {
     signaal_id: args.signaal.id,

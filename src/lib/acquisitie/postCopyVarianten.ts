@@ -1,4 +1,6 @@
-import { BITO_CONTACT, bepaalOnderwerp, bouwBriefTekst } from '@/lib/offMarket/brief';
+import {
+  BITO_CONTACT, bepaalOnderwerp, bouwBriefTekst, normaliseerObjectomschrijvingVoorBrief,
+} from '@/lib/offMarket/brief';
 import type { CopyVariantToewijzing } from '@/lib/acquisitie/copyExperimenten';
 
 export interface PostVariantTemplateInput {
@@ -498,7 +500,7 @@ export function bouwPostVariantTemplate({
   aanhef,
   objectomschrijving,
 }: PostVariantTemplateInput): PostVariantTemplate {
-  const object = objectomschrijving.trim();
+  const object = normaliseerObjectomschrijvingVoorBrief(objectomschrijving);
 
   const specifiek =
     splitsingTemplate(toewijzing, aanhef, object)
@@ -509,7 +511,7 @@ export function bouwPostVariantTemplate({
   if (specifiek) return specifiek;
 
   return {
-    onderwerp: bepaalOnderwerp(objectomschrijving),
-    brieftekst: bouwBriefTekst({ aanhef, objectadres: objectomschrijving }),
+    onderwerp: bepaalOnderwerp(object),
+    brieftekst: bouwBriefTekst({ aanhef, objectadres: object }),
   };
 }
