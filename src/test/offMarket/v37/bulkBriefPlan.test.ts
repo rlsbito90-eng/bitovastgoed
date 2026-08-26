@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  bouwKandidatenVoorSignaal, bouwBriefPlan, samenvatPlan,
+  bouwKandidatenVoorSignaal, bouwBriefPlan, samenvatPlan, standaardtekstPayloadVoorPlanItem,
 } from '@/lib/offMarket/acquisitie/bulkBrief';
 import { sorteerPrintItems } from '@/lib/offMarket/acquisitie/printVolgorde';
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
@@ -105,6 +105,22 @@ describe('bulkBrief — plan', () => {
     const plan = bouwBriefPlan({ kandidaten: [k], brieven: [b], campagneStap: 'brief_1' });
     expect(plan[0].actie).toBe('hergebruiken');
     expect(plan[0].bestaandeBrief?.id).toBe('c1');
+  });
+
+  it('kan een bestaand concept expliciet met de actuele standaardtekst vernieuwen', () => {
+    const bestaand = brief({
+      id: 'oud-concept', campagne_stap: 'brief_1', geadresseerde_key: 'k1',
+      status: 'concept', brieftekst: 'Oude algemene standaardtekst',
+    });
+    const [plan] = bouwBriefPlan({ kandidaten: [k], brieven: [bestaand], campagneStap: 'brief_1' });
+
+    const payload = standaardtekstPayloadVoorPlanItem({ signaal, plan });
+
+    expect(plan.actie).toBe('hergebruiken');
+    expect(payload.brieftekst).not.toBe('Oude algemene standaardtekst');
+    expect(payload.brieftekst).toContain('Bito Vastgoed');
+    expect(payload.copy_variant_key).toBeTruthy();
+    expect(payload.status).toBe('concept');
   });
 
   it('slaat verstuurde brief met dezelfde sleutel over', () => {

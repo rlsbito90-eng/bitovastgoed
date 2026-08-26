@@ -21,7 +21,8 @@ import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import { useUpsertBrief } from '@/hooks/useOffMarketBrieven';
 import {
   bouwBriefPlan, bouwKandidatenVoorSignaal, inserPayloadVoorPlanItem,
-  bouwCanoniekeRadarSelectieScope, samenvatPlan, type BulkKandidaat, type PlanItem,
+  bouwCanoniekeRadarSelectieScope, samenvatPlan, standaardtekstPayloadVoorPlanItem,
+  type BulkKandidaat, type PlanItem,
 } from '@/lib/offMarket/acquisitie/bulkBrief';
 import {
   CAMPAGNE_STAP_LABEL, STAP_VOLGORDE, type CampagneStap,
@@ -41,6 +42,7 @@ type Stap = 'geadresseerden' | 'instellingen' | 'controle' | 'klaar';
 interface Resultaat {
   aangemaakt: number;
   hergebruikt: number;
+  vernieuwd: number;
   overgeslagen: number;
   mislukt: number;
   fouten: Array<{ signaalId: string; key: string; bericht: string }>;
@@ -74,6 +76,7 @@ export default function BulkBriefVoorbereidenWizard({
   const [stap, setStap] = useState<Stap>('geadresseerden');
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [campagneStap, setCampagneStap] = useState<CampagneStap>('brief_1');
+  const [vernieuwBestaandeConcepten, setVernieuwBestaandeConcepten] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [resultaat, setResultaat] = useState<Resultaat | null>(null);
 
@@ -82,6 +85,7 @@ export default function BulkBriefVoorbereidenWizard({
     if (!open) return;
     setStap('geadresseerden');
     setCampagneStap('brief_1');
+    setVernieuwBestaandeConcepten(false);
     setExcluded(new Set(
       allKandidaten
         .filter(k => !k.geschikt)
@@ -143,7 +147,7 @@ export default function BulkBriefVoorbereidenWizard({
     if (bezig) return; // beschermt tegen dubbelklik
     setBezig(true);
     const uit: Resultaat = {
-      aangemaakt: 0, hergebruikt: 0, overgeslagen: 0, mislukt: 0, fouten: [],
+      aangemaakt: 0, hergebruikt: 0, vernieuwd: 0, overgeslagen: 0, mislukt: 0, fouten: [],
     };
     try {
       for (const p of plan) {
@@ -152,8 +156,18 @@ export default function BulkBriefVoorbereidenWizard({
           continue;
         }
         if (p.actie === 'hergebruiken') {
-          // Niets overschrijven — bewaar bestaande handmatige tekst.
-          uit.hergebruikt += 1;
+          if (vernieuwBestaandeConcepten && p.bestaandeBrief?.status === 'concept') {
+            const s = signaalIndex.get(p.signaalId);
+            if (!s) throw new Error('Signaal niet meer beschikbaar.');
+            await upsert.mutateAsync({
+              ...standaardtekstPayloadVoorPlanItem({ signaal: s, plan: p }),
+              id: p.bestaandeBrief.id,
+            });
+            uit.vernieuwd += 1;
+          } else {
+            // Veilige standaard: bestaande/handmatige tekst blijft behouden.
+            uit.hergebruikt += 1;
+          }
           continue;
         }
         const s = signaalIndex.get(p.signaalId);
@@ -180,7 +194,7 @@ export default function BulkBriefVoorbereidenWizard({
       }
       setResultaat(uit);
       setStap('klaar');
-      const msg = `${uit.aangemaakt} aangemaakt · ${uit.hergebruikt} hergebruikt · ${uit.overgeslagen} overgeslagen`;
+      const msg = `${uit.aangemaakt} aangemaakt · ${uit.vernieuwd} vernieuwd · ${uit.hergebruikt} ongewijzigd · ${uit.overgeslagen} overgeslagen`;
       if (uit.mislukt > 0) toast.error(`${msg} · ${uit.mislukt} mislukt`);
       else toast.success(msg);
     } finally {
@@ -309,6 +323,20 @@ export default function BulkBriefVoorbereidenWizard({
                     Bulkverzending is in deze fase uitsluitend per post mogelijk.
                   </p>
                 </div>
+                <label className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/8 p-3">
+                  <Checkbox
+                    checked={vernieuwBestaandeConcepten}
+                    onCheckedChange={(waarde) => setVernieuwBestaandeConcepten(waarde === true)}
+                    data-testid="bulk-vernieuw-standaardteksten"
+                  />
+                  <span className="space-y-1 text-sm">
+                    <span className="block font-medium">Bestaande conceptteksten vernieuwen</span>
+                    <span className="block text-[11px] leading-relaxed text-muted-foreground">
+                      Past de huidige standaardtekst toe op {sam.hergebruiken} bestaand{sam.hergebruiken === 1 ? '' : 'e'} concept{sam.hergebruiken === 1 ? '' : 'en'}.
+                      Handmatige tekst in deze concepten wordt vervangen. Definitieve en verstuurde brieven blijven altijd onaangetast.
+                    </span>
+                  </span>
+                </label>
                 <div className="space-y-1.5">
                   <label htmlFor="bulk-stap" className="text-sm font-medium">Campagne-stap</label>
                   <Select value={campagneStap} onValueChange={(v) => setCampagneStap(v as CampagneStap)}>
@@ -379,7 +407,8 @@ export default function BulkBriefVoorbereidenWizard({
               <section className="space-y-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
                   <Stat label="Aangemaakt" value={resultaat.aangemaakt} tone="success" />
-                  <Stat label="Hergebruikt" value={resultaat.hergebruikt} />
+                  <Stat label="Vernieuwd" value={resultaat.vernieuwd} tone="success" />
+                  <Stat label="Ongewijzigd" value={resultaat.hergebruikt} />
                   <Stat label="Overgeslagen" value={resultaat.overgeslagen} />
                   <Stat label="Mislukt" value={resultaat.mislukt} tone={resultaat.mislukt > 0 ? 'danger' : 'default'} />
                 </div>

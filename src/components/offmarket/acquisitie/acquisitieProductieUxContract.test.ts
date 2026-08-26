@@ -60,6 +60,17 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(selectieBron).not.toContain('Selecteer alle geschikte');
   });
 
+  it('biedt een expliciete, veilige bulkvernieuwing van bestaande conceptteksten', () => {
+    expect(selectieBron).toContain('BulkBriefVoorbereidenWizard');
+    const wizardBron = readFileSync(
+      resolve(process.cwd(), 'src/components/offmarket/acquisitie/BulkBriefVoorbereidenWizard.tsx'),
+      'utf8',
+    );
+    expect(wizardBron).toContain('bulk-vernieuw-standaardteksten');
+    expect(wizardBron).toContain('Handmatige tekst in deze concepten wordt vervangen');
+    expect(wizardBron).toContain("p.bestaandeBrief?.status === 'concept'");
+  });
+
   it('houdt de volledige selectie-actiebalk fixed en safe-area-aware op mobiel', () => {
     expect(selectieBron).toContain("position: 'fixed'");
     expect(selectieBron).toContain("bottom: 'calc(0.5rem + env(safe-area-inset-bottom))'");
