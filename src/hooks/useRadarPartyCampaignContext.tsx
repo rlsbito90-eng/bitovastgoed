@@ -68,6 +68,13 @@ interface ContextData {
   primarySwitchThreshold: number;
 }
 
+export interface RadarBriefCampaignContext {
+  eerderObject: string | null;
+  heeftEerderContact: boolean;
+  portefeuille: boolean;
+  campagneId: string | null;
+}
+
 function normaal(value: string | null | undefined): string {
   return normaliseerPartijNaam((value ?? '').trim());
 }
@@ -273,13 +280,10 @@ export function useRadarPartyCampaignContext(signalen: OffMarketSignaal[]) {
       };
     };
 
-    const route = (signaal: OffMarketSignaal, kandidaat: BulkKandidaat): RoutingResult => {
+    const gegevensVoorPartij = (kandidaat: BulkKandidaat) => {
       const partij = resolveParty(kandidaat);
-      if (!data || !partij.eigenaarId) {
-        return routeerPartijCampagne({ signaal, partij, campagne: null, partijBrieven: [] });
-      }
-      if (partij.eigenaarId.startsWith('new-radar-party:')) {
-        return routeerPartijCampagne({ signaal, partij, campagne: null, partijBrieven: [] });
+      if (!data || !partij.eigenaarId || partij.eigenaarId.startsWith('new-radar-party:')) {
+        return { partij, ownerSignalIds: new Set<string>(), partijSignalen: [] as OffMarketSignaal[], partijBrieven: [] as OffMarketBrief[], campaignRow: null as CampaignRow | null };
       }
       const ownerSignalIds = new Set(
         data.allLinks.filter((l) => l.eigenaar_id === partij.eigenaarId).map((l) => l.signaal_id),
@@ -287,19 +291,44 @@ export function useRadarPartyCampaignContext(signalen: OffMarketSignaal[]) {
       const partijSignalen = data.partySignals.filter((s) => ownerSignalIds.has(s.id));
       const partijBrieven = data.partyLetters.filter((b) => ownerSignalIds.has(b.signaal_id));
       const campaignRow = kiesCampagne(data.campaigns.filter((c) => c.eigenaar_id === partij.eigenaarId));
-      const campagne = campaignRow ? campaignSnapshot(campaignRow, data.campaignObjects) : null;
+      return { partij, ownerSignalIds, partijSignalen, partijBrieven, campaignRow };
+    };
+
+    const route = (signaal: OffMarketSignaal, kandidaat: BulkKandidaat): RoutingResult => {
+      const info = gegevensVoorPartij(kandidaat);
+      if (!data || !info.partij.eigenaarId || info.partij.eigenaarId.startsWith('new-radar-party:')) {
+        return routeerPartijCampagne({ signaal, partij: info.partij, campagne: null, partijBrieven: [] });
+      }
+      const campagne = info.campaignRow ? campaignSnapshot(info.campaignRow, data.campaignObjects) : null;
       return routeerPartijCampagne({
-        signaal, partij, campagne, partijBrieven, partijSignalen,
+        signaal,
+        partij: info.partij,
+        campagne,
+        partijBrieven: info.partijBrieven,
+        partijSignalen: info.partijSignalen,
         defaultCooldownMaanden: data.defaultCooldownMonths,
         primarySwitchThreshold: data.primarySwitchThreshold,
       });
     };
 
-    return { resolveParty, route };
+    const briefContext = (kandidaat: BulkKandidaat): RadarBriefCampaignContext => {
+      const info = gegevensVoorPartij(kandidaat);
+      const verstuurd = info.partijBrieven
+        .filter((b) => b.status === 'verstuurd')
+        .sort((a, b) => (b.verzonden_op ?? b.updated_at).localeCompare(a.verzonden_op ?? a.updated_at));
+      const laatste = verstuurd[0] ?? null;
+      const eerderObject = laatste?.objectomschrijving?.trim() || laatste?.objectadres?.trim() || null;
+      return {
+        eerderObject,
+        heeftEerderContact: Boolean(laatste),
+        portefeuille: info.ownerSignalIds.size > 1,
+        campagneId: info.campaignRow?.id ?? null,
+      };
+    };
+
+    return { resolveParty, route, briefContext };
   }, [query.data]);
 
-  // Stabiliseer de returnwaarde. De briefwizard gebruikt deze context in memo's;
-  // een nieuw object op iedere render zou anders selectie-state opnieuw kunnen initialiseren.
   return useMemo(() => ({
     data: query.data,
     isLoading: query.isLoading,
@@ -307,5 +336,6 @@ export function useRadarPartyCampaignContext(signalen: OffMarketSignaal[]) {
     error: query.error,
     resolveParty: api.resolveParty,
     route: api.route,
+    briefContext: api.briefContext,
   }), [query.data, query.isLoading, query.isError, query.error, api]);
 }
