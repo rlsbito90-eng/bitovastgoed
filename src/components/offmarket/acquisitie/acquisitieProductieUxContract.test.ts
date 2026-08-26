@@ -55,10 +55,20 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(selectieBron).not.toContain('Selecteer alle geschikte');
   });
 
-  it('houdt de volledige selectie-actiebalk sticky en safe-area-aware op mobiel', () => {
-    expect(selectieBron).toContain("position: 'sticky'");
+  it('houdt de volledige selectie-actiebalk fixed en safe-area-aware op mobiel', () => {
+    expect(selectieBron).toContain("position: 'fixed'");
     expect(selectieBron).toContain("bottom: 'calc(0.5rem + env(safe-area-inset-bottom))'");
     expect(selectieBron).toContain('grid grid-cols-2 gap-2 sm:flex sm:flex-wrap');
+    expect(selectieBron).toContain('acquisitie-bulk-toolbar-ruimte');
+  });
+
+  it('toont bronaantallen binnen de actieve werkbak in plaats van globale totalen', () => {
+    expect(selectieBron).toContain('const radarBinnenContext = useMemo');
+    expect(selectieBron).toContain('const pandenverkennerBinnenContext = useMemo');
+    expect(selectieBron).toContain('radar: radarBinnenContext.length');
+    expect(selectieBron).toContain('pandenverkenner: pandenverkennerBinnenContext.length');
+    expect(selectieBron).toContain('Binnen {contextLabel}');
+    expect(selectieBron).toContain('totaal in Acquisitieselectie');
   });
 
   it('biedt bij een nog niet geprinte BAT een expliciete append-only kleurupgrade', () => {

@@ -1,11 +1,10 @@
-import { useEffect, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 import {
   isRijselectieToets,
   magRijselectieWisselen,
 } from '@/lib/offMarket/acquisitie/selecteerbareRij';
-import { activeerStickySelectieIndicator } from '@/lib/offMarket/acquisitie/stickySelectieIndicator';
 
 interface SelecteerbareDossierRijProps {
   geselecteerd: boolean;
@@ -34,8 +33,6 @@ export default function SelecteerbareDossierRij({
   werkbak,
   actieCategorie,
 }: SelecteerbareDossierRijProps) {
-  useEffect(() => activeerStickySelectieIndicator(), []);
-
   const onClick = (event: MouseEvent<HTMLLIElement>) => {
     const huidigeTekstselectie = window.getSelection()?.toString() ?? '';
     if (!magRijselectieWisselen({ target: event.target, huidigeTekstselectie })) return;
