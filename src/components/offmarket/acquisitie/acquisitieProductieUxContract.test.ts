@@ -55,6 +55,12 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(selectieBron).not.toContain('Selecteer alle geschikte');
   });
 
+  it('houdt de volledige selectie-actiebalk sticky en safe-area-aware op mobiel', () => {
+    expect(selectieBron).toContain("position: 'sticky'");
+    expect(selectieBron).toContain("bottom: 'calc(0.5rem + env(safe-area-inset-bottom))'");
+    expect(selectieBron).toContain('grid grid-cols-2 gap-2 sm:flex sm:flex-wrap');
+  });
+
   it('biedt bij een nog niet geprinte BAT een expliciete append-only kleurupgrade', () => {
     expect(batchWerkbakBron).toContain('ProductiekernBatchDocumentversieVernieuwen');
     expect(vernieuwBron).toContain('Nieuwe documentversie maken');

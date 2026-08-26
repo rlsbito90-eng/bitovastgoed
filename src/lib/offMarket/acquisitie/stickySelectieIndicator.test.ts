@@ -13,6 +13,7 @@ afterEach(() => {
 describe('stickySelectieIndicator', () => {
   it('leest het canonieke bulkselectie-aantal uit de bestaande toolbar', () => {
     expect(leesAantalGeselecteerdUitBulkTekst('12 signalen · 18 geadresseerden · 9 brieven')).toBe(12);
+    expect(leesAantalGeselecteerdUitBulkTekst('12 geselecteerd · 12 Radar · 18 geadresseerden')).toBe(12);
     expect(leesAantalGeselecteerdUitBulkTekst('0 signalen · 0 geadresseerden · 0 brieven')).toBe(0);
   });
 

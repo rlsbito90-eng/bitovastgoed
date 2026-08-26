@@ -18,6 +18,7 @@ import { buildBriefViewModel } from '@/lib/offMarket/brief';
 import { sorteerPrintItems } from '@/lib/offMarket/acquisitie/printVolgorde';
 import GecombineerdeBrievenPDF from '@/components/offmarket/GecombineerdeBrievenPDF';
 import { isVolledigPostadres } from '@/lib/offMarket/acquisitie/readiness';
+import { bouwCanoniekeRadarSelectieScope } from '@/lib/offMarket/acquisitie/bulkBrief';
 import ProductiewerkbankBulkPane from './ProductiewerkbankBulkPane';
 import ProductiewerkbankBulkPrintbatchActies from './ProductiewerkbankBulkPrintbatchActies';
 
@@ -41,6 +42,21 @@ export default function GecombineerdeBrievenPdfDialog({
   open, onClose, signalen, toegevoegdOpPerSignaal, brieven,
 }: Props) {
   const { data: acquisitieSelecties = [] } = useAcquisitieSelectie();
+  const canoniekeScope = useMemo(
+    () => bouwCanoniekeRadarSelectieScope(signalen, brieven),
+    [signalen, brieven],
+  );
+  useEffect(() => {
+    if (!open || canoniekeScope.nietGereed.length === 0) return;
+    console.info('[Radar-productie] Niet-gereed binnen geselecteerde scope', {
+      geselecteerdeSignaalIds: canoniekeScope.signaalIds,
+      regels: canoniekeScope.nietGereed.map(({ signaalId, briefId, reden }) => ({
+        signaalId,
+        briefId,
+        reden,
+      })),
+    });
+  }, [open, canoniekeScope]);
   const signaalIndex = useMemo(() => {
     const m = new Map<string, OffMarketSignaal>();
     for (const s of signalen) m.set(s.id, s);
@@ -124,20 +140,13 @@ export default function GecombineerdeBrievenPdfDialog({
   );
   const overgeslagen = useMemo(() => gesorteerd.filter(k => !k.printbaar), [gesorteerd]);
 
-  const uniekeSignalen = useMemo(() => new Set(teGenereren.map(k => k.signaal.id)).size, [teGenereren]);
-  const uniekeGeadresseerden = useMemo(() => {
-    const s = new Set<string>();
-    for (const k of teGenereren) s.add(`${k.signaal.id}|${k.brief.geadresseerde_key ?? k.brief.id}`);
-    return s.size;
-  }, [teGenereren]);
-
   const productieScopeBrieven = useMemo(
-    () => brieven.filter((b) => !b.archived_at && selectie.has(b.id)),
-    [brieven, selectie],
+    () => canoniekeScope.actievePostbrieven,
+    [canoniekeScope],
   );
   const productieScopeSignaalIds = useMemo(
-    () => new Set(productieScopeBrieven.map((b) => b.signaal_id)),
-    [productieScopeBrieven],
+    () => new Set(canoniekeScope.signaalIds),
+    [canoniekeScope],
   );
   const definitieveBriefIds = useMemo(
     () => productieScopeBrieven
@@ -223,11 +232,26 @@ export default function GecombineerdeBrievenPdfDialog({
                 </Button>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                <Stat label="Conceptbrieven" value={teGenereren.length} />
-                <Stat label="Signalen" value={uniekeSignalen} />
-                <Stat label="Geadresseerden" value={uniekeGeadresseerden} />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm" data-testid="radar-productie-canonieke-telling">
+                <Stat label="Geselecteerde signalen" value={canoniekeScope.telling.signalen} />
+                <Stat label="Geadresseerden" value={canoniekeScope.telling.geadresseerden} />
+                <Stat label="Conceptbrieven gereed" value={teGenereren.length} />
+                <Stat label="Niet gereed" value={canoniekeScope.telling.nietGereed} />
               </div>
+
+              {canoniekeScope.nietGereed.length > 0 && (
+                <ul className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200" data-testid="radar-productie-niet-gereed">
+                  {canoniekeScope.nietGereed.map((regel) => (
+                    <li key={`${regel.signaalId}|${regel.briefId ?? 'zonder-brief'}`}>
+                      Signaal {regel.signaalId}: {regel.reden === 'geen_actief_postconcept'
+                        ? 'geen actief postconcept'
+                        : regel.reden === 'postadres_onvolledig'
+                          ? 'postadres ontbreekt of is onvolledig'
+                          : 'geadresseerde ontbreekt'}.
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               <ul className="rounded-md border divide-y text-sm" data-testid="combined-pdf-lijst">
                 {gesorteerd.map((k) => (

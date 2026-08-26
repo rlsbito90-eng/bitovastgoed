@@ -131,6 +131,112 @@ export function bouwKandidatenVoorSignaal(
   return out;
 }
 
+export type RadarProductieReden =
+  | 'geen_actief_postconcept'
+  | 'postadres_onvolledig'
+  | 'geadresseerde_ontbreekt';
+
+export interface CanoniekeRadarSelectieScope {
+  signaalIds: string[];
+  kandidaten: BulkKandidaat[];
+  actievePostbrieven: OffMarketBrief[];
+  conceptbrieven: OffMarketBrief[];
+  definitieveBrieven: OffMarketBrief[];
+  nietGereed: Array<{
+    signaalId: string;
+    briefId: string | null;
+    reden: RadarProductieReden;
+  }>;
+  telling: {
+    signalen: number;
+    geadresseerden: number;
+    brievenVoorTeBereiden: number;
+    conceptbrieven: number;
+    definitieveBrieven: number;
+    nietGereed: number;
+  };
+}
+
+/**
+ * Eén canonieke, read-only scope voor alle Radar-bulkacties.
+ *
+ * De expliciet geselecteerde signaal-IDs blijven altijd de bron. Afgeleide
+ * kandidaten en brieven mogen die scope niet verkleinen. Daardoor blijft een
+ * signaal zonder geadresseerde of concept zichtbaar als `nietGereed` in plaats
+ * van stil uit een teller of productiestap te verdwijnen.
+ */
+export function bouwCanoniekeRadarSelectieScope(
+  signalen: readonly OffMarketSignaal[],
+  brieven: readonly OffMarketBrief[],
+): CanoniekeRadarSelectieScope {
+  const signaalIds = [...new Set(signalen.map((signaal) => signaal.id))];
+  const geselecteerd = new Set(signaalIds);
+  const brievenPerSignaal = new Map<string, OffMarketBrief[]>();
+
+  for (const brief of brieven) {
+    if (!geselecteerd.has(brief.signaal_id)) continue;
+    const lijst = brievenPerSignaal.get(brief.signaal_id) ?? [];
+    lijst.push(brief);
+    brievenPerSignaal.set(brief.signaal_id, lijst);
+  }
+
+  const kandidaten = signalen.flatMap((signaal) =>
+    bouwKandidatenVoorSignaal(signaal, brievenPerSignaal.get(signaal.id) ?? []),
+  );
+  const actievePostbrieven = brieven.filter((brief) =>
+    geselecteerd.has(brief.signaal_id)
+      && !brief.archived_at
+      && (brief.kanaal ?? 'post') === 'post'
+      && (brief.status === 'concept' || brief.status === 'definitief'),
+  );
+  const conceptbrieven = actievePostbrieven.filter((brief) => brief.status === 'concept');
+  const definitieveBrieven = actievePostbrieven.filter((brief) => brief.status === 'definitief');
+  const nietGereed: CanoniekeRadarSelectieScope['nietGereed'] = [];
+  const conceptenPerSignaal = new Map<string, OffMarketBrief[]>();
+  const signalenMetDefinitieveBrief = new Set(definitieveBrieven.map((brief) => brief.signaal_id));
+  for (const brief of conceptbrieven) {
+    const lijst = conceptenPerSignaal.get(brief.signaal_id) ?? [];
+    lijst.push(brief);
+    conceptenPerSignaal.set(brief.signaal_id, lijst);
+  }
+
+  for (const signaalId of signaalIds) {
+    const concepten = conceptenPerSignaal.get(signaalId) ?? [];
+    if (concepten.length === 0 && !signalenMetDefinitieveBrief.has(signaalId)) {
+      nietGereed.push({ signaalId, briefId: null, reden: 'geen_actief_postconcept' });
+      continue;
+    }
+    for (const brief of concepten) {
+      if (!((brief.eigenaar_naam ?? '').trim() || (brief.eigenaar_bedrijfsnaam ?? '').trim())) {
+        nietGereed.push({ signaalId, briefId: brief.id, reden: 'geadresseerde_ontbreekt' });
+      } else if (!isVolledigPostadres(brief.verzendadres)) {
+        nietGereed.push({ signaalId, briefId: brief.id, reden: 'postadres_onvolledig' });
+      }
+    }
+  }
+
+  const uniekeGeadresseerden = new Set(
+    kandidaten.map((kandidaat) => `${kandidaat.signaalId}|${kandidaat.geadresseerdeKey}`),
+  );
+
+  return {
+    signaalIds,
+    kandidaten,
+    actievePostbrieven,
+    conceptbrieven,
+    definitieveBrieven,
+    nietGereed,
+    telling: {
+      signalen: signaalIds.length,
+      geadresseerden: uniekeGeadresseerden.size,
+      brievenVoorTeBereiden: kandidaten.filter((kandidaat) => kandidaat.geschikt).length,
+      conceptbrieven: conceptbrieven.length,
+      definitieveBrieven: definitieveBrieven.length,
+      nietGereed: nietGereed.length,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------
 // Planning: aanmaken / hergebruiken / overslaan
 // ---------------------------------------------------------------------
