@@ -13,7 +13,27 @@ export interface AcquisitieSelectieItem {
   toegevoegd_op: string;
   notitie: string | null;
   archived_at: string | null;
+  werkvoorraad_status: WerkvoorraadStatus;
+  werkvoorraad_reden: string | null;
+  werkvoorraad_volgende_actie_op: string | null;
+  werkvoorraad_bijgewerkt_op: string | null;
+  werkvoorraad_bijgewerkt_door: string | null;
 }
+
+export type WerkvoorraadStatus =
+  | 'actief'
+  | 'gebundeld_bij_partij'
+  | 'eerder_benaderd'
+  | 'benadering_bepalen'
+  | 'niet_benaderen';
+
+export const WERKVOORRAAD_STATUS_LABEL: Record<WerkvoorraadStatus, string> = {
+  actief: 'Actief',
+  gebundeld_bij_partij: 'Gebundeld bij partij',
+  eerder_benaderd: 'Eerder benaderd',
+  benadering_bepalen: 'Benadering bepalen',
+  niet_benaderen: 'Niet benaderen',
+};
 
 const TABLE = 'off_market_acquisitie_selectie';
 const LIST_KEY = ['off-market-acquisitie-selectie'] as const;
@@ -111,7 +131,10 @@ export function useAcquisitieSelectieCount(): number {
   const { data = [] } = useAcquisitieSelectie();
   const verzonden = useSignaalIdsMetVerzondenBrief();
   return useMemo(
-    () => data.filter((item) => item.signaal_id === null || !verzonden.has(item.signaal_id)).length,
+    () => data.filter((item) =>
+      (item.werkvoorraad_status ?? 'actief') === 'actief'
+      && (item.signaal_id === null || !verzonden.has(item.signaal_id)),
+    ).length,
     [data, verzonden],
   );
 }
@@ -199,6 +222,40 @@ export function useVerwijderUitAcquisitieSelectie() {
       return { signaal_id: signaalId };
     },
     onSuccess: (res) => invalidateAll(qc, res.signaal_id),
+  });
+}
+
+/** Zet een dossier apart zonder het uit de selectie of historie te verwijderen. */
+export function useWijzigWerkvoorraadStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      selectieId: string;
+      signaalId: string | null;
+      status: WerkvoorraadStatus;
+      reden?: string | null;
+      volgendeActieOp?: string | null;
+    }): Promise<AcquisitieSelectieItem> => {
+      const { data: u } = await supabase.auth.getUser();
+      const { data, error } = await (supabase as any)
+        .from(TABLE)
+        .update({
+          werkvoorraad_status: input.status,
+          werkvoorraad_reden: input.status === 'actief' ? null : input.reden?.trim() || null,
+          werkvoorraad_volgende_actie_op: input.status === 'eerder_benaderd'
+            ? input.volgendeActieOp || null
+            : null,
+          werkvoorraad_bijgewerkt_op: new Date().toISOString(),
+          werkvoorraad_bijgewerkt_door: u.user?.id ?? null,
+        })
+        .eq('id', input.selectieId)
+        .is('archived_at', null)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data as AcquisitieSelectieItem;
+    },
+    onSuccess: (item) => invalidateAll(qc, item.signaal_id),
   });
 }
 

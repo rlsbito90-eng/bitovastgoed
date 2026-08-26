@@ -12,6 +12,10 @@ import {
   useAcquisitieSelectie,
   useVerwijderUitAcquisitieSelectie,
   useVerwijderVastgoedkansUitAcquisitieSelectie,
+  useWijzigWerkvoorraadStatus,
+  WERKVOORRAAD_STATUS_LABEL,
+  type AcquisitieSelectieItem,
+  type WerkvoorraadStatus,
 } from '@/hooks/useAcquisitieSelectie';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { useVastgoedkansen } from '@/hooks/useVastgoedkansen';
@@ -155,6 +159,18 @@ const PRINTPOST_KEY = 'off-market-acq:printpost';
 const SORTEER_KEY = 'off-market-acq:sortering';
 const ZOEK_KEY = 'off-market-acq:zoekterm';
 const BRON_KEY = 'off-market-acq:bron';
+const WERKVOORRAAD_FILTER_KEY = 'off-market-acq:werkvoorraad-filter';
+type WerkvoorraadFilter = 'actief' | 'apart' | 'alles';
+
+function werkvoorraadStatus(item: AcquisitieSelectieItem | undefined): WerkvoorraadStatus {
+  return item?.werkvoorraad_status ?? 'actief';
+}
+
+function pastInWerkvoorraadFilter(status: WerkvoorraadStatus, filter: WerkvoorraadFilter): boolean {
+  if (filter === 'alles') return true;
+  if (filter === 'apart') return status !== 'actief';
+  return status === 'actief';
+}
 
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
@@ -162,6 +178,7 @@ export default function AcquisitieSelectieTab() {
   const { data: items = [], isLoading } = useAcquisitieSelectie();
   const verwijderUitSelectie = useVerwijderUitAcquisitieSelectie();
   const verwijderVastgoedkans = useVerwijderVastgoedkansUitAcquisitieSelectie();
+  const wijzigWerkvoorraadStatus = useWijzigWerkvoorraadStatus();
   const { data: signalen = [] } = useOffMarketSignalen();
   const { getKansById } = useVastgoedkansen();
 
@@ -196,6 +213,11 @@ export default function AcquisitieSelectieTab() {
     for (const it of items) if (it.signaal_id) m.set(it.signaal_id, it.toegevoegd_op ?? null);
     return m;
   }, [items]);
+  const selectieItemPerSignaal = useMemo(() => {
+    const m = new Map<string, AcquisitieSelectieItem>();
+    for (const item of items) if (item.signaal_id) m.set(item.signaal_id, item);
+    return m;
+  }, [items]);
   const toegevoegdOpPerVastgoedkans = useMemo(() => {
     const m = new Map<string, string | null>();
     for (const it of items) if (it.vastgoedkans_id) m.set(it.vastgoedkans_id, it.toegevoegd_op ?? null);
@@ -216,6 +238,16 @@ export default function AcquisitieSelectieTab() {
       return v === 'radar' || v === 'pandenverkenner' ? v : 'alles';
     } catch { return 'alles'; }
   });
+  const [werkvoorraadFilter, setWerkvoorraadFilterState] = useState<WerkvoorraadFilter>(() => {
+    try {
+      const v = sessionStorage.getItem(WERKVOORRAAD_FILTER_KEY);
+      return v === 'apart' || v === 'alles' ? v : 'actief';
+    } catch { return 'actief'; }
+  });
+  const setWerkvoorraadFilter = (v: WerkvoorraadFilter) => {
+    setWerkvoorraadFilterState(v);
+    try { sessionStorage.setItem(WERKVOORRAAD_FILTER_KEY, v); } catch { /* ignore */ }
+  };
   const setBronFilter = (v: AcquisitieBronFilter) => {
     setBronFilterState(v);
     try { sessionStorage.setItem(BRON_KEY, v); } catch { /* ignore */ }
@@ -310,10 +342,12 @@ export default function AcquisitieSelectieTab() {
         if (groep) { pp.alles += 1; pp[groep] += 1; }
       }
     };
-    if (bronFilter !== 'pandenverkenner') for (const ctx of werkbakPerSignaal.values()) tel(ctx);
+    if (bronFilter !== 'pandenverkenner') for (const [id, ctx] of werkbakPerSignaal.entries()) {
+      if (pastInWerkvoorraadFilter(werkvoorraadStatus(selectieItemPerSignaal.get(id)), werkvoorraadFilter)) tel(ctx);
+    }
     if (bronFilter !== 'radar') for (const ctx of werkbakPerVastgoedkans.values()) tel(ctx);
     return { werkbak: wb, subfilter: sf, printPost: pp };
-  }, [werkbakPerSignaal, werkbakPerVastgoedkans, bronFilter]);
+  }, [werkbakPerSignaal, werkbakPerVastgoedkans, bronFilter, selectieItemPerSignaal, werkvoorraadFilter]);
 
   const queryClient = useQueryClient();
   const recenteMutatiesRef = useRef<Map<string, number>>(new Map());
@@ -362,6 +396,10 @@ export default function AcquisitieSelectieTab() {
   const radarBinnenContext = useMemo(() => {
     const rijen: SorteerbareRij[] = [];
     for (const { signaal, readiness: r } of readiness.lijst) {
+      if (!pastInWerkvoorraadFilter(
+        werkvoorraadStatus(selectieItemPerSignaal.get(signaal.id)),
+        werkvoorraadFilter,
+      )) continue;
       const ctx = werkbakPerSignaal.get(signaal.id);
       if (!ctx) continue;
       if (zoekActief) {
@@ -399,7 +437,8 @@ export default function AcquisitieSelectieTab() {
       return item ? { ...item, ctx: r.ctx } : null;
     }).filter((x): x is NonNullable<typeof x> => x !== null);
   }, [readiness.lijst, werkbakPerSignaal, werkbak, subfilter, printPost, actieveSortering,
-    toegevoegdOpPerSignaal, zoek, zoekActief, productieOverzicht.nummersPerSignaal]);
+    toegevoegdOpPerSignaal, zoek, zoekActief, productieOverzicht.nummersPerSignaal,
+    selectieItemPerSignaal, werkvoorraadFilter]);
 
   const gefilterd = useMemo(
     () => bronFilter === 'pandenverkenner' ? [] : radarBinnenContext,
@@ -576,6 +615,39 @@ export default function AcquisitieSelectieTab() {
     }
   }
 
+  async function wijzigWerkvoorraadVoorSignaal(signaalId: string, status: WerkvoorraadStatus) {
+    const selectieItem = selectieItemPerSignaal.get(signaalId);
+    if (!selectieItem || wijzigWerkvoorraadStatus.isPending) return;
+    let reden: string | null = null;
+    let volgendeActieOp: string | null = null;
+    if (status !== 'actief') {
+      const invoer = window.prompt(
+        `Waarom zet je dit dossier op “${WERKVOORRAAD_STATUS_LABEL[status]}”?\n\nDeze toelichting blijft zichtbaar in de Acquisitieselectie.`,
+        status === 'gebundeld_bij_partij' ? 'Wordt via één gezamenlijke partijbenadering opgepakt.' : '',
+      );
+      if (invoer === null) return;
+      reden = invoer.trim() || null;
+    }
+    if (status === 'eerder_benaderd') {
+      const datum = window.prompt('Eventuele volgende contactdatum (JJJJ-MM-DD), of leeg laten:', '');
+      if (datum === null) return;
+      volgendeActieOp = /^\d{4}-\d{2}-\d{2}$/.test(datum.trim()) ? datum.trim() : null;
+    }
+    try {
+      await wijzigWerkvoorraadStatus.mutateAsync({
+        selectieId: selectieItem.id,
+        signaalId,
+        status,
+        reden,
+        volgendeActieOp,
+      });
+      setBulkSelectie(prev => { const next = new Set(prev); next.delete(signaalId); return next; });
+      toast.success(status === 'actief' ? 'Dossier teruggezet naar Actief' : `Dossier apart gezet: ${WERKVOORRAAD_STATUS_LABEL[status]}`);
+    } catch (err) {
+      toast.error('Werkvoorraadstatus wijzigen mislukt', { description: err instanceof Error ? err.message : 'Onbekende fout' });
+    }
+  }
+
   const [wizardOpen, setWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pandenverkennerKadasterOpen, setPandenverkennerKadasterOpen] = useState(false);
@@ -699,6 +771,12 @@ export default function AcquisitieSelectieTab() {
     radar: radarBinnenContext.length,
     pandenverkenner: pandenverkennerBinnenContext.length,
   };
+  const werkvoorraadTellingen = geselecteerdeSignalen.reduce((acc, signaal) => {
+    const status = werkvoorraadStatus(selectieItemPerSignaal.get(signaal.id));
+    acc.alles += 1;
+    if (status === 'actief') acc.actief += 1; else acc.apart += 1;
+    return acc;
+  }, { actief: 0, apart: 0, alles: 0 });
   const contextTotaal = bronTellingen.radar + bronTellingen.pandenverkenner;
   const contextLabel = zoekActief
     ? 'zoekresultaten in alle werkbakken'
@@ -735,6 +813,8 @@ export default function AcquisitieSelectieTab() {
     const briefInfo = briefInfoPerSignaal.get(signaal.id);
     const respons = briefInfo?.respons ?? null;
     const productieNummers = productieOverzicht.nummersPerSignaal.get(signaal.id);
+    const selectieItem = selectieItemPerSignaal.get(signaal.id);
+    const voorraadStatus = werkvoorraadStatus(selectieItem);
     return (
       <AcquisitieDossierRij
         key={signaal.id}
@@ -756,6 +836,7 @@ export default function AcquisitieSelectieTab() {
               {plaats && <p className="text-xs text-muted-foreground break-words">{plaats}</p>}
               <div className="flex flex-wrap items-center gap-1.5">
                 <ReadinessBadge fase={r.fase} />
+                {voorraadStatus !== 'actief' && <span data-testid="acquisitie-rij-werkvoorraadstatus" className="inline-flex rounded border border-amber-300 bg-amber-50/70 px-1.5 py-0.5 text-[10px] font-medium text-amber-950">{WERKVOORRAAD_STATUS_LABEL[voorraadStatus]}</span>}
                 <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded border border-border bg-muted/40 text-muted-foreground whitespace-nowrap">{tekstType(signaal)}</span>
                 <span onClick={e => e.stopPropagation()} className="inline-flex"><StatusWijzigDropdown signaal={signaal} variant="compact" /></span>
                 <span onClick={e => e.stopPropagation()} className="inline-flex"><PrioriteitWijzigDropdown signaalId={signaal.id} prioriteit={signaal.prioriteit} /></span>
@@ -797,11 +878,25 @@ export default function AcquisitieSelectieTab() {
                 return tekst ? <p data-testid="acquisitie-rij-onderzoekredenen" className="text-[11px] text-destructive break-words">Nog nodig: {tekst}</p> : null;
               })()}
               <WaarschuwingBadges waarschuwingen={r.waarschuwingen} />
+              {selectieItem?.werkvoorraad_reden && <p data-testid="acquisitie-rij-werkvoorraadreden" className="text-[11px] text-amber-900">Reden: {selectieItem.werkvoorraad_reden}{selectieItem.werkvoorraad_volgende_actie_op ? ` · opnieuw beoordelen ${selectieItem.werkvoorraad_volgende_actie_op}` : ''}</p>}
             </div>
           </div>
         )}
         acties={(
           <>
+            <label className="flex items-center gap-1 text-xs text-muted-foreground" data-no-row-select="true">
+              <span className="sr-only">Werkvoorraadstatus</span>
+              <select
+                value={voorraadStatus}
+                onChange={e => void wijzigWerkvoorraadVoorSignaal(signaal.id, e.target.value as WerkvoorraadStatus)}
+                onClick={e => e.stopPropagation()}
+                disabled={wijzigWerkvoorraadStatus.isPending}
+                data-testid="acquisitie-werkvoorraadstatus-select"
+                className="max-w-[12rem] rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground"
+              >
+                {(Object.keys(WERKVOORRAAD_STATUS_LABEL) as WerkvoorraadStatus[]).map(status => <option key={status} value={status}>{WERKVOORRAAD_STATUS_LABEL[status]}</option>)}
+              </select>
+            </label>
             <Button type="button" size="sm" variant="outline" onClick={() => openSignaalMetContext(signaal.id)} data-testid="acquisitie-selectie-open"><ExternalLink className="h-3.5 w-3.5" />Open signaal</Button>
             <Button type="button" size="sm" variant="default" onClick={() => openVerwerkVanSignaal(signaal.id)} data-testid="acquisitie-selectie-verwerk"><PlayCircle className="h-3.5 w-3.5" />Verwerk</Button>
             <ToevoegenAanAcquisitieSelectieKnop signaalId={signaal.id} variant="compact" labelMode="remove" isInSelectie />
@@ -839,6 +934,18 @@ export default function AcquisitieSelectieTab() {
           </label>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Werkvoorraad</span>
+          <div className="flex flex-wrap items-center gap-1.5" data-testid="acquisitie-werkvoorraadfilter" role="group" aria-label="Filter actieve en apart gezette dossiers">
+            {([
+              ['actief', `Actief (${werkvoorraadTellingen.actief})`],
+              ['apart', `Apart gezet (${werkvoorraadTellingen.apart})`],
+              ['alles', `Alles (${werkvoorraadTellingen.alles})`],
+            ] as const).map(([filter, label]) => (
+              <button key={filter} type="button" onClick={() => setWerkvoorraadFilter(filter)} aria-pressed={werkvoorraadFilter === filter} data-testid={`acquisitie-werkvoorraad-${filter}`}
+                className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${werkvoorraadFilter === filter ? 'border-accent/50 bg-accent/15 font-medium text-accent' : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'}`}>{label}</button>
+            ))}
+          </div>
+          <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid="acquisitie-bron-context">
             Binnen {contextLabel}
           </span>
