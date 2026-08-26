@@ -7,6 +7,7 @@ const selectieBron = readFileSync(
   'utf8',
 );
 const paginaBron = readFileSync(resolve(process.cwd(), 'src/pages/OffMarketPage.tsx'), 'utf8');
+const layoutBron = readFileSync(resolve(process.cwd(), 'src/components/AppLayout.tsx'), 'utf8');
 const logoBron = readFileSync(resolve(process.cwd(), 'src/lib/pdf/logo.ts'), 'utf8');
 const formeleBriefBron = readFileSync(
   resolve(process.cwd(), 'src/components/offmarket/acquisitie/ProductiekernBrievenPDF.tsx'),
@@ -64,6 +65,12 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(selectieBron).toContain("bottom: 'calc(0.5rem + env(safe-area-inset-bottom))'");
     expect(selectieBron).toContain('grid grid-cols-2 gap-2 sm:flex sm:flex-wrap');
     expect(selectieBron).toContain('acquisitie-bulk-toolbar-ruimte');
+  });
+
+  it('centreert de selectiebar op desktop binnen de werkomgeving naast de sidebar', () => {
+    expect(layoutBron).toContain("'--app-sidebar-width': desktopCollapsed ? '5rem' : '16rem'");
+    expect(selectieBron).toContain('lg:left-[calc((100vw+var(--app-sidebar-width))/2)]');
+    expect(selectieBron).toContain('lg:w-[calc(100vw-var(--app-sidebar-width)-1rem)]');
   });
 
   it('telt dezelfde geadresseerden en briefgereedheid als de zichtbare readiness-rijen', () => {

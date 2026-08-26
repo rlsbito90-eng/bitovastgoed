@@ -878,7 +878,7 @@ export default function AcquisitieSelectieTab() {
 
       <div
         data-testid="acquisitie-bulk-toolbar"
-        className={`section-card flex flex-col items-stretch justify-between gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center ${totaalSelectie > 0 ? 'acquisitie-selection-glass left-1/2 z-50 w-[calc(100vw-1rem)] max-w-6xl -translate-x-1/2' : ''}`}
+        className={`section-card flex flex-col items-stretch justify-between gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center ${totaalSelectie > 0 ? 'acquisitie-selection-glass left-1/2 z-50 w-[calc(100vw-1rem)] max-w-6xl -translate-x-1/2 lg:left-[calc((100vw+var(--app-sidebar-width))/2)] lg:w-[calc(100vw-var(--app-sidebar-width)-1rem)]' : ''}`}
         style={totaalSelectie > 0 ? {
           position: 'fixed',
           bottom: 'calc(0.5rem + env(safe-area-inset-bottom))',

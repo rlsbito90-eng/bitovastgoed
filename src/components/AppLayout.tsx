@@ -227,7 +227,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   useAutoRefreshOnFocus();
 
   return (
-    <div className="flex h-screen min-h-0 overflow-x-hidden bg-background">
+    <div
+      className="flex h-screen min-h-0 overflow-x-hidden bg-background"
+      style={{ '--app-sidebar-width': desktopCollapsed ? '5rem' : '16rem' } as React.CSSProperties}
+    >
       <aside
         className={`hidden shrink-0 flex-col border-r border-sidebar-border/60 glass-dark text-sidebar-foreground transition-[width] duration-200 ease-out lg:flex ${
           desktopCollapsed ? "lg:w-20" : "lg:w-64"
