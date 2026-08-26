@@ -69,7 +69,10 @@ describe('Acquisitieselectie productie-UX-contract', () => {
     expect(wizardBron).toContain('bulk-vernieuw-standaardteksten');
     expect(wizardBron).toContain('Mogelijk handmatig aangepast');
     expect(wizardBron).toContain('staat daarom standaard uit');
-    expect(wizardBron).toContain("p.bestaandeBrief?.status === 'concept'");
+    expect(wizardBron).toContain("p.actie === 'hergebruiken'");
+    expect(wizardBron).toContain("p.bestaandeBrief?.status !== 'concept'");
+    expect(wizardBron).toContain('classificeerConceptVoorVernieuwing');
+    expect(wizardBron).toContain('magConceptAutomatischVernieuwen');
   });
 
   it('houdt de volledige selectie-actiebalk fixed en safe-area-aware op mobiel', () => {
