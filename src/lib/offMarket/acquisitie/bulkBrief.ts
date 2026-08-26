@@ -22,6 +22,7 @@ import {
 } from '@/lib/offMarket/brief';
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { isVolledigPostadres } from '@/lib/offMarket/acquisitie/readiness';
+import { canoniekeRechthebbenden } from '@/lib/offMarket/acquisitie/readinessRechthebbenden';
 import type { CampagneStap } from '@/lib/offMarket/brieven/groepering';
 import { naarVoorlettersAchternaam } from '@/lib/format/naam';
 
@@ -98,7 +99,40 @@ export function bouwKandidatenVoorSignaal(
   }
 
   if (out.length === 0) {
-    // Geen brieven → val terug op de signaal-eigenaargegevens (max 1).
+    const a = signaal as any;
+    // Gebruik vóór de eerste brief exact dezelfde canonieke rechthebbenden
+    // als de readiness-rij. Zo verdwijnen meerdere zichtbare geadresseerden
+    // niet wanneer de briefwizard wordt geopend.
+    if (a.eigenaar_controle_nodig !== true) {
+      for (const [index, rechthebbende] of canoniekeRechthebbenden(signaal).entries()) {
+        const rauweNaam = (rechthebbende.naam ?? '').trim() || null;
+        const naam = rauweNaam ? naarVoorlettersAchternaam(rauweNaam) || null : null;
+        const bedrijf = (rechthebbende.bedrijfsnaam ?? '').trim() || null;
+        if (!naam && !bedrijf) continue;
+        const adres = (rechthebbende.verzendadres ?? '').trim() || null;
+        const sleutelBron = (rechthebbende.kvk ?? '').trim()
+          || (rechthebbende.bedrijfsnaam ?? '').trim()
+          || (rechthebbende.naam ?? '').trim()
+          || `${index}`;
+        const blokkades: string[] = [];
+        if (signaalGearchiveerd) blokkades.push('Signaal is gearchiveerd of afgevallen.');
+        if (!isVolledigPostadres(adres)) blokkades.push('Postadres is onvolledig.');
+        out.push({
+          signaalId: signaal.id,
+          geadresseerdeKey: `_rechthebbende|${signaal.id}|${sleutelBron.toLowerCase()}`,
+          naam,
+          bedrijfsnaam: bedrijf,
+          verzendadres: adres,
+          geschikt: blokkades.length === 0,
+          blokkade: blokkades[0] ?? null,
+          hints: ['Canonieke rechthebbende'],
+        });
+      }
+    }
+  }
+
+  if (out.length === 0) {
+    // Geen brieven/rechthebbenden → val terug op eigenaarvelden (max 1).
     const a = signaal as any;
     const rauweNaam = ((a.eigenaar_naam ?? '') as string).trim() || null;
     const naam = rauweNaam ? naarVoorlettersAchternaam(rauweNaam) || null : null;
