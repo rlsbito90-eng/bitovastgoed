@@ -278,10 +278,9 @@ body,
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 0.625rem 0.75rem !important;
-    border: 1px solid hsl(var(--border) / 0.9);
-    box-shadow: var(--shadow-lg) !important;
-    backdrop-filter: blur(14px) saturate(125%) !important;
-    -webkit-backdrop-filter: blur(14px) saturate(125%) !important;
+    border-radius: 1.125rem !important;
+    backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
   }
 
   [data-testid="acquisitie-selectie-tab"]:has(
@@ -293,6 +292,10 @@ body,
   [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) > div {
     width: 100%;
     min-width: 0;
+  }
+
+  [data-testid="acquisitie-bulk-toolbar"] .acquisitie-selection-summary {
+    padding-inline: 0.125rem;
   }
 
   [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) button {

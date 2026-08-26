@@ -206,6 +206,38 @@
       0 14px 36px -18px hsl(var(--shadow-color) / 0.28),
       0 2px 6px -2px hsl(var(--shadow-color) / 0.10);
   }
+
+  /* Acquisitieselectie — Apple-inspired liquid glass action dock. */
+  .acquisitie-selection-glass {
+    overflow: hidden;
+    isolation: isolate;
+    border: 1px solid hsl(var(--glass-highlight) / 0.72) !important;
+    background:
+      radial-gradient(130% 150% at 12% -45%, hsl(var(--glass-highlight) / 0.58), transparent 54%),
+      linear-gradient(135deg, hsl(var(--card) / 0.72), hsl(var(--card) / 0.52)) !important;
+    box-shadow:
+      0 1px 0 hsl(var(--glass-highlight) / 0.82) inset,
+      0 -1px 0 hsl(var(--foreground) / 0.035) inset,
+      0 18px 48px -20px hsl(var(--shadow-color) / 0.42),
+      0 6px 18px -10px hsl(var(--shadow-color) / 0.24) !important;
+    backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+  }
+  .acquisitie-selection-glass::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(115deg, hsl(var(--glass-highlight) / 0.24), transparent 32%, transparent 70%, hsl(var(--accent) / 0.06));
+  }
+  .acquisitie-selection-glass .acquisitie-selection-actions {
+    padding: 0.25rem;
+    border: 1px solid hsl(var(--glass-highlight) / 0.42);
+    border-radius: 0.75rem;
+    background: hsl(var(--background) / 0.22);
+  }
   .section-card-flat {
     @apply bg-card border border-border/70 rounded-2xl lg:rounded-xl;
   }
