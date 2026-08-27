@@ -3,6 +3,11 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import type { BagCbsGebiedsoptie } from '@/lib/bag/queryService';
+import {
+  echteWijkCodes,
+  heeftBinnenRingFilter,
+  zetBinnenRingFilter,
+} from '@/lib/bag/amsterdamRingFilter';
 
 interface Props {
   opties: BagCbsGebiedsoptie[];
@@ -26,6 +31,12 @@ export default function BagGebiedsfilters({
 }: Props) {
   const [wijkZoekterm, setWijkZoekterm] = useState('');
   const [buurtZoekterm, setBuurtZoekterm] = useState('');
+  const geselecteerdeEchteWijken = useMemo(() => echteWijkCodes(wijkCodes), [wijkCodes]);
+  const binnenRing = heeftBinnenRingFilter(wijkCodes);
+  const isAmsterdamScope = useMemo(
+    () => opties.some(optie => optie.wijk_code.startsWith('WK0363')),
+    [opties],
+  );
 
   const wijken = useMemo(() => {
     const perCode = new Map<string, { code: string; naam: string }>();
@@ -34,9 +45,9 @@ export default function BagGebiedsfilters({
   }, [opties]);
 
   const buurten = useMemo(() => opties
-    .filter(optie => !wijkCodes.length || wijkCodes.includes(optie.wijk_code))
+    .filter(optie => !geselecteerdeEchteWijken.length || geselecteerdeEchteWijken.includes(optie.wijk_code))
     .sort((a, b) => a.buurt_naam.localeCompare(b.buurt_naam, 'nl')),
-  [opties, wijkCodes]);
+  [opties, geselecteerdeEchteWijken]);
 
   const zichtbareWijken = useMemo(() => {
     const zoek = norm(wijkZoekterm);
@@ -51,66 +62,81 @@ export default function BagGebiedsfilters({
   }, [buurten, buurtZoekterm]);
 
   const wijzigWijken = (code: string) => {
-    const next = toggle(wijkCodes, code);
+    const nextEchte = toggle(geselecteerdeEchteWijken, code);
+    const next = binnenRing ? zetBinnenRingFilter(nextEchte, true) : nextEchte;
     onWijkCodesChange(next);
-    if (next.length) {
-      const geldigeBuurtCodes = new Set(opties.filter(optie => next.includes(optie.wijk_code)).map(optie => optie.buurt_code));
+    if (nextEchte.length) {
+      const geldigeBuurtCodes = new Set(opties.filter(optie => nextEchte.includes(optie.wijk_code)).map(optie => optie.buurt_code));
       onBuurtCodesChange(buurtCodes.filter(buurtCode => geldigeBuurtCodes.has(buurtCode)));
     }
   };
 
-  return (
-    <div className="mt-3 grid gap-3 lg:grid-cols-2">
-      <details className="rounded-md border bg-background">
-        <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium">
-          <span className="flex items-center justify-between gap-2">
-            <span>Wijk</span>
-            <span className="flex items-center gap-2">
-              {wijkCodes.length > 0 && <Badge variant="secondary">{wijkCodes.length}</Badge>}
-              <span className="text-muted-foreground">{laden ? 'Laden…' : `${wijken.length} opties`}</span>
-            </span>
-          </span>
-        </summary>
-        <div className="border-t p-3">
-          <Input value={wijkZoekterm} onChange={event => setWijkZoekterm(event.target.value)} placeholder="Zoek wijk…" className="mb-2 h-9" />
-          <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-            {zichtbareWijken.map(wijk => (
-              <label key={wijk.code} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted/50">
-                <Checkbox checked={wijkCodes.includes(wijk.code)} onCheckedChange={() => wijzigWijken(wijk.code)} />
-                <span className="min-w-0 flex-1 truncate">{wijk.naam}</span>
-                <span className="font-mono text-[10px] text-muted-foreground">{wijk.code}</span>
-              </label>
-            ))}
-            {!zichtbareWijken.length && <p className="px-2 py-2 text-xs text-muted-foreground">Geen wijken gevonden.</p>}
-          </div>
-        </div>
-      </details>
+  const wijzigBinnenRing = (actief: boolean) => {
+    onWijkCodesChange(zetBinnenRingFilter(wijkCodes, actief));
+  };
 
-      <details className="rounded-md border bg-background">
-        <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium">
-          <span className="flex items-center justify-between gap-2">
-            <span>Buurt</span>
-            <span className="flex items-center gap-2">
-              {buurtCodes.length > 0 && <Badge variant="secondary">{buurtCodes.length}</Badge>}
-              <span className="text-muted-foreground">{laden ? 'Laden…' : `${buurten.length} opties`}</span>
+  return (
+    <div className="mt-3 space-y-3">
+      {isAmsterdamScope && <label data-testid="pandenverkenner-binnen-ring-filter" className="flex cursor-pointer items-start gap-3 rounded-lg border border-accent/35 bg-accent/5 px-3 py-3">
+        <Checkbox className="mt-0.5" checked={binnenRing} onCheckedChange={value => wijzigBinnenRing(Boolean(value))} />
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">Binnen de ring</span>
+          <span className="block text-[11px] text-muted-foreground">Amsterdam binnen de A10, ten zuiden van het IJ. Amsterdam-Noord telt niet mee.</span>
+        </span>
+      </label>}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <details className="rounded-md border bg-background">
+          <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium">
+            <span className="flex items-center justify-between gap-2">
+              <span>Wijk</span>
+              <span className="flex items-center gap-2">
+                {geselecteerdeEchteWijken.length > 0 && <Badge variant="secondary">{geselecteerdeEchteWijken.length}</Badge>}
+                <span className="text-muted-foreground">{laden ? 'Laden…' : `${wijken.length} opties`}</span>
+              </span>
             </span>
-          </span>
-        </summary>
-        <div className="border-t p-3">
-          <Input value={buurtZoekterm} onChange={event => setBuurtZoekterm(event.target.value)} placeholder="Zoek buurt…" className="mb-2 h-9" />
-          <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-            {zichtbareBuurten.map(buurt => (
-              <label key={buurt.buurt_code} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted/50">
-                <Checkbox checked={buurtCodes.includes(buurt.buurt_code)} onCheckedChange={() => onBuurtCodesChange(toggle(buurtCodes, buurt.buurt_code))} />
-                <span className="min-w-0 flex-1 truncate">{buurt.buurt_naam}</span>
-                <span className="font-mono text-[10px] text-muted-foreground">{buurt.buurt_code}</span>
-              </label>
-            ))}
-            {!zichtbareBuurten.length && <p className="px-2 py-2 text-xs text-muted-foreground">Geen buurten gevonden.</p>}
+          </summary>
+          <div className="border-t p-3">
+            <Input value={wijkZoekterm} onChange={event => setWijkZoekterm(event.target.value)} placeholder="Zoek wijk…" className="mb-2 h-9" />
+            <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+              {zichtbareWijken.map(wijk => (
+                <label key={wijk.code} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted/50">
+                  <Checkbox checked={geselecteerdeEchteWijken.includes(wijk.code)} onCheckedChange={() => wijzigWijken(wijk.code)} />
+                  <span className="min-w-0 flex-1 truncate">{wijk.naam}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{wijk.code}</span>
+                </label>
+              ))}
+              {!zichtbareWijken.length && <p className="px-2 py-2 text-xs text-muted-foreground">Geen wijken gevonden.</p>}
+            </div>
           </div>
-          {wijkCodes.length > 0 && <p className="mt-2 text-[11px] text-muted-foreground">Alleen buurten binnen de geselecteerde wijk(en) worden getoond.</p>}
-        </div>
-      </details>
+        </details>
+
+        <details className="rounded-md border bg-background">
+          <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium">
+            <span className="flex items-center justify-between gap-2">
+              <span>Buurt</span>
+              <span className="flex items-center gap-2">
+                {buurtCodes.length > 0 && <Badge variant="secondary">{buurtCodes.length}</Badge>}
+                <span className="text-muted-foreground">{laden ? 'Laden…' : `${buurten.length} opties`}</span>
+              </span>
+            </span>
+          </summary>
+          <div className="border-t p-3">
+            <Input value={buurtZoekterm} onChange={event => setBuurtZoekterm(event.target.value)} placeholder="Zoek buurt…" className="mb-2 h-9" />
+            <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+              {zichtbareBuurten.map(buurt => (
+                <label key={buurt.buurt_code} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted/50">
+                  <Checkbox checked={buurtCodes.includes(buurt.buurt_code)} onCheckedChange={() => onBuurtCodesChange(toggle(buurtCodes, buurt.buurt_code))} />
+                  <span className="min-w-0 flex-1 truncate">{buurt.buurt_naam}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{buurt.buurt_code}</span>
+                </label>
+              ))}
+              {!zichtbareBuurten.length && <p className="px-2 py-2 text-xs text-muted-foreground">Geen buurten gevonden.</p>}
+            </div>
+            {geselecteerdeEchteWijken.length > 0 && <p className="mt-2 text-[11px] text-muted-foreground">Alleen buurten binnen de geselecteerde wijk(en) worden getoond.</p>}
+          </div>
+        </details>
+      </div>
     </div>
   );
 }
