@@ -1,0 +1,12 @@
+@media (max-width: 640px) {
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"])
+    div.flex.items-start.gap-3.p-4:has(> [role="checkbox"]) {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"])
+    div.flex.items-start.gap-3.p-4:has(> [role="checkbox"]):active {
+    background-color: hsl(var(--primary) / 0.07);
+  }
+}
