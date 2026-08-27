@@ -65,4 +65,14 @@ describe('mobiele UX fundering', () => {
     expect(css).toContain('position: fixed !important');
     expect(css).toContain('padding-bottom: calc(10rem + env(safe-area-inset-bottom))');
   });
+
+  it('houdt de sticky Radar-selectiedock volledig binnen de mobiele viewport', () => {
+    const css = source('src/mobile-acquisitie-fixes.css');
+    expect(css).toContain('[data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"])');
+    expect(css).toContain('transform: none !important');
+    expect(css).toContain('env(safe-area-inset-left)');
+    expect(css).toContain('env(safe-area-inset-right)');
+    expect(css).toContain('max-width: calc(100vw');
+    expect(css).toContain('overflow-x: hidden !important');
+  });
 });
