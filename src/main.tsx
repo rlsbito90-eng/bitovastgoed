@@ -8,6 +8,7 @@ import "./index.css";
 import "./mobile-foundation.css";
 import "./mobile-polish.css";
 import "./mobile-acquisitie-fixes.css";
+import "./mobile-vastgoedkansen-compact.css";
 
 globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
