@@ -3,6 +3,7 @@ import type {
   BagPandZoekAanvraagV3,
   BagPandZoekAanvraagV4,
 } from './queryService';
+import { echteWijkCodes } from './amsterdamRingFilter';
 
 interface BagV2ResultaatRij {
   bouwjaar?: string | number | null;
@@ -65,7 +66,8 @@ function voldoetV3(rij: BagV2ResultaatRij, aanvraag: BagPandZoekAanvraagV3): boo
 
 function voldoetV4(rij: BagV2ResultaatRij, aanvraag: BagPandZoekAanvraagV4): boolean {
   if (!voldoetV3(rij, aanvraag)) return false;
-  if (aanvraag.wijkCodes.length && !aanvraag.wijkCodes.includes(rij.wijk_code ?? '')) return false;
+  const wijkCodes = echteWijkCodes(aanvraag.wijkCodes);
+  if (wijkCodes.length && !wijkCodes.includes(rij.wijk_code ?? '')) return false;
   if (aanvraag.buurtCodes.length && !aanvraag.buurtCodes.includes(rij.buurt_code ?? '')) return false;
   return true;
 }
