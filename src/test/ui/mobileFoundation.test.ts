@@ -79,4 +79,23 @@ describe('mobiele UX fundering', () => {
     expect(css).toContain('[data-testid="acquisitie-selectie-lijst"]');
     expect(css).toContain('margin-bottom: calc(15rem + env(safe-area-inset-bottom))');
   });
+
+  it('maakt Vastgoedkansen en Pandenverkenner op mobiel echte viewport-bottom selectiesheets', () => {
+    const vastgoedkansen = source('src/pages/VastgoedkansenPage.tsx');
+    const pandenverkenner = source('src/components/bag/BagServicePandenlijst.tsx');
+    const css = source('src/mobile-foundation.css');
+
+    expect(vastgoedkansen).toContain('data-testid="vastgoedkansen-bulk-workspace"');
+    expect(css).toContain('[data-testid="vastgoedkansen-bulk-workspace"]');
+    expect(css).toContain('.page-shell-wide:has(> [data-testid="vastgoedkansen-bulk-workspace"])');
+
+    expect(pandenverkenner).toContain('aria-label="Sorteer geladen pagina"');
+    expect(pandenverkenner).toContain('Selecteer zichtbare pagina');
+    expect(css).toContain('section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"])');
+    expect(css).toContain('button:nth-child(2):not(:disabled)');
+
+    expect(css).toContain('env(safe-area-inset-left)');
+    expect(css).toContain('env(safe-area-inset-right)');
+    expect(css).toContain('backdrop-filter: blur(28px) saturate(180%) contrast(104%)');
+  });
 });
