@@ -112,4 +112,27 @@
     max-width: 100%;
     box-sizing: border-box;
   }
+
+  /* Radar-selectiedock: de component centreert desktop met translate(-50%).
+     Op mobiel bepaalt mobile-foundation al left/right; reset daarom de desktop-
+     transform zodat de dock niet een halve breedte buiten beeld schuift. */
+  [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) {
+    left: max(0.75rem, env(safe-area-inset-left)) !important;
+    right: max(0.75rem, env(safe-area-inset-right)) !important;
+    width: auto !important;
+    max-width: calc(100vw - max(0.75rem, env(safe-area-inset-left)) - max(0.75rem, env(safe-area-inset-right))) !important;
+    transform: none !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) .acquisitie-selection-actions {
+    width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) .acquisitie-selection-actions > * {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
