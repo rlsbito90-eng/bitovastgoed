@@ -1,0 +1,17 @@
+/* Vastgoedkansen — compacte mobiele selectie-bottom-sheet.
+ * Status- en prioriteitbulkacties blijven op desktop/tablet beschikbaar,
+ * maar worden op telefoon uit de viewport-sheet gehouden om ruimte te sparen.
+ */
+@media (max-width: 640px) {
+  [data-testid="vastgoedkansen-bulk-workspace"] {
+    max-height: min(44dvh, 20rem) !important;
+  }
+
+  [data-testid="vastgoedkansen-bulk-workspace"] > div.border-t {
+    display: none !important;
+  }
+
+  .page-shell-wide:has(> [data-testid="vastgoedkansen-bulk-workspace"]) {
+    padding-bottom: calc(14rem + env(safe-area-inset-bottom)) !important;
+  }
+}
