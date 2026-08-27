@@ -329,6 +329,141 @@ body,
   form {
     scroll-margin-bottom: max(1rem, env(safe-area-inset-bottom));
   }
+
+  /* Vastgoedkansen: dezelfde mobiele viewport-bottom sheet als de Radar-selectiebar.
+     De bestaande bulkworkspace blijft op desktop/tablet gewoon inline. */
+  [data-testid="vastgoedkansen-bulk-workspace"] {
+    position: fixed !important;
+    z-index: 46;
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: auto !important;
+    max-width: calc(100vw - 1.5rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: min(58dvh, 28rem);
+    margin: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    border-radius: 1.25rem !important;
+    background-color: hsl(var(--card) / 0.92) !important;
+    box-shadow: 0 18px 48px hsl(var(--foreground) / 0.18) !important;
+    backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+  }
+
+  .page-shell-wide:has(> [data-testid="vastgoedkansen-bulk-workspace"]) {
+    padding-bottom: calc(22rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  [data-testid="vastgoedkansen-bulk-workspace"] > div,
+  [data-testid="vastgoedkansen-bulk-workspace"] button,
+  [data-testid="vastgoedkansen-bulk-workspace"] select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  [data-testid="vastgoedkansen-bulk-workspace"] > div:first-child > div:last-child {
+    display: grid !important;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem !important;
+  }
+
+  [data-testid="vastgoedkansen-bulk-workspace"] > div:first-child > div:last-child button {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  [data-testid="vastgoedkansen-bulk-workspace"] > div.border-t {
+    flex-direction: column;
+  }
+
+  [data-testid="vastgoedkansen-bulk-workspace"] > div.border-t > div {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* Pandenverkenner — lijstweergave. De bestaande selectiewerkbalk wordt alleen
+     fixed zodra Wis selectie actief is; met 0 geselecteerd blijft hij inline. */
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"])
+    > div.block
+    > div.flex.flex-col.gap-3.border-b.p-4:has(> div.grid > button:nth-child(2):not(:disabled)) {
+    position: fixed !important;
+    z-index: 46;
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: auto !important;
+    max-width: calc(100vw - 1.5rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: min(42dvh, 16rem);
+    margin: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    border: 1px solid hsl(var(--border) / 0.85);
+    border-radius: 1.25rem !important;
+    background-color: hsl(var(--card) / 0.92) !important;
+    box-shadow: 0 18px 48px hsl(var(--foreground) / 0.18) !important;
+    backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+  }
+
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"])
+    > div.block
+    > div.flex.flex-col.gap-3.border-b.p-4:has(> div.grid > button:nth-child(2):not(:disabled))
+    > div.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"])
+    > div.block
+    > div.flex.flex-col.gap-3.border-b.p-4:has(> div.grid > button:nth-child(2):not(:disabled))
+    > div.grid > button:first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Pandenverkenner — kaartweergave. Deze balk bestaat alleen bij een selectie. */
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"])
+    > div.flex.items-center.justify-between.gap-3.border-b.bg-muted\/10.px-4.py-3.text-sm {
+    position: fixed !important;
+    z-index: 46;
+    left: max(0.75rem, env(safe-area-inset-left));
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: auto !important;
+    max-width: calc(100vw - 1.5rem - env(safe-area-inset-left) - env(safe-area-inset-right));
+    margin: 0 !important;
+    box-sizing: border-box;
+    border: 1px solid hsl(var(--border) / 0.85);
+    border-radius: 1.25rem !important;
+    background-color: hsl(var(--card) / 0.92) !important;
+    box-shadow: 0 18px 48px hsl(var(--foreground) / 0.18) !important;
+    backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%) !important;
+  }
+
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"]):has(
+    > div.block > div.flex.flex-col.gap-3.border-b.p-4 > div.grid > button:nth-child(2):not(:disabled)
+  ),
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"]):has(
+    > div.flex.items-center.justify-between.gap-3.border-b.bg-muted\/10.px-4.py-3.text-sm
+  ) {
+    padding-bottom: calc(14rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"]):has(
+    > div.block > div.flex.flex-col.gap-3.border-b.p-4 > div.grid > button:nth-child(2):not(:disabled)
+  ) > button.fixed.bottom-6.right-6,
+  section.section-card.overflow-hidden:has(select[aria-label="Sorteer geladen pagina"]):has(
+    > div.flex.items-center.justify-between.gap-3.border-b.bg-muted\/10.px-4.py-3.text-sm
+  ) > button.fixed.bottom-6.right-6 {
+    bottom: calc(14rem + env(safe-area-inset-bottom)) !important;
+  }
 }
 
 @media (prefers-color-scheme: dark) and (max-width: 1023px) {
