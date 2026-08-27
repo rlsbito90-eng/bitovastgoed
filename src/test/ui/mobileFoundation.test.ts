@@ -66,7 +66,7 @@ describe('mobiele UX fundering', () => {
     expect(css).toContain('padding-bottom: calc(10rem + env(safe-area-inset-bottom))');
   });
 
-  it('houdt de sticky Radar-selectiedock volledig binnen de mobiele viewport', () => {
+  it('houdt de sticky Radar-selectiedock volledig binnen de mobiele viewport zonder een leeg gat vóór de lijst', () => {
     const css = source('src/mobile-acquisitie-fixes.css');
     expect(css).toContain('[data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"])');
     expect(css).toContain('transform: none !important');
@@ -74,5 +74,9 @@ describe('mobiele UX fundering', () => {
     expect(css).toContain('env(safe-area-inset-right)');
     expect(css).toContain('max-width: calc(100vw');
     expect(css).toContain('overflow-x: hidden !important');
+    expect(css).toContain('[data-testid="acquisitie-bulk-toolbar-ruimte"]');
+    expect(css).toContain('display: none !important');
+    expect(css).toContain('[data-testid="acquisitie-selectie-lijst"]');
+    expect(css).toContain('margin-bottom: calc(15rem + env(safe-area-inset-bottom))');
   });
 });
