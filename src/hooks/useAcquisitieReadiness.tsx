@@ -10,6 +10,10 @@ import {
   type SignaalReadiness, type AcquisitieKpis,
 } from '@/lib/offMarket/acquisitie/readiness';
 import { pasCanoniekeRechthebbendenToeOpReadiness } from '@/lib/offMarket/acquisitie/readinessRechthebbenden';
+import {
+  pasKadasterAanwezigheidToeOpReadiness,
+  type KadasterReadinessAanwezigheid,
+} from '@/lib/offMarket/acquisitie/kadasterReadiness';
 
 type ProductieKoppeling = {
   brief_id: string;
@@ -147,6 +151,46 @@ export function useBrievenVoorSignalen(signaalIds: string[]) {
   });
 }
 
+function useKadasterReadinessAanwezigheid(signaalIds: string[]) {
+  const ids = useMemo(() => [...signaalIds].sort(), [signaalIds]);
+  return useQuery({
+    queryKey: ['off-market-kadaster-readiness-aanwezigheid', ids],
+    enabled: ids.length > 0,
+    staleTime: 30_000,
+    queryFn: async (): Promise<Map<string, KadasterReadinessAanwezigheid>> => {
+      const db = supabase as any;
+      const [recordsResultaat, documentenResultaat] = await Promise.all([
+        db.from('kadaster_data_records')
+          .select('signaal_id')
+          .in('signaal_id', ids)
+          .eq('product_code', 'rechten')
+          .in('status', ['geleverd', 'gedeeltelijk']),
+        db.from('kadaster_documenten')
+          .select('signaal_id,product_codes')
+          .in('signaal_id', ids),
+      ]);
+      if (recordsResultaat.error) throw new Error(recordsResultaat.error.message);
+      if (documentenResultaat.error) throw new Error(documentenResultaat.error.message);
+
+      const rechten = new Set<string>();
+      for (const rij of recordsResultaat.data ?? []) {
+        if (typeof rij.signaal_id === 'string') rechten.add(rij.signaal_id);
+      }
+      const berichten = new Set<string>();
+      for (const rij of documentenResultaat.data ?? []) {
+        if (typeof rij.signaal_id === 'string' && Array.isArray(rij.product_codes) && rij.product_codes.includes('rechten')) {
+          berichten.add(rij.signaal_id);
+        }
+      }
+
+      return new Map(ids.map(id => [id, {
+        rechtenAanwezig: rechten.has(id),
+        internBerichtAanwezig: berichten.has(id),
+      }]));
+    },
+  });
+}
+
 export interface AcquisitieReadinessResultaat {
   perSignaal: Map<string, SignaalReadiness>;
   lijst: Array<{ signaal: OffMarketSignaal; readiness: SignaalReadiness }>;
@@ -157,7 +201,8 @@ export function useAcquisitieReadiness(
   signalen: OffMarketSignaal[],
 ): AcquisitieReadinessResultaat & { isLoading: boolean } {
   const ids = useMemo(() => signalen.map(s => s.id), [signalen]);
-  const { data: brieven = [], isLoading } = useBrievenVoorSignalen(ids);
+  const { data: brieven = [], isLoading: brievenLaden } = useBrievenVoorSignalen(ids);
+  const { data: kadasterAanwezigheid = new Map<string, KadasterReadinessAanwezigheid>(), isLoading: kadasterLaden } = useKadasterReadinessAanwezigheid(ids);
 
   const result = useMemo(() => {
     const brievenPerSignaal = new Map<string, OffMarketBrief[]>();
@@ -174,13 +219,14 @@ export function useAcquisitieReadiness(
         signaal: s,
         brieven: signaalBrieven,
       });
-      const r = pasCanoniekeRechthebbendenToeOpReadiness(s, signaalBrieven, basis);
+      const metRechthebbenden = pasCanoniekeRechthebbendenToeOpReadiness(s, signaalBrieven, basis);
+      const r = pasKadasterAanwezigheidToeOpReadiness(metRechthebbenden, kadasterAanwezigheid.get(s.id));
       perSignaal.set(s.id, r);
       lijst.push({ signaal: s, readiness: r });
     }
     const kpis = aggregeerKpis(lijst.map(x => x.readiness));
     return { perSignaal, lijst, kpis };
-  }, [signalen, brieven]);
+  }, [signalen, brieven, kadasterAanwezigheid]);
 
-  return { ...result, isLoading };
+  return { ...result, isLoading: brievenLaden || kadasterLaden };
 }

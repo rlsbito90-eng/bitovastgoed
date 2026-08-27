@@ -113,19 +113,24 @@
     box-sizing: border-box;
   }
 
-  /* Radar-selectiedock: de component centreert desktop met translate(-50%).
-     Op mobiel bepaalt mobile-foundation al left/right; reset daarom de desktop-
-     transform zodat de dock niet een halve breedte buiten beeld schuift. */
+  /* Radar-selectiedock = viewport-bottom sheet, niet een element dat ruimte
+     midden in de resultatenlijst opeist. */
   [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) {
     left: max(0.75rem, env(safe-area-inset-left)) !important;
     right: max(0.75rem, env(safe-area-inset-right)) !important;
+    bottom: calc(0.65rem + env(safe-area-inset-bottom)) !important;
     width: auto !important;
     max-width: calc(100vw - max(0.75rem, env(safe-area-inset-left)) - max(0.75rem, env(safe-area-inset-right))) !important;
+    max-height: min(46dvh, 23rem);
     transform: none !important;
     box-sizing: border-box !important;
     overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
+  [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) .acquisitie-selection-summary,
   [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) .acquisitie-selection-actions {
     width: 100%;
     min-width: 0;
@@ -134,5 +139,18 @@
   [data-testid="acquisitie-bulk-toolbar"]:has([data-testid="acquisitie-bulk-telling"]) .acquisitie-selection-actions > * {
     min-width: 0;
     max-width: 100%;
+  }
+
+  /* De oude spacer stond vóór de lijst en trok daardoor letterlijk een leeg
+     vlak uit de resultaten. Verberg hem mobiel en reserveer de ruimte onder
+     de daadwerkelijke lijst zolang de bottom sheet zichtbaar is. */
+  [data-testid="acquisitie-bulk-toolbar-ruimte"] {
+    display: none !important;
+    height: 0 !important;
+  }
+
+  body:has([data-testid="acquisitie-bulk-toolbar"] [data-testid="acquisitie-bulk-telling"])
+  [data-testid="acquisitie-selectie-lijst"] {
+    margin-bottom: calc(15rem + env(safe-area-inset-bottom));
   }
 }
