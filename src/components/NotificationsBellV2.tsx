@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, BellRing, Check, CheckCheck, Loader2, Smartphone, Trash2 } from 'lucide-react';
+import { Bell, BellRing, Check, CheckCheck, Loader2, Smartphone, Trash2, RefreshCw } from 'lucide-react';
 import {
   dismissNotification,
   listNotificationEvents,
@@ -9,7 +9,12 @@ import {
   subscribeToNotificationChanges,
   type ServerNotificationEvent,
 } from '@/lib/notifications/repository';
-import { enablePushForThisDevice, getPushCapability } from '@/lib/notifications/pushClient';
+import {
+  enablePushForThisDevice,
+  getPushCapability,
+  getPushDeviceState,
+  testNotificationOnThisDevice,
+} from '@/lib/notifications/pushClient';
 import TaskReminderDefaultSetting from '@/components/notifications/TaskReminderDefaultSetting';
 import { toast } from 'sonner';
 
@@ -27,7 +32,7 @@ function pushLabel() {
   const c = getPushCapability();
   if (!c.supported) return 'Push niet ondersteund';
   if (c.platform === 'iOS/iPadOS' && c.displayMode !== 'standalone') return 'Open via beginscherm voor push';
-  if (c.permission === 'granted') return 'Push actief op dit apparaat';
+  if (c.permission === 'granted') return 'Pushstatus controleren';
   if (c.permission === 'denied') return 'Push geblokkeerd';
   return 'Push aanzetten op dit apparaat';
 }
@@ -37,6 +42,7 @@ export default function NotificationsBellV2() {
   const [items, setItems] = useState<ServerNotificationEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [pushBusy, setPushBusy] = useState(false);
+  const [testBusy, setTestBusy] = useState(false);
   const [pushStatus, setPushStatus] = useState(() => pushLabel());
 
   const reload = useCallback(async () => {
@@ -50,19 +56,36 @@ export default function NotificationsBellV2() {
     }
   }, []);
 
+  const refreshPushState = useCallback(async () => {
+    try {
+      const state = await getPushDeviceState();
+      const c = state.capability;
+      if (!c.supported) return setPushStatus('Push niet ondersteund');
+      if (c.platform === 'iOS/iPadOS' && c.displayMode !== 'standalone') return setPushStatus('Open via beginscherm voor push');
+      if (c.permission === 'denied') return setPushStatus('Push geblokkeerd');
+      if (c.permission !== 'granted') return setPushStatus('Push aanzetten op dit apparaat');
+      setPushStatus(state.hasSubscription ? 'Push actief · controleer/herstel' : 'Toestemming aan · abonnement ontbreekt');
+    } catch (error) {
+      console.error('Pushstatus controleren mislukt', error);
+      setPushStatus(pushLabel());
+    }
+  }, []);
+
   useEffect(() => {
     void reload();
+    void refreshPushState();
     let unsubscribe: (() => void) | undefined;
     void subscribeToNotificationChanges(() => void reload()).then((fn) => { unsubscribe = fn; });
-    // Geplande events bestaan al vóór scheduled_at en worden daarom niet opnieuw
-    // door Realtime gewijzigd op het activatiemoment. Een lichte minuutrefresh houdt
-    // de in-app bel gelijk aan de serverplanning; push blijft server-driven.
     const timer = window.setInterval(() => void reload(), 60_000);
     return () => {
       unsubscribe?.();
       window.clearInterval(timer);
     };
-  }, [reload]);
+  }, [reload, refreshPushState]);
+
+  useEffect(() => {
+    if (open) void refreshPushState();
+  }, [open, refreshPushState]);
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read_at).length, [items]);
   const sorted = useMemo(() => [...items].sort((a, b) => {
@@ -91,7 +114,7 @@ export default function NotificationsBellV2() {
     setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? now })));
   }
 
-  async function enablePush() {
+  async function enableOrRepairPush() {
     const capability = getPushCapability();
     if (capability.platform === 'iOS/iPadOS' && capability.displayMode !== 'standalone') {
       toast.info('Open Bito CRM via het beginscherm om pushmeldingen op deze iPhone te activeren.');
@@ -108,18 +131,31 @@ export default function NotificationsBellV2() {
         .filter(Boolean)
         .join(' · ');
       await enablePushForThisDevice(label);
-      setPushStatus('Push actief op dit apparaat');
-      toast.success('Pushmeldingen zijn op dit apparaat geactiveerd.');
+      await refreshPushState();
+      toast.success(capability.permission === 'granted' ? 'Pushabonnement gecontroleerd en opnieuw geregistreerd.' : 'Pushmeldingen zijn op dit apparaat geactiveerd.');
     } catch (error: any) {
-      toast.error(error?.message ?? 'Pushmeldingen activeren mislukt');
-      setPushStatus(pushLabel());
+      toast.error(error?.message ?? 'Pushmeldingen activeren/controleren mislukt');
+      await refreshPushState();
     } finally {
       setPushBusy(false);
     }
   }
 
+  async function testThisDevice() {
+    setTestBusy(true);
+    try {
+      await testNotificationOnThisDevice();
+      toast.success('Testmelding verstuurd naar dit apparaat.');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Testmelding mislukt');
+    } finally {
+      setTestBusy(false);
+    }
+  }
+
   const capability = getPushCapability();
   const canAttemptPush = capability.supported && capability.permission !== 'denied';
+  const canTest = capability.supported && capability.permission === 'granted' && capability.displayMode === 'standalone';
 
   return (
     <div className="relative">
@@ -149,16 +185,27 @@ export default function NotificationsBellV2() {
             </div>
           </div>
 
-          <div className="px-3 py-2 border-b border-border/60 bg-muted/20 flex items-center gap-2">
+          <div className="px-3 py-2 border-b border-border/60 bg-muted/20 flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              onClick={() => void enablePush()}
-              disabled={pushBusy || !canAttemptPush || capability.permission === 'granted'}
+              onClick={() => void enableOrRepairPush()}
+              disabled={pushBusy || !canAttemptPush}
               className="flex min-w-0 items-center gap-1.5 rounded px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60 disabled:cursor-default"
             >
-              {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Smartphone className="h-3.5 w-3.5" />}
+              {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               <span className="truncate">{pushStatus}</span>
             </button>
+            {canTest && (
+              <button
+                type="button"
+                onClick={() => void testThisDevice()}
+                disabled={testBusy}
+                className="flex items-center gap-1 rounded px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+              >
+                {testBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Smartphone className="h-3.5 w-3.5" />}
+                Test op dit apparaat
+              </button>
+            )}
             {items.length > 0 && (
               <button
                 type="button"

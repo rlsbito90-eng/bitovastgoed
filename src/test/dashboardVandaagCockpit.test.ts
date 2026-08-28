@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve(process.cwd(), 'src/pages/DashboardPage.tsx'), 'utf8');
 
-describe('Dashboard — Vandaag cockpit', () => {
-  it('gebruikt dezelfde taakplanning als Mijn werk', () => {
+describe('Dashboard — compacte Vandaag-strip', () => {
+  it('gebruikt dezelfde taakplanning als Taken', () => {
     expect(page).toContain('listTaskPlanning');
     expect(page).toContain('taskPlanningMap');
     expect(page).toContain('isTaskPlannedToday');
@@ -13,16 +13,18 @@ describe('Dashboard — Vandaag cockpit', () => {
     expect(page).toContain('isTaskUpcoming');
   });
 
-  it('zet Vandaag direct bovenaan en houdt achterstand apart', () => {
-    expect(page).toContain('<VandaagCockpit');
+  it('houdt Vandaag compact en laat de commerciële pipeline direct volgen', () => {
+    expect(page).toContain('<VandaagStrip');
     expect(page).toContain('data-testid="dashboard-vandaag-cockpit"');
-    expect(page).toContain('Gepland vandaag');
-    expect(page).toContain('Achterstallig');
-    expect(page).toContain('Bekijk alle {achterstallig.length} achterstallige taken');
+    expect(page).toContain('gepland');
+    expect(page).toContain('achterstallig');
+    expect(page).toContain('komend');
+    expect(page.indexOf('<VandaagStrip')).toBeLessThan(page.indexOf('className="kpi-hero block group"'));
   });
 
-  it('vervangt het oude Action center', () => {
+  it('vervangt het oude Action center zonder Taken het dashboard te laten domineren', () => {
     expect(page).not.toContain('Action center');
-    expect(page).toContain('label="Werkdruk"');
+    expect(page).toContain('label="Open acties"');
+    expect(page).not.toContain('Bekijk alle {achterstallig.length} achterstallige taken');
   });
 });

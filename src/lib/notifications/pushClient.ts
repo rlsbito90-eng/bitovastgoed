@@ -11,6 +11,12 @@ export interface PushCapability {
   browser: string;
 }
 
+export interface PushDeviceState {
+  capability: PushCapability;
+  hasSubscription: boolean;
+  endpoint: string | null;
+}
+
 function detectDisplayMode(): 'standalone' | 'browser' {
   if (typeof window === 'undefined') return 'browser';
   const standaloneMedia = window.matchMedia?.('(display-mode: standalone)').matches ?? false;
@@ -52,6 +58,20 @@ export function getPushCapability(): PushCapability {
     displayMode: detectDisplayMode(),
     platform: detectPlatform(),
     browser: detectBrowser(),
+  };
+}
+
+export async function getPushDeviceState(): Promise<PushDeviceState> {
+  const capability = getPushCapability();
+  if (!capability.supported) return { capability, hasSubscription: false, endpoint: null };
+
+  const registration = await registerBitoServiceWorker();
+  if (!registration) return { capability, hasSubscription: false, endpoint: null };
+  const subscription = await registration.pushManager.getSubscription();
+  return {
+    capability,
+    hasSubscription: Boolean(subscription),
+    endpoint: subscription?.endpoint ?? null,
   };
 }
 
@@ -106,6 +126,20 @@ export async function enablePushForThisDevice(deviceLabel?: string): Promise<Pus
   });
 
   return subscription;
+}
+
+export async function testNotificationOnThisDevice(): Promise<void> {
+  const capability = getPushCapability();
+  if (!capability.supported) throw new Error('Meldingen worden op dit apparaat/browser niet ondersteund');
+  if (Notification.permission !== 'granted') throw new Error('Geef Bito eerst toestemming om meldingen te tonen');
+
+  const registration = await registerBitoServiceWorker();
+  if (!registration) throw new Error('Service worker is niet beschikbaar');
+  await registration.showNotification('Bito testmelding', {
+    body: 'Als je dit ziet, kan dit apparaat Bito-meldingen zichtbaar tonen.',
+    tag: `bito-device-test-${Date.now()}`,
+    data: { href: '/taken' },
+  });
 }
 
 export async function disablePushForThisDevice(): Promise<void> {
