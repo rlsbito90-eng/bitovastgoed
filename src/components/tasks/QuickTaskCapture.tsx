@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowUp, CalendarDays, Clock3, Link2, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowUp, CalendarDays, Check, Clock3, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDataStore } from '@/hooks/useDataStore';
-import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { createManualTaskWithReminder } from '@/lib/tasks/reminders';
 import { updateTaskPlanning, type TaskPlanningBucket } from '@/lib/tasks/planning';
-import { replaceTaskLinks, type TaskLinkEntityType } from '@/lib/tasks/links';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 
 export type QuickTaskTarget = 'today' | 'inbox' | 'open' | 'later';
 
-type LinkedSelection = Record<TaskLinkEntityType, string[]>;
-
-const EMPTY_LINKS: LinkedSelection = { relatie: [], deal: [], object: [], signaal: [] };
 const TARGET_LABELS: Record<QuickTaskTarget, string> = {
   today: 'Vandaag', inbox: 'Inbox', open: 'Openstaand', later: 'Later',
 };
@@ -47,9 +42,20 @@ function planLabel(target: QuickTaskTarget, date: string | null, time: string | 
   let label = TARGET_LABELS[target];
   if (date) {
     const today = localDateKey(new Date());
-    label = date === today ? 'Vandaag' : date === plusDays(1) ? 'Morgen' : new Date(`${date}T12:00:00`).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+    label = date === today
+      ? 'Vandaag'
+      : date === plusDays(1)
+        ? 'Morgen'
+        : new Date(`${date}T12:00:00`).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
   }
   return time ? `${label} · ${time}` : label;
+}
+
+function dateLabel(value: string | null, fallback: string): string {
+  if (!value) return fallback;
+  return new Date(`${value}T12:00:00`).toLocaleDateString('nl-NL', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  });
 }
 
 export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultTarget?: QuickTaskTarget }) {
@@ -60,9 +66,8 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
   const [planTime, setPlanTime] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string | null>(null);
   const [deadlineTime, setDeadlineTime] = useState<string | null>(null);
-  const [links, setLinks] = useState<LinkedSelection>(EMPTY_LINKS);
+  const [deadlineExpanded, setDeadlineExpanded] = useState(false);
   const [planningOpen, setPlanningOpen] = useState(false);
-  const [linksOpen, setLinksOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -70,8 +75,6 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
     setPlanDate(null);
     setPlanTime(null);
   }, [defaultTarget]);
-
-  const linkCount = Object.values(links).reduce((sum, ids) => sum + ids.length, 0);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -82,10 +85,6 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
     try {
       const taskId = await createManualTaskWithReminder({
         titel: trimmed,
-        relatieId: links.relatie[0],
-        dealId: links.deal[0],
-        objectId: links.object[0],
-        offMarketSignaalId: links.signaal[0],
         type: 'Algemeen',
         deadline: deadline || undefined,
         deadlineTijd: deadline ? (deadlineTime || undefined) : undefined,
@@ -94,17 +93,11 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
         reminderSelection: 'default',
       });
       await updateTaskPlanning(taskId, planningForTarget(target, planDate, planTime));
-
-      const linkRows = (Object.entries(links) as [TaskLinkEntityType, string[]][]).flatMap(([entityType, ids]) =>
-        ids.map((entityId, index) => ({ entityType, entityId, isPrimary: index === 0 })),
-      );
-      if (linkRows.length > 0) await replaceTaskLinks(taskId, linkRows);
-
       await refresh();
       setTitel('');
-      setLinks(EMPTY_LINKS);
       setDeadline(null);
       setDeadlineTime(null);
+      setDeadlineExpanded(false);
       toast.success(`Toegevoegd · ${planLabel(target, planDate, planTime)}`);
     } catch (error: any) {
       toast.error(`Taak toevoegen mislukt: ${error?.message ?? 'onbekende fout'}`);
@@ -113,12 +106,48 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
     }
   };
 
+  const today = localDateKey(new Date());
+  const tomorrow = plusDays(1);
+  const effectivePlanDate = planDate || (target === 'today' ? today : null);
+
+  const choose = (value: 'today' | 'tomorrow' | 'open' | 'later') => {
+    if (value === 'today') {
+      setTarget('today');
+      setPlanDate(today);
+      return;
+    }
+    if (value === 'tomorrow') {
+      setTarget('open');
+      setPlanDate(tomorrow);
+      return;
+    }
+    if (value === 'open') {
+      setTarget('open');
+      setPlanDate(null);
+      setPlanTime(null);
+      return;
+    }
+    setTarget('later');
+    setPlanDate(null);
+    setPlanTime(null);
+  };
+
+  const selectedChoice = planDate === tomorrow
+    ? 'tomorrow'
+    : planDate === today || (!planDate && target === 'today')
+      ? 'today'
+      : !planDate && target === 'later'
+        ? 'later'
+        : !planDate && target === 'open'
+          ? 'open'
+          : null;
+
   return (
     <>
       <form
         onSubmit={submit}
         data-testid="quick-task-capture"
-        className="glass-card flex min-w-0 items-center gap-2 rounded-[1.4rem] border border-white/10 bg-background/72 p-2 shadow-xl shadow-black/10 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/62"
+        className="flex min-w-0 items-center gap-2 rounded-[1.4rem] p-2"
       >
         <Plus className="ml-1 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
         <input
@@ -131,17 +160,9 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
         />
         <button
           type="button"
-          onClick={() => setLinksOpen(true)}
-          aria-label="CRM-context koppelen"
-          className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-card/40 px-3 text-xs font-medium text-muted-foreground backdrop-blur-xl hover:text-foreground sm:inline-flex"
-        >
-          <Link2 className="h-3.5 w-3.5" />{linkCount ? linkCount : 'Koppelen'}
-        </button>
-        <button
-          type="button"
           onClick={() => setPlanningOpen(true)}
           aria-label="Planning kiezen"
-          className="h-11 max-w-[132px] shrink-0 rounded-2xl border border-white/10 bg-muted/35 px-3 text-xs font-medium text-foreground/85 shadow-inner outline-none backdrop-blur-xl hover:bg-muted/50 dark:bg-white/[0.07] dark:text-foreground dark:border-white/10 sm:max-w-none"
+          className="quick-task-plan-button h-11 max-w-[124px] shrink-0 rounded-2xl px-3 text-xs font-medium outline-none sm:max-w-none"
         >
           {planLabel(target, planDate, planTime)}
         </button>
@@ -156,85 +177,163 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
       </form>
 
       <Dialog open={planningOpen} onOpenChange={setPlanningOpen}>
-        <DialogContent className="top-auto bottom-0 translate-y-0 rounded-b-none sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:rounded-2xl">
-          <DialogHeader>
+        <DialogContent
+          className="quick-task-planning-sheet !left-3 !right-3 !bottom-[max(.75rem,env(safe-area-inset-bottom))] !top-auto !w-auto !translate-x-0 !translate-y-0 gap-3 rounded-[1.75rem] p-4 sm:!left-1/2 sm:!right-auto sm:!top-1/2 sm:!bottom-auto sm:!w-full sm:!-translate-x-1/2 sm:!-translate-y-1/2 sm:rounded-2xl sm:p-5"
+          style={{ maxWidth: '28rem' }}
+        >
+          <DialogHeader className="pr-12">
             <DialogTitle>Wanneer?</DialogTitle>
-            <DialogDescription>Werkplanning staat los van de harde deadline.</DialogDescription>
+            <DialogDescription>Plan wanneer je eraan wilt werken. Een deadline is alleen nodig als er echt een uiterste datum is.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2">
-            {([
-              ['today', 'Vandaag'], ['tomorrow', 'Morgen'], ['open', 'Openstaand'], ['later', 'Later'],
-            ] as const).map(([value, label]) => (
-              <button key={value} type="button" className="flex h-11 items-center justify-between rounded-xl border border-border/70 bg-card/45 px-3 text-sm hover:bg-muted/40" onClick={() => {
-                if (value === 'today') { setTarget('today'); setPlanDate(localDateKey(new Date())); }
-                if (value === 'tomorrow') { setTarget('open'); setPlanDate(plusDays(1)); }
-                if (value === 'open') { setTarget('open'); setPlanDate(null); setPlanTime(null); }
-                if (value === 'later') { setTarget('later'); setPlanDate(null); setPlanTime(null); }
-              }}>
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1 text-xs text-muted-foreground"><span>Datum</span><input type="date" value={planDate ?? ''} onChange={e => { setTarget('open'); setPlanDate(e.target.value || null); }} className="h-11 w-full rounded-xl border border-border bg-card/55 px-3 text-foreground" /></label>
-            <label className="space-y-1 text-xs text-muted-foreground"><span>Tijd</span><input type="time" value={planTime ?? ''} disabled={!planDate && target !== 'today'} onChange={e => setPlanTime(e.target.value || null)} className="h-11 w-full rounded-xl border border-border bg-card/55 px-3 text-foreground disabled:opacity-45" /></label>
-          </div>
-          <div className="border-t border-border/60 pt-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Optionele deadline</p>
-            <div className="grid grid-cols-2 gap-2">
-              <input type="date" value={deadline ?? ''} onChange={e => setDeadline(e.target.value || null)} className="h-11 rounded-xl border border-border bg-card/55 px-3 text-sm text-foreground" />
-              <input type="time" value={deadlineTime ?? ''} disabled={!deadline} onChange={e => setDeadlineTime(e.target.value || null)} className="h-11 rounded-xl border border-border bg-card/55 px-3 text-sm text-foreground disabled:opacity-45" />
-            </div>
-          </div>
-          <button type="button" onClick={() => setPlanningOpen(false)} className="h-11 rounded-xl bg-foreground text-sm font-medium text-background">Gereed</button>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={linksOpen} onOpenChange={setLinksOpen}>
-        <DialogContent className="top-auto bottom-0 translate-y-0 rounded-b-none sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Koppelen aan CRM</DialogTitle>
-            <DialogDescription>Selecteer één of meerdere relaties, deals, objecten of Radar-signalen.</DialogDescription>
-          </DialogHeader>
-          {linksOpen && <ContextPicker value={links} onChange={setLinks} />}
-          <button type="button" onClick={() => setLinksOpen(false)} className="h-11 rounded-xl bg-foreground text-sm font-medium text-background">Gereed · {linkCount} gekoppeld</button>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              ['today', 'Vandaag'],
+              ['tomorrow', 'Morgen'],
+              ['open', 'Openstaand'],
+              ['later', 'Later'],
+            ] as const).map(([value, label]) => {
+              const selected = selectedChoice === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => choose(value)}
+                  className={`flex h-11 items-center justify-between rounded-xl border px-3 text-sm transition-colors ${
+                    selected
+                      ? 'border-foreground/20 bg-foreground/[0.07] text-foreground'
+                      : 'border-border/65 bg-background/25 text-foreground/90 hover:bg-muted/25'
+                  }`}
+                >
+                  <span>{label}</span>
+                  {selected ? <Check className="h-4 w-4 text-accent" /> : null}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <PickerField
+              type="date"
+              label="Werkdatum"
+              display={dateLabel(effectivePlanDate, 'Kies datum')}
+              value={effectivePlanDate ?? ''}
+              icon={<CalendarDays className="h-4 w-4" />}
+              onChange={(value) => {
+                setTarget('open');
+                setPlanDate(value || null);
+                if (!value) setPlanTime(null);
+              }}
+            />
+            <PickerField
+              type="time"
+              label="Werktijd"
+              display={planTime || 'Kies tijd'}
+              value={planTime ?? ''}
+              disabled={!effectivePlanDate}
+              icon={<Clock3 className="h-4 w-4" />}
+              onChange={(value) => setPlanTime(value || null)}
+            />
+          </div>
+
+          {!deadlineExpanded ? (
+            <button
+              type="button"
+              onClick={() => setDeadlineExpanded(true)}
+              className="flex h-10 items-center gap-2 rounded-xl px-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              Harde deadline toevoegen
+            </button>
+          ) : (
+            <section className="rounded-2xl border border-border/60 bg-background/20 p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Harde deadline</p>
+                  <p className="text-xs text-muted-foreground">Alleen gebruiken als dit echt de uiterste datum is.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeadline(null);
+                    setDeadlineTime(null);
+                    setDeadlineExpanded(false);
+                  }}
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Verwijder
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <PickerField
+                  type="date"
+                  label="Deadline"
+                  display={dateLabel(deadline, 'Kies datum')}
+                  value={deadline ?? ''}
+                  icon={<CalendarDays className="h-4 w-4" />}
+                  onChange={(value) => {
+                    setDeadline(value || null);
+                    if (!value) setDeadlineTime(null);
+                  }}
+                />
+                <PickerField
+                  type="time"
+                  label="Tijd"
+                  display={deadlineTime || 'Kies tijd'}
+                  value={deadlineTime ?? ''}
+                  disabled={!deadline}
+                  icon={<Clock3 className="h-4 w-4" />}
+                  onChange={(value) => setDeadlineTime(value || null)}
+                />
+              </div>
+            </section>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setPlanningOpen(false)}
+            className="h-11 rounded-xl bg-foreground text-sm font-medium text-background"
+          >
+            Gereed
+          </button>
         </DialogContent>
       </Dialog>
     </>
   );
 }
 
-function ContextPicker({ value, onChange }: { value: LinkedSelection; onChange: (next: LinkedSelection) => void }) {
-  const { relaties, deals, objecten, getObjectById } = useDataStore();
-  const { data: signalen = [] } = useOffMarketSignalen();
-  const [query, setQuery] = useState('');
-  const q = query.trim().toLowerCase();
-
-  const groups = useMemo(() => ([
-    { type: 'relatie' as const, label: 'Relaties', rows: relaties.map((r: any) => ({ id: r.id, label: r.bedrijfsnaam || r.naam || r.email || 'Relatie' })) },
-    { type: 'deal' as const, label: 'Deals', rows: deals.map((d: any) => ({ id: d.id, label: getObjectById(d.objectId)?.titel || d.titel || `Deal ${String(d.id).slice(0, 8)}` })) },
-    { type: 'object' as const, label: 'Objecten', rows: objecten.map((o: any) => ({ id: o.id, label: o.titel || o.adres || o.straat || 'Object' })) },
-    { type: 'signaal' as const, label: 'Radar-signalen', rows: signalen.map((s: any) => ({ id: s.id, label: s.titel || s.adres || s.omschrijving || 'Radar-signaal' })) },
-  ]), [relaties, deals, objecten, signalen, getObjectById]);
-
-  const toggle = (type: TaskLinkEntityType, id: string) => {
-    const current = value[type];
-    onChange({ ...value, [type]: current.includes(id) ? current.filter(x => x !== id) : [...current, id] });
-  };
-
+function PickerField({
+  type,
+  label,
+  display,
+  value,
+  onChange,
+  icon,
+  disabled = false,
+}: {
+  type: 'date' | 'time';
+  label: string;
+  display: string;
+  value: string;
+  onChange: (value: string) => void;
+  icon: React.ReactNode;
+  disabled?: boolean;
+}) {
   return (
-    <div className="space-y-3 overflow-y-auto pr-1">
-      <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Zoek relatie, deal, object of signaal…" className="h-11 w-full rounded-xl border border-border bg-card/55 px-3 text-sm text-foreground outline-none" />
-      {groups.map(group => {
-        const rows = group.rows.filter(row => !q || row.label.toLowerCase().includes(q)).slice(0, 20);
-        if (rows.length === 0) return null;
-        return <section key={group.type} className="space-y-1.5">
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{group.label}</p><span className="text-xs text-muted-foreground">{value[group.type].length}</span></div>
-          <div className="rounded-xl border border-border/70 bg-card/35 divide-y divide-border/60 overflow-hidden">
-            {rows.map(row => <label key={row.id} className="flex min-h-10 cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-muted/30"><input type="checkbox" checked={value[group.type].includes(row.id)} onChange={() => toggle(group.type, row.id)} /><span className="min-w-0 truncate">{row.label}</span></label>)}
-          </div>
-        </section>;
-      })}
-    </div>
+    <label className={`relative block min-w-0 rounded-xl border border-border/65 bg-background/25 px-3 py-2.5 ${disabled ? 'opacity-45' : 'cursor-pointer'}`}>
+      <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="flex min-w-0 items-center gap-2 text-sm text-foreground">
+        <span className="shrink-0 text-muted-foreground">{icon}</span>
+        <span className="truncate">{display}</span>
+      </span>
+      <input
+        type={type}
+        value={value}
+        disabled={disabled}
+        aria-label={label}
+        onChange={(event) => onChange(event.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
+      />
+    </label>
   );
 }
