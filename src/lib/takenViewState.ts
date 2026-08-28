@@ -1,6 +1,6 @@
 import type { TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 
-export type TakenTab = 'focus' | 'vandaag' | 'te_laat' | 'deze_week' | 'wachten' | 'alles' | 'afgerond';
+export type TakenTab = 'vandaag' | 'komend' | 'openstaand' | 'wachten' | 'alles' | 'afgerond';
 
 export interface TakenViewState {
   zoek: string;
@@ -10,8 +10,8 @@ export interface TakenViewState {
   tab: TakenTab;
 }
 
-const KEY = 'crm:taken:view-state:v1';
-const TABS = new Set<TakenTab>(['focus', 'vandaag', 'te_laat', 'deze_week', 'wachten', 'alles', 'afgerond']);
+const KEY = 'crm:taken:view-state:v2';
+const TABS = new Set<TakenTab>(['vandaag', 'komend', 'openstaand', 'wachten', 'alles', 'afgerond']);
 const PRIORITEITEN = new Set(['urgent', 'hoog', 'normaal', 'laag']);
 const STATUSSEN = new Set(['open', 'wacht_op_reactie', 'in_uitvoering', 'afgerond', 'geannuleerd']);
 
@@ -20,7 +20,7 @@ export const DEFAULT_TAKEN_VIEW_STATE: TakenViewState = {
   prioriteitFilter: '',
   typeFilter: '',
   statusFilter: '',
-  tab: 'focus',
+  tab: 'vandaag',
 };
 
 export function loadTakenViewState(): TakenViewState {
@@ -37,7 +37,7 @@ export function loadTakenViewState(): TakenViewState {
       statusFilter: STATUSSEN.has(parsed.statusFilter ?? '')
         ? parsed.statusFilter as TaakStatus
         : '',
-      tab: TABS.has(parsed.tab as TakenTab) ? parsed.tab as TakenTab : 'focus',
+      tab: TABS.has(parsed.tab as TakenTab) ? parsed.tab as TakenTab : 'vandaag',
     };
   } catch {
     return DEFAULT_TAKEN_VIEW_STATE;
