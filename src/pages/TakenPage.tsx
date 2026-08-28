@@ -111,6 +111,7 @@ export default function TakenPage() {
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
   const [verwijderTaak, setVerwijderTaak] = useState<Taak | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [tab, setTab] = useState<TakenTab>(initialView.tab);
   const [planningRows, setPlanningRows] = useState<TaskPlanningMeta[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -138,7 +139,7 @@ export default function TakenPage() {
     if (taken.some(x => x.id === openId)) {
       navigate(`/taken/${openId}`, {
         replace: true,
-        state: maakCrmReturnState('/taken', 'Mijn werk', 'taken-lijst'),
+        state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst'),
       });
     } else {
       toast.error('Taak niet gevonden');
@@ -315,6 +316,16 @@ export default function TakenPage() {
     );
   };
 
+  const confirmBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleteOpen(false);
+    await runBulk(async () => {
+      await Promise.all(ids.map(id => deleteTaak(id)));
+      setPlanningRows(prev => prev.filter(row => !ids.includes(row.id)));
+    }, 'Taken verwijderd');
+  };
+
   const toggleComplete = async (event: React.MouseEvent, task: Taak) => {
     event.stopPropagation();
     if (task.status === 'afgerond') {
@@ -398,7 +409,7 @@ export default function TakenPage() {
       <div
         key={task.id}
         data-testid="taken-lijstregel"
-        onClick={() => selectionMode ? toggleSelection(task.id) : navigate(`/taken/${task.id}`, { state: maakCrmReturnState('/taken', 'Mijn werk', 'taken-lijst') })}
+        onClick={() => selectionMode ? toggleSelection(task.id) : navigate(`/taken/${task.id}`, { state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst') })}
         className={`group px-4 sm:px-5 py-3.5 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 sm:flex sm:items-center transition-colors cursor-pointer ${selected ? 'bg-accent/8' : 'hover:bg-muted/30'}`}
       >
         <button
@@ -452,10 +463,7 @@ export default function TakenPage() {
                 {obj && <DropdownMenuItem asChild><Link to={`/objecten/${obj.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open object</Link></DropdownMenuItem>}
                 {deal && <DropdownMenuItem asChild><Link to={`/deals/${deal.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open deal</Link></DropdownMenuItem>}
                 {(rel || obj || deal) && <DropdownMenuSeparator />}
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={event => { event.stopPropagation(); setVerwijderTaak(task); }}
-                >
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={event => { event.stopPropagation(); setVerwijderTaak(task); }}>
                   <Trash2 className="h-4 w-4 mr-2" /> Verwijderen
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -503,9 +511,9 @@ export default function TakenPage() {
   );
 
   return (
-    <div className="page-shell pb-24 sm:pb-8">
+    <div data-task-selection-mode={selectionMode ? 'true' : undefined} className={`page-shell sm:pb-8 ${selectionMode ? 'pb-[calc(9rem+env(safe-area-inset-bottom))]' : 'pb-24'}`}>
       <PageHeader
-        title="Mijn werk"
+        title="Taken"
         subtitle={<span className="text-sm text-muted-foreground"><span className="capitalize">{datumLabel}</span><span className="mx-1.5">·</span><span className="font-medium text-foreground tabular-nums">{stats.vandaag}</span> gepland vandaag{stats.teLaat > 0 && <><span className="mx-1.5">·</span><span className="text-destructive font-medium">{stats.teLaat} achterstallig</span></>}</span>}
         actions={<button onClick={() => { setEditTaak(null); setFormOpen(true); }} className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>}
       />
@@ -521,7 +529,7 @@ export default function TakenPage() {
       <QuickTaskCapture defaultTarget={tab === 'inbox' ? 'inbox' : tab === 'later' ? 'later' : tab === 'openstaand' ? 'open' : 'today'} />
 
       <div className="flex gap-2 items-center">
-        <div className="relative flex-1 max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Zoek in mijn werk…" className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} /></div>
+        <div className="relative flex-1 max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Zoek in taken…" className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} /></div>
         <button type="button" onClick={() => setFiltersOpen(true)} className={`inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors ${actieveFilters > 0 ? 'border-foreground/30 text-foreground bg-muted/30' : 'border-input text-muted-foreground hover:text-foreground'}`}><SlidersHorizontal className="h-4 w-4" /><span className="hidden md:inline">Filters</span>{actieveFilters > 0 && <span className="rounded-full bg-foreground text-background px-1.5 text-[10px] tabular-nums">{actieveFilters}</span>}</button>
         <button type="button" onClick={() => selectionMode ? exitSelection() : setSelectionMode(true)} className={`inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors ${selectionMode ? 'border-accent text-accent bg-accent/5' : 'border-input text-muted-foreground hover:text-foreground'}`}>{selectionMode ? <X className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}<span className="hidden md:inline">{selectionMode ? 'Stop' : 'Selecteer'}</span></button>
         <div className="hidden lg:block"><SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} /></div>
@@ -554,18 +562,34 @@ export default function TakenPage() {
       )}
 
       {selectionMode && (
-        <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 p-2 shadow-2xl backdrop-blur sm:bottom-5">
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <span className="shrink-0 px-2 text-sm font-semibold tabular-nums">{selectedIds.size} geselecteerd</span>
-            <button type="button" disabled={selectedIds.size === 0 || bulkBusy} onClick={() => bulkPlan(0)} className="shrink-0 rounded-md border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Vandaag</button>
-            <button type="button" disabled={selectedIds.size === 0 || bulkBusy} onClick={() => bulkPlan(1)} className="shrink-0 rounded-md border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Morgen</button>
-            <button type="button" disabled={selectedIds.size === 0 || bulkBusy} onClick={() => runBulk(() => bulkUpdateTaskPlanning(Array.from(selectedIds), { planningBucket: 'open', planDatum: null }), 'Naar Openstaand')} className="shrink-0 rounded-md border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Openstaand</button>
-            <button type="button" disabled={selectedIds.size === 0 || bulkBusy} onClick={() => runBulk(() => bulkUpdateTaskPlanning(Array.from(selectedIds), { planningBucket: 'later', planDatum: null }), 'Naar Later')} className="shrink-0 rounded-md border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Later</button>
+        <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 p-2.5 shadow-2xl backdrop-blur sm:bottom-5">
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate px-1 text-sm font-semibold tabular-nums">{selectedIds.size} geselecteerd</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" disabled={selectedIds.size === 0 || bulkBusy} className="shrink-0 rounded-md border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Planning</button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => bulkPlan(0)}>Vandaag</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => bulkPlan(1)}>Morgen</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPlanning(Array.from(selectedIds), { planningBucket: 'open', planDatum: null }), 'Naar Openstaand')}>Openstaand</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPlanning(Array.from(selectedIds), { planningBucket: 'later', planDatum: null }), 'Naar Later')}>Later</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild><button type="button" disabled={selectedIds.size === 0 || bulkBusy} className="shrink-0 rounded-md border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Prioriteit</button></DropdownMenuTrigger>
               <DropdownMenuContent align="end"><DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPriority(Array.from(selectedIds), 'urgent'), 'Prioriteit aangepast')}>Urgent</DropdownMenuItem><DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPriority(Array.from(selectedIds), 'hoog'), 'Prioriteit aangepast')}>Hoog</DropdownMenuItem><DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPriority(Array.from(selectedIds), 'normaal'), 'Prioriteit aangepast')}>Normaal</DropdownMenuItem><DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPriority(Array.from(selectedIds), 'laag'), 'Prioriteit aangepast')}>Laag</DropdownMenuItem></DropdownMenuContent>
             </DropdownMenu>
-            <button type="button" disabled={selectedIds.size === 0 || bulkBusy} onClick={() => runBulk(() => bulkUpdateTaskStatus(Array.from(selectedIds), 'afgerond'), 'Taken afgerond')} className="shrink-0 rounded-md bg-foreground px-3 py-2 text-xs font-medium text-background disabled:opacity-40">Afronden</button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" disabled={selectedIds.size === 0 || bulkBusy} className="shrink-0 rounded-md bg-foreground px-3 py-2 text-xs font-medium text-background disabled:opacity-40">Acties</button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskStatus(Array.from(selectedIds), 'afgerond'), 'Taken afgerond')}><CheckCircle2 className="h-4 w-4 mr-2" />Afronden</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setBulkDeleteOpen(true)}><Trash2 className="h-4 w-4 mr-2" />Verwijderen</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       )}
@@ -582,9 +606,21 @@ export default function TakenPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuleren</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Verwijderen
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{selectedIds.size} taken verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Alleen de geselecteerde taken worden verwijderd. Onderliggende Radar-signalen, relaties, objecten, deals en overige historie blijven bestaan. Deze actie kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{selectedIds.size} taken verwijderen</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
