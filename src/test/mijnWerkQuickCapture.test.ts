@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 const capture = readFileSync(resolve(process.cwd(), 'src/components/tasks/QuickTaskCapture.tsx'), 'utf8');
 const dock = readFileSync(resolve(process.cwd(), 'src/components/tasks/QuickTaskCaptureDock.tsx'), 'utf8');
+const taskForm = readFileSync(resolve(process.cwd(), 'src/components/forms/TaakFormDialog.tsx'), 'utf8');
+const taskLinksPicker = readFileSync(resolve(process.cwd(), 'src/components/tasks/TaskLinksPickerDialog.tsx'), 'utf8');
 const app = readFileSync(resolve(process.cwd(), 'src/CrmProtectedApp.tsx'), 'utf8');
 const takenPage = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
 const planning = readFileSync(resolve(process.cwd(), 'src/lib/tasks/planning.ts'), 'utf8');
@@ -19,23 +21,24 @@ describe('Taken — Quick Capture v2', () => {
     expect(planning).toContain('plan_tijd');
   });
 
-  it('biedt Things/Any.do-achtige planning vanuit de balk', () => {
+  it('biedt compacte planning vanuit de balk zonder native datumvelden zichtbaar te maken', () => {
     expect(capture).toContain("['today', 'Vandaag']");
     expect(capture).toContain("['tomorrow', 'Morgen']");
     expect(capture).toContain("['open', 'Openstaand']");
     expect(capture).toContain("['later', 'Later']");
-    expect(capture).toContain('type="date"');
-    expect(capture).toContain('type="time"');
-    expect(capture).toContain('Optionele deadline');
+    expect(capture).toContain('Harde deadline toevoegen');
+    expect(capture).toContain('PickerField');
+    expect(capture).toContain('opacity-0');
   });
 
-  it('ondersteunt meerdere CRM-koppelingen zonder legacy primaire koppelingen te breken', () => {
-    expect(capture).toContain('replaceTaskLinks');
-    expect(capture).toContain('links.relatie[0]');
-    expect(capture).toContain('links.deal[0]');
-    expect(capture).toContain('links.object[0]');
-    expect(capture).toContain('links.signaal[0]');
-    expect(capture).toContain('Selecteer één of meerdere relaties, deals, objecten of Radar-signalen.');
+  it('houdt Quick Capture eenvoudig en verplaatst meervoudige CRM-koppelingen naar taak bewerken', () => {
+    expect(capture).not.toContain('CRM-context koppelen');
+    expect(capture).not.toContain('replaceTaskLinks');
+    expect(taskForm).toContain('TaskLinksPickerDialog');
+    expect(taskForm).toContain('replaceTaskLinks');
+    expect(taskForm).toContain('taskLinkCount');
+    expect(taskLinksPicker).toContain('Koppelingen bewerken');
+    expect(taskLinksPicker).toContain('Radar-signalen');
     expect(links).toContain("'relatie' | 'deal' | 'object' | 'signaal'");
   });
 
