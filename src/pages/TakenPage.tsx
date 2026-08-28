@@ -31,11 +31,20 @@ import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import {
   loadTakenViewState, saveTakenViewState, type TakenTab,
 } from '@/lib/takenViewState';
+import {
+  listTaskPlanning,
+  taskPlanningMap,
+  updateTaskPlanning,
+  type TaskPlanningMeta,
+  type TaskPlanningBucket,
+} from '@/lib/tasks/planning';
 
 const TABS: { value: TakenTab; label: string }[] = [
+  { value: 'inbox', label: 'Inbox' },
   { value: 'vandaag', label: 'Vandaag' },
   { value: 'komend', label: 'Komend' },
   { value: 'openstaand', label: 'Openstaand' },
+  { value: 'later', label: 'Later' },
   { value: 'wachten', label: 'Wachten' },
   { value: 'alles', label: 'Alles' },
   { value: 'afgerond', label: 'Afgerond' },
@@ -63,6 +72,16 @@ function taakUur(taak: Taak): number | null {
   return Number.isFinite(uur) ? uur : null;
 }
 
+function planDatumLabel(value: string, today: string): string {
+  if (value === today) return 'Gepland vandaag';
+  const tomorrow = new Date(`${today}T12:00:00`);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (value === dateKey(tomorrow)) return 'Gepland morgen';
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return `Gepland ${value}`;
+  return `Gepland ${parsed.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}`;
+}
+
 export default function TakenPage() {
   const { taken, getRelatieById, getDealById, getObjectById, updateTaak, contactpersonen } = useDataStore();
   const initialView = useMemo(() => loadTakenViewState(), []);
@@ -75,12 +94,21 @@ export default function TakenPage() {
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
   const [tab, setTab] = useState<TakenTab>(initialView.tab);
+  const [planningRows, setPlanningRows] = useState<TaskPlanningMeta[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
     saveTakenViewState({ zoek, prioriteitFilter, typeFilter, statusFilter, tab });
   }, [zoek, prioriteitFilter, typeFilter, statusFilter, tab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listTaskPlanning()
+      .then(rows => { if (!cancelled) setPlanningRows(rows); })
+      .catch(error => console.error('Taakplanning laden mislukt', error));
+    return () => { cancelled = true; };
+  }, [taken.length]);
 
   useEffect(() => {
     const openId = searchParams.get('open');
@@ -105,6 +133,20 @@ export default function TakenPage() {
 
   const now = new Date();
   const today = dateKey(now);
+  const planningById = useMemo(() => taskPlanningMap(planningRows), [planningRows]);
+  const planningFor = (taak: Taak): TaskPlanningMeta => planningById.get(taak.id) ?? {
+    id: taak.id,
+    planDatum: null,
+    planningBucket: 'open',
+  };
+
+  const hardVandaag = (taak: Taak) => isTaakTeLaat(taak, now) || isTaakVandaag(taak, now);
+  const isWerkVandaag = (taak: Taak) => {
+    if (!isOpenState(taak.status) || taak.status === 'wacht_op_reactie') return false;
+    if (hardVandaag(taak)) return true;
+    const planning = planningFor(taak);
+    return planning.planningBucket === 'open' && !!planning.planDatum && planning.planDatum <= today;
+  };
 
   const sortOptions = useMemo<SortOption<Taak>[]>(() => [
     { value: 'slim', label: 'Slimme volgorde', compare: smartTaakCompare(now) },
@@ -139,28 +181,56 @@ export default function TakenPage() {
 
   const stats = useMemo(() => {
     const open = taken.filter(t => isOpenState(t.status));
+    const nietWachten = open.filter(t => t.status !== 'wacht_op_reactie');
     return {
-      vandaag: open.filter(t => isTaakTeLaat(t, now) || isTaakVandaag(t, now)).length,
-      teLaat: open.filter(t => isTaakTeLaat(t, now)).length,
-      komend: open.filter(t => !!t.deadline && t.deadline > today).length,
-      openstaand: open.filter(t => !t.deadline && t.status !== 'wacht_op_reactie').length,
+      inbox: nietWachten.filter(t => !hardVandaag(t) && planningFor(t).planningBucket === 'inbox').length,
+      vandaag: nietWachten.filter(isWerkVandaag).length,
+      teLaat: nietWachten.filter(t => isTaakTeLaat(t, now)).length,
+      komend: nietWachten.filter(t => {
+        if (isWerkVandaag(t)) return false;
+        const p = planningFor(t);
+        if (p.planningBucket !== 'open') return false;
+        if (p.planDatum) return p.planDatum > today;
+        return !!t.deadline && t.deadline > today;
+      }).length,
+      openstaand: nietWachten.filter(t => {
+        const p = planningFor(t);
+        return !hardVandaag(t) && p.planningBucket === 'open' && !p.planDatum && !t.deadline;
+      }).length,
+      later: nietWachten.filter(t => !hardVandaag(t) && planningFor(t).planningBucket === 'later').length,
       wachten: taken.filter(t => t.status === 'wacht_op_reactie').length,
       afgerond: taken.filter(t => t.status === 'afgerond').length,
       open: open.length,
     };
-  }, [taken, now, today]);
+  }, [taken, planningRows, today]);
 
   const zichtbaar = useMemo(() => {
     let list = taken.filter(filterFn);
     switch (tab) {
+      case 'inbox':
+        list = list.filter(t => isOpenState(t.status) && t.status !== 'wacht_op_reactie' && !hardVandaag(t) && planningFor(t).planningBucket === 'inbox');
+        break;
       case 'vandaag':
-        list = list.filter(t => isOpenState(t.status) && (isTaakTeLaat(t, now) || isTaakVandaag(t, now)));
+        list = list.filter(isWerkVandaag);
         break;
       case 'komend':
-        list = list.filter(t => isOpenState(t.status) && !!t.deadline && t.deadline > today);
+        list = list.filter(t => {
+          if (!isOpenState(t.status) || t.status === 'wacht_op_reactie' || isWerkVandaag(t)) return false;
+          const p = planningFor(t);
+          if (p.planningBucket !== 'open') return false;
+          if (p.planDatum) return p.planDatum > today;
+          return !!t.deadline && t.deadline > today;
+        });
         break;
       case 'openstaand':
-        list = list.filter(t => isOpenState(t.status) && !t.deadline && t.status !== 'wacht_op_reactie');
+        list = list.filter(t => {
+          if (!isOpenState(t.status) || t.status === 'wacht_op_reactie' || hardVandaag(t)) return false;
+          const p = planningFor(t);
+          return p.planningBucket === 'open' && !p.planDatum && !t.deadline;
+        });
+        break;
+      case 'later':
+        list = list.filter(t => isOpenState(t.status) && t.status !== 'wacht_op_reactie' && !hardVandaag(t) && planningFor(t).planningBucket === 'later');
         break;
       case 'wachten':
         list = list.filter(t => t.status === 'wacht_op_reactie');
@@ -173,7 +243,7 @@ export default function TakenPage() {
         break;
     }
     return [...list].sort(activeSort.compare);
-  }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter, activeSort, today]);
+  }, [taken, planningRows, tab, zoek, prioriteitFilter, typeFilter, statusFilter, activeSort, today]);
 
   const togglAfvinken = async (e: React.MouseEvent, taak: Taak) => {
     e.stopPropagation();
@@ -185,13 +255,33 @@ export default function TakenPage() {
     setAfrondenTaak(taak);
   };
 
-  const snooze = async (e: React.MouseEvent, taak: Taak, dagen: number) => {
+  const wijzigPlanning = async (
+    e: React.MouseEvent,
+    taak: Taak,
+    patch: { planDatum?: string | null; planningBucket?: TaskPlanningBucket },
+    melding: string,
+  ) => {
     e.stopPropagation();
+    try {
+      await updateTaskPlanning(taak.id, patch);
+      setPlanningRows(prev => {
+        const current = prev.find(row => row.id === taak.id) ?? planningFor(taak);
+        const next = { ...current, ...patch };
+        return prev.some(row => row.id === taak.id)
+          ? prev.map(row => row.id === taak.id ? next : row)
+          : [...prev, next];
+      });
+      toast.success(melding);
+    } catch (err: any) {
+      toast.error(`Planning bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
+  };
+
+  const planOverDagen = (e: React.MouseEvent, taak: Taak, dagen: number) => {
     const d = new Date();
     d.setDate(d.getDate() + dagen);
-    const iso = dateKey(d);
-    try { await updateTaak(taak.id, { deadline: iso }); toast.success(`Verplaatst naar ${d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}`); }
-    catch (err: any) { toast.error(`Verplaatsen mislukt: ${err.message ?? 'onbekende fout'}`); }
+    const label = dagen === 0 ? 'vandaag' : dagen === 1 ? 'morgen' : d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+    return wijzigPlanning(e, taak, { planningBucket: 'open', planDatum: dateKey(d) }, `Gepland voor ${label}`);
   };
 
   const setWachten = async (e: React.MouseEvent, taak: Taak) => {
@@ -208,9 +298,20 @@ export default function TakenPage() {
     const isAfgerond = taak.status === 'afgerond';
     const isGeannuleerd = taak.status === 'geannuleerd';
     const isWachten = taak.status === 'wacht_op_reactie';
+    const planning = planningFor(taak);
     const ctxParts: string[] = [];
     if (rel) ctxParts.push(getRelatieNaamCompact(rel, contactpersonen));
     if (obj?.titel) ctxParts.push(obj.titel);
+
+    const planningLabel = planning.planningBucket === 'inbox'
+      ? 'Inbox'
+      : planning.planningBucket === 'later'
+        ? 'Later'
+        : planning.planDatum
+          ? planDatumLabel(planning.planDatum, today)
+          : !taak.deadline
+            ? 'Openstaand'
+            : null;
 
     return (
       <div
@@ -238,7 +339,8 @@ export default function TakenPage() {
               </span>
             ))}
             {taak.type && <>{ctxParts.length > 0 && <span aria-hidden>·</span>}<span>{taak.type}</span></>}
-            {taak.deadline ? <><span aria-hidden>·</span><span className={teLaat ? 'text-destructive font-medium' : ''}>{deadlineLabel(taak, now)}{teLaat ? ' · te laat' : ''}</span></> : <><span aria-hidden>·</span><span className="italic">Zonder datum</span></>}
+            {planningLabel && <><span aria-hidden>·</span><span>{planningLabel}</span></>}
+            {taak.deadline && <><span aria-hidden>·</span><span className={teLaat ? 'text-destructive font-medium' : ''}>Deadline {deadlineLabel(taak, now)}{teLaat ? ' · te laat' : ''}</span></>}
             {taak.notities && <><span aria-hidden>·</span><span className="truncate max-w-[240px] opacity-80">{taak.notities}</span></>}
           </div>
         </div>
@@ -251,7 +353,7 @@ export default function TakenPage() {
                 <MoreHorizontal className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuContent align="end" className="w-56" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuLabel>Snelle acties</DropdownMenuLabel>
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditTaak(taak); setFormOpen(true); }}><MoreHorizontal className="h-4 w-4 mr-2" /> Bewerken</DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -259,10 +361,13 @@ export default function TakenPage() {
                 <DropdownMenuItem onClick={(e) => togglAfvinken(e as any, taak)}><CheckCircle2 className="h-4 w-4 mr-2" /> Afronden</DropdownMenuItem>
                 {!isWachten && <DropdownMenuItem onClick={(e) => setWachten(e as any, taak)}><Clock className="h-4 w-4 mr-2" /> Op wachten zetten</DropdownMenuItem>}
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Snooze</DropdownMenuLabel>
-                <DropdownMenuItem onClick={(e) => snooze(e as any, taak, 1)}>Morgen</DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => snooze(e as any, taak, 2)}>Over 2 dagen</DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => snooze(e as any, taak, 7)}>Volgende week</DropdownMenuItem>
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Planning</DropdownMenuLabel>
+                <DropdownMenuItem onClick={(e) => planOverDagen(e as any, taak, 0)}>Vandaag</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => planOverDagen(e as any, taak, 1)}>Morgen</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => planOverDagen(e as any, taak, 7)}>Over een week</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => wijzigPlanning(e as any, taak, { planningBucket: 'open', planDatum: null }, 'Verplaatst naar Openstaand')}>Openstaand</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => wijzigPlanning(e as any, taak, { planningBucket: 'inbox', planDatum: null }, 'Verplaatst naar Inbox')}>Inbox</DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => wijzigPlanning(e as any, taak, { planningBucket: 'later', planDatum: null }, 'Verplaatst naar Later')}>Later</DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>}
               {rel && <DropdownMenuItem asChild><Link to={`/relaties/${rel.id}`} onClick={(e) => e.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open relatie</Link></DropdownMenuItem>}
@@ -314,7 +419,7 @@ export default function TakenPage() {
       <div className="flex gap-1.5 -mx-1 px-1 overflow-x-auto pb-0.5">
         {TABS.map(t => {
           const active = tab === t.value;
-          const count = t.value === 'vandaag' ? stats.vandaag : t.value === 'komend' ? stats.komend : t.value === 'openstaand' ? stats.openstaand : t.value === 'wachten' ? stats.wachten : t.value === 'alles' ? stats.open : stats.afgerond;
+          const count = t.value === 'inbox' ? stats.inbox : t.value === 'vandaag' ? stats.vandaag : t.value === 'komend' ? stats.komend : t.value === 'openstaand' ? stats.openstaand : t.value === 'later' ? stats.later : t.value === 'wachten' ? stats.wachten : t.value === 'alles' ? stats.open : stats.afgerond;
           return <button key={t.value} onClick={() => setTab(t.value)} className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors whitespace-nowrap ${active ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border hover:text-foreground hover:border-foreground/40'}`}>{t.label}<span className="ml-1.5 tabular-nums opacity-80">{count}</span></button>;
         })}
       </div>
@@ -336,7 +441,7 @@ export default function TakenPage() {
       )}
 
       {zichtbaar.length === 0 ? (
-        <EmptyState icon={<ListChecks />} title="Niets in deze weergave" description={tab === 'vandaag' ? 'Je hebt hier nu geen taken voor vandaag of verlopen taken.' : 'Wissel van weergave, pas je filters aan of maak direct een nieuwe taak aan.'} action={<button type="button" onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>} />
+        <EmptyState icon={<ListChecks />} title="Niets in deze weergave" description={tab === 'vandaag' ? 'Je hebt hier nu geen taken voor vandaag of verlopen taken.' : tab === 'inbox' ? 'Je Inbox is leeg. Zet losse ideeën of nog te plannen acties hier tijdelijk neer.' : tab === 'later' ? 'Hier staan taken die bewust nog geen aandacht vragen.' : 'Wissel van weergave, pas je filters aan of maak direct een nieuwe taak aan.'} action={<button type="button" onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>} />
       ) : tab === 'vandaag' && vandaagSecties ? (
         <div className="space-y-3">
           {renderSection('Te laat', vandaagSecties.teLaat, { danger: true, icon: <Clock className="h-4 w-4" /> })}

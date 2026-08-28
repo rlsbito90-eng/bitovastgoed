@@ -31,7 +31,7 @@ describe('takenViewState', () => {
   });
 
   it('accepteert geen onbekende enumwaarden uit sessionStorage', () => {
-    sessionStorage.setItem('crm:taken:view-state:v1', JSON.stringify({
+    sessionStorage.setItem('crm:taken:view-state:v3', JSON.stringify({
       zoek: 'x',
       prioriteitFilter: 'extreem',
       statusFilter: 'verdwenen',
@@ -42,7 +42,7 @@ describe('takenViewState', () => {
       zoek: 'x',
       prioriteitFilter: '',
       statusFilter: '',
-      tab: 'focus',
+      tab: 'vandaag',
     });
   });
 });
