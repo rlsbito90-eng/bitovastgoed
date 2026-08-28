@@ -9,6 +9,7 @@ function read(rel: string): string {
 const page = read('src/pages/TakenPage.tsx');
 const viewState = read('src/lib/takenViewState.ts');
 const planning = read('src/lib/tasks/planning.ts');
+const workView = read('src/lib/tasks/workView.ts');
 const migration = read('supabase/migrations/20260828104500_task_work_planning_fields.sql');
 
 describe('Mijn werk planning v2', () => {
@@ -27,15 +28,18 @@ describe('Mijn werk planning v2', () => {
     expect(migration).toContain("check (planning_bucket in ('open', 'inbox', 'later'))");
     expect(planning).toContain('plan_datum');
     expect(planning).toContain('planning_bucket');
-    expect(page).toContain("updateTaskPlanning(taak.id, patch)");
-    expect(page).not.toContain("updateTaak(taak.id, { deadline: iso })");
+    expect(page).toContain('updateTaskPlanning(task.id, patch)');
+    expect(page).not.toContain("updateTaak(task.id, { deadline: iso })");
   });
 
-  it('laat harde deadlines Vandaag overrulen en gebruikt planDatum voor dagelijkse focus', () => {
-    expect(page).toContain('if (hardVandaag(taak)) return true');
-    expect(page).toContain("planning.planningBucket === 'open'");
-    expect(page).toContain('planning.planDatum <= today');
-    expect(page).toContain('Deadline {deadlineLabel(taak, now)}');
+  it('scheidt gepland Vandaag van achterstallige harde deadlines', () => {
+    expect(workView).toContain('export function isTaskOverdue');
+    expect(workView).toContain('export function isTaskPlannedToday');
+    expect(workView).toContain('if (isTaakTeLaat(task, now)) return false');
+    expect(workView).toContain("planning.planningBucket === 'open'");
+    expect(workView).toContain('planning.planDatum <= today');
+    expect(page).toContain('Deadline {deadlineLabel(task, now)}');
+    expect(page).toContain('achterstallig');
   });
 
   it('biedt snelle planning zonder de deadline te verschuiven', () => {
@@ -43,7 +47,7 @@ describe('Mijn werk planning v2', () => {
     expect(page).toContain("planningBucket: 'inbox'");
     expect(page).toContain("planningBucket: 'later'");
     expect(page).toContain("planningBucket: 'open', planDatum: null");
-    expect(page).toContain('planOverDagen(e as any, taak, 1)');
+    expect(page).toContain('planAfterDays(event as any, task, 1)');
   });
 
   it('behoudt het mobiele taakrij-contract', () => {
