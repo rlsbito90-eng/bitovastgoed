@@ -13,6 +13,7 @@ import "./mobile-acquisitie-fixes.css";
 import "./mobile-vastgoedkansen-compact.css";
 import "./mobile-pandenverkenner-card-selection.css";
 import "./mobile-pandenverkenner-selection-state.css";
+import "./quick-task-glass.css";
 
 globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
