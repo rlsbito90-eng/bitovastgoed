@@ -5,7 +5,7 @@ import { PrioriteitBadge, TaakStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import {
   Search, Plus, CheckCircle2, Circle, Clock, MoreHorizontal,
-  ExternalLink, ChevronDown, ListChecks,
+  ExternalLink, ListChecks, SlidersHorizontal, Sunrise, Sun, Moon,
 } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
@@ -15,7 +15,7 @@ import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import {
-  isTaakTeLaat, isTaakVandaag, isTaakDezeWeek, deadlineLabel,
+  isTaakTeLaat, isTaakVandaag, deadlineLabel,
   TAAK_TYPES,
 } from '@/lib/taakHelpers';
 import {
@@ -27,23 +27,41 @@ import { useSortPreference } from '@/hooks/useSortPreference';
 import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import { smartTaakCompare, getTaakDeadlineMs, getTaakPrioriteitRank } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
-import { useMemo as useMemoReact } from 'react';
 import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import {
   loadTakenViewState, saveTakenViewState, type TakenTab,
 } from '@/lib/takenViewState';
 
 const TABS: { value: TakenTab; label: string }[] = [
-  { value: 'focus', label: 'Focus' },
   { value: 'vandaag', label: 'Vandaag' },
-  { value: 'te_laat', label: 'Te laat' },
-  { value: 'deze_week', label: 'Deze week' },
+  { value: 'komend', label: 'Komend' },
+  { value: 'openstaand', label: 'Openstaand' },
   { value: 'wachten', label: 'Wachten' },
   { value: 'alles', label: 'Alles' },
   { value: 'afgerond', label: 'Afgerond' },
 ];
 
 const isOpenState = (s: TaakStatus) => s !== 'afgerond' && s !== 'geannuleerd';
+
+function dateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function taakTijd(taak: Taak): string | null {
+  const raw = (taak as any).deadlineTijd ?? (taak as any).deadline_tijd;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  return raw.slice(0, 5);
+}
+
+function taakUur(taak: Taak): number | null {
+  const tijd = taakTijd(taak);
+  if (!tijd) return null;
+  const uur = Number(tijd.slice(0, 2));
+  return Number.isFinite(uur) ? uur : null;
+}
 
 export default function TakenPage() {
   const { taken, getRelatieById, getDealById, getObjectById, updateTaak, contactpersonen } = useDataStore();
@@ -52,6 +70,7 @@ export default function TakenPage() {
   const [prioriteitFilter, setPrioriteitFilter] = useState<TaakPrioriteit | ''>(initialView.prioriteitFilter);
   const [typeFilter, setTypeFilter] = useState<string>(initialView.typeFilter);
   const [statusFilter, setStatusFilter] = useState<TaakStatus | ''>(initialView.statusFilter);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
@@ -69,7 +88,7 @@ export default function TakenPage() {
     if (taken.some((x) => x.id === openId)) {
       navigate(`/taken/${openId}`, {
         replace: true,
-        state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst'),
+        state: maakCrmReturnState('/taken', 'Mijn werk', 'taken-lijst'),
       });
     } else {
       toast.error('Taak niet gevonden');
@@ -85,8 +104,9 @@ export default function TakenPage() {
   };
 
   const now = new Date();
+  const today = dateKey(now);
 
-  const sortOptions = useMemoReact<SortOption<Taak>[]>(() => [
+  const sortOptions = useMemo<SortOption<Taak>[]>(() => [
     { value: 'slim', label: 'Slimme volgorde', compare: smartTaakCompare(now) },
     { value: 'deadline_asc', label: 'Deadline oplopend', compare: combine(byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'asc'), byString<Taak>(t => t.titel)) },
     { value: 'deadline_desc', label: 'Deadline aflopend', compare: combine(byNumber<Taak>(t => getTaakDeadlineMs(t) ?? undefined, 'desc'), byString<Taak>(t => t.titel)) },
@@ -118,30 +138,42 @@ export default function TakenPage() {
   };
 
   const stats = useMemo(() => {
-    const o = taken.filter(t => isOpenState(t.status));
+    const open = taken.filter(t => isOpenState(t.status));
     return {
-      vandaag: o.filter(t => isTaakVandaag(t, now) && !isTaakTeLaat(t, now)).length,
-      teLaat: o.filter(t => isTaakTeLaat(t, now)).length,
-      dezeWeek: o.filter(t => isTaakDezeWeek(t, now)).length,
+      vandaag: open.filter(t => isTaakTeLaat(t, now) || isTaakVandaag(t, now)).length,
+      teLaat: open.filter(t => isTaakTeLaat(t, now)).length,
+      komend: open.filter(t => !!t.deadline && t.deadline > today).length,
+      openstaand: open.filter(t => !t.deadline && t.status !== 'wacht_op_reactie').length,
       wachten: taken.filter(t => t.status === 'wacht_op_reactie').length,
       afgerond: taken.filter(t => t.status === 'afgerond').length,
-      open: o.length,
+      open: open.length,
     };
-  }, [taken, now]);
+  }, [taken, now, today]);
 
   const zichtbaar = useMemo(() => {
     let list = taken.filter(filterFn);
     switch (tab) {
-      case 'focus': list = list.filter(t => isOpenState(t.status) && (isTaakTeLaat(t, now) || isTaakVandaag(t, now) || t.prioriteit === 'urgent' || t.prioriteit === 'hoog')); break;
-      case 'vandaag': list = list.filter(t => isOpenState(t.status) && isTaakVandaag(t, now)); break;
-      case 'te_laat': list = list.filter(t => isTaakTeLaat(t, now)); break;
-      case 'deze_week': list = list.filter(t => isOpenState(t.status) && isTaakDezeWeek(t, now)); break;
-      case 'wachten': list = list.filter(t => t.status === 'wacht_op_reactie'); break;
-      case 'alles': list = list.filter(t => isOpenState(t.status)); break;
-      case 'afgerond': list = list.filter(t => t.status === 'afgerond'); break;
+      case 'vandaag':
+        list = list.filter(t => isOpenState(t.status) && (isTaakTeLaat(t, now) || isTaakVandaag(t, now)));
+        break;
+      case 'komend':
+        list = list.filter(t => isOpenState(t.status) && !!t.deadline && t.deadline > today);
+        break;
+      case 'openstaand':
+        list = list.filter(t => isOpenState(t.status) && !t.deadline && t.status !== 'wacht_op_reactie');
+        break;
+      case 'wachten':
+        list = list.filter(t => t.status === 'wacht_op_reactie');
+        break;
+      case 'alles':
+        list = list.filter(t => isOpenState(t.status));
+        break;
+      case 'afgerond':
+        list = list.filter(t => t.status === 'afgerond');
+        break;
     }
     return [...list].sort(activeSort.compare);
-  }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter, activeSort]);
+  }, [taken, tab, zoek, prioriteitFilter, typeFilter, statusFilter, activeSort, today]);
 
   const togglAfvinken = async (e: React.MouseEvent, taak: Taak) => {
     e.stopPropagation();
@@ -157,7 +189,7 @@ export default function TakenPage() {
     e.stopPropagation();
     const d = new Date();
     d.setDate(d.getDate() + dagen);
-    const iso = d.toISOString().slice(0, 10);
+    const iso = dateKey(d);
     try { await updateTaak(taak.id, { deadline: iso }); toast.success(`Verplaatst naar ${d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}`); }
     catch (err: any) { toast.error(`Verplaatsen mislukt: ${err.message ?? 'onbekende fout'}`); }
   };
@@ -184,7 +216,7 @@ export default function TakenPage() {
       <div
         key={taak.id}
         data-testid="taken-lijstregel"
-        onClick={() => navigate(`/taken/${taak.id}`, { state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst') })}
+        onClick={() => navigate(`/taken/${taak.id}`, { state: maakCrmReturnState('/taken', 'Mijn werk', 'taken-lijst') })}
         className="group px-4 sm:px-5 py-3.5 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 sm:flex sm:items-center hover:bg-muted/30 transition-colors cursor-pointer"
       >
         <button
@@ -243,37 +275,77 @@ export default function TakenPage() {
     );
   };
 
+  const renderSection = (title: string, items: Taak[], options?: { danger?: boolean; icon?: React.ReactNode }) => {
+    if (items.length === 0) return null;
+    return (
+      <section className="section-card overflow-hidden" key={title}>
+        <header className="section-header">
+          <h2 className={`section-title flex items-center gap-2 ${options?.danger ? 'text-destructive' : ''}`}>
+            {options?.icon}{title}
+          </h2>
+          <span className="text-xs text-muted-foreground tabular-nums">{items.length}</span>
+        </header>
+        <div className="divide-y divide-border/70">{items.map(renderTaak)}</div>
+      </section>
+    );
+  };
+
+  const vandaagSecties = useMemo(() => {
+    if (tab !== 'vandaag') return null;
+    const teLaat = zichtbaar.filter(t => isTaakTeLaat(t, now));
+    const vandaag = zichtbaar.filter(t => !isTaakTeLaat(t, now));
+    const ochtend = vandaag.filter(t => { const h = taakUur(t); return h !== null && h < 12; });
+    const middag = vandaag.filter(t => { const h = taakUur(t); return h !== null && h >= 12 && h < 18; });
+    const later = vandaag.filter(t => { const h = taakUur(t); return h === null || h >= 18; });
+    return { teLaat, ochtend, middag, later };
+  }, [tab, zichtbaar, now]);
+
+  const actieveFilters = Number(Boolean(prioriteitFilter)) + Number(Boolean(typeFilter)) + Number(Boolean(statusFilter));
+  const datumLabel = now.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
     <div className="page-shell">
       <PageHeader
-        title="Taken"
-        subtitle={<span className="text-sm text-muted-foreground">Vandaag <span className="font-medium text-foreground tabular-nums">{stats.vandaag}</span><span className="mx-1.5">·</span><span className={stats.teLaat > 0 ? 'text-destructive' : ''}>Te laat <span className="font-medium tabular-nums">{stats.teLaat}</span></span><span className="mx-1.5">·</span>Wachten <span className="font-medium text-foreground tabular-nums">{stats.wachten}</span><span className="mx-1.5">·</span>Afgerond <span className="font-medium text-foreground tabular-nums">{stats.afgerond}</span></span>}
+        title="Mijn werk"
+        subtitle={<span className="text-sm text-muted-foreground"><span className="capitalize">{datumLabel}</span><span className="mx-1.5">·</span><span className="font-medium text-foreground tabular-nums">{stats.vandaag}</span> voor vandaag{stats.teLaat > 0 && <><span className="mx-1.5">·</span><span className="text-destructive font-medium">{stats.teLaat} te laat</span></>}</span>}
         actions={<button onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>}
       />
 
-      <div className="flex flex-wrap gap-1.5 -mx-1 px-1 overflow-x-auto">
+      <div className="flex gap-1.5 -mx-1 px-1 overflow-x-auto pb-0.5">
         {TABS.map(t => {
           const active = tab === t.value;
-          const count = t.value === 'focus' ? undefined : t.value === 'vandaag' ? stats.vandaag : t.value === 'te_laat' ? stats.teLaat : t.value === 'deze_week' ? stats.dezeWeek : t.value === 'wachten' ? stats.wachten : t.value === 'alles' ? stats.open : stats.afgerond;
-          return <button key={t.value} onClick={() => setTab(t.value)} className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors whitespace-nowrap ${active ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border hover:text-foreground hover:border-foreground/40'} ${t.value === 'te_laat' && !active && stats.teLaat > 0 ? 'text-destructive border-destructive/40' : ''}`}>{t.label}{count !== undefined && <span className="ml-1.5 tabular-nums opacity-80">{count}</span>}</button>;
+          const count = t.value === 'vandaag' ? stats.vandaag : t.value === 'komend' ? stats.komend : t.value === 'openstaand' ? stats.openstaand : t.value === 'wachten' ? stats.wachten : t.value === 'alles' ? stats.open : stats.afgerond;
+          return <button key={t.value} onClick={() => setTab(t.value)} className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors whitespace-nowrap ${active ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border hover:text-foreground hover:border-foreground/40'}`}>{t.label}<span className="ml-1.5 tabular-nums opacity-80">{count}</span></button>;
         })}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
-        <div className="relative flex-1 min-w-[200px] sm:max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Zoek op taak, relatie, object, notitie…" className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} /></div>
-        <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={prioriteitFilter} onChange={e => setPrioriteitFilter(e.target.value as TaakPrioriteit | '')}><option value="">Alle prioriteiten</option><option value="urgent">Urgent</option><option value="hoog">Hoog</option><option value="normaal">Normaal</option><option value="laag">Laag</option></select>
-        <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">Alle types</option>{TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
-        <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as TaakStatus | '')}><option value="">Alle statussen</option><option value="open">Open</option><option value="wacht_op_reactie">Wachten op reactie</option><option value="in_uitvoering">In uitvoering</option><option value="afgerond">Afgerond</option><option value="geannuleerd">Geannuleerd</option></select>
-        <div className="sm:ml-auto"><SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} /></div>
+      <div className="flex gap-2.5 items-center">
+        <div className="relative flex-1 max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Zoek in mijn werk…" className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} /></div>
+        <button type="button" onClick={() => setFiltersOpen(v => !v)} className={`inline-flex h-10 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors ${filtersOpen || actieveFilters > 0 ? 'border-foreground/30 text-foreground bg-muted/30' : 'border-input text-muted-foreground hover:text-foreground'}`}><SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">Filters</span>{actieveFilters > 0 && <span className="rounded-full bg-foreground text-background px-1.5 text-[10px] tabular-nums">{actieveFilters}</span>}</button>
+        <div className="hidden sm:block"><SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} /></div>
       </div>
 
-      {zichtbaar.length === 0 ? (
-        <EmptyState icon={<ListChecks />} title="Geen taken in deze weergave" description="Wissel van tabblad of pas je filters aan. Of maak direct een nieuwe taak aan." action={<button type="button" onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>} />
-      ) : (
-        <div className="section-card overflow-hidden">
-          <header className="section-header"><h2 className="section-title flex items-center gap-2">{TABS.find(t => t.value === tab)?.label}<ChevronDown className="h-3.5 w-3.5 text-muted-foreground/60" /></h2><span className="text-xs text-muted-foreground tabular-nums">{zichtbaar.length}</span></header>
-          <div className="divide-y divide-border/70">{zichtbaar.map(renderTaak)}</div>
+      {filtersOpen && (
+        <div className="section-card p-3 flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
+          <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={prioriteitFilter} onChange={e => setPrioriteitFilter(e.target.value as TaakPrioriteit | '')}><option value="">Alle prioriteiten</option><option value="urgent">Urgent</option><option value="hoog">Hoog</option><option value="normaal">Normaal</option><option value="laag">Laag</option></select>
+          <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="">Alle types</option>{TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
+          <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as TaakStatus | '')}><option value="">Alle statussen</option><option value="open">Open</option><option value="wacht_op_reactie">Wachten op reactie</option><option value="in_uitvoering">In uitvoering</option><option value="afgerond">Afgerond</option><option value="geannuleerd">Geannuleerd</option></select>
+          <div className="sm:hidden"><SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} /></div>
+          {actieveFilters > 0 && <button type="button" className="h-10 px-3 text-sm text-muted-foreground hover:text-foreground" onClick={() => { setPrioriteitFilter(''); setTypeFilter(''); setStatusFilter(''); }}>Wis filters</button>}
         </div>
+      )}
+
+      {zichtbaar.length === 0 ? (
+        <EmptyState icon={<ListChecks />} title="Niets in deze weergave" description={tab === 'vandaag' ? 'Je hebt hier nu geen taken voor vandaag of verlopen taken.' : 'Wissel van weergave, pas je filters aan of maak direct een nieuwe taak aan.'} action={<button type="button" onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>} />
+      ) : tab === 'vandaag' && vandaagSecties ? (
+        <div className="space-y-3">
+          {renderSection('Te laat', vandaagSecties.teLaat, { danger: true, icon: <Clock className="h-4 w-4" /> })}
+          {renderSection('Ochtend', vandaagSecties.ochtend, { icon: <Sunrise className="h-4 w-4 text-muted-foreground" /> })}
+          {renderSection('Middag', vandaagSecties.middag, { icon: <Sun className="h-4 w-4 text-muted-foreground" /> })}
+          {renderSection('Later vandaag', vandaagSecties.later, { icon: <Moon className="h-4 w-4 text-muted-foreground" /> })}
+        </div>
+      ) : (
+        renderSection(TABS.find(t => t.value === tab)?.label ?? 'Taken', zichtbaar)
       )}
 
       <TaakFormDialog open={formOpen} onOpenChange={handleFormOpenChange} taak={editTaak} />
