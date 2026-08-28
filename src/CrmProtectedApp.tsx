@@ -4,6 +4,7 @@ import CrmDetailNavigationBoundary from '@/components/CrmDetailNavigationBoundar
 import CrmNavigationOriginTracker from '@/components/CrmNavigationOriginTracker';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
+import QuickTaskCaptureDock from '@/components/tasks/QuickTaskCaptureDock';
 import { SubcategorieProvider } from '@/hooks/useSubcategorieen';
 import { PropertyTaxonomieProvider } from '@/hooks/usePropertyTaxonomie';
 import { DataStoreProvider, useDataStore } from '@/hooks/useDataStore';
@@ -100,6 +101,7 @@ export default function CrmProtectedApp() {
                     <Route path="/admin" element={<ProtectedRoute vereistAdmin><AdminPage /></ProtectedRoute>} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
+                  <QuickTaskCaptureDock />
                 </AppLayout>
               </Suspense>
             </VastgoedkansenProvider>
