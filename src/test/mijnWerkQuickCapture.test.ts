@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 const capture = readFileSync(resolve(process.cwd(), 'src/components/tasks/QuickTaskCapture.tsx'), 'utf8');
 const dock = readFileSync(resolve(process.cwd(), 'src/components/tasks/QuickTaskCaptureDock.tsx'), 'utf8');
 const app = readFileSync(resolve(process.cwd(), 'src/CrmProtectedApp.tsx'), 'utf8');
+const takenPage = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
 
 describe('Mijn werk — quick capture', () => {
   it('maakt een taak aan via de bestaande reminder repository en plant hem apart van de deadline', () => {
@@ -24,9 +25,11 @@ describe('Mijn werk — quick capture', () => {
     expect(capture).toContain("planningBucket: 'later'");
   });
 
-  it('is compact beschikbaar in de CRM-shell en standaard open op Mijn werk', () => {
+  it('staat inline op Mijn werk en blijft elders compact beschikbaar via de CRM-shell', () => {
     expect(app).toContain('<QuickTaskCaptureDock />');
+    expect(takenPage).toContain('<QuickTaskCapture');
     expect(dock).toContain("location.pathname === '/taken'");
+    expect(dock).toContain('return null');
     expect(dock).toContain('data-testid="quick-task-capture-dock"');
     expect(capture).toContain('data-testid="quick-task-capture"');
   });
