@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
@@ -12,7 +12,7 @@ import {
   FASE_KANS,
   DEAL_FASE_LABELS,
 } from '@/data/mock-data';
-import type { DealFase } from '@/data/mock-data';
+import type { DealFase, Taak } from '@/data/mock-data';
 import { isStrongMatch } from '@/lib/derivations';
 import {
   LeadStatusBadge,
@@ -22,9 +22,7 @@ import {
 } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
 import {
-  CheckSquare,
   TrendingUp,
-  Zap,
   Flame,
   ArrowRight,
   Clock,
@@ -35,19 +33,27 @@ import {
   ChevronRight,
   Sparkles,
   Activity,
+  CalendarCheck2,
 } from 'lucide-react';
 import CommissieWidget from '@/components/dashboard/CommissieWidget';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
 import { useAcquisitie } from '@/hooks/useAcquisitie';
 import { targetIsActief } from '@/lib/acquisitie';
+import { deadlineLabel, sorteerTaken } from '@/lib/taakHelpers';
 import {
-  isTaakTeLaat,
-  isTaakVandaag,
-  isTaakDezeWeek,
-  deadlineLabel,
-  sorteerTaken,
-} from '@/lib/taakHelpers';
+  listTaskPlanning,
+  taskPlanningMap,
+  type TaskPlanningMeta,
+} from '@/lib/tasks/planning';
+import {
+  isOpenTaskStatus,
+  isTaskOverdue,
+  isTaskPlannedToday,
+  isTaskUpcoming,
+  planningForTask,
+  taskSourceLabel,
+} from '@/lib/tasks/workView';
 
 /* ------------------------------------------------------------------ */
 /* Executive snapshot — premium KPI                                    */
@@ -124,7 +130,6 @@ function KPICard({
   return <div className={className}>{inner}</div>;
 }
 
-
 /* ------------------------------------------------------------------ */
 /* Pipeline stages (operationele dealflow)                             */
 /* ------------------------------------------------------------------ */
@@ -147,13 +152,29 @@ export default function DashboardPage() {
   const store = useDataStore();
   const { relaties, objecten, deals, taken } = store;
   const nu = new Date();
+  const [planningRows, setPlanningRows] = useState<TaskPlanningMeta[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listTaskPlanning()
+      .then(rows => { if (!cancelled) setPlanningRows(rows); })
+      .catch(error => console.error('Dashboard taakplanning laden mislukt', error));
+    return () => { cancelled = true; };
+  }, [taken.length]);
+
+  const planningById = useMemo(() => taskPlanningMap(planningRows), [planningRows]);
+  const planningFor = (task: Taak) => planningForTask(task, planningById);
 
   // --- Core selections ---
   const actieveObjecten = useMemo(() => objecten.filter(o => !o.isArchived), [objecten]);
   const actieveDeals    = useMemo(() => deals.filter(isDealActief), [deals]);
   const openTaken       = useMemo(
-    () => taken.filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd'),
+    () => taken.filter(t => isOpenTaskStatus(t.status)),
     [taken],
+  );
+  const actieveWerktaken = useMemo(
+    () => openTaken.filter(t => t.status !== 'wacht_op_reactie'),
+    [openTaken],
   );
   const warmeRelaties = useMemo(
     () => relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief'),
@@ -189,27 +210,27 @@ export default function DashboardPage() {
     [actieveDeals],
   );
 
-  // --- Task buckets ---
-  const taakVerlopen = useMemo(
-    () => sorteerTaken(openTaken.filter(t => isTaakTeLaat(t, nu)), nu),
-    [openTaken, nu],
+  // --- Canonical task work view: zelfde logica als Mijn werk ---
+  const taakAchterstallig = useMemo(
+    () => sorteerTaken(actieveWerktaken.filter(t => isTaskOverdue(t, nu)), nu),
+    [actieveWerktaken, planningRows],
   );
   const taakVandaag = useMemo(
-    () => sorteerTaken(openTaken.filter(t => isTaakVandaag(t, nu) && !isTaakTeLaat(t, nu)), nu),
-    [openTaken, nu],
-  );
-  const taakDezeWeek = useMemo(
     () => sorteerTaken(
-      openTaken.filter(t => isTaakDezeWeek(t, nu) && !isTaakTeLaat(t, nu) && !isTaakVandaag(t, nu)),
+      actieveWerktaken.filter(t => isTaskPlannedToday(t, planningFor(t), nu) && !isTaskOverdue(t, nu)),
       nu,
     ),
-    [openTaken, nu],
+    [actieveWerktaken, planningRows],
+  );
+  const taakKomend = useMemo(
+    () => sorteerTaken(actieveWerktaken.filter(t => isTaskUpcoming(t, planningFor(t), nu)), nu),
+    [actieveWerktaken, planningRows],
   );
   const taakWacht = useMemo(
     () => sorteerTaken(openTaken.filter(t => t.status === 'wacht_op_reactie'), nu),
-    [openTaken, nu],
+    [openTaken],
   );
-  const urgentCount = taakVerlopen.length + taakVandaag.length;
+  const urgentCount = taakAchterstallig.length + taakVandaag.length;
 
   // --- Pipeline per fase ---
   const pipelinePerFase = useMemo(() => {
@@ -224,7 +245,6 @@ export default function DashboardPage() {
   const totaalActieveDeals = pipelinePerFase.reduce((s, x) => s + x.aantal, 0) || 1;
   const maxAantal = Math.max(1, ...pipelinePerFase.map(x => x.aantal));
   const maxGewogen = Math.max(0, ...pipelinePerFase.map(x => x.gewogen));
-
 
   // --- Forecast 30/60/90 (gewogen fee uit verwachteClosingdatum) ---
   const forecast = useMemo(() => {
@@ -272,11 +292,19 @@ export default function DashboardPage() {
         subtitle={
           <>
             {actieveDeals.length} actieve deals · {formatCurrencyCompact(pipelineWaardeTotaal)} pipeline
-            {urgentCount > 0 && (
-              <span className="text-destructive"> · {urgentCount} urgente acties</span>
+            {taakVandaag.length > 0 && <span> · {taakVandaag.length} gepland vandaag</span>}
+            {taakAchterstallig.length > 0 && (
+              <span className="text-destructive"> · {taakAchterstallig.length} achterstallig</span>
             )}
           </>
         }
+      />
+
+      <VandaagCockpit
+        vandaag={taakVandaag}
+        achterstallig={taakAchterstallig}
+        komend={taakKomend}
+        wacht={taakWacht}
       />
 
       {/* ============== SECTIE 1 — HERO + SECONDARY KPI ============== */}
@@ -344,15 +372,14 @@ export default function DashboardPage() {
           href="/deals?fase=closing"
         />
         <KPICard
-          label="Urgente acties"
+          label="Werkdruk"
           value={urgentCount}
-          hint={`${taakVerlopen.length} verlopen · ${taakVandaag.length} vandaag`}
+          hint={`${taakVandaag.length} vandaag · ${taakAchterstallig.length} achterstallig`}
           icon={AlertTriangle}
           tone={urgentCount > 0 ? 'warning' : 'muted'}
           href="/taken"
         />
       </div>
-
 
       {/* ============== SECTIE 2 — PIPELINE MOMENTUM ============== */}
       <section className="section-card">
@@ -453,74 +480,64 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ============== SECTIE 3 — ACTION CENTER + ACTIVE DEALS ============== */}
-      <div className="grid lg:grid-cols-[1fr_1.3fr] gap-4 lg:gap-6">
-        <ActionCenter
-          verlopen={taakVerlopen}
-          vandaag={taakVandaag}
-          dezeWeek={taakDezeWeek}
-          wacht={taakWacht}
-        />
-
-        <section className="section-card flex flex-col">
-          <header className="section-header">
-            <div className="min-w-0">
-              <h2 className="section-title">Actieve deals</h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {topDeals.length} van {actieveDeals.length} — meest gevorderd
-              </p>
-            </div>
-            <Link to="/deals" className="section-link inline-flex items-center gap-1">
-              Alle deals <ArrowRight className="h-3 w-3" />
-            </Link>
-          </header>
-          <div className="divide-y divide-border/60">
-            {topDeals.map(deal => {
-              const relatie = store.getRelatieById(deal.relatieId);
-              const object  = store.getObjectById(deal.objectId);
-              return (
-                <Link
-                  key={deal.id}
-                  to={`/deals/${deal.id}`}
-                  className="row-hover block px-5 py-3.5 group"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <p className="text-[14px] font-semibold text-foreground truncate tracking-tight">
-                          {object?.titel ?? '—'}
-                        </p>
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-accent" />
-                      </div>
-                      <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">
-                        {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'}
-                        {object?.plaats ? <span className="text-muted-foreground/60"> · {object.plaats}</span> : null}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        {object?.vraagprijs != null && (
-                          <span className="text-[11px] font-mono-data text-muted-foreground">
-                            {formatCurrencyCompact(object.vraagprijs)}
-                          </span>
-                        )}
-                        {deal.commissieBedrag != null && (
-                          <span className="text-[11px] font-mono-data font-semibold text-accent bg-accent/8 ring-1 ring-accent/15 px-1.5 py-0.5 rounded-md">
-                            fee {formatCurrencyCompact(deal.commissieBedrag)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <DealFaseBadge fase={deal.fase} />
-                  </div>
-                </Link>
-              );
-            })}
-            {topDeals.length === 0 && (
-              <p className="px-5 py-6 text-sm text-muted-foreground">Geen actieve deals.</p>
-            )}
+      {/* ============== SECTIE 3 — ACTIVE DEALS ============== */}
+      <section className="section-card flex flex-col">
+        <header className="section-header">
+          <div className="min-w-0">
+            <h2 className="section-title">Actieve deals</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {topDeals.length} van {actieveDeals.length} — meest gevorderd
+            </p>
           </div>
-        </section>
-      </div>
-
+          <Link to="/deals" className="section-link inline-flex items-center gap-1">
+            Alle deals <ArrowRight className="h-3 w-3" />
+          </Link>
+        </header>
+        <div className="divide-y divide-border/60">
+          {topDeals.map(deal => {
+            const relatie = store.getRelatieById(deal.relatieId);
+            const object  = store.getObjectById(deal.objectId);
+            return (
+              <Link
+                key={deal.id}
+                to={`/deals/${deal.id}`}
+                className="row-hover block px-5 py-3.5 group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-[14px] font-semibold text-foreground truncate tracking-tight">
+                        {object?.titel ?? '—'}
+                      </p>
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-accent" />
+                    </div>
+                    <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">
+                      {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'}
+                      {object?.plaats ? <span className="text-muted-foreground/60"> · {object.plaats}</span> : null}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      {object?.vraagprijs != null && (
+                        <span className="text-[11px] font-mono-data text-muted-foreground">
+                          {formatCurrencyCompact(object.vraagprijs)}
+                        </span>
+                      )}
+                      {deal.commissieBedrag != null && (
+                        <span className="text-[11px] font-mono-data font-semibold text-accent bg-accent/8 ring-1 ring-accent/15 px-1.5 py-0.5 rounded-md">
+                          fee {formatCurrencyCompact(deal.commissieBedrag)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <DealFaseBadge fase={deal.fase} />
+                </div>
+              </Link>
+            );
+          })}
+          {topDeals.length === 0 && (
+            <p className="px-5 py-6 text-sm text-muted-foreground">Geen actieve deals.</p>
+          )}
+        </div>
+      </section>
 
       {/* ============== SECTIE 4 — MATCHES + DEALFLOW HEALTH ============== */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
@@ -624,116 +641,112 @@ export default function DashboardPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Action Center                                                       */
+/* Vandaag cockpit                                                     */
 /* ------------------------------------------------------------------ */
 
-type Bucket = 'verlopen' | 'vandaag' | 'week' | 'wacht';
-
-function ActionCenter({
-  verlopen, vandaag, dezeWeek, wacht,
+function VandaagCockpit({
+  vandaag, achterstallig, komend, wacht,
 }: {
-  verlopen: ReturnType<typeof sorteerTaken>;
-  vandaag: ReturnType<typeof sorteerTaken>;
-  dezeWeek: ReturnType<typeof sorteerTaken>;
-  wacht: ReturnType<typeof sorteerTaken>;
+  vandaag: Taak[];
+  achterstallig: Taak[];
+  komend: Taak[];
+  wacht: Taak[];
 }) {
   const store = useDataStore();
   const nu = new Date();
+  const datum = nu.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  const [bucket, setBucket] = useState<Bucket>('vandaag');
-
-
-  const tabs: { key: Bucket; label: string; count: number; tone: string }[] = [
-    { key: 'verlopen', label: 'Verlopen',  count: verlopen.length, tone: 'text-destructive' },
-    { key: 'vandaag',  label: 'Vandaag',   count: vandaag.length,  tone: 'text-foreground' },
-    { key: 'week',     label: 'Deze week', count: dezeWeek.length, tone: 'text-foreground' },
-    { key: 'wacht',    label: 'Wacht',     count: wacht.length,    tone: 'text-foreground' },
-  ];
-
-  const items =
-    bucket === 'verlopen' ? verlopen :
-    bucket === 'vandaag'  ? vandaag  :
-    bucket === 'week'     ? dezeWeek : wacht;
-
-  const isUrgent = bucket === 'verlopen';
+  const renderTaak = (taak: Taak, overdue = false) => {
+    const relatie = taak.relatieId ? store.getRelatieById(taak.relatieId) : null;
+    return (
+      <Link
+        key={taak.id}
+        to={`/taken?open=${taak.id}`}
+        className="row-hover block px-4 py-3 sm:px-5"
+      >
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground truncate">{taak.titel}</p>
+            <p className={`mt-0.5 truncate text-xs ${overdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {taskSourceLabel(taak)}
+              {relatie ? ` · ${getRelatieNaamCompact(relatie, store.contactpersonen)}` : ''}
+              {taak.deadline ? ` · ${deadlineLabel(taak, nu)}` : ''}
+              {overdue ? ' · te laat' : ''}
+            </p>
+          </div>
+          <PrioriteitBadge prioriteit={taak.prioriteit} />
+        </div>
+      </Link>
+    );
+  };
 
   return (
-    <section className={`section-card flex flex-col ${isUrgent && verlopen.length > 0 ? 'border-destructive/40' : ''}`}>
+    <section data-testid="dashboard-vandaag-cockpit" className="section-card overflow-hidden border-foreground/10">
       <header className="section-header">
-        <h2 className="section-title flex items-center gap-2">
-          {isUrgent && verlopen.length > 0 ? (
-            <Clock className="h-4 w-4 text-destructive" />
-          ) : (
-            <CheckSquare className="h-4 w-4 text-accent" />
-          )}
-          Action center
-        </h2>
+        <div className="min-w-0">
+          <h2 className="section-title flex items-center gap-2">
+            <CalendarCheck2 className="h-4 w-4 text-accent" />
+            Vandaag
+          </h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground capitalize">{datum}</p>
+        </div>
         <Link to="/taken" className="section-link inline-flex items-center gap-1">
-          Alle taken <ArrowRight className="h-3 w-3" />
+          Mijn werk <ArrowRight className="h-3 w-3" />
         </Link>
       </header>
 
-      <div className="px-5 pt-3 pb-2 flex items-center gap-1 border-b border-border/60 overflow-x-auto">
-        {tabs.map(t => {
-          const active = t.key === bucket;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setBucket(t.key)}
-              className={`group inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors whitespace-nowrap ${
-                active
-                  ? 'bg-foreground text-background'
-                  : `hover:bg-muted/60 ${t.tone}`
-              }`}
-            >
-              {t.label}
-              <span className={`font-mono-data text-[10px] px-1.5 py-0.5 rounded-full ${
-                active ? 'bg-background/15' : 'bg-muted/80 text-muted-foreground'
-              }`}>
-                {t.count}
-              </span>
-            </button>
-          );
-        })}
+      <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-border/60">
+        <WorkStat label="Gepland" value={vandaag.length} />
+        <WorkStat label="Achterstallig" value={achterstallig.length} danger={achterstallig.length > 0} />
+        <WorkStat label="Komend" value={komend.length} />
+        <WorkStat label="Wachten" value={wacht.length} />
       </div>
 
-      <div className="divide-y divide-border/70 max-h-[420px] overflow-y-auto">
-        {items.slice(0, 8).map(taak => {
-          const relatie = taak.relatieId ? store.getRelatieById(taak.relatieId) : null;
-          const subKlasse = bucket === 'verlopen' ? 'text-destructive' : 'text-muted-foreground';
-          return (
-            <Link
-              key={taak.id}
-              to="/taken"
-              className="row-hover block px-5 py-3"
-            >
-              <div className="row-with-action">
-                <div className="row-flex">
-                  <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                  <p className={`text-xs mt-0.5 truncate ${subKlasse}`}>
-                    {relatie ? `${getRelatieNaamCompact(relatie, store.contactpersonen)} · ` : ''}
-                    {deadlineLabel(taak, nu)}
-                    {bucket === 'verlopen' ? ' · te laat' : ''}
-                  </p>
-                </div>
-                <div className="row-action">
-                  <PrioriteitBadge prioriteit={taak.prioriteit} />
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-        {items.length === 0 && (
-          <p className="px-5 py-8 text-sm text-muted-foreground text-center">
-            Geen acties in deze categorie.
-          </p>
-        )}
-        {items.length > 8 && (
-          <p className="px-5 py-2 text-[11px] text-muted-foreground">+ {items.length - 8} meer…</p>
-        )}
+      <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="min-w-0 lg:border-r lg:border-border/60">
+          <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5 sm:px-5">
+            <p className="text-xs font-semibold text-foreground">Gepland vandaag</p>
+            <span className="text-xs tabular-nums text-muted-foreground">{vandaag.length}</span>
+          </div>
+          <div className="divide-y divide-border/60">
+            {vandaag.slice(0, 5).map(taak => renderTaak(taak))}
+            {vandaag.length === 0 && (
+              <p className="px-4 py-5 text-sm text-muted-foreground sm:px-5">Geen taken gepland voor vandaag.</p>
+            )}
+            {vandaag.length > 5 && (
+              <Link to="/taken" className="block px-4 py-2.5 text-xs font-medium text-accent sm:px-5">+ {vandaag.length - 5} meer vandaag</Link>
+            )}
+          </div>
+        </div>
+
+        <div className="min-w-0 border-t border-border/60 lg:border-t-0">
+          <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5 sm:px-5">
+            <p className={`text-xs font-semibold ${achterstallig.length > 0 ? 'text-destructive' : 'text-foreground'}`}>Achterstallig</p>
+            <span className={`text-xs tabular-nums ${achterstallig.length > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>{achterstallig.length}</span>
+          </div>
+          <div className="divide-y divide-border/60">
+            {achterstallig.slice(0, 3).map(taak => renderTaak(taak, true))}
+            {achterstallig.length === 0 && (
+              <p className="px-4 py-5 text-sm text-muted-foreground sm:px-5">Geen achterstallige taken.</p>
+            )}
+            {achterstallig.length > 3 && (
+              <Link to="/taken" className="block px-4 py-3 text-xs font-medium text-destructive sm:px-5">
+                Bekijk alle {achterstallig.length} achterstallige taken
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     </section>
+  );
+}
+
+function WorkStat({ label, value, danger = false }: { label: string; value: number; danger?: boolean }) {
+  return (
+    <div className="px-4 py-3 sm:px-5">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={`mt-1 text-xl font-semibold font-mono-data leading-none ${danger ? 'text-destructive' : 'text-foreground'}`}>{value}</p>
+    </div>
   );
 }
 
@@ -783,7 +796,6 @@ function ForecastWidget({
       </header>
 
       <div className="p-5 space-y-5">
-        {/* 30/60/90 */}
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
             Verwachte fee (gewogen)
@@ -809,7 +821,6 @@ function ForecastWidget({
           </div>
         </div>
 
-        {/* Maand-bars */}
         <div className="pt-4 border-t border-border/60">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
             Gerealiseerde fee · laatste 6 maanden
