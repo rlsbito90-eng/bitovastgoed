@@ -1,5 +1,5 @@
 // src/components/MatchAlertBadge.tsx
-// Match-status is accountgebonden in Supabase; localStorage blijft alleen cache/fallback.
+// Match-status is accountgebonden in Supabase; localStorage blijft cache en offline fallback.
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
@@ -38,13 +38,32 @@ function saveSeen(set: Set<string>): void {
     localStorage.setItem(SEEN_KEYS_STORAGE, JSON.stringify([...set]));
     localStorage.setItem(SEEN_INIT_STORAGE, '1');
   } catch {
-    // Cache is best-effort; Supabase is de bron voor ingelogde gebruikers.
+    // Cache is best-effort; Supabase blijft de accountgebonden bron.
   }
+}
+
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const key of a) {
+    if (!b.has(key)) return false;
+  }
+  return true;
+}
+
+async function persistSeen(userId: string, seen: Set<string>) {
+  return supabase
+    .from('user_match_state')
+    .upsert({
+      user_id: userId,
+      seen_keys: [...seen],
+      initialized: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
 }
 
 export default function MatchAlertBadge() {
   const store = useDataStore();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const [seenKeys, setSeenKeys] = useState<Set<string>>(() => loadSeen());
   const [serverHydrated, setServerHydrated] = useState(false);
@@ -62,16 +81,22 @@ export default function MatchAlertBadge() {
       });
   }, [store.zoekprofielen, store.objecten]);
 
-  // Hydrateer per account. Een bestaande lokale status wordt éénmalig meegenomen
-  // als er nog geen serverstatus bestaat, zodat de huidige browser geen badges reset.
+  // Wacht op auth voordat de badge als definitief wordt getoond. Als een match lokaal al
+  // als gezien is gemarkeerd voordat de sessie beschikbaar was, wordt die status met de
+  // server samengevoegd in plaats van door een oudere serverstatus te worden overschreven.
   useEffect(() => {
     let cancelled = false;
     setServerHydrated(false);
 
     async function hydrate() {
+      if (authLoading) return;
+
+      const localInitialized = localStorage.getItem(SEEN_INIT_STORAGE) === '1';
+      const localSeen = localInitialized ? loadSeen() : new Set<string>();
+
       if (!user) {
         if (!cancelled) {
-          setSeenKeys(loadSeen());
+          setSeenKeys(localSeen);
           setServerHydrated(true);
         }
         return;
@@ -86,38 +111,41 @@ export default function MatchAlertBadge() {
       if (cancelled) return;
 
       if (!error && data?.initialized) {
-        const next = new Set<string>(Array.isArray(data.seen_keys) ? data.seen_keys : []);
+        const serverSeen = new Set<string>(Array.isArray(data.seen_keys) ? data.seen_keys : []);
+        const next = localInitialized
+          ? new Set<string>([...serverSeen, ...localSeen])
+          : serverSeen;
+
         saveSeen(next);
         setSeenKeys(next);
+        setServerHydrated(true);
+
+        // Een lokale klik kan hebben plaatsgevonden voordat useAuth klaar was. Herstel die
+        // status nu server-side, zodat een reload dezelfde matches niet opnieuw als nieuw toont.
+        if (!setsEqual(next, serverSeen)) {
+          void persistSeen(user.id, next);
+        }
+        return;
+      }
+
+      if (!localInitialized && matches.length === 0) {
         setServerHydrated(true);
         return;
       }
 
-      const localInitialized = localStorage.getItem(SEEN_INIT_STORAGE) === '1';
-      if (!localInitialized && matches.length === 0) return;
-
       const next = localInitialized
-        ? loadSeen()
+        ? localSeen
         : new Set(matches.map(m => matchKey(m.objectId, m.zoekprofielId)));
 
       saveSeen(next);
       setSeenKeys(next);
-
-      const { error: upsertError } = await supabase
-        .from('user_match_state')
-        .upsert({
-          user_id: user.id,
-          seen_keys: [...next],
-          initialized: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-
-      if (!cancelled) setServerHydrated(!upsertError || true);
+      setServerHydrated(true);
+      void persistSeen(user.id, next);
     }
 
     void hydrate();
     return () => { cancelled = true; };
-  }, [user?.id, matches.length]);
+  }, [authLoading, user?.id, matches.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -134,14 +162,7 @@ export default function MatchAlertBadge() {
     setSeenKeys(next);
 
     if (user) {
-      void supabase
-        .from('user_match_state')
-        .upsert({
-          user_id: user.id,
-          seen_keys: [...next],
-          initialized: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+      void persistSeen(user.id, next);
     }
   }, [matches, user]);
 
