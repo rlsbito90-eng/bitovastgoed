@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import {
   Search, Plus, CheckCircle2, Circle, Clock, MoreHorizontal,
   ExternalLink, ListChecks, SlidersHorizontal, Sunrise, Sun, Moon,
-  CheckSquare, Square, X, CalendarDays,
+  CheckSquare, Square, X, CalendarDays, Trash2,
 } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
@@ -21,6 +21,10 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import SortDropdown from '@/components/SortDropdown';
 import { useSortPreference } from '@/hooks/useSortPreference';
 import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
@@ -96,7 +100,7 @@ function upcomingGroupLabel(value: string, today: string): string {
 }
 
 export default function TakenPage() {
-  const { taken, getRelatieById, getDealById, getObjectById, updateTaak, contactpersonen, refresh } = useDataStore();
+  const { taken, getRelatieById, getDealById, getObjectById, updateTaak, deleteTaak, contactpersonen, refresh } = useDataStore();
   const initialView = useMemo(() => loadTakenViewState(), []);
   const [zoek, setZoek] = useState(initialView.zoek);
   const [prioriteitFilter, setPrioriteitFilter] = useState<TaakPrioriteit | ''>(initialView.prioriteitFilter);
@@ -106,6 +110,7 @@ export default function TakenPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<Taak | null>(null);
   const [afrondenTaak, setAfrondenTaak] = useState<Taak | null>(null);
+  const [verwijderTaak, setVerwijderTaak] = useState<Taak | null>(null);
   const [tab, setTab] = useState<TakenTab>(initialView.tab);
   const [planningRows, setPlanningRows] = useState<TaskPlanningMeta[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -355,6 +360,18 @@ export default function TakenPage() {
     catch (error: any) { toast.error(`Bijwerken mislukt: ${error.message ?? 'onbekende fout'}`); }
   };
 
+  const confirmDelete = async () => {
+    if (!verwijderTaak) return;
+    try {
+      await deleteTaak(verwijderTaak.id);
+      setPlanningRows(prev => prev.filter(row => row.id !== verwijderTaak.id));
+      toast.success('Taak verwijderd');
+      setVerwijderTaak(null);
+    } catch (error: any) {
+      toast.error(`Verwijderen mislukt: ${error?.message ?? 'onbekende fout'}`);
+    }
+  };
+
   const renderTask = (task: Taak) => {
     const rel = task.relatieId ? getRelatieById(task.relatieId) : null;
     const deal = task.dealId ? getDealById(task.dealId) : null;
@@ -434,6 +451,13 @@ export default function TakenPage() {
                 {rel && <DropdownMenuItem asChild><Link to={`/relaties/${rel.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open relatie</Link></DropdownMenuItem>}
                 {obj && <DropdownMenuItem asChild><Link to={`/objecten/${obj.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open object</Link></DropdownMenuItem>}
                 {deal && <DropdownMenuItem asChild><Link to={`/deals/${deal.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open deal</Link></DropdownMenuItem>}
+                {(rel || obj || deal) && <DropdownMenuSeparator />}
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={event => { event.stopPropagation(); setVerwijderTaak(task); }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Verwijderen
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -548,6 +572,22 @@ export default function TakenPage() {
 
       <TaakFormDialog open={formOpen} onOpenChange={value => { setFormOpen(value); if (!value) setEditTaak(null); }} taak={editTaak} />
       <TaakAfrondenDialog open={!!afrondenTaak} onOpenChange={value => { if (!value) setAfrondenTaak(null); }} taak={afrondenTaak} />
+      <AlertDialog open={!!verwijderTaak} onOpenChange={open => { if (!open) setVerwijderTaak(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Taak verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {verwijderTaak ? `“${verwijderTaak.titel}” wordt definitief verwijderd. Deze actie kan niet ongedaan worden gemaakt.` : 'Deze taak wordt definitief verwijderd.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
