@@ -6,11 +6,11 @@ const page = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'ut
 const state = readFileSync(resolve(process.cwd(), 'src/lib/takenViewState.ts'), 'utf8');
 const workView = readFileSync(resolve(process.cwd(), 'src/lib/tasks/workView.ts'), 'utf8');
 
-describe('Mijn werk — Today v1', () => {
+describe('Taken — Today v1', () => {
   it('start standaard op Vandaag en behoudt de rustige werkweergaven', () => {
     expect(state).toContain("tab: 'vandaag'");
     expect(state).toContain("'inbox' | 'vandaag' | 'komend' | 'openstaand' | 'later' | 'wachten' | 'alles' | 'afgerond'");
-    expect(page).toContain('title="Mijn werk"');
+    expect(page).toContain('title="Taken"');
     expect(page).toContain("{ value: 'vandaag', label: 'Vandaag' }");
     expect(page).toContain("{ value: 'komend', label: 'Komend' }");
     expect(page).toContain("{ value: 'openstaand', label: 'Openstaand' }");
