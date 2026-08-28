@@ -1,6 +1,6 @@
 import type { TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 
-export type TakenTab = 'vandaag' | 'komend' | 'openstaand' | 'wachten' | 'alles' | 'afgerond';
+export type TakenTab = 'inbox' | 'vandaag' | 'komend' | 'openstaand' | 'later' | 'wachten' | 'alles' | 'afgerond';
 
 export interface TakenViewState {
   zoek: string;
@@ -10,8 +10,8 @@ export interface TakenViewState {
   tab: TakenTab;
 }
 
-const KEY = 'crm:taken:view-state:v2';
-const TABS = new Set<TakenTab>(['vandaag', 'komend', 'openstaand', 'wachten', 'alles', 'afgerond']);
+const KEY = 'crm:taken:view-state:v3';
+const TABS = new Set<TakenTab>(['inbox', 'vandaag', 'komend', 'openstaand', 'later', 'wachten', 'alles', 'afgerond']);
 const PRIORITEITEN = new Set(['urgent', 'hoog', 'normaal', 'laag']);
 const STATUSSEN = new Set(['open', 'wacht_op_reactie', 'in_uitvoering', 'afgerond', 'geannuleerd']);
 
