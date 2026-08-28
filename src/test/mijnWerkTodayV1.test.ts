@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
 const state = readFileSync(resolve(process.cwd(), 'src/lib/takenViewState.ts'), 'utf8');
+const workView = readFileSync(resolve(process.cwd(), 'src/lib/tasks/workView.ts'), 'utf8');
 
 describe('Mijn werk — Today v1', () => {
   it('start standaard op Vandaag en behoudt de rustige werkweergaven', () => {
@@ -15,16 +16,19 @@ describe('Mijn werk — Today v1', () => {
     expect(page).toContain("{ value: 'openstaand', label: 'Openstaand' }");
   });
 
-  it('neemt harde deadlines op in Vandaag en groepeert de dag op dagdelen', () => {
-    expect(page).toContain("const hardVandaag = (taak: Taak) => isTaakTeLaat(taak, now) || isTaakVandaag(taak, now)");
-    expect(page).toContain('if (hardVandaag(taak)) return true');
-    expect(page).toContain("renderSection('Te laat'");
+  it('scheidt geplande dagfocus van achterstallige deadlines en groepeert Vandaag op dagdelen', () => {
+    expect(workView).toContain('export function isTaskOverdue');
+    expect(workView).toContain('export function isTaskPlannedToday');
+    expect(workView).toContain('export function isTaskInTodayView');
     expect(page).toContain("renderSection('Ochtend'");
     expect(page).toContain("renderSection('Middag'");
     expect(page).toContain("renderSection('Later vandaag'");
+    expect(page).toContain("renderSection('Achterstallig'");
+    expect(page.indexOf("renderSection('Later vandaag'")).toBeLessThan(page.indexOf("renderSection('Achterstallig'"));
+    expect(page).toContain('Bekijk alle ${items.length} achterstallige taken');
   });
 
-  it('houdt snelle acties, CRM-context en mobiele taakrij intact', () => {
+  it('houdt snelle acties, CRM-context, selectie en mobiele taakrij intact', () => {
     expect(page).toContain('data-testid="taken-lijstregel"');
     expect(page).toContain('grid grid-cols-[auto,minmax(0,1fr)]');
     expect(page).toContain('col-start-2 row-start-2 flex min-w-0 flex-wrap');
@@ -32,5 +36,7 @@ describe('Mijn werk — Today v1', () => {
     expect(page).toContain('Open relatie');
     expect(page).toContain('Open object');
     expect(page).toContain('Open deal');
+    expect(page).toContain('Selecteer alles');
+    expect(page).toContain('geselecteerd');
   });
 });
