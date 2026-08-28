@@ -6,17 +6,18 @@ const page = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'ut
 const state = readFileSync(resolve(process.cwd(), 'src/lib/takenViewState.ts'), 'utf8');
 
 describe('Mijn werk — Today v1', () => {
-  it('start standaard op Vandaag en gebruikt rustige werkweergaven', () => {
+  it('start standaard op Vandaag en behoudt de rustige werkweergaven', () => {
     expect(state).toContain("tab: 'vandaag'");
-    expect(state).toContain("'vandaag' | 'komend' | 'openstaand' | 'wachten' | 'alles' | 'afgerond'");
+    expect(state).toContain("'inbox' | 'vandaag' | 'komend' | 'openstaand' | 'later' | 'wachten' | 'alles' | 'afgerond'");
     expect(page).toContain('title="Mijn werk"');
     expect(page).toContain("{ value: 'vandaag', label: 'Vandaag' }");
     expect(page).toContain("{ value: 'komend', label: 'Komend' }");
     expect(page).toContain("{ value: 'openstaand', label: 'Openstaand' }");
   });
 
-  it('neemt verlopen taken op in Vandaag en groepeert de dag op dagdelen', () => {
-    expect(page).toContain("isTaakTeLaat(t, now) || isTaakVandaag(t, now)");
+  it('neemt harde deadlines op in Vandaag en groepeert de dag op dagdelen', () => {
+    expect(page).toContain("const hardVandaag = (taak: Taak) => isTaakTeLaat(taak, now) || isTaakVandaag(taak, now)");
+    expect(page).toContain('if (hardVandaag(taak)) return true');
     expect(page).toContain("renderSection('Te laat'");
     expect(page).toContain("renderSection('Ochtend'");
     expect(page).toContain("renderSection('Middag'");
