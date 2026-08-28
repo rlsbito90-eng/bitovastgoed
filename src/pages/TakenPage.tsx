@@ -289,7 +289,7 @@ export default function TakenPage() {
     setSelectionMode(false);
   };
 
-  const runBulk = async (action: () => Promise<void>, success: string) => {
+  const runBulk = async (action: () => Promise<void>, success?: string) => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0 || bulkBusy) return;
     setBulkBusy(true);
@@ -297,7 +297,7 @@ export default function TakenPage() {
       await action();
       await refresh();
       setPlanningRows(await listTaskPlanning());
-      toast.success(`${success} (${ids.length})`);
+      if (success) toast.success(`${success} (${ids.length})`);
       exitSelection();
     } catch (error: any) {
       toast.error(`Bulkactie mislukt: ${error?.message ?? 'onbekende fout'}`);
@@ -323,7 +323,7 @@ export default function TakenPage() {
     await runBulk(async () => {
       await Promise.all(ids.map(id => deleteTaak(id)));
       setPlanningRows(prev => prev.filter(row => !ids.includes(row.id)));
-    }, 'Taken verwijderd');
+    });
   };
 
   const toggleComplete = async (event: React.MouseEvent, task: Taak) => {
@@ -376,7 +376,6 @@ export default function TakenPage() {
     try {
       await deleteTaak(verwijderTaak.id);
       setPlanningRows(prev => prev.filter(row => row.id !== verwijderTaak.id));
-      toast.success('Taak verwijderd');
       setVerwijderTaak(null);
     } catch (error: any) {
       toast.error(`Verwijderen mislukt: ${error?.message ?? 'onbekende fout'}`);
@@ -490,7 +489,7 @@ export default function TakenPage() {
         <div className="divide-y divide-border/70">{shown.map(renderTask)}</div>
         {options?.limit && items.length > options.limit && (
           <button type="button" onClick={() => setShowAllOverdue(v => !v)} className="w-full border-t border-border/70 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/20">
-            {showAllOverdue ? 'Toon minder' : `Bekijk alle ${items.length} achterstallige taken`}
+            {showAllOverdue ? 'Toon minder' : 'Bekijk alles'}
           </button>
         )}
       </section>
@@ -511,7 +510,7 @@ export default function TakenPage() {
   );
 
   return (
-    <div data-task-selection-mode={selectionMode ? 'true' : undefined} className={`page-shell sm:pb-8 ${selectionMode ? 'pb-[calc(9rem+env(safe-area-inset-bottom))]' : 'pb-24'}`}>
+    <div data-task-selection-mode={selectionMode ? 'true' : undefined} className={`page-shell sm:pb-8 ${selectionMode ? 'pb-[calc(12rem+env(safe-area-inset-bottom))]' : 'pb-24'}`}>
       <PageHeader
         title="Taken"
         subtitle={<span className="text-sm text-muted-foreground"><span className="capitalize">{datumLabel}</span><span className="mx-1.5">·</span><span className="font-medium text-foreground tabular-nums">{stats.vandaag}</span> gepland vandaag{stats.teLaat > 0 && <><span className="mx-1.5">·</span><span className="text-destructive font-medium">{stats.teLaat} achterstallig</span></>}</span>}
@@ -561,6 +560,8 @@ export default function TakenPage() {
         renderSection(TABS.find(item => item.value === tab)?.label ?? 'Taken', zichtbaar)
       )}
 
+      {selectionMode && <div aria-hidden="true" className="h-[calc(8rem+env(safe-area-inset-bottom))] sm:hidden" />}
+
       {selectionMode && (
         <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 p-2.5 shadow-2xl backdrop-blur sm:bottom-5">
           <div className="flex items-center gap-2">
@@ -601,7 +602,7 @@ export default function TakenPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Taak verwijderen?</AlertDialogTitle>
             <AlertDialogDescription>
-              {verwijderTaak ? `“${verwijderTaak.titel}” wordt definitief verwijderd. Deze actie kan niet ongedaan worden gemaakt.` : 'Deze taak wordt definitief verwijderd.'}
+              Alleen deze taak wordt verwijderd. Onderliggende Radar-signalen, relaties, objecten, deals en overige historie blijven bestaan. Deze actie kan niet ongedaan worden gemaakt.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

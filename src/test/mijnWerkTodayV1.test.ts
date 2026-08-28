@@ -25,7 +25,7 @@ describe('Taken — Today v1', () => {
     expect(page).toContain("renderSection('Later vandaag'");
     expect(page).toContain("renderSection('Achterstallig'");
     expect(page.indexOf("renderSection('Later vandaag'")).toBeLessThan(page.indexOf("renderSection('Achterstallig'"));
-    expect(page).toContain('Bekijk alle ${items.length} achterstallige taken');
+    expect(page).toContain("showAllOverdue ? 'Toon minder' : 'Bekijk alles'");
   });
 
   it('houdt snelle acties, CRM-context, selectie en mobiele taakrij intact', () => {
@@ -38,5 +38,13 @@ describe('Taken — Today v1', () => {
     expect(page).toContain('Open deal');
     expect(page).toContain('Selecteer alles');
     expect(page).toContain('geselecteerd');
+    expect(page).toContain('h-[calc(8rem+env(safe-area-inset-bottom))] sm:hidden');
+    expect(page).toContain("selectionMode ? 'pb-[calc(12rem+env(safe-area-inset-bottom))]' : 'pb-24'");
+  });
+
+  it('verwijdert stil na bevestiging en beschermt onderliggende CRM- en Radar-data in de uitleg', () => {
+    expect(page).toContain('Alleen deze taak wordt verwijderd. Onderliggende Radar-signalen, relaties, objecten, deals en overige historie blijven bestaan.');
+    expect(page).not.toContain("toast.success('Taak verwijderd')");
+    expect(page).not.toContain("}, 'Taken verwijderd');");
   });
 });
