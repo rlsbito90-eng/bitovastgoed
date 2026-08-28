@@ -1,0 +1,19 @@
+/*
+ * PWA gesture guards.
+ *
+ * iOS/Safari kan aan de bovenrand een native pull-to-refresh tonen. Bito heeft
+ * daar geen eigen refresh-handler achter; data synchroniseert via de bestaande
+ * app-/Supabase-laag. Blokkeer daarom alleen overscroll chaining, niet normaal
+ * verticaal of horizontaal scrollen.
+ */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Horizontale rails blijven horizontaal bruikbaar zonder scroll chaining naar
+ * de viewport wanneer de gebruiker de rand van zo'n rail raakt. */
+.overflow-x-auto,
+.overflow-x-scroll {
+  overscroll-behavior-inline: contain;
+}

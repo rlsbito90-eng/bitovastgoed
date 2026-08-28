@@ -14,6 +14,7 @@ import "./mobile-vastgoedkansen-compact.css";
 import "./mobile-pandenverkenner-card-selection.css";
 import "./mobile-pandenverkenner-selection-state.css";
 import "./quick-task-glass.css";
+import "./pwa-gesture-guards.css";
 
 globalThis.Buffer = globalThis.Buffer ?? Buffer;
 
