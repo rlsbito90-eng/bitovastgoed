@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowUp, CalendarDays, Check, Clock3, Plus } from 'lucide-react';
+import { ArrowUp, CalendarDays, Check, Clock3, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDataStore } from '@/hooks/useDataStore';
 import { createManualTaskWithReminder } from '@/lib/tasks/reminders';
@@ -233,6 +233,8 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
               disabled={!effectivePlanDate}
               icon={<Clock3 className="h-4 w-4" />}
               onChange={(value) => setPlanTime(value || null)}
+              onClear={planTime ? () => setPlanTime(null) : undefined}
+              clearLabel="Werktijd wissen"
             />
           </div>
 
@@ -284,6 +286,8 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
                   disabled={!deadline}
                   icon={<Clock3 className="h-4 w-4" />}
                   onChange={(value) => setDeadlineTime(value || null)}
+                  onClear={deadlineTime ? () => setDeadlineTime(null) : undefined}
+                  clearLabel="Deadlinetijd wissen"
                 />
               </div>
             </section>
@@ -310,6 +314,8 @@ function PickerField({
   onChange,
   icon,
   disabled = false,
+  onClear,
+  clearLabel,
 }: {
   type: 'date' | 'time';
   label: string;
@@ -318,9 +324,11 @@ function PickerField({
   onChange: (value: string) => void;
   icon: React.ReactNode;
   disabled?: boolean;
+  onClear?: () => void;
+  clearLabel?: string;
 }) {
   return (
-    <label className={`relative block min-w-0 rounded-xl border border-border/65 bg-background/25 px-3 py-2.5 ${disabled ? 'opacity-45' : 'cursor-pointer'}`}>
+    <div className={`relative block min-w-0 rounded-xl border border-border/65 bg-background/25 px-3 py-2.5 ${onClear ? 'pr-10' : ''} ${disabled ? 'opacity-45' : 'cursor-pointer'}`}>
       <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
       <span className="flex min-w-0 items-center gap-2 text-sm text-foreground">
         <span className="shrink-0 text-muted-foreground">{icon}</span>
@@ -334,6 +342,20 @@ function PickerField({
         onChange={(event) => onChange(event.target.value)}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
       />
-    </label>
+      {onClear && !disabled ? (
+        <button
+          type="button"
+          aria-label={clearLabel || `${label} wissen`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onClear();
+          }}
+          className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+    </div>
   );
 }
