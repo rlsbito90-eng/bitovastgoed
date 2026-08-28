@@ -1,23 +1,57 @@
-/* Quick Capture — Apple-inspired liquid glass interaction layer. */
+/* Quick Capture — neutrale Apple-inspired liquid glass interaction layer. */
 [data-testid='quick-task-capture'] {
   isolation: isolate;
-  border: 1px solid hsl(var(--glass-highlight) / 0.64) !important;
+  border: 1px solid hsl(var(--foreground) / 0.12) !important;
   background:
-    radial-gradient(130% 160% at 10% -55%, hsl(var(--glass-highlight) / 0.5), transparent 54%),
-    linear-gradient(135deg, hsl(var(--card) / 0.78), hsl(var(--card) / 0.58)) !important;
+    radial-gradient(130% 150% at 8% -55%, hsl(var(--foreground) / 0.06), transparent 52%),
+    linear-gradient(180deg, hsl(var(--card) / 0.82), hsl(var(--background) / 0.72)) !important;
   box-shadow:
-    0 1px 0 hsl(var(--glass-highlight) / 0.76) inset,
-    0 18px 48px -22px hsl(var(--shadow-color) / 0.5),
-    0 5px 18px -12px hsl(var(--shadow-color) / 0.3) !important;
-  backdrop-filter: blur(28px) saturate(180%) contrast(104%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%);
+    0 1px 0 hsl(var(--foreground) / 0.06) inset,
+    0 18px 46px -24px hsl(var(--shadow-color) / 0.5),
+    0 5px 16px -12px hsl(var(--shadow-color) / 0.28) !important;
+  backdrop-filter: blur(26px) saturate(145%);
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
 }
 
 .dark [data-testid='quick-task-capture'] {
-  border-color: hsl(var(--glass-highlight) / 0.38) !important;
+  border-color: hsl(var(--foreground) / 0.13) !important;
   background:
-    radial-gradient(130% 160% at 10% -55%, hsl(var(--glass-highlight) / 0.16), transparent 54%),
-    linear-gradient(135deg, hsl(var(--card) / 0.9), hsl(var(--card) / 0.72)) !important;
+    radial-gradient(130% 150% at 8% -55%, hsl(var(--foreground) / 0.045), transparent 52%),
+    linear-gradient(180deg, hsl(var(--card) / 0.9), hsl(var(--background) / 0.82)) !important;
+}
+
+.quick-task-plan-button {
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  background: hsl(var(--foreground) / 0.045);
+  color: hsl(var(--foreground) / 0.86);
+  box-shadow: 0 1px 0 hsl(var(--foreground) / 0.045) inset;
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+}
+
+.dark .quick-task-plan-button {
+  border-color: hsl(var(--foreground) / 0.11);
+  background: hsl(var(--foreground) / 0.06);
+  color: hsl(var(--foreground) / 0.9);
+}
+
+.quick-task-planning-sheet {
+  border: 1px solid hsl(var(--foreground) / 0.11) !important;
+  background:
+    radial-gradient(120% 90% at 12% -20%, hsl(var(--foreground) / 0.045), transparent 56%),
+    linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(var(--background) / 0.94)) !important;
+  box-shadow:
+    0 1px 0 hsl(var(--foreground) / 0.06) inset,
+    0 24px 70px -28px hsl(var(--shadow-color) / 0.58) !important;
+  backdrop-filter: blur(30px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(135%) !important;
+}
+
+.dark .quick-task-planning-sheet {
+  border-color: hsl(var(--foreground) / 0.11) !important;
+  background:
+    radial-gradient(120% 90% at 12% -20%, hsl(var(--foreground) / 0.035), transparent 56%),
+    linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--background) / 0.94)) !important;
 }
 
 /* Op Taken is Quick Capture de mobiele vaste invoerbalk. */
@@ -30,18 +64,8 @@
     bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 
-  [data-testid='quick-task-capture'] button[aria-label='CRM-context koppelen'] {
-    display: flex !important;
-    width: 2.5rem;
-    min-width: 2.5rem;
-    padding-left: 0;
-    padding-right: 0;
-    justify-content: center;
-    font-size: 0;
-  }
-
   [data-testid='quick-task-capture'] button[aria-label='Planning kiezen'] {
-    max-width: 6.7rem;
+    max-width: 6.8rem;
     padding-left: 0.65rem;
     padding-right: 0.65rem;
     overflow: hidden;

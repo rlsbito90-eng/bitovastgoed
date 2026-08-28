@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useDataStore } from '@/hooks/useDataStore';
 import type { Taak, TaakPrioriteit, TaakStatus } from '@/data/mock-data';
-import { Trash2 } from 'lucide-react';
+import { Link2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { TAAK_TYPES, TAAK_STATUSES } from '@/lib/taakHelpers';
@@ -24,6 +24,17 @@ import {
   updateManualTaskWithReminder,
   type TaskReminderSelection,
 } from '@/lib/tasks/reminders';
+import {
+  listTaskLinks,
+  replaceTaskLinks,
+  type TaskLinkEntityType,
+} from '@/lib/tasks/links';
+import TaskLinksPickerDialog, {
+  countTaskLinks,
+  EMPTY_TASK_LINK_SELECTION,
+  taskLinkSelectionFromLegacy,
+  type TaskLinkSelection,
+} from '@/components/tasks/TaskLinksPickerDialog';
 import EntityPicker, { type EntityPickerItem } from './EntityPicker';
 
 interface Props {
@@ -77,11 +88,32 @@ const pushRecent = (kind: string, id: string) => {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
+function mergeTaskLinks(base: TaskLinkSelection, rows: Awaited<ReturnType<typeof listTaskLinks>>): TaskLinkSelection {
+  const next: TaskLinkSelection = {
+    relatie: [...base.relatie],
+    deal: [...base.deal],
+    object: [...base.object],
+    signaal: [...base.signaal],
+  };
+  rows.forEach(row => {
+    if (!next[row.entityType].includes(row.entityId)) next[row.entityType].push(row.entityId);
+  });
+  return next;
+}
+
+function taskLinkRows(selection: TaskLinkSelection) {
+  return (Object.entries(selection) as [TaskLinkEntityType, string[]][]).flatMap(([entityType, ids]) =>
+    ids.map((entityId, index) => ({ entityType, entityId, isPrimary: index === 0 })),
+  );
+}
+
 export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities }: Props) {
   const { deleteTaak, refresh, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [reminderSelection, setReminderSelection] = useState<TaskReminderSelection>('default');
   const [defaultReminderMinutes, setDefaultReminderMinutes] = useState<number | null>(60);
+  const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
+  const [taskLinksOpen, setTaskLinksOpen] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
   const isEdit = !!taak;
@@ -117,6 +149,25 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       setReminderSelection('default');
     }
   }, [taak, open, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities]);
+
+  useEffect(() => {
+    const base = taskLinkSelectionFromLegacy({
+      relatieId: taak?.relatieId ?? defaultRelatieId,
+      dealId: taak?.dealId ?? defaultDealId,
+      objectId: taak?.objectId ?? defaultObjectId,
+      offMarketSignaalId: taak?.offMarketSignaalId ?? defaultOffMarketSignaalId,
+    });
+    setTaskLinks(base);
+    if (!open || !taak?.id) return;
+
+    let cancelled = false;
+    void listTaskLinks(taak.id)
+      .then(rows => {
+        if (!cancelled) setTaskLinks(mergeTaskLinks(base, rows));
+      })
+      .catch(error => console.error('Taakkoppelingen laden mislukt', error));
+    return () => { cancelled = true; };
+  }, [open, taak?.id, taak?.relatieId, taak?.dealId, taak?.objectId, taak?.offMarketSignaalId, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId]);
 
   useEffect(() => {
     if (!open) return;
@@ -244,12 +295,21 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
     setBezig(true);
 
+    const selectedLinks = isEdit
+      ? taskLinks
+      : taskLinkSelectionFromLegacy({
+          relatieId: form.relatieId,
+          dealId: form.dealId,
+          objectId: form.objectId,
+          offMarketSignaalId: form.offMarketSignaalId,
+        });
+
     const data = {
       titel: form.titel.trim(),
-      relatieId: form.relatieId || undefined,
-      dealId: form.dealId || undefined,
-      objectId: form.objectId || undefined,
-      offMarketSignaalId: form.offMarketSignaalId || undefined,
+      relatieId: selectedLinks.relatie[0] || undefined,
+      dealId: selectedLinks.deal[0] || undefined,
+      objectId: selectedLinks.object[0] || undefined,
+      offMarketSignaalId: selectedLinks.signaal[0] || undefined,
       type: form.type,
       deadline: form.deadline || undefined,
       deadlineTijd: form.deadline ? (form.deadlineTijd || undefined) : undefined,
@@ -260,17 +320,19 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     };
 
     try {
+      let savedTaskId: string;
       if (isEdit && taak) {
+        savedTaskId = taak.id;
         await updateManualTaskWithReminder(taak.id, data);
-        toast.success('Taak bijgewerkt');
       } else {
-        await createManualTaskWithReminder(data);
-        toast.success('Taak aangemaakt');
+        savedTaskId = await createManualTaskWithReminder(data);
       }
+      await replaceTaskLinks(savedTaskId, taskLinkRows(selectedLinks));
       await refresh();
-      pushRecent('relatie', form.relatieId);
-      pushRecent('object', form.objectId);
-      pushRecent('deal', form.dealId);
+      pushRecent('relatie', selectedLinks.relatie[0] || '');
+      pushRecent('object', selectedLinks.object[0] || '');
+      pushRecent('deal', selectedLinks.deal[0] || '');
+      toast.success(isEdit ? 'Taak bijgewerkt' : 'Taak aangemaakt');
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
@@ -303,177 +365,205 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
   const dirtyState = useMemo(() => ({ ...form, reminderSelection }), [form, reminderSelection]);
   const { guardedOnOpenChange } = useFormDirtyGuard(open, dirtyState, onOpenChange);
   const hasExactDeadline = Boolean(form.deadline && form.deadlineTijd);
+  const taskLinkCount = countTaskLinks(taskLinks);
 
   return (
-    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-xl max-h-[92vh] overflow-y-auto overflow-x-hidden">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Taak bewerken' : 'Nieuwe taak'}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basis</h3>
-            <div className="space-y-1.5">
-              <Label>Titel *</Label>
-              <Input value={form.titel} onChange={e => set('titel', e.target.value)} placeholder="Wat moet er gedaan worden?" />
-            </div>
-            <div className="grid sm:grid-cols-3 gap-3">
+    <>
+      <Dialog open={open} onOpenChange={guardedOnOpenChange}>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-xl max-h-[92vh] overflow-y-auto overflow-x-hidden">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? 'Taak bewerken' : 'Nieuwe taak'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basis</h3>
               <div className="space-y-1.5">
-                <Label>Type</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
-                  {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <Label>Titel *</Label>
+                <Input value={form.titel} onChange={e => set('titel', e.target.value)} placeholder="Wat moet er gedaan worden?" />
               </div>
-              <div className="space-y-1.5">
-                <Label>Prioriteit</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.prioriteit} onChange={e => set('prioriteit', e.target.value)}>
-                  <option value="laag">Laag</option>
-                  <option value="normaal">Normaal</option>
-                  <option value="hoog">Hoog</option>
-                  <option value="urgent">Urgent</option>
-                </select>
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Type</Label>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
+                    {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Prioriteit</Label>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.prioriteit} onChange={e => set('prioriteit', e.target.value)}>
+                    <option value="laag">Laag</option>
+                    <option value="normaal">Normaal</option>
+                    <option value="hoog">Hoog</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Status</Label>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
+                    {TAAK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
-                  {TAAK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </div>
-            </div>
-          </section>
+            </section>
 
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
-              <p className="mt-1 text-xs text-muted-foreground">Deadline en herinnering zijn afzonderlijk. Met een tijdstip kan Bito CRM de melding vooraf exact server-side plannen.</p>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Deadline (optioneel)</Label>
-                <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+            <section className="space-y-3">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Deadline en herinnering zijn afzonderlijk. Met een tijdstip kan Bito CRM de melding vooraf exact server-side plannen.</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Deadline (optioneel)</Label>
+                  <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tijd (optioneel)</Label>
+                  <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} disabled={!form.deadline} />
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Tijd (optioneel)</Label>
-                <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} disabled={!form.deadline} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Melding</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
-                value={reminderSelection}
-                onChange={e => setReminderSelection(e.target.value as TaskReminderSelection)}
-                disabled={!form.deadline}
-              >
-                <option value="default">
-                  {hasExactDeadline ? `Standaard (${formatReminderOffset(defaultReminderMinutes)})` : 'Standaard (op de dag zelf)'}
-                </option>
-                <option value="none">Geen</option>
-                {hasExactDeadline && TASK_REMINDER_OFFSETS.map(minutes => (
-                  <option key={minutes} value={String(minutes)}>{formatReminderOffset(minutes)}</option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">
-                {!form.deadline
-                  ? 'Kies eerst een deadline.'
-                  : hasExactDeadline
-                    ? 'De server plant deze herinnering direct bij het opslaan; de deadline zelf verandert niet.'
-                    : 'Zonder tijdstip is alleen een dagmelding mogelijk. Kies een tijd om minuten/uren vooraf in te stellen.'}
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
-            <div className="space-y-3">
-              <EntityPicker
-                label="Relatie"
-                pickerTitle="Kies relatie"
-                searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
-                emptyLabel="Geen gekoppelde relatie"
-                value={form.relatieId}
-                onChange={(id) => set('relatieId', id)}
-                items={relatieItems}
-                relevantIds={relevantRelatieIds}
-                relevantLabel="Relevant voor selectie"
-                recentIds={readRecent('relatie')}
-              />
-              <EntityPicker
-                label="Object"
-                pickerTitle="Kies object"
-                searchPlaceholder="Zoek op adres, plaats, type…"
-                emptyLabel="Geen gekoppeld object"
-                value={form.objectId}
-                onChange={(id) => set('objectId', id)}
-                items={objectItemsActief}
-                archivedItems={objectItemsArchief}
-                relevantIds={relevantObjectIds}
-                relevantLabel="Relevant voor selectie"
-                recentIds={readRecent('object')}
-              />
-              <EntityPicker
-                label="Deal"
-                pickerTitle="Kies deal"
-                searchPlaceholder="Zoek op object, relatie, fase…"
-                emptyLabel="Geen gekoppelde deal"
-                value={form.dealId}
-                onChange={handleDealChange}
-                items={dealItemsActief}
-                archivedItems={dealItemsArchief}
-                relevantIds={relevantDealIds}
-                relevantLabel="Relevant voor selectie"
-                recentIds={readRecent('deal')}
-              />
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notities</h3>
-            <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} placeholder="Optionele context, opvolging, aanvullende info…" />
-          </section>
-
-          <div className="flex justify-between items-center gap-2 pt-2 border-t border-border">
-            <div>
-              {isEdit && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setVerwijderOpen(true)}
-                  disabled={bezig}
+                <Label>Melding</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
+                  value={reminderSelection}
+                  onChange={e => setReminderSelection(e.target.value as TaskReminderSelection)}
+                  disabled={!form.deadline}
                 >
-                  <Trash2 className="h-4 w-4 mr-1.5" /> Verwijderen
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-              <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
-            </div>
-          </div>
-        </form>
-      </DialogContent>
+                  <option value="default">
+                    {hasExactDeadline ? `Standaard (${formatReminderOffset(defaultReminderMinutes)})` : 'Standaard (op de dag zelf)'}
+                  </option>
+                  <option value="none">Geen</option>
+                  {hasExactDeadline && TASK_REMINDER_OFFSETS.map(minutes => (
+                    <option key={minutes} value={String(minutes)}>{formatReminderOffset(minutes)}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {!form.deadline
+                    ? 'Kies eerst een deadline.'
+                    : hasExactDeadline
+                      ? 'De server plant deze herinnering direct bij het opslaan; de deadline zelf verandert niet.'
+                      : 'Zonder tijdstip is alleen een dagmelding mogelijk. Kies een tijd om minuten/uren vooraf in te stellen.'}
+                </p>
+              </div>
+            </section>
 
-      <AlertDialog open={verwijderOpen} onOpenChange={setVerwijderOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Taak verwijderen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Weet je zeker dat je deze taak wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={bezig}>Annuleren</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={bezig}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {bezig ? 'Bezig…' : 'Verwijderen'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Dialog>
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
+              {isEdit ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/30 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {taskLinkCount ? `${taskLinkCount} gekoppeld` : 'Geen CRM-koppelingen'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Relaties, deals, objecten en Radar-signalen kunnen hier meervoudig worden gekoppeld.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setTaskLinksOpen(true)}>
+                    <Link2 className="mr-1.5 h-4 w-4" /> Beheren
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <EntityPicker
+                    label="Relatie"
+                    pickerTitle="Kies relatie"
+                    searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
+                    emptyLabel="Geen gekoppelde relatie"
+                    value={form.relatieId}
+                    onChange={(id) => set('relatieId', id)}
+                    items={relatieItems}
+                    relevantIds={relevantRelatieIds}
+                    relevantLabel="Relevant voor selectie"
+                    recentIds={readRecent('relatie')}
+                  />
+                  <EntityPicker
+                    label="Object"
+                    pickerTitle="Kies object"
+                    searchPlaceholder="Zoek op adres, plaats, type…"
+                    emptyLabel="Geen gekoppeld object"
+                    value={form.objectId}
+                    onChange={(id) => set('objectId', id)}
+                    items={objectItemsActief}
+                    archivedItems={objectItemsArchief}
+                    relevantIds={relevantObjectIds}
+                    relevantLabel="Relevant voor selectie"
+                    recentIds={readRecent('object')}
+                  />
+                  <EntityPicker
+                    label="Deal"
+                    pickerTitle="Kies deal"
+                    searchPlaceholder="Zoek op object, relatie, fase…"
+                    emptyLabel="Geen gekoppelde deal"
+                    value={form.dealId}
+                    onChange={handleDealChange}
+                    items={dealItemsActief}
+                    archivedItems={dealItemsArchief}
+                    relevantIds={relevantDealIds}
+                    relevantLabel="Relevant voor selectie"
+                    recentIds={readRecent('deal')}
+                  />
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notities</h3>
+              <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} placeholder="Optionele context, opvolging, aanvullende info…" />
+            </section>
+
+            <div className="flex justify-between items-center gap-2 pt-2 border-t border-border">
+              <div>
+                {isEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setVerwijderOpen(true)}
+                    disabled={bezig}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Verwijderen
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
+                <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+              </div>
+            </div>
+          </form>
+        </DialogContent>
+
+        <AlertDialog open={verwijderOpen} onOpenChange={setVerwijderOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Taak verwijderen?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Weet je zeker dat je deze taak wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={bezig}>Annuleren</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={bezig}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {bezig ? 'Bezig…' : 'Verwijderen'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </Dialog>
+
+      {isEdit ? (
+        <TaskLinksPickerDialog
+          open={taskLinksOpen}
+          onOpenChange={setTaskLinksOpen}
+          value={taskLinks}
+          onChange={setTaskLinks}
+        />
+      ) : null}
+    </>
   );
 }
