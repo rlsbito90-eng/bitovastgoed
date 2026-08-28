@@ -1,33 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import QuickTaskCapture, { type QuickTaskTarget } from './QuickTaskCapture';
-
-function targetFromPath(pathname: string): QuickTaskTarget {
-  if (pathname === '/taken') return 'today';
-  return 'inbox';
-}
+import QuickTaskCapture from './QuickTaskCapture';
 
 export default function QuickTaskCaptureDock() {
   const location = useLocation();
-  const [open, setOpen] = useState(location.pathname === '/taken');
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    setOpen(location.pathname === '/taken');
+    setOpen(false);
   }, [location.pathname]);
 
-  if (location.pathname.startsWith('/taken/')) return null;
-
-  const target = targetFromPath(location.pathname);
+  // Mijn werk heeft een eigen inline Quick Capture. Taakdetail blijft bewust rustig.
+  if (location.pathname === '/taken' || location.pathname.startsWith('/taken/')) return null;
 
   return (
     <div
       data-testid="quick-task-capture-dock"
-      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-3 z-30 w-[min(94vw,520px)] sm:right-5 lg:bottom-5 lg:right-6"
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 z-30 sm:left-auto sm:right-5 lg:bottom-5 lg:right-6"
     >
       {open ? (
-        <div className="relative rounded-xl shadow-lg shadow-black/10">
-          <QuickTaskCapture defaultTarget={target} />
+        <div className="relative w-[min(92vw,520px)] rounded-xl shadow-lg shadow-black/10">
+          <QuickTaskCapture defaultTarget="inbox" />
           <button
             type="button"
             onClick={() => setOpen(false)}
@@ -42,7 +36,7 @@ export default function QuickTaskCaptureDock() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Snel taak toevoegen"
-          className="ml-auto flex h-11 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-foreground shadow-lg shadow-black/10 transition-transform hover:-translate-y-0.5"
+          className="flex h-11 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-foreground shadow-lg shadow-black/10 transition-transform hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4" />
           <span>Taak</span>
