@@ -29,6 +29,10 @@ function isEditing(): boolean {
     || active?.getAttribute('contenteditable') === 'true';
 }
 
+function isTaskSelectionActive(): boolean {
+  return Boolean(document.querySelector('[data-task-selection-mode="true"]'));
+}
+
 function getCandidateSections(): HTMLElement[] {
   const explicit = Array.from(document.querySelectorAll<HTMLElement>('[data-scroll-section]'));
   if (explicit.length > 0) return explicit.filter((element) => element.offsetParent !== null);
@@ -149,12 +153,9 @@ export default function DynamicSectionNavigator() {
       frame = window.requestAnimationFrame(() => {
         prepareScenarioTabs();
 
-        // Resolve the active scroll owner on every update. AppLayout scrolls in <main>,
-        // but during initial async rendering <main> can temporarily appear non-scrollable.
-        // Locking the listener to window at mount made the navigator invisible afterwards.
         const container = getScrollContainer();
         const scrollTop = getScrollTop(container);
-        setVisible(scrollTop > MIN_SCROLL_Y && !isEditing());
+        setVisible(scrollTop > MIN_SCROLL_Y && !isEditing() && !isTaskSelectionActive());
 
         if (armedSectionTop.current !== null) {
           const distanceToArmedSection = Math.abs(scrollTop - armedSectionTop.current);
@@ -207,7 +208,6 @@ export default function DynamicSectionNavigator() {
     };
 
     update();
-    // Listen to both potential scroll owners. The active one is chosen dynamically in update().
     window.addEventListener('scroll', update, { passive: true });
     if (main instanceof HTMLElement) main.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update, { passive: true });
@@ -218,7 +218,7 @@ export default function DynamicSectionNavigator() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['hidden', 'class', 'data-state'],
+      attributeFilter: ['hidden', 'class', 'data-state', 'data-task-selection-mode'],
     });
 
     return () => {
@@ -254,9 +254,7 @@ export default function DynamicSectionNavigator() {
           className="group fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-11 sm:px-3.5"
         >
           <ArrowUp className="h-5 w-5 shrink-0" />
-          <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">
-            {label}
-          </span>
+          <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">{label}</span>
         </button>
       )}
     </>
