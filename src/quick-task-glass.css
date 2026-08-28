@@ -1,0 +1,54 @@
+/* Quick Capture — Apple-inspired liquid glass interaction layer. */
+.quick-task-glass {
+  isolation: isolate;
+  border: 1px solid hsl(var(--glass-highlight) / 0.64) !important;
+  background:
+    radial-gradient(130% 160% at 10% -55%, hsl(var(--glass-highlight) / 0.5), transparent 54%),
+    linear-gradient(135deg, hsl(var(--card) / 0.78), hsl(var(--card) / 0.58)) !important;
+  box-shadow:
+    0 1px 0 hsl(var(--glass-highlight) / 0.76) inset,
+    0 18px 48px -22px hsl(var(--shadow-color) / 0.5),
+    0 5px 18px -12px hsl(var(--shadow-color) / 0.3) !important;
+  backdrop-filter: blur(28px) saturate(180%) contrast(104%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(104%);
+}
+
+.dark .quick-task-glass {
+  border-color: hsl(var(--glass-highlight) / 0.38) !important;
+  background:
+    radial-gradient(130% 160% at 10% -55%, hsl(var(--glass-highlight) / 0.16), transparent 54%),
+    linear-gradient(135deg, hsl(var(--card) / 0.9), hsl(var(--card) / 0.72)) !important;
+}
+
+.quick-task-plan-button {
+  background: hsl(var(--background) / 0.28);
+  border: 1px solid hsl(var(--glass-highlight) / 0.38);
+  color: hsl(var(--foreground) / 0.88);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+.dark .quick-task-plan-button {
+  background: hsl(var(--foreground) / 0.075);
+  border-color: hsl(var(--foreground) / 0.13);
+  color: hsl(var(--foreground) / 0.92);
+}
+
+/* Op Taken is Quick Capture de mobiele vaste invoerbalk. */
+@media (max-width: 639px) {
+  .page-shell > [data-testid='quick-task-capture'] {
+    position: fixed;
+    z-index: 36;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  [data-task-selection-mode='true'] > [data-testid='quick-task-capture'] {
+    display: none;
+  }
+
+  .page-shell:has(> [data-testid='quick-task-capture']) {
+    padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
+  }
+}
