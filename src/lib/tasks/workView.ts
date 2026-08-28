@@ -18,6 +18,7 @@ export function planningForTask(
   return planningById.get(task.id) ?? {
     id: task.id,
     planDatum: null,
+    planTijd: null,
     planningBucket: 'open',
   };
 }
