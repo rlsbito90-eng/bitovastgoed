@@ -6,7 +6,6 @@ const SOURCE_ROOT = join(process.cwd(), 'src');
 const CLEARABLE_TYPES = 'date|time|datetime-local|month|week';
 const rawDateTimeInput = new RegExp(
   `<input\\b(?:(?!\\/?>)[\\s\\S])*?\\btype\\s*=\\s*["'](?:${CLEARABLE_TYPES})["']`,
-  'g',
 );
 
 function sourceFiles(dir: string): string[] {
@@ -24,7 +23,7 @@ describe('Datum- en tijdvelden — app-brede wisactie', () => {
     ]);
 
     const violations = sourceFiles(SOURCE_ROOT).flatMap((file) => {
-      const localPath = relative(SOURCE_ROOT, file).replaceAll('\\\\', '/');
+      const localPath = relative(SOURCE_ROOT, file).replaceAll('\\', '/');
       if (allowedRawInputs.has(localPath)) return [];
       const source = readFileSync(file, 'utf8');
       return rawDateTimeInput.test(source) ? [localPath] : [];
