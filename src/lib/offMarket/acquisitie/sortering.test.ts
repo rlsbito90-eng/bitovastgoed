@@ -30,8 +30,8 @@ describe('standaardSortering', () => {
     expect(standaardSortering('actie', 'brief_voorbereiden', 'alles')).toBe('nieuwste_toegevoegd');
   });
 
-  it('gebruikt aanbevolen volgorde voor opvolging, wachten en afgehandeld', () => {
-    expect(standaardSortering('actie', 'opvolgen', 'alles')).toBe('aanbevolen');
+  it('zet opvolging oudste eerst en behoudt aanbevolen voor wachten en afgehandeld', () => {
+    expect(standaardSortering('actie', 'opvolgen', 'alles')).toBe('opvolgdatum_oudste');
     expect(standaardSortering('wachten', 'alle', 'alles')).toBe('aanbevolen');
     expect(standaardSortering('afgehandeld', 'alle', 'alles')).toBe('aanbevolen');
   });
@@ -75,12 +75,24 @@ describe('sorteerRijen', () => {
     ];
     expect(sorteerRijen('procesdatum', 'actie', rijen).map(x => x.signaalId)).toEqual(['b', 'a', 'c']);
   });
+
+  it('sorteert opvolgdatum zowel oudste als nieuwste eerst', () => {
+    const rijen = [
+      rij({ signaalId: 'a', ctx: { werkbak: 'actie', actieCategorie: 'opvolging_verlopen', actieSubfilter: 'opvolgen', procesDatum: { iso: '2026-07-01', label: 'A', a11yLabel: 'A' } } }),
+      rij({ signaalId: 'b', ctx: { werkbak: 'actie', actieCategorie: 'opvolging_verlopen', actieSubfilter: 'opvolgen', procesDatum: { iso: '2026-07-03', label: 'B', a11yLabel: 'B' } } }),
+      rij({ signaalId: 'c' }),
+    ];
+    expect(sorteerRijen('opvolgdatum_oudste', 'actie', rijen).map(x => x.signaalId)).toEqual(['a', 'b', 'c']);
+    expect(sorteerRijen('opvolgdatum_nieuwste', 'actie', rijen).map(x => x.signaalId)).toEqual(['b', 'a', 'c']);
+  });
 });
 
 describe('isSorteerOptie', () => {
   it('accepteert alleen gepubliceerde sorteeropties', () => {
     expect(isSorteerOptie('aanbevolen')).toBe(true);
     expect(isSorteerOptie('procesdatum')).toBe(true);
+    expect(isSorteerOptie('opvolgdatum_oudste')).toBe(true);
+    expect(isSorteerOptie('opvolgdatum_nieuwste')).toBe(true);
     expect(isSorteerOptie('willekeurig')).toBe(false);
   });
 });
