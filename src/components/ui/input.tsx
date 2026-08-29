@@ -31,15 +31,51 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       onChange?.(event);
     };
 
-    const handleClear = () => {
+    const clearValue = () => {
       const input = inputRef.current;
       if (!input || disabled) return;
 
+      // Mobile Safari keeps the native date/time picker tied to focus. Close it
+      // before mutating the value and never refocus after a clear action.
+      input.blur();
+
       const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       valueSetter?.call(input, "");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
       setHasValue(false);
-      input.focus();
+
+      if (onChange) {
+        // Do not rely only on a programmatic DOM event here: Safari can swallow
+        // that event while its native picker is active. Notify the controlled
+        // React owner directly so the cleared value cannot be restored on render.
+        const nativeEvent = new Event("change", { bubbles: true, cancelable: true });
+        let propagationStopped = false;
+        const changeEvent = {
+          nativeEvent,
+          currentTarget: input,
+          target: input,
+          bubbles: nativeEvent.bubbles,
+          cancelable: nativeEvent.cancelable,
+          defaultPrevented: nativeEvent.defaultPrevented,
+          eventPhase: nativeEvent.eventPhase,
+          isTrusted: nativeEvent.isTrusted,
+          preventDefault: () => nativeEvent.preventDefault(),
+          isDefaultPrevented: () => nativeEvent.defaultPrevented,
+          stopPropagation: () => {
+            propagationStopped = true;
+            nativeEvent.stopPropagation();
+          },
+          isPropagationStopped: () => propagationStopped,
+          persist: () => undefined,
+          timeStamp: nativeEvent.timeStamp,
+          type: "change",
+        } as React.ChangeEvent<HTMLInputElement>;
+        onChange(changeEvent);
+        return;
+      }
+
+      // Preserve native listeners for uncontrolled inputs.
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
     };
 
     const showClearButton = isDateTimeInput && !hideClearButton && !disabled && hasValue;
@@ -72,8 +108,20 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type="button"
             aria-label={resolvedClearLabel}
             title={resolvedClearLabel}
-            onClick={handleClear}
-            className="absolute right-8 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              clearValue();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              // Pointer activation is handled on pointerdown so the native iOS
+              // picker cannot win the interaction. detail=0 keeps keyboard and
+              // accessibility-triggered clicks working without double clearing.
+              if (event.detail === 0) clearValue();
+            }}
+            className="absolute right-8 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 touch-manipulation items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
