@@ -1,11 +1,11 @@
 // Taakdetail-scherm. Eigen route /taken/:id, met:
-// - alle taakvelden (titel, type, prioriteit, status, deadline, notities)
+// - alle taakvelden (titel, type, prioriteit, status, planning, deadline, notities)
 // - gekoppelde relatie/object/deal/signaal met snelle openen-knoppen
 // - acties: Bewerken, Voltooien/Heropenen, Verwijderen
 // - expliciete return-context met veilige fallback naar /taken
 //
 // Bewust geen schemawijziging: 'voltooid' = status 'afgerond'.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -25,6 +25,25 @@ import { deadlineLabel, isTaakTeLaat } from '@/lib/taakHelpers';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { useOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
 import { leesCrmReturnContext } from '@/lib/crmReturnContext';
+import { getTaskPlanning, type TaskPlanningMeta } from '@/lib/tasks/planning';
+import { localDateKey } from '@/lib/tasks/workView';
+
+function planningDateLabel(value: string, now: Date = new Date()): string {
+  const today = localDateKey(now);
+  if (value === today) return 'Gepland vandaag';
+
+  const tomorrow = new Date(`${today}T12:00:00`);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (value === localDateKey(tomorrow)) return 'Gepland morgen';
+
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return `Gepland ${value}`;
+  return `Gepland ${parsed.toLocaleDateString('nl-NL', {
+    day: 'numeric',
+    month: 'short',
+    year: parsed.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  })}`;
+}
 
 export default function TaakDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,8 +62,28 @@ export default function TaakDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [afrondenOpen, setAfrondenOpen] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
+  const [planning, setPlanning] = useState<TaskPlanningMeta | null>(null);
+  const [planningRefresh, setPlanningRefresh] = useState(0);
 
   const signaal = useOffMarketSignaal(taak?.offMarketSignaalId ?? undefined).data;
+
+  useEffect(() => {
+    if (!taak?.id) {
+      setPlanning(null);
+      return;
+    }
+
+    let cancelled = false;
+    void getTaskPlanning(taak.id)
+      .then((row) => {
+        if (!cancelled) setPlanning(row);
+      })
+      .catch((error) => {
+        console.error('Taakplanning laden mislukt', error);
+        if (!cancelled) setPlanning(null);
+      });
+    return () => { cancelled = true; };
+  }, [taak?.id, planningRefresh]);
 
   if (!taak) {
     return (
@@ -65,6 +104,7 @@ export default function TaakDetailPage() {
 
   const isAfgerond = taak.status === 'afgerond';
   const teLaat = isTaakTeLaat(taak, new Date());
+  const planTijd = planning?.planDatum && planning.planTijd ? planning.planTijd.slice(0, 5) : null;
 
   const heropen = async () => {
     try {
@@ -83,6 +123,11 @@ export default function TaakDetailPage() {
     } catch (e: any) {
       toast.error(e?.message ?? 'Verwijderen mislukt');
     }
+  };
+
+  const handleEditOpenChange = (open: boolean) => {
+    setEditOpen(open);
+    if (!open) setPlanningRefresh((value) => value + 1);
   };
 
   return (
@@ -126,16 +171,29 @@ export default function TaakDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            <span className={teLaat ? 'text-destructive font-medium' : ''}>
-              {taak.deadline ? deadlineLabel(taak, new Date()) : 'Zonder datum'}
-              {teLaat ? ' · te laat' : ''}
-            </span>
-          </span>
-          {taak.deadlineTijd && (
+          {planning?.planDatum ? (
             <span className="inline-flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />{taak.deadlineTijd.slice(0, 5)}
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{planningDateLabel(planning.planDatum)}</span>
+            </span>
+          ) : !taak.deadline ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Niet gepland</span>
+            </span>
+          ) : null}
+          {planTijd && (
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />{planTijd}
+            </span>
+          )}
+          {taak.deadline && (
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span className={teLaat ? 'text-destructive font-medium' : ''}>
+                Deadline {deadlineLabel(taak, new Date())}
+                {teLaat ? ' · te laat' : ''}
+              </span>
             </span>
           )}
           <span>Type: {taak.type}</span>
@@ -179,7 +237,7 @@ export default function TaakDetailPage() {
         </div>
       </section>
 
-      <TaakFormDialog open={editOpen} onOpenChange={setEditOpen} taak={taak} />
+      <TaakFormDialog open={editOpen} onOpenChange={handleEditOpenChange} taak={taak} />
       <TaakAfrondenDialog
         open={afrondenOpen}
         onOpenChange={setAfrondenOpen}
