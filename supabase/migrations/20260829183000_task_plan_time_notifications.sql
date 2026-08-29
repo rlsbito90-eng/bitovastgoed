@@ -135,6 +135,9 @@ begin
 end;
 $$;
 
+revoke all on function public.sync_task_plan_reminder_event(uuid) from public, anon, authenticated;
+grant execute on function public.sync_task_plan_reminder_event(uuid) to service_role;
+
 create or replace function public.trigger_sync_task_reminder_event()
 returns trigger
 language plpgsql
