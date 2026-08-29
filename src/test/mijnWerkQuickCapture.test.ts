@@ -6,6 +6,7 @@ const capture = readFileSync(resolve(process.cwd(), 'src/components/tasks/QuickT
 const dock = readFileSync(resolve(process.cwd(), 'src/components/tasks/QuickTaskCaptureDock.tsx'), 'utf8');
 const taskForm = readFileSync(resolve(process.cwd(), 'src/components/forms/TaakFormDialog.tsx'), 'utf8');
 const taskLinksPicker = readFileSync(resolve(process.cwd(), 'src/components/tasks/TaskLinksPickerDialog.tsx'), 'utf8');
+const taskDetail = readFileSync(resolve(process.cwd(), 'src/pages/TaakDetailPage.tsx'), 'utf8');
 const app = readFileSync(resolve(process.cwd(), 'src/CrmProtectedApp.tsx'), 'utf8');
 const takenPage = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
 const planning = readFileSync(resolve(process.cwd(), 'src/lib/tasks/planning.ts'), 'utf8');
@@ -45,6 +46,16 @@ describe('Taken — Quick Capture v2', () => {
     expect(planReminderMigration).toContain('plan_datum,');
     expect(planReminderMigration).toContain('plan_tijd');
     expect(notificationEngine).toContain("task_plan_reminder: 'task_due_enabled'");
+  });
+
+  it('toont op taakdetail de planning neutraal en een harde deadline afzonderlijk', () => {
+    expect(taskDetail).toContain('getTaskPlanning');
+    expect(taskDetail).toContain('planningDateLabel');
+    expect(taskDetail).toContain("return 'Gepland vandaag'");
+    expect(taskDetail).toContain('planning?.planDatum');
+    expect(taskDetail).toContain('Deadline {deadlineLabel');
+    expect(taskDetail).toContain("teLaat ? 'text-destructive font-medium' : ''");
+    expect(taskDetail).not.toContain("'Zonder datum'");
   });
 
   it('houdt Quick Capture eenvoudig en verplaatst meervoudige CRM-koppelingen naar taak bewerken', () => {
