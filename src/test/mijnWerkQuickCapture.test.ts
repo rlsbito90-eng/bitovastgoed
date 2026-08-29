@@ -10,6 +10,8 @@ const app = readFileSync(resolve(process.cwd(), 'src/CrmProtectedApp.tsx'), 'utf
 const takenPage = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
 const planning = readFileSync(resolve(process.cwd(), 'src/lib/tasks/planning.ts'), 'utf8');
 const links = readFileSync(resolve(process.cwd(), 'src/lib/tasks/links.ts'), 'utf8');
+const planReminderMigration = readFileSync(resolve(process.cwd(), 'supabase/migrations/20260829183000_task_plan_time_notifications.sql'), 'utf8');
+const notificationEngine = readFileSync(resolve(process.cwd(), 'supabase/functions/notification-engine-tick/index.ts'), 'utf8');
 
 describe('Taken — Quick Capture v2', () => {
   it('maakt een taak aan via de bestaande reminder repository en houdt werkplanning los van deadline', () => {
@@ -26,9 +28,23 @@ describe('Taken — Quick Capture v2', () => {
     expect(capture).toContain("['tomorrow', 'Morgen']");
     expect(capture).toContain("['open', 'Openstaand']");
     expect(capture).toContain("['later', 'Later']");
+    expect(capture).toContain('label="Datum"');
+    expect(capture).toContain('label="Tijd"');
+    expect(capture).not.toContain('label="Werkdatum"');
+    expect(capture).not.toContain('label="Werktijd"');
     expect(capture).toContain('Harde deadline toevoegen');
     expect(capture).toContain('PickerField');
     expect(capture).toContain('opacity-0');
+  });
+
+  it('maakt plan_datum + plan_tijd notificerend zonder er een deadline van te maken', () => {
+    expect(planReminderMigration).toContain('sync_task_plan_reminder_event');
+    expect(planReminderMigration).toContain("'task_plan_reminder'");
+    expect(planReminderMigration).toContain('(t.plan_datum + t.plan_tijd) at time zone v_timezone');
+    expect(planReminderMigration).toContain("'Tijd voor je taak'");
+    expect(planReminderMigration).toContain('plan_datum,');
+    expect(planReminderMigration).toContain('plan_tijd');
+    expect(notificationEngine).toContain("task_plan_reminder: 'task_due_enabled'");
   });
 
   it('houdt Quick Capture eenvoudig en verplaatst meervoudige CRM-koppelingen naar taak bewerken', () => {
