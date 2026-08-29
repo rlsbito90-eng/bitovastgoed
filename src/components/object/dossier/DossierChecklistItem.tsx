@@ -8,6 +8,7 @@ import {
   STATUS_LABELS, STATUS_TONE, type DossierStatus, type CatalogItem,
 } from '@/lib/objectDossier/catalog';
 import { Pencil, Check, X, Sparkles } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 const TONE: Record<string, string> = {
   emerald: 'text-success border-success/30 bg-success/5',
@@ -148,11 +149,12 @@ export default function DossierChecklistItem({
             placeholder="Bron"
             className="h-8 px-2 text-xs rounded-md border border-input bg-background sm:col-span-1"
           />
-          <input
+          <Input
             type="date"
             value={draftDatum}
             onChange={e => setDraftDatum(e.target.value)}
-            className="h-8 px-2 text-xs rounded-md border border-input bg-background sm:col-span-1"
+            clearLabel="Opgevraagd-datum wissen"
+            className="h-8 px-2 text-xs sm:col-span-1"
           />
           <textarea
             value={draftNote}
