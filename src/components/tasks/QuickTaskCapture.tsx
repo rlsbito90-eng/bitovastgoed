@@ -224,6 +224,12 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
                 setPlanDate(value || null);
                 if (!value) setPlanTime(null);
               }}
+              onClear={effectivePlanDate ? () => {
+                setTarget('open');
+                setPlanDate(null);
+                setPlanTime(null);
+              } : undefined}
+              clearLabel="Datum wissen"
             />
             <PickerField
               type="time"
@@ -277,6 +283,11 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
                     setDeadline(value || null);
                     if (!value) setDeadlineTime(null);
                   }}
+                  onClear={deadline ? () => {
+                    setDeadline(null);
+                    setDeadlineTime(null);
+                  } : undefined}
+                  clearLabel="Deadline wissen"
                 />
                 <PickerField
                   type="time"
