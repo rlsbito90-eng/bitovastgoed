@@ -1,6 +1,6 @@
 // Dialog: markeer brief/e-mail als verstuurd op een specifieke datum.
-// Voor post: opvolging = postdatum + 21 dagen.
-// Voor e-mail: opvolging = verzenddatum + 7 dagen (V2.2).
+// Voor post: opvolging = postdatum + 21 dagen en loopt via de Radar-werkvoorraad.
+// Voor e-mail: opvolging = verzenddatum + 7 dagen (V2.2) en behoudt voorlopig de bestaande taakflow.
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -49,37 +49,39 @@ export default function MarkeerVerstuurdDialog({
       const pandLabel = [signaal?.adres, signaal?.plaats].filter(Boolean).join(' · ');
       const stap = (brief.campagne_stap ?? '') as string;
       const stapNr = stap.endsWith('_2') ? 2 : stap.endsWith('_3') ? 3 : 1;
-      const taakTitel = isEmail
-        ? `E-mail ${stapNr} opvolgen — ${geadresseerdeLabel}`
-        : `Brief 2 voorbereiden / opvolgen — ${geadresseerdeLabel}`;
-      const taakRegex = isEmail ? /e-mail opvolgen|e-mail\s*\d+\s*opvolgen/i : /brief\s*2|brief opvolgen/i;
 
+      // Postopvolging is operationele Radar-werkvoorraad en géén persoonlijke taak.
+      // E-mail houdt voorlopig de bestaande taakflow totdat die sequence apart wordt gemodelleerd.
       let taakId: string | null = null;
-      const eigenaarKey = (brief.eigenaar_naam ?? brief.eigenaar_bedrijfsnaam ?? '').trim().toLowerCase();
-      const bestaande = (taken ?? []).find((t: any) =>
-        t?.offMarketSignaalId === signaalId
-        && t?.status === 'open'
-        && typeof t?.titel === 'string'
-        && taakRegex.test(t.titel)
-        && (!eigenaarKey || (t.notities ?? '').toLowerCase().includes(eigenaarKey)),
-      );
-      if (bestaande) {
-        taakId = (bestaande as any).id ?? null;
-      } else {
-        try {
-          const contextDelen = [pandLabel, geadresseerdeLabel].filter(Boolean);
-          const nieuw = await addTaak({
-            titel: taakTitel,
-            type: 'Follow-up',
-            deadline: followUp,
-            prioriteit: 'normaal',
-            status: 'open',
-            offMarketSignaalId: signaalId,
-            relatieId: relatieId ?? undefined,
-            notities: `${contextDelen.join(' · ')} · Opvolging voor ${isEmail ? 'e-mail' : 'brief'} · ${isEmail ? 'verzenddatum' : 'post'} ${postdatum} · opvolgen op ${followUp}.`,
-          } as any);
-          taakId = nieuw?.id ?? null;
-        } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
+      if (isEmail) {
+        const taakTitel = `E-mail ${stapNr} opvolgen — ${geadresseerdeLabel}`;
+        const taakRegex = /e-mail opvolgen|e-mail\s*\d+\s*opvolgen/i;
+        const eigenaarKey = (brief.eigenaar_naam ?? brief.eigenaar_bedrijfsnaam ?? '').trim().toLowerCase();
+        const bestaande = (taken ?? []).find((t: any) =>
+          t?.offMarketSignaalId === signaalId
+          && t?.status === 'open'
+          && typeof t?.titel === 'string'
+          && taakRegex.test(t.titel)
+          && (!eigenaarKey || (t.notities ?? '').toLowerCase().includes(eigenaarKey)),
+        );
+        if (bestaande) {
+          taakId = (bestaande as any).id ?? null;
+        } else {
+          try {
+            const contextDelen = [pandLabel, geadresseerdeLabel].filter(Boolean);
+            const nieuw = await addTaak({
+              titel: taakTitel,
+              type: 'Follow-up',
+              deadline: followUp,
+              prioriteit: 'normaal',
+              status: 'open',
+              offMarketSignaalId: signaalId,
+              relatieId: relatieId ?? undefined,
+              notities: `${contextDelen.join(' · ')} · Opvolging voor e-mail · verzenddatum ${postdatum} · opvolgen op ${followUp}.`,
+            } as any);
+            taakId = nieuw?.id ?? null;
+          } catch (e) { console.warn('Opvolgtaak aanmaken mislukt', e); }
+        }
       }
 
       await markeer.mutateAsync({
@@ -106,7 +108,6 @@ export default function MarkeerVerstuurdDialog({
     }
   };
 
-
   const fmt = (d: string) => {
     try { return new Date(d + 'T00:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }); }
     catch { return d; }
@@ -123,7 +124,7 @@ export default function MarkeerVerstuurdDialog({
           <DialogDescription>
             {isEmail
               ? `Vul de verzenddatum in. De opvolging wordt berekend op verzenddatum + ${dagen} dagen.`
-              : `Vul de postdatum in. De opvolging wordt berekend op postdatum + ${dagen} dagen.`}
+              : `Vul de postdatum in. De opvolging wordt berekend op postdatum + ${dagen} dagen en verschijnt op het juiste moment in Radar > Opvolgen.`}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
