@@ -62,7 +62,18 @@ Deno.serve(async (req: Request) => {
 
     if (ownersError) throw ownersError;
 
-    const userIds = Array.from(new Set((taskOwners ?? []).map((r: any) => r.owner_user_id).filter(Boolean)));
+    // Radar-opvolging is geen persoonlijke taak. Neem daarom ook gebruikers met
+    // notificatievoorkeuren mee, zodat de engine niet afhankelijk is van het bestaan
+    // van een open taak om een gebundelde Radar-melding te kunnen maken.
+    const { data: preferenceOwners, error: preferenceOwnersError } = await supabase
+      .from('notification_preferences')
+      .select('user_id');
+    if (preferenceOwnersError) throw preferenceOwnersError;
+
+    const userIds = Array.from(new Set([
+      ...(taskOwners ?? []).map((r: any) => r.owner_user_id),
+      ...(preferenceOwners ?? []).map((r: any) => r.user_id),
+    ].filter(Boolean)));
     let createdEvents = 0;
     let resolvedEvents = 0;
 
@@ -72,6 +83,15 @@ Deno.serve(async (req: Request) => {
       const row = Array.isArray(data) ? data[0] : data;
       createdEvents += Number(row?.created_count ?? 0);
       resolvedEvents += Number(row?.resolved_count ?? 0);
+
+      const { data: radarData, error: radarError } = await supabase.rpc(
+        'refresh_radar_followup_notification_events',
+        { p_user_id: userId },
+      );
+      if (radarError) throw radarError;
+      const radarRow = Array.isArray(radarData) ? radarData[0] : radarData;
+      createdEvents += Number(radarRow?.created_count ?? 0);
+      resolvedEvents += Number(radarRow?.resolved_count ?? 0);
     }
 
     // Ook toekomstige scheduled events worden bewust meegenomen: hun device-deliveries
