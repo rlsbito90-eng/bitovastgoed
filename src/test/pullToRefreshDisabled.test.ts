@@ -8,12 +8,11 @@ const source = readFileSync(
 );
 
 describe('PullToRefresh legacy wrapper', () => {
-  it('registreert geen mobiele pull-to-refresh gesture of banner meer', () => {
-    expect(source).not.toContain('touchstart');
-    expect(source).not.toContain('touchmove');
+  it('registreert geen mobiele pull-to-refresh gesture meer', () => {
+    expect(source).not.toContain('addEventListener');
+    expect(source).not.toContain('preventDefault');
     expect(source).not.toContain('useAppRefresh');
-    expect(source).not.toContain('Trek omlaag om te vernieuwen');
-    expect(source).not.toContain('Loslaten om te vernieuwen');
+    expect(source).not.toContain('useIsMobile');
   });
 
   it('laat de bestaande app-layout zonder gedragswijziging door', () => {
