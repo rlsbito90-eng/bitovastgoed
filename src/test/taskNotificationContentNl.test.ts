@@ -38,10 +38,11 @@ describe('taaknotificaties met herkenbare Nederlandse context', () => {
     expect(pushBron).not.toContain("pushBody = `${task.titel} · deadline");
   });
 
-  it('geeft nieuwe briefopvolgtaken direct eigenaarcontext en bewaart het pand in de taakcontext', () => {
-    expect(briefBron).toContain('useOffMarketSignaal(signaalId)');
-    expect(briefBron).toContain("const pandLabel = [signaal?.adres, signaal?.plaats].filter(Boolean).join(' · ');");
-    expect(briefBron).toContain('Brief 2 voorbereiden / opvolgen — ${geadresseerdeLabel}');
+  it('maakt voor post geen persoonlijke opvolgtaak meer en behoudt e-mailtaakcontext', () => {
+    expect(briefBron).toContain('Postopvolging is operationele Radar-werkvoorraad en géén persoonlijke taak.');
+    expect(briefBron).toContain('if (isEmail) {');
+    expect(briefBron).toContain('E-mail ${stapNr} opvolgen — ${geadresseerdeLabel}');
     expect(briefBron).toContain('offMarketSignaalId: signaalId');
+    expect(briefBron).not.toContain('Brief 2 voorbereiden / opvolgen — ${geadresseerdeLabel}');
   });
 });
