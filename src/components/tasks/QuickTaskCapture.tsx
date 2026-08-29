@@ -215,7 +215,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
           <div className="grid grid-cols-2 gap-2">
             <PickerField
               type="date"
-              label="Werkdatum"
+              label="Datum"
               display={dateLabel(effectivePlanDate, 'Kies datum')}
               value={effectivePlanDate ?? ''}
               icon={<CalendarDays className="h-4 w-4" />}
@@ -227,14 +227,14 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
             />
             <PickerField
               type="time"
-              label="Werktijd"
+              label="Tijd"
               display={planTime || 'Kies tijd'}
               value={planTime ?? ''}
               disabled={!effectivePlanDate}
               icon={<Clock3 className="h-4 w-4" />}
               onChange={(value) => setPlanTime(value || null)}
               onClear={planTime ? () => setPlanTime(null) : undefined}
-              clearLabel="Werktijd wissen"
+              clearLabel="Tijd wissen"
             />
           </div>
 

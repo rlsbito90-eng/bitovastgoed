@@ -9,6 +9,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 const EVENT_PREF_FIELD: Record<string, string> = {
   task_reminder: 'task_due_enabled',
+  task_plan_reminder: 'task_due_enabled',
   task_due_today: 'task_due_enabled',
   task_overdue: 'task_overdue_enabled',
   high_priority_task: 'high_priority_task_enabled',
