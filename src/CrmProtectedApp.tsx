@@ -31,7 +31,7 @@ const KadasterKostenPage = lazy(() => import('@/pages/KadasterKostenPage'));
 const ReferentieObjectenPage = lazy(() => import('@/pages/ReferentieObjectenPage'));
 const AdminPage = lazy(() => import('@/pages/AdminPage'));
 const VastgoedrekenenPage = lazy(() => import('@/pages/VastgoedrekenenPage'));
-const OffMarketPage = lazy(() => import('@/pages/OffMarketPage'));
+const OffMarketPage = lazy(() => import('@/pages/OffMarketDeepLinkPage'));
 const VastgoedkansenPage = lazy(() => import('@/pages/VastgoedkansenPage'));
 const VastgoedkansDetailPage = lazy(() => import('@/pages/VastgoedkansDetailPage'));
 const VastgoedkansenVindenPage = lazy(() => import('@/pages/VastgoedkansenVindenPage'));

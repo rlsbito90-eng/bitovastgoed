@@ -55,10 +55,10 @@ describe('printPostFilter', () => {
 });
 
 describe('sortering', () => {
-  it('nieuwste toegevoegd staat bovenaan bij Alles en onderzoeken', () => {
+  it('kiest de contextuele standaardsortering per werkbak', () => {
     expect(standaardSortering('alles', 'alle', 'alles')).toBe('nieuwste_toegevoegd');
     expect(standaardSortering('actie', 'onderzoeken', 'alles')).toBe('nieuwste_toegevoegd');
-    expect(standaardSortering('actie', 'opvolgen', 'alles')).toBe('aanbevolen');
+    expect(standaardSortering('actie', 'opvolgen', 'alles')).toBe('opvolgdatum_oudste');
     expect(standaardSortering('actie', 'printen_posten', 'te_printen')).toBe('procesdatum');
   });
 

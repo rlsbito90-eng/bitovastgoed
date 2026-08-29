@@ -16,7 +16,9 @@ export type SorteerOptie =
   | 'hoogste_prioriteit'
   | 'hoogste_ai_score'
   | 'plaats_az'
-  | 'procesdatum';
+  | 'procesdatum'
+  | 'opvolgdatum_oudste'
+  | 'opvolgdatum_nieuwste';
 
 export const SORTEER_LABEL: Record<SorteerOptie, string> = {
   aanbevolen: 'Aanbevolen werkvolgorde',
@@ -26,10 +28,14 @@ export const SORTEER_LABEL: Record<SorteerOptie, string> = {
   hoogste_ai_score: 'Hoogste AI-score',
   plaats_az: 'Plaats A-Z',
   procesdatum: 'Relevante procesdatum',
+  opvolgdatum_oudste: 'Opvolgdatum · oudste eerst',
+  opvolgdatum_nieuwste: 'Opvolgdatum · nieuwste eerst',
 };
 
 export const SORTEER_VOLGORDE: SorteerOptie[] = [
   'aanbevolen',
+  'opvolgdatum_oudste',
+  'opvolgdatum_nieuwste',
   'nieuwste_toegevoegd',
   'oudste_toegevoegd',
   'hoogste_prioriteit',
@@ -56,8 +62,9 @@ const PRIORITEIT_RANG: Record<string, number> = {
 /**
  * Standaardsortering per view.
  *  - Alles / Onderzoeken / Brief voorbereiden : nieuwste toegevoegd bovenaan.
- *  - Opvolgen / Wachten / Afgehandeld         : aanbevolen procesvolgorde.
- *  - Te printen / Te posten                   : nieuwste relevante procesdatum.
+ *  - Opvolgen                                  : oudste opvolgdatum eerst.
+ *  - Wachten / Afgehandeld                     : aanbevolen procesvolgorde.
+ *  - Te printen / Te posten                    : nieuwste relevante procesdatum.
  */
 export function standaardSortering(
   werkbak: WerkbakView,
@@ -67,7 +74,7 @@ export function standaardSortering(
   if (werkbak === 'alles') return 'nieuwste_toegevoegd';
   if (werkbak === 'wachten' || werkbak === 'afgehandeld') return 'aanbevolen';
   // werkbak === 'actie'
-  if (subfilter === 'opvolgen') return 'aanbevolen';
+  if (subfilter === 'opvolgen') return 'opvolgdatum_oudste';
   if (subfilter === 'printen_posten') {
     return printPost === 'alles' ? 'aanbevolen' : 'procesdatum';
   }
@@ -82,6 +89,17 @@ function nieuwsteEerst(a: SorteerbareRij, b: SorteerbareRij): number {
   const tb = b.toegevoegdOp ?? '';
   if (ta !== tb) return tb.localeCompare(ta);
   return a.signaalId.localeCompare(b.signaalId);
+}
+
+function vergelijkProcesdatum(a: SorteerbareRij, b: SorteerbareRij, richting: 'asc' | 'desc'): number {
+  const da = a.ctx.procesDatum?.iso ?? '';
+  const db = b.ctx.procesDatum?.iso ?? '';
+  if (da !== db) {
+    if (!da) return 1;
+    if (!db) return -1;
+    return richting === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+  }
+  return nieuwsteEerst(a, b);
 }
 
 export function sorteerRijen(
@@ -125,16 +143,11 @@ export function sorteerRijen(
         }
         return nieuwsteEerst(a, b);
       }
-      case 'procesdatum': {
-        const da = a.ctx.procesDatum?.iso ?? '';
-        const db = b.ctx.procesDatum?.iso ?? '';
-        if (da !== db) {
-          if (!da) return 1;
-          if (!db) return -1;
-          return db.localeCompare(da);
-        }
-        return nieuwsteEerst(a, b);
-      }
+      case 'procesdatum':
+      case 'opvolgdatum_nieuwste':
+        return vergelijkProcesdatum(a, b, 'desc');
+      case 'opvolgdatum_oudste':
+        return vergelijkProcesdatum(a, b, 'asc');
       default:
         return nieuwsteEerst(a, b);
     }

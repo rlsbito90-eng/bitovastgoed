@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const RADAR_FOLLOWUP_HREF = '/off-market?tab=acquisitieselectie&werkbak=actie&subfilter=opvolgen&bron=radar&sortering=opvolgdatum_oudste';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -93,6 +94,17 @@ Deno.serve(async (req: Request) => {
       createdEvents += Number(radarRow?.created_count ?? 0);
       resolvedEvents += Number(radarRow?.resolved_count ?? 0);
     }
+
+    // De databasefunctie blijft bewust generiek, maar elke actieve Radar-opvolgmelding
+    // krijgt vóór delivery de operationele deep-link. Zo werken zowel push als de
+    // notificatiebel met dezelfde bestemming, ook voor een al bestaand event.
+    const { error: radarHrefError } = await supabase
+      .from('notification_events')
+      .update({ href: RADAR_FOLLOWUP_HREF, updated_at: new Date().toISOString() })
+      .eq('event_type', 'radar_followup_letters')
+      .is('resolved_at', null)
+      .is('dismissed_at', null);
+    if (radarHrefError) throw radarHrefError;
 
     // Ook toekomstige scheduled events worden bewust meegenomen: hun device-deliveries
     // worden vooraf klaargezet met available_at. De push-sender bewaakt het echte verzendmoment.
