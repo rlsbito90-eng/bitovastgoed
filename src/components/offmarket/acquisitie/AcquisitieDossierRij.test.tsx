@@ -66,4 +66,24 @@ describe('AcquisitieDossierRij', () => {
     expect(onToggle).not.toHaveBeenCalled();
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
   });
+
+  it('toont routeringsuitleg direct onder de dossierinhoud', () => {
+    render(
+      <AcquisitieDossierRij
+        geselecteerd={false}
+        onToggle={vi.fn()}
+        signaalId="signaal-3"
+        fase="brief_maken"
+        werkbak="actie"
+        actieCategorie="brief_voorbereiden"
+        geadresseerden={[]}
+        hoofdinhoud={<p>Derde dossier</p>}
+        routeringsuitleg={<div>Gebundeld bij bestaande campagne · Voorbeeld B.V.</div>}
+        acties={<button type="button">Open signaal</button>}
+      />,
+    );
+
+    expect(screen.getByText(/Gebundeld bij bestaande campagne/)).toBeVisible();
+    expect(screen.getByText(/Voorbeeld B.V./)).toBeVisible();
+  });
 });
