@@ -179,10 +179,14 @@ export async function markeerProductiekernBatchGeprint(input: {
 }
 
 /**
- * Post alle nog niet verzonden immutable briefversies één voor één. Bij een
- * gedeeltelijke eerdere poging worden reeds `verzonden` versies op identiteit
- * gecontroleerd en overgeslagen; de resterende writes behouden hun vaste
- * operation keys. Hierdoor is een refresh/retry veilig en hervatbaar.
+ * Nieuwe batches worden als één ondeelbare fysieke verzendeenheid verwerkt:
+ * alle briefidentiteiten worden eerst client-side gevalideerd en daarna schrijft
+ * één database-RPC de complete BAT atomisch als gepost. Een fout kan daardoor
+ * geen nieuwe `gedeeltelijk_gepost` batch achterlaten.
+ *
+ * Historische batches die al `gedeeltelijk_gepost` zijn, behouden hun oude
+ * individuele verzendhistorie en worden via de legacy brieftransactie veilig
+ * afgemaakt; reeds verzonden versies worden daarbij niet herschreven.
  */
 export async function markeerProductiekernBrievenGepost(input: {
   batch: PrintbatchContract;
@@ -194,9 +198,33 @@ export async function markeerProductiekernBrievenGepost(input: {
     throw new Error('Alleen een geprinte batch kan als gepost worden verwerkt.');
   }
   if (!input.batch.printdatum) throw new Error('Batch mist printdatum.');
+  if (input.brieven.length === 0) throw new Error('Batch bevat geen brieven om te posten.');
   const verzenddatum = input.verzenddatum ?? new Date().toISOString();
+  const brieven = sorteerBrieven(input.brieven);
 
-  for (const item of sorteerBrieven(input.brieven)) {
+  if (input.batch.status === 'geprint') {
+    for (const item of brieven) {
+      bewaakBatchBriefIdentiteit(item);
+      if (item.versie.status !== 'actief') {
+        throw new Error(`Briefversie ${item.versie.id} kan niet in een nieuwe batch-postactie worden verwerkt.`);
+      }
+    }
+
+    await transacties.markeerBatchGepost({
+      actie: 'batch_gepost_markeren',
+      batch: input.batch,
+      actorId: input.actorId,
+      operationKey: `batch-gepost:${input.batch.id}:v${input.batch.documentversie}`,
+      verwachtVersienummer: input.batch.documentversie,
+      uitgevoerdOp: verzenddatum,
+      verzenddatum,
+    });
+    return;
+  }
+
+  // Legacy herstelpad: uitsluitend voor een batch die vóór deze wijziging al
+  // gedeeltelijk was gepost. Bestaande verzendmomenten blijven onaangetast.
+  for (const item of brieven) {
     bewaakBatchBriefIdentiteit(item);
     if (item.versie.status === 'verzonden') continue;
     if (item.versie.status !== 'actief') {

@@ -2,6 +2,7 @@ import type {
   BatchDocumentenRegistrerenInput,
   BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
+  BatchGepostMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
   ProductieTransactieInput,
@@ -13,6 +14,7 @@ export type ProductieRpcNaam =
   | 'off_market_batch_documenten_registreren'
   | 'off_market_batch_documentversie_vernieuwen'
   | 'off_market_batch_geprint_markeren'
+  | 'off_market_batch_gepost_markeren'
   | 'off_market_brief_gepost_markeren';
 
 export interface ProductieRpcAanroep {
@@ -94,6 +96,21 @@ function batchGeprintParameters(
   };
 }
 
+function batchGepostParameters(
+  input: BatchGepostMarkerenInput,
+): ProductieRpcAanroep {
+  return {
+    rpc: 'off_market_batch_gepost_markeren',
+    parameters: {
+      p_batch_id: input.batch.id,
+      p_actor_id: input.actorId,
+      p_operation_key: input.operationKey,
+      p_verwacht_documentversie: input.verwachtVersienummer,
+      p_verzenddatum: input.verzenddatum,
+    },
+  };
+}
+
 function briefGepostParameters(
   input: BriefGepostMarkerenInput,
 ): ProductieRpcAanroep {
@@ -113,8 +130,7 @@ function briefGepostParameters(
 }
 
 /**
- * Pure grens tussen gevalideerde domeininput en toekomstige Supabase-RPC's.
- * Namen en parameters spiegelen exact het niet-toegepaste SQL-concept.
+ * Pure grens tussen gevalideerde domeininput en Supabase-RPC's.
  * Er wordt bewust geen Supabase-client aangeroepen.
  */
 export function bouwProductieRpcAanroep(
@@ -134,6 +150,8 @@ export function bouwProductieRpcAanroep(
       return batchDocumentversieVernieuwenParameters(input);
     case 'batch_geprint_markeren':
       return batchGeprintParameters(input);
+    case 'batch_gepost_markeren':
+      return batchGepostParameters(input);
     case 'brief_gepost_markeren':
       return briefGepostParameters(input);
   }

@@ -15,6 +15,7 @@ import type {
   BatchDocumentenRegistrerenInput,
   BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
+  BatchGepostMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
   ProductieTransactieInput,
@@ -106,6 +107,11 @@ implements AcquisitieProductieTransactieRepository {
   }
 
   async markeerBatchGeprint(input: BatchGeprintMarkerenInput): Promise<void> {
+    const data = await voerUit(this.uitvoerder, input);
+    bevestigLeegRpcResultaat(data);
+  }
+
+  async markeerBatchGepost(input: BatchGepostMarkerenInput): Promise<void> {
     const data = await voerUit(this.uitvoerder, input);
     bevestigLeegRpcResultaat(data);
   }

@@ -2,6 +2,7 @@ import type {
   BatchDocumentenRegistrerenInput,
   BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
+  BatchGepostMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
 } from './productieTransactieContract';
@@ -33,6 +34,11 @@ export interface AcquisitieProductieTransactieRepository {
     input: BatchGeprintMarkerenInput,
   ): Promise<void>;
 
+  markeerBatchGepost(
+    input: BatchGepostMarkerenInput,
+  ): Promise<void>;
+
+  /** Alleen voor het afmaken van historische gedeeltelijk geposte batches. */
   markeerBriefGepost(
     input: BriefGepostMarkerenInput,
   ): Promise<void>;
@@ -68,6 +74,10 @@ implements AcquisitieProductieTransactieRepository {
 
   markeerBatchGeprint(): Promise<void> {
     return this.geblokkeerd('markeerBatchGeprint');
+  }
+
+  markeerBatchGepost(): Promise<void> {
+    return this.geblokkeerd('markeerBatchGepost');
   }
 
   markeerBriefGepost(): Promise<void> {
