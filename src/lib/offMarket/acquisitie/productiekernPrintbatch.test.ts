@@ -41,6 +41,7 @@ function transacties() {
     registreerBatchdocumenten: vi.fn(async () => undefined),
     vernieuwBatchdocumenten: vi.fn(async () => undefined),
     markeerBatchGeprint: vi.fn(async () => undefined),
+    markeerBatchGepost: vi.fn(async () => undefined),
     markeerBriefGepost: vi.fn(async () => undefined),
   };
 }
@@ -130,11 +131,13 @@ describe('Productiekern printbatch', () => {
       brieven: [{ brief, versie, geadresseerdeKey: 'sig-1|es-blok' }],
       actorId: 'actor', verzenddatum: '2026-08-16T20:20:00.000Z',
     }, tx);
-    expect(tx.markeerBriefGepost).toHaveBeenCalledWith(expect.objectContaining({
-      operationKey: 'brief-gepost:batch-1:versie-1',
-      geadresseerdeKey: 'sig-1|es-blok',
+    expect(tx.markeerBatchGepost).toHaveBeenCalledTimes(1);
+    expect(tx.markeerBatchGepost).toHaveBeenCalledWith(expect.objectContaining({
+      actie: 'batch_gepost_markeren',
+      operationKey: 'batch-gepost:batch-1:v1',
       verzenddatum: '2026-08-16T20:20:00.000Z',
     }));
+    expect(tx.markeerBriefGepost).not.toHaveBeenCalled();
   });
 
   it('vernieuwt een nog niet geprinte BAT atomisch naar exact de volgende documentversie', async () => {
