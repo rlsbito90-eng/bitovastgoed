@@ -5,6 +5,7 @@ import RadarBundelingUitleg from './RadarBundelingUitleg';
 interface Props {
   signaalId: string;
   gebundeld: boolean;
+  onOpenSignaal?: (signaalId: string) => void;
 }
 
 export default function RadarDossierRouteringsUitleg({ signaalId, gebundeld }: Props) {
