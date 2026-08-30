@@ -3,12 +3,24 @@ import { describe, expect, it, vi } from 'vitest';
 
 import AcquisitieDossierRij from './AcquisitieDossierRij';
 
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => vi.fn() };
+});
+
 vi.mock('@/hooks/useOffMarketSignalen', () => ({
   useOffMarketSignalen: () => ({ data: [] }),
 }));
 
 vi.mock('@/hooks/useAcquisitiePartijOverzicht', () => ({
   useAcquisitiePartijOverzicht: () => ({ perKey: new Map() }),
+  useAlleOffMarketBrievenVoorPartijen: () => ({ data: [] }),
+}));
+
+vi.mock('./RadarDossierRouteringsUitleg', () => ({
+  default: ({ gebundeld }: { gebundeld: boolean }) => gebundeld
+    ? <div>Gebundeld bij bestaande campagne · Voorbeeld B.V.</div>
+    : null,
 }));
 
 describe('AcquisitieDossierRij', () => {
@@ -67,7 +79,7 @@ describe('AcquisitieDossierRij', () => {
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('toont routeringsuitleg direct onder de dossierinhoud', () => {
+  it('toont automatisch concrete uitleg bij status Gebundeld bij partij', () => {
     render(
       <AcquisitieDossierRij
         geselecteerd={false}
@@ -77,8 +89,12 @@ describe('AcquisitieDossierRij', () => {
         werkbak="actie"
         actieCategorie="brief_voorbereiden"
         geadresseerden={[]}
-        hoofdinhoud={<p>Derde dossier</p>}
-        routeringsuitleg={<div>Gebundeld bij bestaande campagne · Voorbeeld B.V.</div>}
+        hoofdinhoud={(
+          <div>
+            <p>Derde dossier</p>
+            <span data-testid="acquisitie-rij-werkvoorraadstatus">Gebundeld bij partij</span>
+          </div>
+        )}
         acties={<button type="button">Open signaal</button>}
       />,
     );
