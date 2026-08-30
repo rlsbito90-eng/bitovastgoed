@@ -4,8 +4,10 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import GeadresseerdenLijst, { isEmailContactwaarde, weergavenaamGeadresseerde } from './GeadresseerdenLijst';
+import RadarDossierRouteringsUitleg from './RadarDossierRouteringsUitleg';
 import SelecteerbareDossierRij from './SelecteerbareDossierRij';
 
 interface GeadresseerdeVoorDossierRij {
@@ -26,7 +28,6 @@ interface AcquisitieDossierRijProps {
   geadresseerden: GeadresseerdeVoorDossierRij[];
   hoofdinhoud: ReactNode;
   acties: ReactNode;
-  routeringsuitleg?: ReactNode;
 }
 
 interface ProductieIdentiteit {
@@ -159,8 +160,8 @@ export default function AcquisitieDossierRij({
   geadresseerden,
   hoofdinhoud,
   acties,
-  routeringsuitleg,
 }: AcquisitieDossierRijProps) {
+  const navigate = useNavigate();
   const opvolging = isOpvolgingsActie(werkbak, actieCategorie);
   const productie: ProductieIdentiteit = { briefnummers: [], batchnummers: [] };
   if (opvolging) verzamelProductieIdentiteit(hoofdinhoud, productie);
@@ -179,6 +180,8 @@ export default function AcquisitieDossierRij({
   const aiAdviesLabel = presentatie.aiScore != null && adviesLabel
     ? `AI ${Math.round(presentatie.aiScore)} · ${adviesLabel}`
     : presentatie.aiScore != null ? `AI ${Math.round(presentatie.aiScore)}` : adviesLabel;
+  const werkvoorraadLabel = tekstVoorTestId(hoofdinhoud, 'acquisitie-rij-werkvoorraadstatus');
+  const gebundeldBijPartij = werkvoorraadLabel === 'Gebundeld bij partij';
 
   const legacyEmail = geadresseerden.find((g) => isEmailContactwaarde(g.verzendadres))?.verzendadres?.trim() ?? null;
   const isEmailVerzonden = fase === 'email_verzonden';
@@ -207,7 +210,15 @@ export default function AcquisitieDossierRij({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className={hoofdinhoudClass}>{hoofdinhoud}</div>
-          {routeringsuitleg && <div className="mt-2">{routeringsuitleg}</div>}
+          {gebundeldBijPartij && (
+            <div className="mt-2">
+              <RadarDossierRouteringsUitleg
+                signaalId={signaalId}
+                gebundeld
+                onOpenSignaal={(id) => navigate(`/off-market/${id}`)}
+              />
+            </div>
+          )}
 
           {opvolging ? (
             <div className="mt-2 space-y-2" data-testid="acquisitie-opvolgen-compact">
