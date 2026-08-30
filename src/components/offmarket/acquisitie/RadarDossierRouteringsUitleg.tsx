@@ -5,10 +5,9 @@ import RadarBundelingUitleg from './RadarBundelingUitleg';
 interface Props {
   signaalId: string;
   gebundeld: boolean;
-  onOpenSignaal: (signaalId: string) => void;
 }
 
-export default function RadarDossierRouteringsUitleg({ signaalId, gebundeld, onOpenSignaal }: Props) {
+export default function RadarDossierRouteringsUitleg({ signaalId, gebundeld }: Props) {
   const { data: signalen = [] } = useOffMarketSignalen();
   const { data: brieven = [] } = useAlleOffMarketBrievenVoorPartijen();
 
@@ -18,5 +17,5 @@ export default function RadarDossierRouteringsUitleg({ signaalId, gebundeld, onO
     return <p className="text-[11px] text-amber-900">Bundelingscontext kon niet aan dit signaal worden gekoppeld.</p>;
   }
 
-  return <RadarBundelingUitleg signaal={signaal} brieven={brieven} onOpenSignaal={onOpenSignaal} />;
+  return <RadarBundelingUitleg signaal={signaal} brieven={brieven} />;
 }
