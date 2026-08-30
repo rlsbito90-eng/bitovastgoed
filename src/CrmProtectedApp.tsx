@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { Route, Routes, useParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import CrmDetailNavigationBoundary from '@/components/CrmDetailNavigationBoundary';
 import CrmNavigationOriginTracker from '@/components/CrmNavigationOriginTracker';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -10,6 +10,7 @@ import { PropertyTaxonomieProvider } from '@/hooks/usePropertyTaxonomie';
 import { DataStoreProvider, useDataStore } from '@/hooks/useDataStore';
 import { AcquisitieProvider } from '@/hooks/useAcquisitie';
 import { VastgoedkansenProvider } from '@/hooks/useVastgoedkansen';
+import { normaliseerServiceWorkerNotificatieHref } from '@/lib/notifications/serviceWorkerNavigation';
 
 const AcquisitiePage = lazy(() => import('@/pages/AcquisitiePage'));
 const AcquisitieTargetDetailPage = lazy(() => import('@/pages/AcquisitieTargetDetailPage'));
@@ -43,6 +44,24 @@ function RouteFallback() {
   return <div className="flex min-h-[40vh] items-center justify-center p-8 text-sm text-muted-foreground">Laden…</div>;
 }
 
+function ServiceWorkerNotificationNavigation() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+
+    const onMessage = (event: MessageEvent) => {
+      const href = normaliseerServiceWorkerNotificatieHref(event.data);
+      if (href) navigate(href);
+    };
+
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [navigate]);
+
+  return null;
+}
+
 function SafeObjectDetailRoute() {
   const { id } = useParams<{ id: string }>();
   const { loading, getObjectById } = useDataStore();
@@ -71,6 +90,7 @@ export default function CrmProtectedApp() {
             <VastgoedkansenProvider>
               <Suspense fallback={<RouteFallback />}>
                 <AppLayout>
+                  <ServiceWorkerNotificationNavigation />
                   <CrmNavigationOriginTracker />
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
