@@ -27,6 +27,8 @@ declare
   v_bestaande_verzenddatum timestamptz;
   v_aantal integer;
   v_postdatum date;
+  v_event_brief_id uuid;
+  v_event_brief_versie_id uuid;
 begin
   if p_batch_id is null then raise exception 'batch_id_verplicht'; end if;
   if p_actor_id is null then raise exception 'actor_id_verplicht'; end if;
@@ -87,6 +89,17 @@ begin
     raise exception 'batch_bevat_niet_verzendbare_brief';
   end if;
 
+  -- Houd ook bij een streng audit-schema één bestaande brief/versie als
+  -- representatieve referentie aan. De metadata blijft expliciet aangeven dat
+  -- het event de volledige batchtransactie betreft.
+  select pb.brief_id, pb.brief_versie_id
+    into v_event_brief_id, v_event_brief_versie_id
+  from public.off_market_printbatch_brieven pb
+  where pb.batch_id = p_batch_id
+    and pb.verwijderd_op is null
+  order by pb.brief_id, pb.brief_versie_id
+  limit 1;
+
   v_postdatum := (p_verzenddatum at time zone 'Europe/Amsterdam')::date;
 
   update public.off_market_brief_versies bv
@@ -124,12 +137,22 @@ begin
   -- Gebruik het bestaande productie-eventtype; metadata maakt expliciet dat dit
   -- één atomische BAT-handeling was. De operation_key borgt idempotentie.
   insert into public.off_market_productie_events(
-    id, operation_key, event_type, batch_id, actor_id, event_at, metadata
+    id,
+    operation_key,
+    event_type,
+    batch_id,
+    brief_id,
+    brief_versie_id,
+    actor_id,
+    event_at,
+    metadata
   ) values (
     gen_random_uuid(),
     p_operation_key,
     'brief_gepost',
     p_batch_id,
+    v_event_brief_id,
+    v_event_brief_versie_id,
     p_actor_id,
     p_verzenddatum,
     jsonb_build_object(
