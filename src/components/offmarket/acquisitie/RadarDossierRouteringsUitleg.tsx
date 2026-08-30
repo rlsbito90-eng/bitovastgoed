@@ -1,16 +1,22 @@
-import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
-import type { WerkvoorraadStatus } from '@/hooks/useAcquisitieSelectie';
-import type { OffMarketSignaal } from '@/lib/offMarket/types';
+import { useAlleOffMarketBrievenVoorPartijen } from '@/hooks/useAcquisitiePartijOverzicht';
+import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import RadarBundelingUitleg from './RadarBundelingUitleg';
 
 interface Props {
-  status: WerkvoorraadStatus;
-  signaal: OffMarketSignaal;
-  brieven: OffMarketBrief[];
+  signaalId: string;
+  gebundeld: boolean;
   onOpenSignaal: (signaalId: string) => void;
 }
 
-export default function RadarDossierRouteringsUitleg({ status, signaal, brieven, onOpenSignaal }: Props) {
-  if (status !== 'gebundeld_bij_partij') return null;
+export default function RadarDossierRouteringsUitleg({ signaalId, gebundeld, onOpenSignaal }: Props) {
+  const { data: signalen = [] } = useOffMarketSignalen();
+  const { data: brieven = [] } = useAlleOffMarketBrievenVoorPartijen();
+
+  if (!gebundeld) return null;
+  const signaal = signalen.find((s) => s.id === signaalId);
+  if (!signaal) {
+    return <p className="text-[11px] text-amber-900">Bundelingscontext kon niet aan dit signaal worden gekoppeld.</p>;
+  }
+
   return <RadarBundelingUitleg signaal={signaal} brieven={brieven} onOpenSignaal={onOpenSignaal} />;
 }
