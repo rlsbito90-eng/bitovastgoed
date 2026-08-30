@@ -68,7 +68,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     letterSpacing: 0.4,
   },
-  datum: { fontSize: 9.5, color: '#1A1A1A' },
   addressee: { marginBottom: 22 },
   addresseeLine: { fontSize: 10.5, lineHeight: 1.4, color: '#1A1A1A' },
   onderwerp: {
@@ -107,6 +106,10 @@ export interface BriefPaginaProps {
  * (single-brief Document) als `GecombineerdeBrievenPDF` (bulk Document).
  * Mag binnen `<Document>` als sibling-`<Page>` worden geplaatst — iedere
  * brief begint dan automatisch op een nieuwe pagina.
+ *
+ * De fysieke brief toont bewust geen datum. Printen kan daardoor vooruitlopen
+ * op het daadwerkelijke postmoment; de administratieve postdatum wordt pas bij
+ * de expliciete postbevestiging vastgelegd.
  */
 export function BriefPagina({ vm, logo, watermerk = null }: BriefPaginaProps) {
   const alineas = (vm.brieftekst ?? '')
@@ -154,7 +157,6 @@ export function BriefPagina({ vm, logo, watermerk = null }: BriefPaginaProps) {
             </View>
           )}
         </View>
-        <Text style={styles.datum}>{vm.datum}</Text>
       </View>
 
       <View style={styles.addressee}>
