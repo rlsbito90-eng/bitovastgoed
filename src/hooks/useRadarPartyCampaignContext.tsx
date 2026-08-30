@@ -69,10 +69,16 @@ interface ContextData {
 }
 
 export interface RadarBriefCampaignContext {
+  partijNaam: string | null;
   eerderObject: string | null;
   heeftEerderContact: boolean;
   portefeuille: boolean;
   campagneId: string | null;
+  campagneStatus: CampaignSnapshot['status'] | null;
+  huidigeStap: CampaignSnapshot['huidigeStap'] | null;
+  laatsteContactOp: string | null;
+  primarySignaalId: string | null;
+  primaryObjectAdres: string | null;
 }
 
 function normaal(value: string | null | undefined): string {
@@ -317,12 +323,22 @@ export function useRadarPartyCampaignContext(signalen: OffMarketSignaal[]) {
         .filter((b) => b.status === 'verstuurd')
         .sort((a, b) => (b.verzonden_op ?? b.updated_at).localeCompare(a.verzonden_op ?? a.updated_at));
       const laatste = verstuurd[0] ?? null;
+      const primarySignaalId = info.campaignRow
+        ? data?.campaignObjects.find((o) => o.campagne_id === info.campaignRow!.id && o.rol === 'primary')?.signaal_id ?? null
+        : null;
+      const primarySignaal = primarySignaalId ? info.partijSignalen.find((s) => s.id === primarySignaalId) ?? null : null;
       const eerderObject = laatste?.objectomschrijving?.trim() || laatste?.objectadres?.trim() || null;
       return {
+        partijNaam: info.partij.bedrijfsnaam?.trim() || info.partij.naam?.trim() || kandidaat.bedrijfsnaam?.trim() || kandidaat.naam?.trim() || null,
         eerderObject,
         heeftEerderContact: Boolean(laatste),
         portefeuille: info.ownerSignalIds.size > 1,
         campagneId: info.campaignRow?.id ?? null,
+        campagneStatus: info.campaignRow?.status ?? null,
+        huidigeStap: info.campaignRow?.huidige_stap ?? null,
+        laatsteContactOp: info.campaignRow?.laatste_koude_contact_op ?? laatste?.verzonden_op ?? laatste?.postdatum ?? null,
+        primarySignaalId,
+        primaryObjectAdres: primarySignaal ? (primarySignaal.adres || primarySignaal.titel || null) : null,
       };
     };
 
