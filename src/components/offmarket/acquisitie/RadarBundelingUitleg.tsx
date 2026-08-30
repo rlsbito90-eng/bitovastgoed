@@ -10,7 +10,6 @@ import { useRadarPartyCampaignContext, type RadarBriefCampaignContext } from '@/
 interface Props {
   signaal: OffMarketSignaal;
   brieven: OffMarketBrief[];
-  onOpenSignaal: (signaalId: string) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -32,7 +31,7 @@ function contextScore(ctx: RadarBriefCampaignContext): number {
   return (ctx.campagneId ? 100 : 0) + (ctx.heeftEerderContact ? 20 : 0) + (ctx.primarySignaalId ? 10 : 0);
 }
 
-export default function RadarBundelingUitleg({ signaal, brieven, onOpenSignaal }: Props) {
+export default function RadarBundelingUitleg({ signaal, brieven }: Props) {
   const partijContext = useRadarPartyCampaignContext([signaal]);
   if (partijContext.isLoading) return <p className="text-[11px] text-muted-foreground">Partij- en campagnecontext laden…</p>;
   if (partijContext.isError) return <p className="text-[11px] text-amber-900">Campagnecontext kon niet worden geladen. Open het signaal om de partijhistorie te controleren.</p>;
@@ -73,8 +72,8 @@ export default function RadarBundelingUitleg({ signaal, brieven, onOpenSignaal }
       {ctx.primaryObjectAdres && <p className="mt-0.5 text-muted-foreground"><span className="font-medium text-foreground">Hoofdobject:</span> {ctx.primaryObjectAdres}</p>}
       <div className="mt-1.5 flex flex-wrap gap-1.5" data-no-row-select="true">
         {ctx.primarySignaalId && ctx.primarySignaalId !== signaal.id && (
-          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => onOpenSignaal(ctx.primarySignaalId!)}>
-            <ExternalLink className="h-3 w-3" />Open hoofdobject
+          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" asChild>
+            <a href={`/off-market/${ctx.primarySignaalId}`}><ExternalLink className="h-3 w-3" />Open hoofdobject</a>
           </Button>
         )}
         <span className="self-center font-mono-data text-[10px] text-muted-foreground" title="Interne campagne-ID">Campagne {ctx.campagneId.slice(0, 8)}…</span>
