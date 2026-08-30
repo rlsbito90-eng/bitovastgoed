@@ -11,6 +11,7 @@ export type ProductieTransactieActie =
   | 'batch_documenten_registreren'
   | 'batch_documentversie_vernieuwen'
   | 'batch_geprint_markeren'
+  | 'batch_gepost_markeren'
   | 'brief_gepost_markeren';
 
 export interface TransactieContext {
@@ -50,6 +51,17 @@ export interface BatchGeprintMarkerenInput extends TransactieContext {
   printdatum: string;
 }
 
+/**
+ * Eén fysieke printbatch als één verzendeenheid. Deze transactie is uitsluitend
+ * geldig voor een volledig geprinte, nog niet geposte batch. Historische
+ * `gedeeltelijk_gepost` batches blijven via de legacy brieftransactie afhandelbaar.
+ */
+export interface BatchGepostMarkerenInput extends TransactieContext {
+  actie: 'batch_gepost_markeren';
+  batch: PrintbatchContract;
+  verzenddatum: string;
+}
+
 export interface BriefGepostMarkerenInput extends TransactieContext {
   actie: 'brief_gepost_markeren';
   brief: BriefContract;
@@ -64,6 +76,7 @@ export type ProductieTransactieInput =
   | BatchDocumentenRegistrerenInput
   | BatchDocumentversieVernieuwenInput
   | BatchGeprintMarkerenInput
+  | BatchGepostMarkerenInput
   | BriefGepostMarkerenInput;
 
 export interface ProductieTransactieValidatie {
@@ -83,7 +96,7 @@ function valideerContext(input: TransactieContext): string[] {
 }
 
 /**
- * Pure precondition-validatie voor toekomstige transactionele databasefuncties.
+ * Pure precondition-validatie voor transactionele databasefuncties.
  * De functie schrijft niets en kent geen Supabase-client.
  */
 export function valideerProductieTransactie(
@@ -165,6 +178,18 @@ export function valideerProductieTransactie(
       }
       if (input.batch.printdatum) fouten.push('Batch heeft al een printdatum.');
       if (!input.printdatum.trim()) fouten.push('Printdatum is verplicht.');
+      break;
+
+    case 'batch_gepost_markeren':
+      if (input.batch.status !== 'geprint') {
+        fouten.push('Alleen een volledig geprinte batch kan atomisch gepost worden.');
+      }
+      if (!input.batch.printdatum) fouten.push('Batch mist een expliciete printdatum.');
+      if (input.batch.verzenddatum) fouten.push('Batch heeft al een verzenddatum.');
+      if (input.verwachtVersienummer !== input.batch.documentversie) {
+        fouten.push('De verwachte documentversie wijkt af van de actuele batch.');
+      }
+      if (!input.verzenddatum.trim()) fouten.push('Verzenddatum is verplicht.');
       break;
 
     case 'brief_gepost_markeren':
