@@ -10,7 +10,6 @@ import { useRadarPartyCampaignContext, type RadarBriefCampaignContext } from '@/
 interface Props {
   signaal: OffMarketSignaal;
   brieven: OffMarketBrief[];
-  zichtbaar: boolean;
   onOpenSignaal: (signaalId: string) => void;
 }
 
@@ -33,15 +32,10 @@ function contextScore(ctx: RadarBriefCampaignContext): number {
   return (ctx.campagneId ? 100 : 0) + (ctx.heeftEerderContact ? 20 : 0) + (ctx.primarySignaalId ? 10 : 0);
 }
 
-export default function RadarBundelingUitleg({ signaal, brieven, zichtbaar, onOpenSignaal }: Props) {
+export default function RadarBundelingUitleg({ signaal, brieven, onOpenSignaal }: Props) {
   const partijContext = useRadarPartyCampaignContext([signaal]);
-  if (!zichtbaar) return null;
-  if (partijContext.isLoading) {
-    return <p className="text-[11px] text-muted-foreground">Partij- en campagnecontext laden…</p>;
-  }
-  if (partijContext.isError) {
-    return <p className="text-[11px] text-amber-900">Campagnecontext kon niet worden geladen. Open het signaal om de partijhistorie te controleren.</p>;
-  }
+  if (partijContext.isLoading) return <p className="text-[11px] text-muted-foreground">Partij- en campagnecontext laden…</p>;
+  if (partijContext.isError) return <p className="text-[11px] text-amber-900">Campagnecontext kon niet worden geladen. Open het signaal om de partijhistorie te controleren.</p>;
 
   const kandidaten = bouwKandidatenVoorSignaal(signaal, brieven.filter((b) => b.signaal_id === signaal.id));
   const matches = kandidaten.map((kandidaat) => ({
@@ -76,9 +70,7 @@ export default function RadarBundelingUitleg({ signaal, brieven, zichtbaar, onOp
         <span><span className="font-medium text-foreground">Stap:</span> {stap}</span>
         {laatsteContact && <span><span className="font-medium text-foreground">Laatste contact:</span> {laatsteContact}</span>}
       </div>
-      {ctx.primaryObjectAdres && (
-        <p className="mt-0.5 text-muted-foreground"><span className="font-medium text-foreground">Hoofdobject:</span> {ctx.primaryObjectAdres}</p>
-      )}
+      {ctx.primaryObjectAdres && <p className="mt-0.5 text-muted-foreground"><span className="font-medium text-foreground">Hoofdobject:</span> {ctx.primaryObjectAdres}</p>}
       <div className="mt-1.5 flex flex-wrap gap-1.5" data-no-row-select="true">
         {ctx.primarySignaalId && ctx.primarySignaalId !== signaal.id && (
           <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => onOpenSignaal(ctx.primarySignaalId!)}>
