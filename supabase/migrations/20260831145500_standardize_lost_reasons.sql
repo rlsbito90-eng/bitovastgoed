@@ -20,7 +20,7 @@ immutable
 as $$
   select case
     when p_reason is null or btrim(p_reason) = '' then null
-    when lower(p_reason) like '%succesvol%' or lower(p_reason) like '%afgerond%' then 'won'
+    when lower(p_reason) like '%succesvol%' or lower(p_reason) like '%afgerond%' or lower(p_reason) like '%via bito%' then 'won'
     when lower(p_reason) like '%prijs%' or lower(p_reason) like '%waard%' or lower(p_reason) like '%te duur%' then 'price_gap'
     when lower(p_reason) like '%extern%' or lower(p_reason) like '%andere partij%' or lower(p_reason) like '%derde%' then 'sold_external'
     when lower(p_reason) like '%ingetrokken%' or lower(p_reason) like '%eigenaar%' then 'seller_withdrew'
