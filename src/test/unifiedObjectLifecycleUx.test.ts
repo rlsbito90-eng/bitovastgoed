@@ -22,6 +22,15 @@ describe('Unified Object / Deal lifecycle UX', () => {
     expect(source).toContain("'preferred_bidder'");
   });
 
+  it('vereist bij Verkocht/Ingetrokken een bewuste archiefreden', () => {
+    const lifecycleSource = read('src/components/pipeline/ObjectPipelineFaseSectie.tsx');
+    const archiveSource = read('src/components/ArchiveerDialog.tsx');
+
+    expect(lifecycleSource).toContain('requireReasonSelection');
+    expect(lifecycleSource).toContain('Verkocht extern / aan derde');
+    expect(archiveSource).toContain('— Kies reden —');
+  });
+
   it('maakt de primaire dashboardlaag Object-first en gebruikt de canonieke feeprojectie', () => {
     const source = read('src/pages/DashboardPage.tsx');
 
@@ -38,5 +47,13 @@ describe('Unified Object / Deal lifecycle UX', () => {
     expect(source).toContain("o.status === 'verkocht' || o.status === 'ingetrokken'");
     expect(source).toContain('payload.isArchived = true');
     expect(source).toContain('payload.archivedAt = new Date().toISOString()');
+  });
+
+  it('kan een expliciete externe verkoop nooit als gewonnen Bito-Deal sluiten', () => {
+    const migration = read('supabase/migrations/20260831150000_guard_terminal_winner_threshold.sql');
+
+    expect(migration).toContain("new.archived_reason_code = 'sold_external'");
+    expect(migration).toContain("fase = 'afgevallen'::public.deal_fase");
+    expect(migration).toContain('closed_at = null');
   });
 });
