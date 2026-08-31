@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
 import {
   formatCurrency,
   formatCurrencyCompact,
@@ -149,6 +150,7 @@ export default function DashboardPage() {
   const store = useDataStore();
   const { relaties, objecten, deals, taken } = store;
   const nu = new Date();
+  const unifiedFees = useUnifiedFeeReporting(nu.getFullYear());
   const [planningRows, setPlanningRows] = useState<TaskPlanningMeta[]>([]);
 
   useEffect(() => {
@@ -180,6 +182,15 @@ export default function DashboardPage() {
     () => actieveDeals.reduce((s, d) => s + (store.getObjectById(d.objectId)?.vraagprijs ?? 0), 0),
     [actieveDeals, store],
   );
+
+  const actiefAanbodvolume = useMemo(
+    () => actieveObjecten.reduce((som, object) => som + (object.vraagprijs ?? 0), 0),
+    [actieveObjecten],
+  );
+
+  const dashboardPipelineFee = unifiedFees.error
+    ? commissieStats.pipelineBedragTotaal
+    : unifiedFees.stats.pipelineBedrag;
 
   const closingDeals = useMemo(
     () => actieveDeals.filter(d => d.fase === 'bieding' || d.fase === 'onderhandeling' || d.fase === 'closing'),
@@ -253,7 +264,7 @@ export default function DashboardPage() {
     <div className="page-shell-wide">
       <PageHeader
         title="Dashboard"
-        subtitle={<>{actieveDeals.length} actieve deals · {formatCurrencyCompact(pipelineWaardeTotaal)} pipeline</>}
+        subtitle={<>{actieveObjecten.length} actieve objecten · {beschikbareObjecten} beschikbaar · {formatCurrencyCompact(actiefAanbodvolume)} aanbod</>}
       />
 
       <VandaagStrip
@@ -263,13 +274,13 @@ export default function DashboardPage() {
         wacht={taakWacht.length}
       />
 
-      <Link to="/deals" className="kpi-hero block group">
+      <Link to="/objecten" className="kpi-hero block group">
         <div className="relative z-[1] flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="kpi-label">Pipeline waarde</p>
-            <p className="kpi-hero-value mt-2.5">{formatCurrencyCompact(pipelineWaardeTotaal)}</p>
+            <p className="kpi-label">Actief aanbodvolume</p>
+            <p className="kpi-hero-value mt-2.5">{formatCurrencyCompact(actiefAanbodvolume)}</p>
             <p className="text-[12px] text-muted-foreground mt-2.5 tracking-tight">
-              Totale potentiële dealwaarde · {actieveDeals.length} actieve deals
+              {actieveObjecten.length} actieve objecten · {beschikbareObjecten} direct beschikbaar
             </p>
           </div>
           <span className="hidden sm:flex h-12 w-12 rounded-2xl bg-primary text-primary-foreground items-center justify-center shrink-0 shadow-md ring-1 ring-primary/20 transition-transform group-hover:scale-105">
@@ -278,15 +289,15 @@ export default function DashboardPage() {
         </div>
         <div className="relative z-[1] mt-5 pt-4 border-t border-border/50 grid grid-cols-3 gap-3 sm:gap-5">
           <div className="min-w-0">
-            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Potentiële commissie</p>
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Fee pipeline</p>
             <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none truncate">
-              {formatCurrencyCompact(commissieStats.pipelineBedragTotaal)}
+              {formatCurrencyCompact(dashboardPipelineFee)}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1 leading-none truncate">Gewogen: {formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}</p>
+            <p className="text-[10px] text-muted-foreground mt-1 leading-none truncate">1 economische fee per object</p>
           </div>
           <div className="min-w-0">
-            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">In closing</p>
-            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">{closingDeals.length}</p>
+            <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Concrete Deals</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">{actieveDeals.length}</p>
           </div>
           <div className="min-w-0">
             <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Actieve kopers</p>
@@ -296,9 +307,9 @@ export default function DashboardPage() {
       </Link>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-4">
-        <KPICard label="Actieve deals" value={actieveDeals.length} hint={`${formatCurrencyCompact(pipelineWaardeTotaal)} pipeline`} icon={Activity} tone="primary" href="/deals" />
-        <KPICard label="Potentiële commissie" value={formatCurrencyCompact(commissieStats.pipelineBedragTotaal)} hint={`Gewogen: ${formatCurrencyCompact(commissieStats.pipelineBedragGewogen)}`} icon={Banknote} tone="accent" href="/rapportage" />
-        <KPICard label="Deals in closing" value={closingDeals.length} hint="Bieding → closing" icon={Target} tone="success" href="/deals?fase=closing" />
+        <KPICard label="Actieve objecten" value={actieveObjecten.length} hint={`${formatCurrencyCompact(actiefAanbodvolume)} aanbod`} icon={Building2} tone="primary" href="/objecten" />
+        <KPICard label="Beschikbaar" value={beschikbareObjecten} hint="Direct inzetbaar voor matching" icon={Activity} tone="success" href="/objecten" />
+        <KPICard label="Fee pipeline" value={formatCurrencyCompact(dashboardPipelineFee)} hint="Objectforecast → concrete Deal" icon={Banknote} tone="accent" href="/rapportage" />
         <KPICard label="Open acties" value={urgentCount} hint={`${taakVandaag.length} vandaag · ${taakAchterstallig.length} achterstallig`} icon={AlertTriangle} tone={urgentCount > 0 ? 'warning' : 'muted'} href="/taken" />
       </div>
 
