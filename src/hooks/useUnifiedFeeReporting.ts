@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Reads the database-level one-fee-per-object projection.
+ *
+ * Contract:
+ * - before preferred bidder / exclusivity: Object forecast is pipeline;
+ * - from preferred bidder / exclusivity: concrete Deal fee is pipeline;
+ * - after closed won: the same Deal fee is realized and no longer pipeline;
+ * - legacy candidate Deal rows do not suppress Object forecasts.
+ */
 export interface UnifiedFeeRow {
   objectId: string;
   dealId?: string;
