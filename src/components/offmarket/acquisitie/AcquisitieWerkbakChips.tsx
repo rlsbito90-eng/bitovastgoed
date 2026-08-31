@@ -1,7 +1,16 @@
 // Fase 1 — Hoofdwerkbakken (Actie/Wachten/Afgehandeld/Alles) met
 // een tweede, taakgerichte proceslaag die alleen zichtbaar is binnen Actie.
+import { useEffect, useMemo, useState } from 'react';
+import { Mail, Send } from 'lucide-react';
+import { toast } from 'sonner';
+
 import type { ActieSubfilter, WerkbakView } from '@/lib/offMarket/acquisitie/werkbak';
 import { ACTIE_SUBFILTER_LABEL, WERKBAK_LABEL } from '@/lib/offMarket/acquisitie/werkbak';
+import { leesRadarBulkSelectie } from '@/lib/offMarket/acquisitie/bulkSelectionPersistence';
+import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
+import { useBrievenVoorSignalen } from '@/hooks/useAcquisitieReadiness';
+import { Button } from '@/components/ui/button';
+import BulkEmailVoorbereidenDialog from './BulkEmailVoorbereidenDialog';
 
 const HOOFD_VOLGORDE: WerkbakView[] = ['actie', 'wachten', 'afgehandeld', 'alles'];
 const SUB_VOLGORDE: ActieSubfilter[] = [
@@ -23,6 +32,59 @@ export interface AcquisitieWerkbakChipsProps {
 export default function AcquisitieWerkbakChips({
   werkbak, subfilter, onWerkbakChange, onSubfilterChange, counts,
 }: AcquisitieWerkbakChipsProps) {
+  const { data: alleSignalen = [], isLoading: signalenLaden } = useOffMarketSignalen();
+  const [emailScopeIds, setEmailScopeIds] = useState<string[]>([]);
+  const [emailOpenGevraagd, setEmailOpenGevraagd] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const { data: emailBrieven = [], isLoading: brievenLaden } = useBrievenVoorSignalen(emailScopeIds);
+
+  const emailSignalen = useMemo(() => {
+    const scope = new Set(emailScopeIds);
+    return alleSignalen.filter((signaal) => scope.has(signaal.id));
+  }, [alleSignalen, emailScopeIds]);
+
+  useEffect(() => {
+    if (!emailOpenGevraagd || signalenLaden || brievenLaden) return;
+    setEmailOpenGevraagd(false);
+    if (emailSignalen.length === 0) {
+      toast.error('Geen geselecteerde Radar-dossiers gevonden');
+      return;
+    }
+    setEmailOpen(true);
+  }, [emailOpenGevraagd, signalenLaden, brievenLaden, emailSignalen.length]);
+
+  const leesHuidigeRadarSelectie = (): string[] => Array.from(leesRadarBulkSelectie());
+
+  const openVolgendeBrief = () => {
+    const ids = leesHuidigeRadarSelectie();
+    if (ids.length === 0) {
+      toast.info('Selecteer eerst één of meer dossiers in Opvolgen.');
+      return;
+    }
+
+    // De bestaande Radar-briefwizard is de canonieke partij-/campagnebewuste
+    // productieroute. Deze centrale knop opent bewust exact diezelfde actie,
+    // zodat Brief 2/3 geen concurrerende implementatie krijgt.
+    const bestaandeActie = document.querySelector<HTMLButtonElement>(
+      '[data-testid="acquisitie-bulk-brieven-voorbereiden"]',
+    );
+    if (!bestaandeActie) {
+      toast.error('Radar-briefactie is niet beschikbaar voor deze selectie.');
+      return;
+    }
+    bestaandeActie.click();
+  };
+
+  const openEmailOpvolging = () => {
+    const ids = leesHuidigeRadarSelectie();
+    if (ids.length === 0) {
+      toast.info('Selecteer eerst één of meer dossiers in Opvolgen.');
+      return;
+    }
+    setEmailScopeIds(ids);
+    setEmailOpenGevraagd(true);
+  };
+
   return (
     <div className="flex min-w-0 flex-col gap-2.5" data-testid="acquisitie-werkbak-chips">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -86,6 +148,28 @@ export default function AcquisitieWerkbakChips({
           </div>
         </div>
       )}
+
+      {werkbak === 'actie' && subfilter === 'opvolgen' && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-accent/20 bg-accent/5 px-2.5 py-2" data-testid="acquisitie-centrale-opvolgacties">
+          <div className="mr-auto min-w-[12rem]">
+            <p className="text-[11px] font-medium text-foreground">Centrale opvolging</p>
+            <p className="text-[10px] text-muted-foreground">Selecteer dossiers hieronder en kies de volgende campagnestap.</p>
+          </div>
+          <Button type="button" size="sm" variant="secondary" onClick={openVolgendeBrief} data-testid="acquisitie-opvolgen-volgende-brief">
+            <Mail className="h-3.5 w-3.5" />Volgende brief
+          </Button>
+          <Button type="button" size="sm" variant="secondary" onClick={openEmailOpvolging} disabled={emailOpenGevraagd} data-testid="acquisitie-opvolgen-email">
+            <Send className="h-3.5 w-3.5" />{emailOpenGevraagd ? 'E-mail laden…' : 'E-mail opvolgen'}
+          </Button>
+        </div>
+      )}
+
+      <BulkEmailVoorbereidenDialog
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        signalen={emailSignalen}
+        brieven={emailBrieven}
+      />
     </div>
   );
 }
