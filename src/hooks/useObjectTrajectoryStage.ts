@@ -1,4 +1,10 @@
 import { useDataStore } from '@/hooks/useDataStore';
+import {
+  getPreferredBidderStage,
+  getTrajectoryProbability,
+  getTrajectoryStage,
+  isConcreteTransactionPosition,
+} from '@/lib/lifecycle/trajectory';
 
 /**
  * Enige zichtbare commerciële trajectfase.
@@ -11,17 +17,10 @@ export function useObjectTrajectoryStage(objectId?: string) {
   const object = objectId ? store.getObjectById(objectId) : undefined;
   const pipeline = store.getDefaultObjectPipeline();
   const stages = pipeline ? store.getStagesVoorPipeline(pipeline.id) : [];
-  const stage = object?.pipelineStageId
-    ? stages.find(candidate => candidate.id === object.pipelineStageId)
-    : undefined;
-  const preferredBidderStage = stages.find(candidate => candidate.slug === 'preferred_bidder');
-
-  const probability = stage?.probability != null ? stage.probability / 100 : 0;
-  const isTransactionPosition = Boolean(
-    stage && preferredBidderStage && (
-      stage.sortOrder >= preferredBidderStage.sortOrder || stage.isWon || stage.isLost
-    ),
-  );
+  const stage = getTrajectoryStage(object, stages);
+  const preferredBidderStage = getPreferredBidderStage(stages);
+  const probability = getTrajectoryProbability(stage);
+  const isTransactionPosition = isConcreteTransactionPosition(stage, preferredBidderStage);
 
   return {
     object,
