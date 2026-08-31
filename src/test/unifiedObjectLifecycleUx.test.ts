@@ -25,10 +25,11 @@ describe('Unified Object / Deal lifecycle UX', () => {
   it('vereist bij Verkocht/Ingetrokken een bewuste archiefreden', () => {
     const lifecycleSource = read('src/components/pipeline/ObjectPipelineFaseSectie.tsx');
     const archiveSource = read('src/components/ArchiveerDialog.tsx');
+    const reasonsSource = read('src/lib/lifecycle/lostReasons.ts');
 
     expect(lifecycleSource).toContain('requireReasonSelection');
-    expect(lifecycleSource).toContain('Verkocht extern / aan derde');
     expect(archiveSource).toContain('— Kies reden —');
+    expect(reasonsSource).toContain('Verkocht extern / aan derde');
   });
 
   it('maakt de primaire dashboardlaag Object-first en gebruikt de canonieke feeprojectie', () => {
