@@ -60,6 +60,9 @@ describe('één zichtbare commerciële trajectfase', () => {
     expect(source).toContain('getTrajectoryProbability(stage)');
     expect(source).not.toContain('FASE_VOLGORDE');
     expect(source).not.toContain('DEAL_FASE_LABELS');
+    expect(source).not.toContain('conversiePct');
+    expect(source).not.toContain('leads →');
+    expect(source).toContain('Huidige verdeling van actieve objecten');
   });
 
   it('filtert Relatie-detail naar concrete of terminale Deals', () => {
