@@ -1,0 +1,194 @@
+name: Lifecycle end-status reason fix
+
+on:
+  push:
+    branches:
+      - feat/unified-object-deal-lifecycle
+    paths:
+      - .github/lifecycle-endstatus-reason-fix.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message == 'run lifecycle endstatus reason fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/unified-object-deal-lifecycle
+          fetch-depth: 0
+      - name: Apply scoped fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, found {count}')
+              return text.replace(old, new, 1)
+
+          # ArchiveerDialog: optional deliberate reason selection.
+          p = Path('src/components/ArchiveerDialog.tsx')
+          t = p.read_text()
+          t = once(t,
+              "  /** Aanvullende uitleg boven het formulier. */\n  triggerHint?: string;\n",
+              "  /** Aanvullende uitleg boven het formulier. */\n  triggerHint?: string;\n  /** Dwingt de gebruiker bewust een reden te kiezen in plaats van een default te bevestigen. */\n  requireReasonSelection?: boolean;\n",
+              'ArchiveerDialog prop')
+          t = once(t,
+              "  open, onOpenChange, kind, defaultReason, showSkip = false, triggerHint,\n  onConfirm, onSkip,\n",
+              "  open, onOpenChange, kind, defaultReason, showSkip = false, triggerHint,\n  requireReasonSelection = false, onConfirm, onSkip,\n",
+              'ArchiveerDialog destructure')
+          t = once(t,
+              "  const [reason, setReason] = useState<string>(defaultReason ?? redenen[0]);\n",
+              "  const [reason, setReason] = useState<string>(requireReasonSelection ? '' : (defaultReason ?? redenen[0]));\n",
+              'ArchiveerDialog initial reason')
+          t = once(t,
+              "      setReason(defaultReason ?? redenen[0]);\n",
+              "      setReason(requireReasonSelection ? '' : (defaultReason ?? redenen[0]));\n",
+              'ArchiveerDialog reset reason')
+          t = once(t,
+              "  }, [open, defaultReason, redenen]);\n",
+              "  }, [open, defaultReason, redenen, requireReasonSelection]);\n",
+              'ArchiveerDialog effect deps')
+          t = once(t,
+              "            >\n              {redenen.map(r => (\n",
+              "            >\n              {requireReasonSelection && <option value=\"\">— Kies reden —</option>}\n              {redenen.map(r => (\n",
+              'ArchiveerDialog placeholder')
+          p.write_text(t)
+
+          # Direct Object availability end status: reason must be explicit.
+          p = Path('src/components/pipeline/ObjectPipelineFaseSectie.tsx')
+          t = p.read_text()
+          t = once(t,
+              "import { Input } from '@/components/ui/input';\n",
+              "import { Input } from '@/components/ui/input';\nimport ArchiveerDialog from '@/components/ArchiveerDialog';\n",
+              'ObjectPipeline Archiveer import')
+          t = once(t,
+              "  const [feeDirty, setFeeDirty] = useState(false);\n",
+              "  const [feeDirty, setFeeDirty] = useState(false);\n  const [eindstatusOpen, setEindstatusOpen] = useState(false);\n  const [pendingEindstatus, setPendingEindstatus] = useState<ObjectStatus | null>(null);\n",
+              'ObjectPipeline end status state')
+          old = """    const isEindstatus = nieuweStatus === 'verkocht' || nieuweStatus === 'ingetrokken';
+    if (isEindstatus) {
+      const label = OBJECT_STATUS_LABELS[nieuweStatus];
+      const extra = nieuweStatus === 'verkocht'
+        ? ' Een gekoppelde transactie-Deal wordt waar mogelijk automatisch als gewonnen afgerond; overige actieve Deals als verloren.'
+        : ' Eventuele actieve Deals worden automatisch als verloren afgesloten.';
+      const akkoord = window.confirm(
+        `Objectstatus wijzigen naar “${label}”? Het object wordt daarmee ook gearchiveerd.${extra}`,
+      );
+      if (!akkoord) return;
+    }
+
+    setStatusBezig(true);
+    try {
+      await updateObject(object.id, { status: nieuweStatus });
+
+      if (object.isArchived && !isEindstatus) {
+        await unarchiveObject(object.id);
+      }
+
+      toast.success(`Objectstatus gewijzigd naar ${OBJECT_STATUS_LABELS[nieuweStatus]}`);
+    } catch (err: any) {
+      toast.error(`Objectstatus bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setStatusBezig(false);
+    }
+"""
+          new = """    const isEindstatus = nieuweStatus === 'verkocht' || nieuweStatus === 'ingetrokken';
+    if (isEindstatus) {
+      setPendingEindstatus(nieuweStatus);
+      setEindstatusOpen(true);
+      return;
+    }
+
+    setStatusBezig(true);
+    try {
+      await updateObject(object.id, { status: nieuweStatus });
+
+      if (object.isArchived) {
+        await unarchiveObject(object.id);
+      }
+
+      toast.success(`Objectstatus gewijzigd naar ${OBJECT_STATUS_LABELS[nieuweStatus]}`);
+    } catch (err: any) {
+      toast.error(`Objectstatus bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setStatusBezig(false);
+    }
+"""
+          t = once(t, old, new, 'ObjectPipeline direct end status flow')
+          marker = """      {feeSection}
+    </section>
+  );
+}
+"""
+          replacement = """      {feeSection}
+
+      <ArchiveerDialog
+        open={eindstatusOpen}
+        onOpenChange={(open) => {
+          setEindstatusOpen(open);
+          if (!open) setPendingEindstatus(null);
+        }}
+        kind="object"
+        requireReasonSelection
+        triggerHint={pendingEindstatus === 'verkocht'
+          ? 'Het object wordt als Verkocht gearchiveerd. Kies bewust of Bito de transactie heeft gesloten of dat het object extern is verkocht; dit bepaalt de funnelrapportage.'
+          : 'Het object wordt als Ingetrokken gearchiveerd. Kies de feitelijke reden; gekoppelde actieve Deals worden als verloren afgesloten.'}
+        onConfirm={async ({ reason, note }) => {
+          if (!pendingEindstatus) return;
+          setStatusBezig(true);
+          try {
+            await updateObject(object.id, {
+              status: pendingEindstatus,
+              archivedReason: reason,
+              archivedNote: note,
+            });
+            toast.success(`Objectstatus gewijzigd naar ${OBJECT_STATUS_LABELS[pendingEindstatus]}`);
+            setEindstatusOpen(false);
+            setPendingEindstatus(null);
+          } catch (err: any) {
+            toast.error(`Objectstatus bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+          } finally {
+            setStatusBezig(false);
+          }
+        }}
+      />
+    </section>
+  );
+}
+"""
+          t = once(t, marker, replacement, 'ObjectPipeline end status dialog render')
+          p.write_text(t)
+
+          # Frontend classifier: Bito sale is a win.
+          p = Path('src/lib/lifecycle/lostReasons.ts')
+          t = p.read_text()
+          t = once(t,
+              "  if (r.includes('succesvol') || r.includes('afgerond')) return 'won';\n",
+              "  if (r.includes('succesvol') || r.includes('afgerond') || r.includes('via bito')) return 'won';\n",
+              'frontend won classifier')
+          p.write_text(t)
+
+          # SQL classifier parity.
+          p = Path('supabase/migrations/20260831145500_standardize_lost_reasons.sql')
+          t = p.read_text()
+          t = once(t,
+              "    when lower(p_reason) like '%succesvol%' or lower(p_reason) like '%afgerond%' then 'won'\n",
+              "    when lower(p_reason) like '%succesvol%' or lower(p_reason) like '%afgerond%' or lower(p_reason) like '%via bito%' then 'won'\n",
+              'SQL won classifier')
+          p.write_text(t)
+          PY
+
+      - name: Commit scoped fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/ArchiveerDialog.tsx src/components/pipeline/ObjectPipelineFaseSectie.tsx src/lib/lifecycle/lostReasons.ts supabase/migrations/20260831145500_standardize_lost_reasons.sql
+          git commit -m "CRM: require explicit terminal status reason"
+          git push origin HEAD:feat/unified-object-deal-lifecycle
