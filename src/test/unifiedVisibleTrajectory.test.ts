@@ -20,20 +20,60 @@ describe('één zichtbare commerciële trajectfase', () => {
     expect(source).toContain('Verkoper / eigenaar · legacy');
     expect(source).toContain('Oude Deal-relatie · legacy');
     expect(source).toContain("relatieId: isTransactionPosition ? deal.relatieId : undefined");
+    expect(source).toContain('Legacy Deal-record');
   });
 
-  it('gebruikt op Deals-lijst de Object Pipeline als zichtbare fase', () => {
+  it('gebruikt op Deals-lijst alleen concrete transacties als actieve Deals', () => {
     const source = read('src/pages/DealsPage.tsx');
     expect(source).toContain('TrajectoryStageBadge');
     expect(source).toContain('Trajectfase');
+    expect(source).toContain('aantalLegacy');
+    expect(source).toContain("archiefView === 'actief' && (d.isArchived || !concreteForDeal(d))");
     expect(source).not.toContain('<DealFaseBadge');
     expect(source).not.toContain('d.fase === faseFilter');
+  });
+
+  it('laat de Object-cockpit alleen een concrete Deal gebruiken na de transactiedrempel', () => {
+    const source = read('src/pages/ObjectDetailPage.tsx');
+    expect(source).toContain('hasTransactionPosition && activeDealRecords.length === 1');
+    expect(source).toContain('TrajectoryStageBadge objectId={object.id}');
+    expect(source).toContain('Transactie cockpit');
+    expect(source).not.toContain('DealFaseBadge');
+    expect(source).not.toContain('selectLeadDeal');
+  });
+
+  it('bouwt dashboardmomentum op Object Pipeline en niet op deal.fase', () => {
+    const source = read('src/pages/DashboardPage.tsx');
+    expect(source).toContain('Object Pipeline momentum');
+    expect(source).toContain('concreteDeals');
+    expect(source).toContain('pipelineStageId === stage.id');
+    expect(source).toContain('getTrajectoryProbability(stage)');
+    expect(source).not.toContain('pipelineFases');
+    expect(source).not.toContain('FASE_KANS[d.fase]');
+    expect(source).not.toContain('DEAL_FASE_LABELS[fase]');
+  });
+
+  it('gebruikt ook Rapportage voor pipeline en weging de Object Pipeline', () => {
+    const source = read('src/pages/RapportagePage.tsx');
+    expect(source).toContain('useUnifiedFeeReporting');
+    expect(source).toContain('pipelineStageId === stage.id');
+    expect(source).toContain('getTrajectoryProbability(stage)');
+    expect(source).not.toContain('FASE_VOLGORDE');
+    expect(source).not.toContain('DEAL_FASE_LABELS');
+  });
+
+  it('filtert Relatie-detail naar concrete of terminale Deals', () => {
+    const source = read('src/pages/RelatieDetailPage.tsx');
+    expect(source).toContain('isConcreteTransactionPosition');
+    expect(source).toContain('TrajectoryStageBadge');
+    expect(source).not.toContain('DealFaseBadge');
   });
 
   it('maakt Geen volgende actie app-breed leesbaar in warning-kleur', () => {
     const source = read('src/components/GeenActieBadge.tsx');
     expect(source).toContain('text-warning border-warning/40');
     expect(source).toContain('font-semibold');
+    expect(source).toContain('whitespace-nowrap');
     expect(source).not.toContain('text-warning-foreground');
   });
 });
