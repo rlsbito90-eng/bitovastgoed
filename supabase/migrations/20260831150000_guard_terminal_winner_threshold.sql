@@ -2,7 +2,7 @@
 --
 -- Tightens the phase-2 terminal sync. A historical single active Deal is NOT
 -- enough evidence that Bito closed the transaction. Without an accepted bid,
--- the Object must already have reached Preferred bidder / exclusivity (or a
+-- the Object must already have reached Preferred bidder / exclusiviteit (or a
 -- later stage) before a single active Deal may be inferred as the winner.
 
 create or replace function public.sync_deals_from_object_terminal_status()
@@ -40,6 +40,25 @@ begin
   end if;
 
   if new.status <> 'verkocht' then
+    return new;
+  end if;
+
+  -- Explicit external sale is authoritative. Even if this object previously
+  -- reached preferred bidder, Bito must not receive a realized transaction fee.
+  -- All still-active transaction attempts lose because another party closed.
+  if new.archived_reason_code = 'sold_external' then
+    update public.deals
+    set fase = 'afgevallen'::public.deal_fase,
+        is_archived = true,
+        archived_at = coalesce(archived_at, v_now),
+        archived_reason = coalesce(archived_reason, 'Object verkocht aan andere partij'),
+        afwijzingsreden = coalesce(afwijzingsreden, 'Object extern / aan andere partij verkocht'),
+        closed_at = null,
+        updated_at = v_now
+    where object_id = new.id
+      and soft_deleted_at is null
+      and is_archived = false;
+
     return new;
   end if;
 
@@ -92,7 +111,7 @@ begin
   end if;
 
   -- No safely identified winner = no Bito realized transaction. This includes
-  -- external sales and ambiguous historical candidate-Deal data.
+  -- ambiguous historical candidate-Deal data.
   if v_winner_deal_id is null then
     return new;
   end if;
@@ -125,4 +144,4 @@ end;
 $$;
 
 comment on function public.sync_deals_from_object_terminal_status() is
-  'Terminal Object sync with strict winner guard: accepted bid, or exactly one active Deal only after preferred bidder / exclusivity. Never guesses a winner from legacy candidate Deals.';
+  'Terminal Object sync with strict winner guard: explicit external sale never wins; otherwise accepted bid, or exactly one active Deal only after preferred bidder / exclusivity. Never guesses a winner from legacy candidate Deals.';
