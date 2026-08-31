@@ -57,4 +57,14 @@ describe('Unified Object / Deal lifecycle UX', () => {
     expect(migration).toContain("fase = 'afgevallen'::public.deal_fase");
     expect(migration).toContain('closed_at = null');
   });
+
+  it('maakt de handmatige Deal-route alleen als transactiegrens en zonder tweede fasebediening', () => {
+    const source = read('src/components/forms/DealFormDialog.tsx');
+
+    expect(source).toContain("s.slug === 'preferred_bidder'");
+    expect(source).toContain('setObjectPipelineStage(form.objectId, preferredBidderStage.id');
+    expect(source).toContain('Transactie starten');
+    expect(source).toContain('De trajectfase wordt centraal beheerd via Object → Dealflow.');
+    expect(source).not.toContain("set('fase', e.target.value as DealFase)");
+  });
 });
