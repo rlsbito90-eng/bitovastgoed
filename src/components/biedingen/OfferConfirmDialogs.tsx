@@ -5,7 +5,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useBiedingen } from '@/hooks/useBiedingen';
@@ -24,7 +23,7 @@ export function OfferAcceptDialog({ open, onOpenChange, bieding }: {
     setBezig(true);
     try {
       await acceptOffer(bieding.id, { wijsAndereAf });
-      toast.success('Bieding geaccepteerd. Pas eventueel de dealfase aan (Onderhandeling / LOI / Koopovereenkomst).');
+      toast.success('Bieding geaccepteerd. De transactie-Deal is gestart en het object staat nu op Preferred bidder / exclusiviteit.');
       onOpenChange(false);
     } catch (err: any) {
       toast.error(`Mislukt: ${err.message ?? 'onbekende fout'}`);
@@ -35,9 +34,11 @@ export function OfferAcceptDialog({ open, onOpenChange, bieding }: {
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Bieding accepteren?</AlertDialogTitle>
+          <AlertDialogTitle>Bieding accepteren en Deal starten?</AlertDialogTitle>
           <AlertDialogDescription>
-            Weet je zeker dat je deze bieding wilt accepteren? Andere open biedingen op dit object blijven standaard open.
+            Hiermee wordt deze koper de preferred bidder. Het object gaat naar de trajectfase
+            “Preferred bidder / exclusiviteit” en de gekoppelde transactie-Deal wordt automatisch
+            aangemaakt of hergebruikt. Je hoeft de fase niet nogmaals bij Deals bij te werken.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="flex items-start gap-2 py-2">
@@ -49,7 +50,7 @@ export function OfferAcceptDialog({ open, onOpenChange, bieding }: {
         <AlertDialogFooter>
           <AlertDialogCancel>Annuleren</AlertDialogCancel>
           <AlertDialogAction onClick={handle} disabled={bezig}>
-            {bezig ? 'Bezig…' : 'Accepteren'}
+            {bezig ? 'Bezig…' : 'Accepteren & Deal starten'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
