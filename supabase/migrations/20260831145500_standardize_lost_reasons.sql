@@ -13,6 +13,8 @@ alter table public.object_pipeline
   add column if not exists lost_reason_code text;
 
 -- Canonical classifier. Intentionally conservative: unknown text becomes 'other'.
+-- A won result must be explicitly described as successful/completed; merely
+-- mentioning "via Bito" is not enough evidence to realize a fee.
 create or replace function public.bito_loss_reason_code(p_reason text)
 returns text
 language sql
@@ -20,7 +22,7 @@ immutable
 as $$
   select case
     when p_reason is null or btrim(p_reason) = '' then null
-    when lower(p_reason) like '%succesvol%' or lower(p_reason) like '%afgerond%' or lower(p_reason) like '%via bito%' then 'won'
+    when lower(p_reason) like '%succesvol%' or lower(p_reason) like '%afgerond%' then 'won'
     when lower(p_reason) like '%prijs%' or lower(p_reason) like '%waard%' or lower(p_reason) like '%te duur%' then 'price_gap'
     when lower(p_reason) like '%extern%' or lower(p_reason) like '%andere partij%' or lower(p_reason) like '%derde%' then 'sold_external'
     when lower(p_reason) like '%ingetrokken%' or lower(p_reason) like '%eigenaar%' then 'seller_withdrew'
@@ -36,7 +38,7 @@ as $$
 $$;
 
 comment on function public.bito_loss_reason_code(text) is
-  'Maps preserved human-readable CRM archive/loss reasons to stable analytical reason codes.';
+  'Maps preserved human-readable CRM archive/loss reasons to stable analytical reason codes. Won requires explicit success/completion wording.';
 
 -- Backfill without changing the original reason text.
 update public.objecten
