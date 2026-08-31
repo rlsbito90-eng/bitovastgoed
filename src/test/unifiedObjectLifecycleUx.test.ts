@@ -51,7 +51,7 @@ describe('Unified Object / Deal lifecycle UX', () => {
   });
 
   it('kan een expliciete externe verkoop nooit als gewonnen Bito-Deal sluiten', () => {
-    const migration = read('supabase/migrations/20260831150000_guard_terminal_winner_threshold.sql');
+    const migration = read('supabase/migrations/20260831162759_guard_terminal_winner_threshold.sql');
 
     expect(migration).toContain("new.archived_reason_code = 'sold_external'");
     expect(migration).toContain("fase = 'afgevallen'::public.deal_fase");

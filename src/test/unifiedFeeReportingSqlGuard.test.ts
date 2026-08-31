@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const migration = fs.readFileSync(
-  path.join(process.cwd(), 'supabase/migrations/20260831153000_guard_fee_reporting_legacy_ambiguity.sql'),
+  path.join(process.cwd(), 'supabase/migrations/20260831162825_guard_fee_reporting_legacy_ambiguity.sql'),
   'utf8',
 );
 
 const legacyBackfillMigration = fs.readFileSync(
-  path.join(process.cwd(), 'supabase/migrations/20260831154500_backfill_object_fee_forecast_from_legacy_deal.sql'),
+  path.join(process.cwd(), 'supabase/migrations/20260831195544_backfill_object_fee_forecast_from_legacy_deal.sql'),
   'utf8',
 );
 
