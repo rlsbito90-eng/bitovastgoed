@@ -146,19 +146,26 @@ comment on function public.sync_deals_from_object_terminal_status() is
 -- ---------------------------------------------------------------------------
 -- Canonical fee reporting view — explicit anti-double-count contract.
 --
--- One row per Object. The view deliberately chooses exactly one forecast source:
--- - active Deal fee, when a Deal exists;
--- - otherwise Object forecast fee.
--- Realized fee is only a closed-won Deal fee and is excluded from pipeline fee.
+-- One row per Object. Exactly one current reporting source is selected:
+-- - closed-won Deal for realized reporting;
+-- - otherwise active Deal fee;
+-- - otherwise active Object forecast fee.
+-- Archived/lost Deal fees and archived Object forecasts never remain pipeline.
 -- ---------------------------------------------------------------------------
-create or replace view public.object_fee_reporting as
+create or replace view public.object_fee_reporting
+with (security_invoker = true)
+as
 with ranked_deals as (
   select
     d.*,
     row_number() over (
       partition by d.object_id
       order by
-        case when d.closed_at is not null and d.fase = 'afgerond' then 0 else 1 end,
+        case
+          when d.closed_at is not null and d.fase = 'afgerond' then 0
+          when d.is_archived = false then 1
+          else 2
+        end,
         d.updated_at desc,
         d.created_at desc
     ) as rn
@@ -178,16 +185,23 @@ select
   end as fee_source,
   case
     when c.closed_at is not null and c.fase = 'afgerond' then 0::numeric
-    when c.id is not null then coalesce(c.commissie_bedrag, 0)::numeric
-    else coalesce(o.verwachte_fee_bedrag, 0)::numeric
+    when c.id is not null and c.is_archived = false then coalesce(c.commissie_bedrag, 0)::numeric
+    when c.id is not null then 0::numeric
+    when o.is_archived = false then coalesce(o.verwachte_fee_bedrag, 0)::numeric
+    else 0::numeric
   end as pipeline_fee,
   case
     when c.closed_at is not null and c.fase = 'afgerond'
       then coalesce(c.commissie_bedrag, 0)::numeric
     else 0::numeric
   end as realized_fee,
+  case
+    when c.closed_at is not null and c.fase = 'afgerond' then c.closed_at
+    else null
+  end as realized_at,
   o.verwachte_fee_bedrag as object_forecast_fee_reference,
-  c.commissie_bedrag as deal_fee_reference
+  c.commissie_bedrag as deal_fee_reference,
+  c.is_archived as deal_is_archived
 from public.objecten o
 left join chosen c on c.object_id = o.id
 where o.soft_deleted_at is null;
