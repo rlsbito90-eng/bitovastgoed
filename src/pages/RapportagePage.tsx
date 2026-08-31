@@ -4,7 +4,7 @@
 // Secties:
 //  1. KPI rij (gerealiseerd, pipeline, deals, gem. dealgrootte)
 //  2. Commissie per maand (lijngrafiek, dit jaar vs vorig jaar)
-//  3. Conversie funnel (deals per fase, met drop-off %)
+//  3. Object Pipeline momentum (deals per fase, met drop-off %)
 //  4. Top bronnen (welke relaties leveren meeste afgeronde deals)
 //  5. Gemiddelde doorlooptijd per fase
 //  6. Top 10 grootste afgeronde deals
@@ -18,10 +18,8 @@ import {
   formatCurrencyCompact,
   formatDate,
   ASSET_CLASS_LABELS,
-  DEAL_FASE_LABELS,
-  FASE_KANS,
 } from '@/data/mock-data';
-import type { Deal, DealFase } from '@/data/mock-data';
+import type { Deal } from '@/data/mock-data';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, ReferenceLine,
@@ -30,16 +28,16 @@ import {
   TrendingUp, Award, Target, Activity, Users, Building2, Trophy, ArrowDown,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const FASE_VOLGORDE: DealFase[] = [
-  'lead', 'introductie', 'interesse', 'bezichtiging', 'bieding',
-  'onderhandeling', 'closing', 'afgerond',
-];
+import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
+import { getTrajectoryProbability, getTrajectoryStage } from '@/lib/lifecycle/trajectory';
 
 export default function RapportagePage() {
   const store = useDataStore();
   const huidigJaar = new Date().getFullYear();
   const [jaar, setJaar] = useState(huidigJaar);
+  const unifiedFees = useUnifiedFeeReporting(jaar);
+  const defaultPipeline = store.getDefaultObjectPipeline();
+  const pipelineStages = defaultPipeline ? store.getStagesVoorPipeline(defaultPipeline.id) : [];
 
   const jaarDoel = store.getJaarDoel(jaar);
   const vorigJaarDoel = store.getJaarDoel(jaar - 1);
@@ -85,30 +83,25 @@ export default function RapportagePage() {
     });
   }, [maandData, jaarDoel]);
 
-  // Conversie funnel - deals ooit in elke fase (cumulatief richting hoger)
+  // Huidige Object Pipeline — de enige commerciële trajectfase.
   const funnel = useMemo(() => {
-    // Deals die deze fase OF een latere fase hebben bereikt
-    const dealsThisYear = store.deals.filter(d => {
-      const dealJaar = d.verwachteClosingdatum
-        ? new Date(d.verwachteClosingdatum).getFullYear()
-        : new Date(d.datumEersteContact).getFullYear();
-      return dealJaar === jaar;
-    });
+    const actieveObjecten = store.objecten.filter(object => !object.isArchived);
+    return pipelineStages
+      .filter(stage => stage.isActive && !stage.isLost)
+      .map(stage => ({
+        fase: stage.name,
+        aantal: actieveObjecten.filter(object => object.pipelineStageId === stage.id).length,
+      }))
+      .filter(row => row.aantal > 0);
+  }, [store.objecten, pipelineStages]);
 
-    return FASE_VOLGORDE.map((fase, idx) => {
-      const indexHuidig = FASE_VOLGORDE.indexOf(fase);
-      const aantal = dealsThisYear.filter(d => {
-        if (d.fase === 'afgevallen') return idx === 0; // afgevallen tellen alleen in 'lead'
-        const dealIdx = FASE_VOLGORDE.indexOf(d.fase);
-        return dealIdx >= indexHuidig;
-      }).length;
-      return { fase: DEAL_FASE_LABELS[fase], aantal };
-    });
-  }, [store.deals, jaar]);
-
-  const conversiePct = funnel[0].aantal > 0
-    ? Math.round((funnel[funnel.length - 1].aantal / funnel[0].aantal) * 100)
-    : 0;
+  const pipelineBedragTotaal = unifiedFees.stats.pipelineBedrag;
+  const pipelineBedragGewogen = unifiedFees.rows.reduce((som, row) => {
+    const object = store.getObjectById(row.objectId);
+    const stage = getTrajectoryStage(object, pipelineStages);
+    return som + row.pipelineFee * getTrajectoryProbability(stage);
+  }, 0);
+  const pipelineAantalObjecten = unifiedFees.rows.filter(row => row.pipelineFee > 0).length;
 
   // Top bronnen — relaties met meeste afgeronde deals
   const topBronnen = useMemo(() => {
@@ -218,14 +211,14 @@ export default function RapportagePage() {
         <KPICard
           icon={TrendingUp}
           label="Pipeline (gewogen)"
-          value={formatCurrencyCompact(stats.pipelineBedragGewogen)}
-          subtext={`${stats.pipelineAantalDeals} actief · totaal ${formatCurrencyCompact(stats.pipelineBedragTotaal)}`}
+          value={formatCurrencyCompact(pipelineBedragGewogen)}
+          subtext={`${pipelineAantalObjecten} objecten · totaal ${formatCurrencyCompact(pipelineBedragTotaal)}`}
         />
         <KPICard
           icon={Activity}
-          label="Conversie funnel"
-          value={`${conversiePct}%`}
-          subtext={`${funnel[0].aantal} leads → ${funnel[funnel.length - 1].aantal} closes`}
+          label="Object Pipeline"
+          value={`${funnel.length} actieve fases`}
+          subtext={`${store.objecten.filter(object => !object.isArchived).length} actieve objecten`}
         />
         <KPICard
           icon={Building2}
@@ -315,7 +308,7 @@ export default function RapportagePage() {
       {/* Conversiefunnel */}
       <div className="section-card p-5 sm:p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="section-title">Conversie funnel · {jaar}</h2>
+          <h2 className="section-title">Object Pipeline momentum · {jaar}</h2>
           <span className="text-xs text-muted-foreground">
             {funnel[0].aantal} leads → {funnel[funnel.length - 1].aantal} closes ({conversiePct}%)
           </span>

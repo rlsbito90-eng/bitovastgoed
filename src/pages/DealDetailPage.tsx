@@ -47,6 +47,7 @@ export default function DealDetailPage() {
   const navigate = useNavigate();
   const store = useDataStore();
   const deal = store.getDealById(id!);
+  const trajectory = useObjectTrajectoryStage(deal?.objectId);
   const [editOpen, setEditOpen] = useState(false);
   const [archiefOpen, setArchiefOpen] = useState(false);
 
@@ -61,7 +62,7 @@ export default function DealDetailPage() {
 
   const relatie = store.getRelatieById(deal.relatieId);
   const object = store.getObjectById(deal.objectId);
-  const { stage: trajectfase, probability: trajectKans, isTransactionPosition } = useObjectTrajectoryStage(deal.objectId);
+  const { stage: trajectfase, probability: trajectKans, isTransactionPosition } = trajectory;
   const isAfgerond = deal.fase === 'afgerond';
   const isAfgevallen = deal.fase === 'afgevallen';
   const legacyRelatieIsEigenaar = Boolean(object?.eigenaarRelatieId && deal.relatieId === object.eigenaarRelatieId);
@@ -145,7 +146,7 @@ export default function DealDetailPage() {
             <TrajectoryStageBadge objectId={deal.objectId} showIcon />
           </div>
           <p className="text-sm text-muted-foreground mt-1.5 break-words">
-            {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'} · {object?.plaats}
+            {isTransactionPosition && relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : 'Legacy Deal-record'} · {object?.plaats}
           </p>
         </div>
       </div>

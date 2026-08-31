@@ -55,7 +55,8 @@ export default function DealsPage() {
   }, [zoek, faseFilter, archiefView]);
 
   const aantalArchief = deals.filter(d => d.isArchived).length;
-  const aantalActief = deals.length - aantalArchief;
+  const aantalLegacy = deals.filter(d => !d.isArchived && !concreteForDeal(d)).length;
+  const aantalActief = deals.filter(d => !d.isArchived && concreteForDeal(d)).length;
 
   const sortOptions = useMemo<SortOption<Deal>[]>(() => {
     const lc = (d: Deal) => getLaatsteContactDatum(d.relatieId, contactMoments);
@@ -72,14 +73,14 @@ export default function DealsPage() {
       { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<Deal>(d => (d as any).updatedAt ?? d.datumFollowUp ?? d.datumEersteContact, 'desc') },
       { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<Deal>(d => d.datumEersteContact, 'desc') },
     ];
-  }, [contactMoments, getObjectById]);
+  }, [contactMoments, getObjectById, pipelineStages]);
 
   const [sortValue, setSortValue] = useSortPreference('deals', 'slim', sortOptions.map(o => o.value));
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
   const filtered = useMemo(() => {
     const list = deals.filter(d => {
-      if (archiefView === 'actief' && d.isArchived) return false;
+      if (archiefView === 'actief' && (d.isArchived || !concreteForDeal(d))) return false;
       if (archiefView === 'archief' && !d.isArchived) return false;
       const obj = getObjectById(d.objectId);
       const rel = getRelatieById(d.relatieId);
@@ -116,7 +117,7 @@ export default function DealsPage() {
     <div className="page-shell-wide">
       <PageHeader
         title="Deals"
-        subtitle={`${aantalActief} actief · ${aantalArchief} gearchiveerd`}
+        subtitle={`${aantalActief} concrete transacties · ${aantalLegacy} legacy · ${aantalArchief} gearchiveerd`}
         actions={
           <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
             <Plus className="h-4 w-4" /> Nieuwe deal
@@ -170,7 +171,7 @@ export default function DealsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground truncate">{obj?.titel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{getRelatieNaamCompact(rel, contactpersonen)} · {obj?.plaats}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{concreteForDeal(deal) ? getRelatieNaamCompact(rel, contactpersonen) : `Legacy partij · ${getRelatieNaamCompact(rel, contactpersonen)}`} · {obj?.plaats}</p>
                       <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                         <span className="text-xs font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</span>
                         <Sterren aantal={deal.interessegraad} />
@@ -207,7 +208,7 @@ export default function DealsPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="text-left px-5 py-3 field-label">Object</th>
-                    <th className="text-left px-5 py-3 field-label">Relatie</th>
+                    <th className="text-left px-5 py-3 field-label">Partij</th>
                     <th className="text-right px-5 py-3 field-label hidden lg:table-cell">Waarde</th>
                     <th className="text-center px-5 py-3 field-label hidden lg:table-cell">Interesse</th>
                     <th className="text-left px-5 py-3 field-label">Trajectfase</th>
@@ -228,7 +229,7 @@ export default function DealsPage() {
                           <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj?.titel}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{obj?.plaats}</p>
                         </td>
-                        <td className="px-5 py-3.5 text-foreground truncate max-w-[200px]">{getRelatieNaamCompact(rel, contactpersonen)}</td>
+                        <td className="px-5 py-3.5 text-foreground truncate max-w-[200px]">{concreteForDeal(deal) ? getRelatieNaamCompact(rel, contactpersonen) : <>Legacy · {getRelatieNaamCompact(rel, contactpersonen)}</>}</td>
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data text-foreground">{formatCurrency(obj?.vraagprijs)}</td>
                         <td className="px-5 py-3.5 text-center hidden lg:table-cell">
                           <Sterren aantal={deal.interessegraad} />
