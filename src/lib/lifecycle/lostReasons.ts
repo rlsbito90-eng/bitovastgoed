@@ -50,7 +50,7 @@ export function classifyLostReason(reason?: string | null): LostReasonCode | und
   const r = reason?.trim().toLowerCase();
   if (!r) return undefined;
 
-  if (r.includes('succesvol') || r.includes('afgerond')) return 'won';
+  if (r.includes('succesvol') || r.includes('afgerond') || r.includes('via bito')) return 'won';
   if (r.includes('prijs') || r.includes('waard') || r.includes('te duur')) return 'price_gap';
   if (r.includes('extern') || r.includes('andere partij') || r.includes('derde')) return 'sold_external';
   if (r.includes('ingetrokken') || r.includes('eigenaar')) return 'seller_withdrew';
