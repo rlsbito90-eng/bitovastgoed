@@ -1,12 +1,13 @@
 // src/components/dashboard/CommissieWidget.tsx
 // Dashboard widget: objectvoorraad + successen + commissie-stats.
 //
-// Objecten zijn de primaire commerciële laag. Deals zijn alleen de latere
-// transactiepositie. Daarom toont dit dashboard naast commissie voortaan ook
-// expliciete KPI's over actieve objecten en beschikbaarheid.
+// Objecten zijn de primaire commerciële laag. Fee-rapportage gebruikt één
+// canonieke bron per object: Objectforecast vóór Deal, Deal fee zodra een
+// concrete transactie bestaat, gerealiseerde Deal fee na closing.
 
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import {
   berekenCommissieStats,
@@ -14,7 +15,6 @@ import {
   formatCurrency,
   formatCurrencyCompact,
   formatDate,
-  DEAL_FASE_LABELS,
 } from '@/data/mock-data';
 import {
   Trophy, TrendingUp, Target, Award, ArrowRight, Building2,
@@ -25,6 +25,7 @@ export default function CommissieWidget() {
   const store = useDataStore();
   const huidigJaar = new Date().getFullYear();
   const jaarDoel = store.getJaarDoel(huidigJaar);
+  const unifiedFees = useUnifiedFeeReporting();
 
   const actieveObjecten = store.objecten.filter(o => !o.isArchived);
   const beschikbareObjecten = actieveObjecten.filter(o => o.status === 'beschikbaar');
@@ -36,24 +37,36 @@ export default function CommissieWidget() {
   const aanbodvolume = actieveObjecten.reduce((som, o) => som + (o.vraagprijs ?? 0), 0);
   const objectenMetVraagprijs = actieveObjecten.filter(o => (o.vraagprijs ?? 0) > 0).length;
 
-  const stats = berekenCommissieStats(
+  // Legacy helper blijft voorlopig alleen voor gerealiseerde dealwaarde/YTD en
+  // recente successen. Fee-bedragen komen uitsluitend uit object_fee_reporting.
+  const legacyStats = berekenCommissieStats(
     store.deals,
     (objectId) => store.getObjectById(objectId)?.vraagprijs,
     huidigJaar,
   );
 
+  const gerealiseerdeFee = unifiedFees.error
+    ? legacyStats.gerealiseerdBedrag
+    : unifiedFees.stats.gerealiseerdBedrag;
+  const pipelineFee = unifiedFees.error
+    ? legacyStats.pipelineBedragTotaal
+    : unifiedFees.stats.pipelineBedrag;
+  const gerealiseerdAantal = unifiedFees.error
+    ? legacyStats.gerealiseerdAantalDeals
+    : unifiedFees.stats.gerealiseerdAantal;
+
   const commissiePct = jaarDoel?.commissieDoelBedrag
-    ? Math.min(100, Math.round((stats.gerealiseerdBedrag / jaarDoel.commissieDoelBedrag) * 100))
+    ? Math.min(100, Math.round((gerealiseerdeFee / jaarDoel.commissieDoelBedrag) * 100))
     : undefined;
 
   const dealwaardePct = jaarDoel?.dealwaardeDoelBedrag
-    ? Math.min(100, Math.round((stats.dealwaardeGerealiseerd / jaarDoel.dealwaardeDoelBedrag) * 100))
+    ? Math.min(100, Math.round((legacyStats.dealwaardeGerealiseerd / jaarDoel.dealwaardeDoelBedrag) * 100))
     : undefined;
 
   const recenteSuccessen = getRecenteSuccessen(store.deals, 3);
 
-  const gemiddeldeCommissie = stats.gerealiseerdAantalDeals > 0
-    ? stats.gerealiseerdBedrag / stats.gerealiseerdAantalDeals
+  const gemiddeldeCommissie = gerealiseerdAantal > 0
+    ? gerealiseerdeFee / gerealiseerdAantal
     : 0;
 
   return (
@@ -140,9 +153,7 @@ export default function CommissieWidget() {
             </Link>
           </div>
 
-          {/* Top: gerealiseerd + pipeline */}
           <div className="grid sm:grid-cols-2 gap-4">
-            {/* Gerealiseerd */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Award className="h-4 w-4 text-green-600" />
@@ -151,12 +162,12 @@ export default function CommissieWidget() {
                 </span>
               </div>
               <p className="text-3xl font-semibold font-mono-data text-foreground">
-                <span className="sm:hidden">{formatCurrencyCompact(stats.gerealiseerdBedrag)}</span>
-                <span className="hidden sm:inline">{formatCurrency(stats.gerealiseerdBedrag)}</span>
+                <span className="sm:hidden">{formatCurrencyCompact(gerealiseerdeFee)}</span>
+                <span className="hidden sm:inline">{formatCurrency(gerealiseerdeFee)}</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                {stats.gerealiseerdAantalDeals} afgeronde deal{stats.gerealiseerdAantalDeals === 1 ? '' : 's'}
-                {stats.gerealiseerdAantalDeals > 0 && ` · gem. ${formatCurrencyCompact(gemiddeldeCommissie)}`}
+                {gerealiseerdAantal} afgeronde deal{gerealiseerdAantal === 1 ? '' : 's'}
+                {gerealiseerdAantal > 0 && ` · gem. ${formatCurrencyCompact(gemiddeldeCommissie)}`}
               </p>
               {commissiePct !== undefined && jaarDoel?.commissieDoelBedrag && (
                 <div className="pt-1">
@@ -178,29 +189,34 @@ export default function CommissieWidget() {
               )}
             </div>
 
-            {/* Pipeline */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-accent" />
                 <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Transactiepipeline (legacy)
+                  Fee pipeline
                 </span>
               </div>
               <p className="text-2xl sm:text-3xl font-semibold font-mono-data text-foreground whitespace-nowrap">
-                {formatCurrency(stats.pipelineBedragTotaal)}
+                {formatCurrency(pipelineFee)}
               </p>
               <p className="text-xs text-muted-foreground">
-                {stats.pipelineAantalDeals} actieve deal{stats.pipelineAantalDeals === 1 ? '' : 's'} ·
-                gewogen {formatCurrency(stats.pipelineBedragGewogen)}
+                {unifiedFees.error
+                  ? `${legacyStats.pipelineAantalDeals} legacy Deals`
+                  : `${unifiedFees.stats.objectForecastAantal} Objectprognoses · ${unifiedFees.stats.dealForecastAantal} concrete Deals`}
               </p>
               <p className="text-[11px] text-muted-foreground italic">
-                Wordt in deze refactor vervangen door Object Pipeline + objectfee-prognose.
+                Eén economische fee per object: Deal fee vervangt Objectforecast; closing verschuift dezelfde fee naar gerealiseerd.
               </p>
             </div>
           </div>
+
+          {unifiedFees.error && (
+            <p className="mt-3 text-[11px] text-warning">
+              Nieuwe feeprojectie nog niet beschikbaar; dashboard gebruikt tijdelijk de bestaande Deal-rapportage totdat de migratie actief is.
+            </p>
+          )}
         </div>
 
-        {/* Dealwaarde doel */}
         {jaarDoel?.dealwaardeDoelBedrag && (
           <div className="pt-4 border-t border-border/60">
             <div className="flex items-center gap-2 mb-1.5">
@@ -209,7 +225,7 @@ export default function CommissieWidget() {
                 Dealwaarde YTD
               </span>
               <span className="text-xs font-mono-data text-foreground ml-auto whitespace-nowrap">
-                {formatCurrency(stats.dealwaardeGerealiseerd)} / {formatCurrency(jaarDoel.dealwaardeDoelBedrag)}
+                {formatCurrency(legacyStats.dealwaardeGerealiseerd)} / {formatCurrency(jaarDoel.dealwaardeDoelBedrag)}
               </span>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -221,7 +237,6 @@ export default function CommissieWidget() {
           </div>
         )}
 
-        {/* Recente successen */}
         {recenteSuccessen.length > 0 && (
           <div className="pt-4 border-t border-border/60">
             <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-3">
@@ -258,7 +273,6 @@ export default function CommissieWidget() {
           </div>
         )}
 
-        {/* Geen doel geconfigureerd */}
         {!jaarDoel && (
           <div className="pt-4 border-t border-border/60">
             <p className="text-xs text-muted-foreground">
