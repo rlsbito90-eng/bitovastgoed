@@ -9,35 +9,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DEAL_ARCHIVE_REASONS, OBJECT_ARCHIVE_REASONS } from '@/lib/lifecycle/lostReasons';
 
 export type ArchiveerKind = 'object' | 'deal';
-
-const OBJECT_REDENEN = [
-  'Verkocht via Bito Vastgoed',
-  'Verkocht extern / aan derde',
-  'Ingetrokken door eigenaar',
-  'Prijs / waarderingsverschil',
-  'Investment case niet haalbaar',
-  'Geen passende koper / kandidaat',
-  'Publiek op markt / niet langer off-market',
-  'Onvoldoende informatie',
-  'Proces / timing',
-  'Handmatig gearchiveerd',
-  'Anders',
-] as const;
-
-const DEAL_REDENEN = [
-  'Succesvol afgerond',
-  'Koper / kandidaat afgehaakt',
-  'Prijs / waarderingsverschil',
-  'Investment case niet haalbaar',
-  'Object verkocht aan andere partij',
-  'Object ingetrokken door eigenaar',
-  'Onvoldoende informatie',
-  'Proces / timing',
-  'Handmatig gearchiveerd',
-  'Anders',
-] as const;
 
 interface Props {
   open: boolean;
@@ -57,11 +31,11 @@ export default function ArchiveerDialog({
   open, onOpenChange, kind, defaultReason, showSkip = false, triggerHint,
   onConfirm, onSkip,
 }: Props) {
-  const canoniekeRedenen = kind === 'object' ? OBJECT_REDENEN : DEAL_REDENEN;
+  const canoniekeRedenen = kind === 'object' ? OBJECT_ARCHIVE_REASONS : DEAL_ARCHIVE_REASONS;
   const redenen = useMemo(() => {
     // Een historische/default vrije-tekstreden mag nooit stil worden vervangen.
     // Staat hij niet in de nieuwe lijst, toon hem dan als legacy-keuze bovenaan.
-    if (defaultReason && !canoniekeRedenen.includes(defaultReason as never)) {
+    if (defaultReason && !(canoniekeRedenen as readonly string[]).includes(defaultReason)) {
       return [defaultReason, ...canoniekeRedenen];
     }
     return [...canoniekeRedenen];
@@ -81,7 +55,7 @@ export default function ArchiveerDialog({
   const isAnders = reason === 'Anders';
   const isLegacy = !!defaultReason
     && defaultReason === reason
-    && !canoniekeRedenen.includes(reason as never);
+    && !(canoniekeRedenen as readonly string[]).includes(reason);
   const canConfirm = !!reason && (!isAnders || note.trim().length > 0);
 
   const handleConfirm = async () => {
@@ -120,7 +94,7 @@ export default function ArchiveerDialog({
             >
               {redenen.map(r => (
                 <option key={r} value={r}>
-                  {r}{defaultReason === r && !canoniekeRedenen.includes(r as never) ? ' (legacy)' : ''}
+                  {r}{defaultReason === r && !(canoniekeRedenen as readonly string[]).includes(r) ? ' (legacy)' : ''}
                 </option>
               ))}
             </select>
