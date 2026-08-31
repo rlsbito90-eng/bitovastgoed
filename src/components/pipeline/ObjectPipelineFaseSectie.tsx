@@ -40,6 +40,8 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
   const [statusBezig, setStatusBezig] = useState(false);
   const pipeline = getDefaultObjectPipeline();
   const stages = pipeline ? getStagesVoorPipeline(pipeline.id) : [];
+  const statusIsLegacy = !BESCHIKBAARHEIDSSTATUSSEN.includes(object.status);
+  const statusSelectValue = statusIsLegacy ? '' : object.status;
 
   const wijzigStatus = async (nieuweStatus: ObjectStatus) => {
     if (!nieuweStatus || nieuweStatus === object.status) return;
@@ -71,6 +73,24 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     }
   };
 
+  const statusSelect = (
+    <select
+      className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
+      value={statusSelectValue}
+      disabled={statusBezig}
+      onChange={e => wijzigStatus(e.target.value as ObjectStatus)}
+    >
+      {statusIsLegacy && (
+        <option value="" disabled>
+          {OBJECT_STATUS_LABELS[object.status]} — legacy, kies nieuwe status
+        </option>
+      )}
+      {BESCHIKBAARHEIDSSTATUSSEN.map(status => (
+        <option key={status} value={status}>{OBJECT_STATUS_LABELS[status]}</option>
+      ))}
+    </select>
+  );
+
   if (!pipeline || stages.length === 0) {
     return (
       <section className="section-card p-5 sm:p-6 space-y-4">
@@ -82,16 +102,12 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
             Objectstatus staat los van de commerciële trajectfase.
           </p>
         </div>
-        <select
-          className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
-          value={BESCHIKBAARHEIDSSTATUSSEN.includes(object.status) ? object.status : 'beschikbaar'}
-          disabled={statusBezig}
-          onChange={e => wijzigStatus(e.target.value as ObjectStatus)}
-        >
-          {BESCHIKBAARHEIDSSTATUSSEN.map(status => (
-            <option key={status} value={status}>{OBJECT_STATUS_LABELS[status]}</option>
-          ))}
-        </select>
+        {statusSelect}
+        {statusIsLegacy && (
+          <p className="text-[11px] text-warning">
+            Dit object gebruikt nog een oude processtatus. Er wordt niets automatisch geconverteerd; kies bewust een beschikbaarheidsstatus.
+          </p>
+        )}
         <p className="text-sm text-muted-foreground">Geen actieve Object Pipeline geconfigureerd.</p>
       </section>
     );
@@ -140,17 +156,14 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
 
           <div>
             <label className="field-label block mb-1.5">Objectstatus</label>
-            <select
-              className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
-              value={BESCHIKBAARHEIDSSTATUSSEN.includes(object.status) ? object.status : 'beschikbaar'}
-              disabled={statusBezig}
-              onChange={e => wijzigStatus(e.target.value as ObjectStatus)}
-            >
-              {BESCHIKBAARHEIDSSTATUSSEN.map(status => (
-                <option key={status} value={status}>{OBJECT_STATUS_LABELS[status]}</option>
-              ))}
-            </select>
+            {statusSelect}
           </div>
+
+          {statusIsLegacy && (
+            <p className="text-[11px] text-warning">
+              Huidige waarde is een oude processtatus. Kies bewust een nieuwe beschikbaarheidsstatus; er vindt geen stille conversie plaats.
+            </p>
+          )}
 
           <p className="text-[11px] text-muted-foreground">
             Verkocht en Ingetrokken archiveren het object automatisch. Terugzetten naar een actieve status activeert het object weer.
