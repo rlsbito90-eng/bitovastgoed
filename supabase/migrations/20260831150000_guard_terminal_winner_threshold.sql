@@ -4,6 +4,8 @@
 -- enough evidence that Bito closed the transaction. Without an accepted bid,
 -- the Object must already have reached Preferred bidder / exclusiviteit (or a
 -- later stage) before a single active Deal may be inferred as the winner.
+-- In addition, a sold Object realizes a Deal only when the archive reason is
+-- explicitly classified as won. Unknown/legacy sold reasons fail safe.
 
 create or replace function public.sync_deals_from_object_terminal_status()
 returns trigger
@@ -45,7 +47,6 @@ begin
 
   -- Explicit external sale is authoritative. Even if this object previously
   -- reached preferred bidder, Bito must not receive a realized transaction fee.
-  -- All still-active transaction attempts lose because another party closed.
   if new.archived_reason_code = 'sold_external' then
     update public.deals
     set fase = 'afgevallen'::public.deal_fase,
@@ -62,7 +63,13 @@ begin
     return new;
   end if;
 
-  -- Strongest evidence: an accepted bid explicitly linked to a Deal.
+  -- Fail safe: status=verkocht is op zichzelf géén bewijs van een Bito-closing.
+  -- Alleen een expliciet als won geclassificeerde reden mag realized fee creëren.
+  if new.archived_reason_code is distinct from 'won' then
+    return new;
+  end if;
+
+  -- Strongest transaction evidence: an accepted bid explicitly linked to a Deal.
   select b.deal_id
     into v_winner_deal_id
   from public.biedingen b
@@ -110,8 +117,7 @@ begin
     end if;
   end if;
 
-  -- No safely identified winner = no Bito realized transaction. This includes
-  -- ambiguous historical candidate-Deal data.
+  -- No safely identified winner = no Bito realized transaction.
   if v_winner_deal_id is null then
     return new;
   end if;
@@ -144,4 +150,4 @@ end;
 $$;
 
 comment on function public.sync_deals_from_object_terminal_status() is
-  'Terminal Object sync with strict winner guard: explicit external sale never wins; otherwise accepted bid, or exactly one active Deal only after preferred bidder / exclusivity. Never guesses a winner from legacy candidate Deals.';
+  'Terminal Object sync with strict winner guard: sold realizes fee only for explicit won reason plus accepted bid, or exactly one active Deal after preferred bidder / exclusivity. External and unknown sold reasons never create realized fee.';
