@@ -67,7 +67,9 @@ export default function BulkEmailVoorbereidenDialog({ open, onClose, signalen, b
     setGeselecteerdVoorRegistratie(new Set(
       plan.filter((item) => item.actie === 'hergebruiken' && item.bestaandeBrief).map((item) => item.key),
     ));
-  }, [open]); // Bewust alleen bij openen resetten; query-refetches mogen lokale voortgang niet wissen.
+    // Alleen bij openen resetten; query-refetches mogen lokale voortgang niet wissen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const aanTeMaken = plan.filter((item) => item.actie === 'aanmaken' && !aangemaaktPerKey[item.key]);
   const hergebruikt = plan.filter((item) => item.actie === 'hergebruiken').length;
@@ -87,6 +89,7 @@ export default function BulkEmailVoorbereidenDialog({ open, onClose, signalen, b
   const vernieuwBulkCaches = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['off-market-brieven-bulk'] }),
+      queryClient.invalidateQueries({ queryKey: ['off-market-brieven-partijoverzicht'] }),
       queryClient.invalidateQueries({ queryKey: ['off_market_brieven'] }),
       queryClient.invalidateQueries({ queryKey: ['radar-party-campaign-context'] }),
     ]);
@@ -207,6 +210,7 @@ export default function BulkEmailVoorbereidenDialog({ open, onClose, signalen, b
         toast.success(`${gelukt} e-mail${gelukt === 1 ? '' : 's'} als verzonden geregistreerd`, {
           description: 'De opvolgdatum wordt vanuit de bestaande e-maillogica gezet.',
         });
+        onClose();
       } else {
         toast.error(`${gelukt} van ${aantal} e-mails geregistreerd`, {
           description: 'Niet-geregistreerde concepten blijven beschikbaar.',
@@ -223,7 +227,7 @@ export default function BulkEmailVoorbereidenDialog({ open, onClose, signalen, b
         <DialogHeader>
           <DialogTitle>Centrale e-mailopvolging</DialogTitle>
           <DialogDescription>
-            Bereid E-mail 1, 2 of 3 voor vanuit de Radar-selectie. De volgende stap wordt uit de bestaande e-mailhistorie bepaald. Er wordt niets automatisch verstuurd.
+            Bereid E-mail 1, 2 of 3 voor vanuit de Radar-selectie. De volgende stap wordt uit de partijbrede e-mailhistorie bepaald. Er wordt niets automatisch verstuurd.
           </DialogDescription>
         </DialogHeader>
 
@@ -277,7 +281,7 @@ export default function BulkEmailVoorbereidenDialog({ open, onClose, signalen, b
                           registreren
                         </label>
                       )}
-                      {(brief || aangemaaktPerKey[item.key]) && (
+                      {brief && (
                         <Button type="button" size="sm" variant="outline" onClick={() => void kopieerEmail(item)}>
                           <Copy className="h-3.5 w-3.5" />Kopieer e-mail
                         </Button>
