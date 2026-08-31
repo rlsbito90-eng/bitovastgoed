@@ -3,7 +3,7 @@ import { saveListContext } from '@/lib/listNavigation';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, formatDate } from '@/data/mock-data';
-import { DealFaseBadge } from '@/components/StatusBadges';
+import TrajectoryStageBadge from '@/components/pipeline/TrajectoryStageBadge';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, ChevronRight, Star, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,13 +15,11 @@ import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 import SortDropdown from '@/components/SortDropdown';
 import { useSortPreference } from '@/hooks/useSortPreference';
 import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
-import { smartDealCompare, getDealGewogenCommissie } from '@/lib/sorting/urgency';
+import { getPreferredBidderStage, getTrajectoryProbability, getTrajectoryStage, isConcreteTransactionPosition } from '@/lib/lifecycle/trajectory';
 import { getLaatsteContactDatum } from '@/lib/relatieContact';
 import type { SortOption } from '@/lib/sorting/types';
 import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import { loadDealsViewState, saveDealsViewState, type DealsArchiefView } from '@/lib/dealsViewState';
-
-const faseOptions: DealFase[] = ['lead', 'introductie', 'interesse', 'bezichtiging', 'bieding', 'onderhandeling', 'closing', 'afgerond', 'afgevallen'];
 
 function Sterren({ aantal }: { aantal: number }) {
   return (
@@ -38,12 +36,19 @@ function Sterren({ aantal }: { aantal: number }) {
 
 export default function DealsPage() {
   const navigate = useNavigate();
-  const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal, contactMoments } = useDataStore();
+  const { deals, getRelatieById, getObjectById, contactpersonen, unarchiveDeal, contactMoments, getDefaultObjectPipeline, getStagesVoorPipeline } = useDataStore();
   const initialView = useMemo(() => loadDealsViewState(), []);
   const [zoek, setZoek] = useState(initialView.zoek);
-  const [faseFilter, setFaseFilter] = useState<DealFase | ''>(initialView.faseFilter);
+  const [faseFilter] = useState<DealFase | ''>('');
   const [archiefView, setArchiefView] = useState<DealsArchiefView>(initialView.archiefView);
   const [formOpen, setFormOpen] = useState(false);
+  const defaultPipeline = getDefaultObjectPipeline();
+  const pipelineStages = defaultPipeline ? getStagesVoorPipeline(defaultPipeline.id) : [];
+  const preferredBidderStage = getPreferredBidderStage(pipelineStages);
+  const stageForDeal = (deal: Deal) => getTrajectoryStage(getObjectById(deal.objectId), pipelineStages);
+  const stageOrderForDeal = (deal: Deal) => stageForDeal(deal)?.sortOrder ?? 0;
+  const weightedFeeForDeal = (deal: Deal) => (deal.commissieBedrag ?? 0) * getTrajectoryProbability(stageForDeal(deal));
+  const concreteForDeal = (deal: Deal) => isConcreteTransactionPosition(stageForDeal(deal), preferredBidderStage);
 
   useEffect(() => {
     saveDealsViewState({ zoek, faseFilter, archiefView });
@@ -56,14 +61,14 @@ export default function DealsPage() {
     const lc = (d: Deal) => getLaatsteContactDatum(d.relatieId, contactMoments);
     const obj = (d: Deal) => getObjectById(d.objectId);
     return [
-      { value: 'slim', label: 'Slimme volgorde', compare: smartDealCompare() },
+      { value: 'slim', label: 'Slimme volgorde', compare: combine(byNumber<Deal>(stageOrderForDeal, 'desc'), byDate<Deal>(d => d.datumFollowUp, 'asc')) },
       { value: 'volgende_actie', label: 'Volgende actie eerst', compare: combine(byDate<Deal>(d => d.datumFollowUp, 'asc'), byString<Deal>(d => obj(d)?.titel ?? '')) },
       { value: 'lc', label: 'Laatste contact eerst', compare: byDate<Deal>(lc, 'desc') },
       { value: 'dealwaarde', label: 'Dealwaarde hoog-laag', compare: byNumber<Deal>(d => obj(d)?.vraagprijs, 'desc') },
       { value: 'commissie', label: 'Commissie hoog-laag', compare: byNumber<Deal>(d => d.commissieBedrag, 'desc') },
-      { value: 'gewogen', label: 'Gewogen commissie hoog-laag', compare: byNumber<Deal>(d => getDealGewogenCommissie(d), 'desc') },
-      { value: 'fase', label: 'Fase', compare: combine(byString<Deal>(d => d.fase), byDate<Deal>(d => d.datumFollowUp, 'asc')) },
-      { value: 'status', label: 'Status', compare: combine((a, b) => Number(!!a.isArchived) - Number(!!b.isArchived), byString<Deal>(d => d.fase)) },
+      { value: 'gewogen', label: 'Gewogen commissie hoog-laag', compare: byNumber<Deal>(weightedFeeForDeal, 'desc') },
+      { value: 'fase', label: 'Trajectfase', compare: combine(byNumber<Deal>(stageOrderForDeal, 'desc'), byDate<Deal>(d => d.datumFollowUp, 'asc')) },
+      { value: 'status', label: 'Status', compare: combine((a, b) => Number(!!a.isArchived) - Number(!!b.isArchived), byNumber<Deal>(stageOrderForDeal, 'desc')) },
       { value: 'gewijzigd', label: 'Laatst gewijzigd', compare: byDate<Deal>(d => (d as any).updatedAt ?? d.datumFollowUp ?? d.datumEersteContact, 'desc') },
       { value: 'nieuwste', label: 'Nieuwste eerst', compare: byDate<Deal>(d => d.datumEersteContact, 'desc') },
     ];
@@ -79,8 +84,7 @@ export default function DealsPage() {
       const obj = getObjectById(d.objectId);
       const rel = getRelatieById(d.relatieId);
       const matchZoek = !zoek || obj?.titel.toLowerCase().includes(zoek.toLowerCase()) || (rel?.bedrijfsnaam ?? '').toLowerCase().includes(zoek.toLowerCase()) || getRelatieNaamCompact(rel, contactpersonen).toLowerCase().includes(zoek.toLowerCase());
-      const matchFase = !faseFilter || d.fase === faseFilter;
-      return matchZoek && matchFase;
+      return matchZoek;
     });
     return [...list].sort(activeSort.compare);
   }, [deals, archiefView, zoek, faseFilter, contactpersonen, getObjectById, getRelatieById, activeSort]);
@@ -140,10 +144,6 @@ export default function DealsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Zoek op object of relatie..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
         </div>
-        <select className="h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={faseFilter} onChange={e => setFaseFilter(e.target.value as DealFase | '')}>
-          <option value="">Alle fases</option>
-          {faseOptions.map(f => <option key={f} value={f} className="capitalize">{f.charAt(0).toUpperCase() + f.slice(1)}</option>)}
-        </select>
         <div className="sm:ml-auto">
           <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
         </div>
@@ -190,7 +190,8 @@ export default function DealsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <DealFaseBadge fase={deal.fase} />
+                      <TrajectoryStageBadge objectId={deal.objectId} />
+                      {!concreteForDeal(deal) && !deal.isArchived && <span className="text-[10px] font-semibold text-warning border border-warning/30 bg-warning/10 rounded-full px-1.5 py-0.5">Legacy</span>}
                       <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
                     </div>
                   </div>
@@ -209,7 +210,7 @@ export default function DealsPage() {
                     <th className="text-left px-5 py-3 field-label">Relatie</th>
                     <th className="text-right px-5 py-3 field-label hidden lg:table-cell">Waarde</th>
                     <th className="text-center px-5 py-3 field-label hidden lg:table-cell">Interesse</th>
-                    <th className="text-left px-5 py-3 field-label">Fase</th>
+                    <th className="text-left px-5 py-3 field-label">Trajectfase</th>
                     {isArchiefView && <th className="text-left px-5 py-3 field-label">Archief</th>}
                   </tr>
                 </thead>
@@ -234,7 +235,8 @@ export default function DealsPage() {
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <DealFaseBadge fase={deal.fase} />
+                            <TrajectoryStageBadge objectId={deal.objectId} />
+                      {!concreteForDeal(deal) && !deal.isArchived && <span className="text-[10px] font-semibold text-warning border border-warning/30 bg-warning/10 rounded-full px-1.5 py-0.5">Legacy</span>}
                             {!deal.isArchived && !deal.datumFollowUp && <GeenActieBadge />}
                             {!deal.isArchived && isVerlopen(deal.datumFollowUp) && <GeenActieBadge variant="verlopen" date={deal.datumFollowUp} />}
                           </div>

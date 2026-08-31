@@ -6,11 +6,9 @@ import {
   formatCurrencyCompact,
   formatDate,
   formatEurPerM2,
-  DEAL_FASE_LABELS,
   DD_STATUS_LABELS,
-  FASE_KANS,
 } from '@/data/mock-data';
-import { DealFaseBadge, LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
+import { LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, Pencil, Trash2, Star, Trophy, AlertCircle,
   Building2, Landmark, Users as UsersIcon, Archive, ArchiveRestore,
@@ -22,7 +20,6 @@ import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
-import DealKandidatenSectie from '@/components/deal/DealKandidatenSectie';
 import BiedingenSection from '@/components/biedingen/BiedingenSection';
 
 import DealMarktwaardeReadOnly from '@/components/deal/DealMarktwaardeReadOnly';
@@ -33,6 +30,8 @@ import {
 import { toast } from 'sonner';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
+import TrajectoryStageBadge from '@/components/pipeline/TrajectoryStageBadge';
+import { useObjectTrajectoryStage } from '@/hooks/useObjectTrajectoryStage';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -62,10 +61,12 @@ export default function DealDetailPage() {
 
   const relatie = store.getRelatieById(deal.relatieId);
   const object = store.getObjectById(deal.objectId);
+  const { stage: trajectfase, probability: trajectKans, isTransactionPosition } = useObjectTrajectoryStage(deal.objectId);
   const isAfgerond = deal.fase === 'afgerond';
   const isAfgevallen = deal.fase === 'afgevallen';
+  const legacyRelatieIsEigenaar = Boolean(object?.eigenaarRelatieId && deal.relatieId === object.eigenaarRelatieId);
   const gewogenCommissie = deal.commissieBedrag != null
-    ? deal.commissieBedrag * (FASE_KANS[deal.fase] ?? 0)
+    ? deal.commissieBedrag * trajectKans
     : null;
 
   const handleDelete = async () => {
@@ -141,13 +142,25 @@ export default function DealDetailPage() {
             {object?.titel || 'Deal'}
           </h1>
           <div className="mt-2">
-            <DealFaseBadge fase={deal.fase} />
+            <TrajectoryStageBadge objectId={deal.objectId} showIcon />
           </div>
           <p className="text-sm text-muted-foreground mt-1.5 break-words">
             {relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'} · {object?.plaats}
           </p>
         </div>
       </div>
+
+      {!isTransactionPosition && !isAfgerond && !isAfgevallen && (
+        <div className="bg-warning/8 border border-warning/30 rounded-md p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Legacy Deal-record</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Dit record komt uit het oude model. De Object Pipeline is leidend; deze relatie is niet automatisch de koper.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Banner: gefeliciteerd of afgevallen */}
       {isAfgerond && (
@@ -183,7 +196,7 @@ export default function DealDetailPage() {
           <section className="section-card p-5 sm:p-6 space-y-5">
             <h2 className="section-title">Dealgegevens</h2>
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="Dealfase">{DEAL_FASE_LABELS[deal.fase]}</Field>
+              <Field label="Trajectfase">{trajectfase?.name ?? 'Niet ingesteld'}</Field>
               <Field label="Interessegraad">
                 <span className="inline-flex items-center gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -273,7 +286,7 @@ export default function DealDetailPage() {
                 {gewogenCommissie != null && !isAfgerond && !isAfgevallen && (
                   <div className="p-3 bg-muted/40 rounded-md">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Gewogen ({Math.round((FASE_KANS[deal.fase] ?? 0) * 100)}%)
+                      Gewogen ({Math.round(trajectKans * 100)}%)
                     </p>
                     <p className="text-base font-semibold font-mono-data mt-0.5">
                       {formatCurrencyCompact(gewogenCommissie)}
@@ -344,11 +357,10 @@ export default function DealDetailPage() {
           )}
 
           <DealObjectenSectie dealId={deal.id} primairObjectId={deal.objectId} />
-          <DealKandidatenSectie dealId={deal.id} primaireRelatieId={deal.relatieId} />
           <BiedingenSection
             scope={{ dealId: deal.id }}
             vraagprijs={object?.vraagprijs ?? null}
-            defaults={{ dealId: deal.id, objectId: deal.objectId, relatieId: deal.relatieId }}
+            defaults={{ dealId: deal.id, objectId: deal.objectId, relatieId: isTransactionPosition ? deal.relatieId : undefined }}
           />
           {object && <DealMarktwaardeReadOnly object={object} />}
 
@@ -360,7 +372,7 @@ export default function DealDetailPage() {
             <Link to={`/relaties/${relatie.id}`} className="block section-card p-5 sm:p-6 hover:border-accent/40 transition-colors space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="section-title flex items-center gap-2">
-                  <UsersIcon className="h-4 w-4 text-muted-foreground" /> Primaire relatie
+                  <UsersIcon className="h-4 w-4 text-muted-foreground" /> {isTransactionPosition ? 'Koper / preferred bidder' : legacyRelatieIsEigenaar ? 'Verkoper / eigenaar · legacy' : 'Oude Deal-relatie · legacy'}
                 </h2>
                 <LeadStatusBadge status={relatie.leadStatus} />
               </div>
@@ -368,6 +380,11 @@ export default function DealDetailPage() {
                 <RelatieNaamDisplay relatie={relatie} />
                 {relatie.investeerderSubtype && (
                   <p className="text-xs text-muted-foreground capitalize mt-1">{relatie.investeerderSubtype.replace('_', ' ')}</p>
+                )}
+                {!isTransactionPosition && (
+                  <p className="text-xs text-warning mt-2 leading-relaxed">
+                    Oude Deal-koppeling; niet leidend voor koper of traject. Kandidaten en voortgang worden via het Object beheerd.
+                  </p>
                 )}
               </div>
               <div className="text-sm space-y-1 hairline pt-3">
