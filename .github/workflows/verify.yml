@@ -77,7 +77,21 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install dependencies
+      - name: Diagnose en synchroniseer npm-lock tijdelijk
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          git diff --stat -- package-lock.json
+          git diff -- package-lock.json > npm-lock-diff.patch
+
+      - name: Upload npm-lock diagnose
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-lock-diff
+          path: npm-lock-diff.patch
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Install dependencies deterministisch
         run: npm ci
 
       - name: Typecheck
