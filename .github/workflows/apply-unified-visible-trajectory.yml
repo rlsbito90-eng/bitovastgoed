@@ -1,0 +1,38 @@
+name: Apply unified visible trajectory codemod
+
+on:
+  push:
+    branches:
+      - fix/unified-visible-trajectory-phase
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/unified-visible-trajectory-phase
+          fetch-depth: 0
+
+      - name: Apply guarded codemod
+        run: python scripts/codemod_unified_visible_trajectory.py
+
+      - name: Validate diff whitespace
+        run: git diff --check
+
+      - name: Commit codemod result
+        run: |
+          if git diff --quiet; then
+            echo "No codemod changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/DealDetailPage.tsx src/pages/DealsPage.tsx src/components/forms/DealFormDialog.tsx
+          git commit -m "fix: toon alleen canonieke Object trajectfase [trajectory-codemod]"
+          git push origin HEAD:fix/unified-visible-trajectory-phase
