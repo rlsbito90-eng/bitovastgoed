@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  summarizeUnifiedFees,
+  type UnifiedFeeRecord,
+} from '@/lib/lifecycle/feeReporting';
 
 /**
  * Reads the database-level one-fee-per-object projection.
@@ -10,16 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
  * - after closed won: the same Deal fee is realized and no longer pipeline;
  * - legacy candidate Deal rows do not suppress Object forecasts.
  */
-export interface UnifiedFeeRow {
-  objectId: string;
-  dealId?: string;
-  feeSource: 'object' | 'deal';
-  pipelineFee: number;
-  realizedFee: number;
-  realizedAt?: string;
-  objectForecastFeeReference?: number;
-  dealFeeReference?: number;
-}
+export interface UnifiedFeeRow extends UnifiedFeeRecord {}
 
 const fromDb = (row: any): UnifiedFeeRow => ({
   objectId: row.object_id,
@@ -60,20 +55,10 @@ export function useUnifiedFeeReporting(realizedYear = new Date().getFullYear()) 
     void reload();
   }, [reload]);
 
-  const stats = useMemo(() => {
-    const realizedRows = rows.filter(row => {
-      if (row.realizedFee <= 0 || !row.realizedAt) return false;
-      return new Date(row.realizedAt).getFullYear() === realizedYear;
-    });
-
-    return {
-      pipelineBedrag: rows.reduce((sum, row) => sum + row.pipelineFee, 0),
-      gerealiseerdBedrag: realizedRows.reduce((sum, row) => sum + row.realizedFee, 0),
-      objectForecastAantal: rows.filter(row => row.feeSource === 'object' && row.pipelineFee > 0).length,
-      dealForecastAantal: rows.filter(row => row.feeSource === 'deal' && row.pipelineFee > 0).length,
-      gerealiseerdAantal: realizedRows.length,
-    };
-  }, [rows, realizedYear]);
+  const stats = useMemo(
+    () => summarizeUnifiedFees(rows, realizedYear),
+    [rows, realizedYear],
+  );
 
   return { rows, stats, loading, error, reload };
 }
