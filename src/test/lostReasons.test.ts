@@ -20,6 +20,7 @@ describe('CRM lifecycle lost reasons', () => {
 
   it('onderscheidt succes en administratief archiveren van verlies', () => {
     expect(classifyLostReason('Succesvol afgerond')).toBe('won');
+    expect(classifyLostReason('Verkocht via Bito Vastgoed')).toBe('won');
     expect(classifyLostReason('Handmatig gearchiveerd')).toBe('manual_archive');
   });
 
