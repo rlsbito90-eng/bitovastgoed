@@ -33,10 +33,10 @@ export default function AcquisitieWerkbakChips({
   werkbak, subfilter, onWerkbakChange, onSubfilterChange, counts,
 }: AcquisitieWerkbakChipsProps) {
   const { data: alleSignalen = [], isLoading: signalenLaden } = useOffMarketSignalen();
-  const { data: emailBrieven = [], isLoading: brievenLaden } = useAlleOffMarketBrievenVoorPartijen();
   const [emailScopeIds, setEmailScopeIds] = useState<string[]>([]);
   const [emailOpenGevraagd, setEmailOpenGevraagd] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const { data: emailBrieven = [], isLoading: brievenLaden } = useAlleOffMarketBrievenVoorPartijen(emailScopeIds.length > 0);
 
   const emailSignalen = useMemo(() => {
     const scope = new Set(emailScopeIds);
@@ -53,12 +53,27 @@ export default function AcquisitieWerkbakChips({
     setEmailOpen(true);
   }, [emailOpenGevraagd, signalenLaden, brievenLaden, emailSignalen.length]);
 
-  const leesHuidigeRadarSelectie = (): string[] => Array.from(leesRadarBulkSelectie());
+  const leesZichtbareGeselecteerdeRadarIds = (): string[] => Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '[data-testid="acquisitie-selectie-rij"][data-selected="true"][data-signaal-id]',
+    ),
+  ).map((rij) => rij.dataset.signaalId).filter((id): id is string => Boolean(id));
 
   const openVolgendeBrief = () => {
-    const ids = leesHuidigeRadarSelectie();
-    if (ids.length === 0) {
+    const zichtbaar = leesZichtbareGeselecteerdeRadarIds();
+    if (zichtbaar.length === 0) {
       toast.info('Selecteer eerst één of meer dossiers in Opvolgen.');
+      return;
+    }
+
+    const volledigeSelectie = Array.from(leesRadarBulkSelectie());
+    const zichtbaarSet = new Set(zichtbaar);
+    const bevatVerborgenSelectie = volledigeSelectie.length !== zichtbaar.length
+      || volledigeSelectie.some((id) => !zichtbaarSet.has(id));
+    if (bevatVerborgenSelectie) {
+      toast.warning('Je selectie bevat ook dossiers buiten de huidige Opvolgen-lijst.', {
+        description: 'Wis de selectie en selecteer alleen de vervolgacties die je nu wilt verwerken.',
+      });
       return;
     }
 
@@ -76,7 +91,7 @@ export default function AcquisitieWerkbakChips({
   };
 
   const openEmailOpvolging = () => {
-    const ids = leesHuidigeRadarSelectie();
+    const ids = leesZichtbareGeselecteerdeRadarIds();
     if (ids.length === 0) {
       toast.info('Selecteer eerst één of meer dossiers in Opvolgen.');
       return;
