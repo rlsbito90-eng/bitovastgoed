@@ -1,9 +1,6 @@
 // src/components/forms/DealFormDialog.tsx
-// Complete nieuwe Deal-form met tabs:
-//   1. Basis      — object, relatie, fase, interesse, data
-//   2. Commissie  — %, bedrag, fee-structuur (kern voor rapportage)
-//   3. Proces     — DD status, notaris, bank, tegenpartij makelaar
-//   4. Notities   — afwijzingsreden, algemene notities
+// Deal = concrete transactiepositie. De commerciële trajectfase leeft uitsluitend
+// op het Object (Object Pipeline) en wordt hier alleen getoond, niet onderhouden.
 
 import { useState, useEffect, useMemo, ReactNode } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
@@ -17,18 +14,15 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
-  DEAL_FASE_LABELS,
   DD_STATUS_LABELS,
-  FASE_KANS,
   formatCurrency,
 } from '@/data/mock-data';
 import type {
-  Deal, DealFase, DDStatus,
+  Deal, DDStatus,
 } from '@/data/mock-data';
 import { toast } from 'sonner';
-import { Trophy, AlertCircle, AlertTriangle, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ExternalLink, GitBranch, Info } from 'lucide-react';
 import { getRelatieNamen } from '@/lib/relatieNaam';
-import ArchiveerDialog from '@/components/ArchiveerDialog';
 import EntityPicker, { type EntityPickerItem } from './EntityPicker';
 
 const RECENT_KEY = 'deal-picker-recent';
@@ -49,7 +43,6 @@ const pushRecent = (kind: string, id: string) => {
 const norm = (s: string | undefined | null) =>
   (s ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,7 +56,10 @@ type FormState = Omit<Deal, 'id' | 'softDeletedAt'>;
 const leegForm: FormState = {
   objectId: '',
   relatieId: '',
-  fase: 'lead',
+  // Legacy compatibility projection. Gebruikers onderhouden deze fase niet meer.
+  // Een handmatig gestarte transactie begint bij preferred bidder / exclusiviteit,
+  // wat in het oude Deal-model het best overeenkomt met 'onderhandeling'.
+  fase: 'onderhandeling',
   interessegraad: 3,
   datumEersteContact: new Date().toISOString().split('T')[0],
   datumFollowUp: undefined,
@@ -81,16 +77,26 @@ const leegForm: FormState = {
   tegenpartijMakelaar: undefined,
   afwijzingsreden: undefined,
   notities: undefined,
-  referentieanalyseZichtbaar: true,  // default aan
+  referentieanalyseZichtbaar: true,
 };
-
 
 export default function DealFormDialog({
   open, onOpenChange, deal, defaultObjectId, defaultRelatieId,
 }: Props) {
-  const { addDeal, updateDeal, objecten, relaties, getObjectById, contactpersonen, deals, zoekprofielen } = useDataStore();
+  const {
+    addDeal,
+    updateDeal,
+    objecten,
+    relaties,
+    getObjectById,
+    contactpersonen,
+    deals,
+    zoekprofielen,
+    getDefaultObjectPipeline,
+    getStagesVoorPipeline,
+    setObjectPipelineStage,
+  } = useDataStore();
   const isEdit = !!deal;
-
 
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
@@ -113,9 +119,20 @@ export default function DealFormDialog({
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm(prev => ({ ...prev, [k]: v }));
 
-  const num = (v: string) => v === '' ? undefined : Number(v);
+  const selectedObject = form.objectId ? getObjectById(form.objectId) : undefined;
+  const defaultPipeline = getDefaultObjectPipeline();
+  const objectStages = defaultPipeline ? getStagesVoorPipeline(defaultPipeline.id) : [];
+  const currentObjectStage = selectedObject?.pipelineStageId
+    ? objectStages.find(s => s.id === selectedObject.pipelineStageId)
+    : undefined;
+  const preferredBidderStage = objectStages.find(s => s.slug === 'preferred_bidder');
+  const pipelineProbability = currentObjectStage?.probability != null
+    ? currentObjectStage.probability / 100
+    : 0;
 
-  // Auto-bereken commissie-bedrag als vraagprijs bekend + pct ingevuld
+  // Auto-bereken commissie-bedrag als vraagprijs bekend + pct ingevuld.
+  // In fase 2 verhuist de prognose naar het Object; bestaande Deal-fees blijven
+  // hier bewerkbaar als contract-/transactiegegeven.
   const autoBerekenCommissie = () => {
     if (!form.commissiePct || !form.objectId) return;
     const obj = getObjectById(form.objectId);
@@ -129,7 +146,6 @@ export default function DealFormDialog({
     }
   };
 
-  const [archiefOpen, setArchiefOpen] = useState(false);
   const [dupAcknowledged, setDupAcknowledged] = useState(false);
 
   // ---- Picker items ----
@@ -194,18 +210,21 @@ export default function DealFormDialog({
 
   useEffect(() => { setDupAcknowledged(false); }, [form.objectId, form.relatieId]);
 
-
-
-  const persist = async (extra: Partial<Deal> = {}, archiefMelding?: string) => {
+  const persist = async () => {
     setBezig(true);
     try {
-      const payload = { ...form, ...extra };
       if (isEdit && deal) {
-        await updateDeal(deal.id, payload);
-        toast.success(archiefMelding ?? 'Deal bijgewerkt');
+        await updateDeal(deal.id, form);
+        toast.success('Deal bijgewerkt');
       } else {
-        await addDeal(payload);
-        toast.success(archiefMelding ?? 'Deal aangemaakt');
+        await addDeal({ ...form, fase: 'onderhandeling' });
+
+        // Handmatig een Deal starten is alleen bedoeld voor een expliciete
+        // preferred-bidder/exclusieve positie zonder formeel bod in de CRM.
+        if (form.objectId && preferredBidderStage) {
+          await setObjectPipelineStage(form.objectId, preferredBidderStage.id, { manual: false });
+        }
+        toast.success('Transactie-Deal gestart. Object staat op Preferred bidder / exclusiviteit.');
       }
       onOpenChange(false);
     } catch (err: any) {
@@ -232,10 +251,8 @@ export default function DealFormDialog({
       setTab('basis');
       return;
     }
-    const triggertArchief = (form.fase === 'afgerond' || form.fase === 'afgevallen')
-      && (!deal || !deal.isArchived);
-    if (triggertArchief) {
-      setArchiefOpen(true);
+    if (!isEdit && !preferredBidderStage) {
+      toast.error('De fase Preferred bidder / exclusiviteit ontbreekt nog in de Object Pipeline. Voer eerst de CRM-migratie uit.');
       return;
     }
     pushRecent('object', form.objectId);
@@ -243,13 +260,9 @@ export default function DealFormDialog({
     await persist();
   };
 
-
   const gewogenCommissie = form.commissieBedrag
-    ? form.commissieBedrag * (FASE_KANS[form.fase] ?? 0)
+    ? form.commissieBedrag * pipelineProbability
     : undefined;
-
-  const isAfgerond = form.fase === 'afgerond';
-  const isAfgevallen = form.fase === 'afgevallen';
 
   const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
 
@@ -258,7 +271,7 @@ export default function DealFormDialog({
       <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
           <DialogTitle>
-            {isEdit ? 'Deal bewerken' : 'Nieuwe deal'}
+            {isEdit ? 'Transactie-Deal bewerken' : 'Transactie starten'}
           </DialogTitle>
         </DialogHeader>
 
@@ -275,6 +288,17 @@ export default function DealFormDialog({
           <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
             {/* BASIS */}
             <TabsContent value="basis" className="space-y-5 mt-0">
+              {!isEdit && (
+                <div className="p-3 bg-accent/5 border border-accent/20 rounded-md flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 text-accent shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Start hier alleen handmatig een Deal wanneer één koper expliciet preferred bidder is
+                    of exclusief met de verkoper verdergaat. Een geaccepteerd bod maakt deze Deal normaal
+                    gesproken automatisch aan.
+                  </p>
+                </div>
+              )}
+
               <Sectie titel="Koppelingen">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <EntityPicker
@@ -291,7 +315,7 @@ export default function DealFormDialog({
                     recentIds={readRecent('object')}
                   />
                   <EntityPicker
-                    label="Primaire relatie *"
+                    label="Preferred bidder / koper *"
                     pickerTitle="Kies relatie"
                     searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
                     emptyLabel="Geen gekoppelde relatie"
@@ -309,8 +333,8 @@ export default function DealFormDialog({
                     <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
                     <div className="flex-1 min-w-0 space-y-2">
                       <p className="text-sm text-foreground">
-                        <span className="font-semibold">Mogelijke dubbele deal.</span>{' '}
-                        Er bestaat al een actieve deal voor deze relatie en dit object.
+                        <span className="font-semibold">Mogelijke dubbele transactie.</span>{' '}
+                        Er bestaat al een actieve Deal voor deze koper en dit object.
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <Link
@@ -318,7 +342,7 @@ export default function DealFormDialog({
                           onClick={() => onOpenChange(false)}
                           className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
                         >
-                          <ExternalLink className="h-3 w-3" /> Bestaande deal openen
+                          <ExternalLink className="h-3 w-3" /> Bestaande Deal openen
                         </Link>
                         <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                           <input
@@ -327,7 +351,7 @@ export default function DealFormDialog({
                             onChange={(e) => setDupAcknowledged(e.target.checked)}
                             className="h-3.5 w-3.5 rounded border-input accent-accent"
                           />
-                          Toch nieuwe deal aanmaken
+                          Toch nieuwe Deal aanmaken
                         </label>
                       </div>
                     </div>
@@ -335,19 +359,18 @@ export default function DealFormDialog({
                 )}
               </Sectie>
 
-
-              <Sectie titel="Status & fase">
+              <Sectie titel="Traject">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Fase">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.fase}
-                      onChange={e => set('fase', e.target.value as DealFase)}
-                    >
-                      {Object.entries(DEAL_FASE_LABELS).map(([v, l]) => (
-                        <option key={v} value={v}>{l}</option>
-                      ))}
-                    </select>
+                  <Veld label="Trajectfase">
+                    <div className="min-h-10 rounded-md border border-border bg-muted/30 px-3 py-2 flex items-center gap-2">
+                      <GitBranch className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium">
+                        {currentObjectStage?.name ?? (isEdit ? 'Niet ingesteld op object' : 'Preferred bidder / exclusiviteit')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      De trajectfase wordt centraal beheerd via Object → Dealflow.
+                    </p>
                   </Veld>
                   <Veld label="Interessegraad (1-5)">
                     <div className="flex items-center gap-1.5 h-10">
@@ -369,7 +392,6 @@ export default function DealFormDialog({
                   </Veld>
                 </div>
 
-                {/* Toggle: referentieanalyse-sectie zichtbaar op deal-detail */}
                 <label className="flex items-start gap-2 p-3 rounded-md bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors">
                   <input
                     type="checkbox"
@@ -380,34 +402,15 @@ export default function DealFormDialog({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">Referentieanalyse tonen</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Toon marktwaarde-indicatie en gekoppelde referentieobjecten op de deal-detail pagina.
+                      Toon marktwaarde-indicatie en gekoppelde referentieobjecten op de Deal-detailpagina.
                     </p>
                   </div>
                 </label>
-
-                {isAfgerond && (
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-md flex items-start gap-2">
-                    <Trophy className="h-4 w-4 mt-0.5 text-green-600 shrink-0" />
-                    <p className="text-sm text-foreground">
-                      <span className="font-semibold">Deal afgerond — gefeliciteerd!</span>{' '}
-                      Deze deal telt mee in de gerealiseerde commissie op het dashboard.
-                    </p>
-                  </div>
-                )}
-
-                {isAfgevallen && (
-                  <div className="p-3 bg-muted/40 border border-border rounded-md flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <p className="text-sm text-muted-foreground">
-                      Vul bij Notities de afwijzingsreden in — handig voor toekomstige analyse.
-                    </p>
-                  </div>
-                )}
               </Sectie>
 
               <Sectie titel="Data">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Datum eerste contact">
+                  <Veld label="Datum transactiepositie">
                     <Input type="date" value={form.datumEersteContact}
                       onChange={e => set('datumEersteContact', e.target.value)} />
                   </Veld>
@@ -421,16 +424,6 @@ export default function DealFormDialog({
                         className="w-28" placeholder="--:--" />
                     </div>
                   </Veld>
-                  <Veld label="Bezichtiging gepland">
-                    <div className="flex gap-2">
-                      <Input type="date" value={form.bezichtigingGepland ?? ''}
-                        onChange={e => set('bezichtigingGepland', e.target.value || undefined)}
-                        className="flex-1" />
-                      <Input type="time" value={form.bezichtigingTijd ?? ''}
-                        onChange={e => set('bezichtigingTijd', e.target.value || undefined)}
-                        className="w-28" placeholder="--:--" />
-                    </div>
-                  </Veld>
                   <Veld label="Verwachte closingdatum">
                     <Input type="date" value={form.verwachteClosingdatum ?? ''}
                       onChange={e => set('verwachteClosingdatum', e.target.value || undefined)} />
@@ -438,8 +431,8 @@ export default function DealFormDialog({
                 </div>
               </Sectie>
 
-              <Sectie titel="Bod">
-                <Veld label="Indicatief bod (€)">
+              <Sectie titel="Transactieprijs">
+                <Veld label="Indicatief / geaccepteerd bod (€)">
                   <NumberField value={form.indicatiefBod}
                     onChange={v => set('indicatiefBod', v)} />
                 </Veld>
@@ -448,12 +441,12 @@ export default function DealFormDialog({
 
             {/* COMMISSIE */}
             <TabsContent value="commissie" className="space-y-5 mt-0">
-              <Sectie titel="Commissie">
+              <Sectie titel="Contract-/transactiefee">
                 <div className="p-3 bg-accent/5 border border-accent/20 rounded-md mb-3">
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Vul de commissie-afspraak in zodra die bekend is. Het bedrag gebruikt het
-                    dashboard voor de pipeline-waarde (gewogen naar fase) en
-                    gerealiseerde commissie (bij afgeronde deals).
+                    Deze velden horen bij de concrete transactie. De eerdere feeprognose wordt in de
+                    volgende stap naar het Object verplaatst, zodat voor een prognose geen kunstmatige
+                    Deal meer nodig is.
                   </p>
                 </div>
 
@@ -497,20 +490,19 @@ export default function DealFormDialog({
               </Sectie>
 
               {form.commissieBedrag != null && form.commissieBedrag > 0 && (
-                <Sectie titel="Preview voor rapportage">
+                <Sectie titel="Preview">
                   <div className="grid sm:grid-cols-3 gap-3">
                     <PreviewCard
                       label="Commissie (totaal)"
                       value={formatCurrency(form.commissieBedrag)}
                     />
                     <PreviewCard
-                      label={`Gewogen pipeline (${Math.round((FASE_KANS[form.fase] ?? 0) * 100)}%)`}
+                      label={`Gewogen (${Math.round(pipelineProbability * 100)}%)`}
                       value={gewogenCommissie != null ? formatCurrency(gewogenCommissie) : '—'}
                     />
                     <PreviewCard
-                      label="Fase"
-                      value={DEAL_FASE_LABELS[form.fase]}
-                      highlight={isAfgerond}
+                      label="Objectfase"
+                      value={currentObjectStage?.name ?? '—'}
                     />
                   </div>
                 </Sectie>
@@ -556,16 +548,6 @@ export default function DealFormDialog({
 
             {/* NOTITIES */}
             <TabsContent value="notities" className="space-y-5 mt-0">
-              {isAfgevallen && (
-                <Sectie titel="Afwijzingsreden">
-                  <Veld label="Waarom is deze deal afgevallen?">
-                    <Textarea rows={3} value={form.afwijzingsreden ?? ''}
-                      onChange={e => set('afwijzingsreden', e.target.value || undefined)}
-                      placeholder="bv. tegenpartij bood te hoog, opleveringseisen" />
-                  </Veld>
-                </Sectie>
-              )}
-
               <Sectie titel="Algemene notities">
                 <Veld label="Notities">
                   <Textarea rows={6} value={form.notities ?? ''}
@@ -578,35 +560,14 @@ export default function DealFormDialog({
           <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
             <Button onClick={handleSave} disabled={bezig}>
-              {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}
+              {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Transactie starten')}
             </Button>
           </div>
         </Tabs>
       </DialogContent>
-      <ArchiveerDialog
-        open={archiefOpen}
-        onOpenChange={setArchiefOpen}
-        kind="deal"
-        defaultReason={form.fase === 'afgerond' ? 'Succesvol afgerond' : 'Koper afgehaakt'}
-        showSkip
-        triggerHint={`Fase wijzigt naar "${form.fase === 'afgerond' ? 'Afgerond' : 'Afgevallen'}". Archiveer direct mee, of bewaar alleen de fase.`}
-        onConfirm={async ({ reason, note }) => {
-          setArchiefOpen(false);
-          await persist({
-            isArchived: true,
-            archivedAt: new Date().toISOString(),
-            archivedReason: reason,
-            archivedNote: note,
-          }, 'Deal gearchiveerd en verplaatst naar Archief.');
-        }}
-        onSkip={() => {
-          persist({ isArchived: false, archivedAt: undefined, archivedReason: undefined, archivedNote: undefined });
-        }}
-      />
     </Dialog>
   );
 }
-
 
 function Sectie({ titel, children }: { titel: string; children: ReactNode }) {
   return (
@@ -628,9 +589,9 @@ function Veld({ label, children, span = 1 }: { label: string; children: ReactNod
   );
 }
 
-function PreviewCard({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
+function PreviewCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`p-3 rounded-md ${highlight ? 'bg-green-500/10 border border-green-500/30' : 'bg-muted/40'}`}>
+    <div className="p-3 rounded-md bg-muted/40">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="text-sm font-semibold font-mono-data mt-0.5">{value}</p>
     </div>
