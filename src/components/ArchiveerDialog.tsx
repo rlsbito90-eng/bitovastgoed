@@ -23,13 +23,15 @@ interface Props {
   showSkip?: boolean;
   /** Aanvullende uitleg boven het formulier. */
   triggerHint?: string;
+  /** Dwingt een bewuste redenkeuze af in plaats van stil de eerste/default reden te gebruiken. */
+  requireReasonSelection?: boolean;
   onConfirm: (data: { reason: string; note?: string }) => void | Promise<void>;
   onSkip?: () => void;
 }
 
 export default function ArchiveerDialog({
   open, onOpenChange, kind, defaultReason, showSkip = false, triggerHint,
-  onConfirm, onSkip,
+  requireReasonSelection = false, onConfirm, onSkip,
 }: Props) {
   const canoniekeRedenen = kind === 'object' ? OBJECT_ARCHIVE_REASONS : DEAL_ARCHIVE_REASONS;
   const redenen = useMemo(() => {
@@ -41,16 +43,17 @@ export default function ArchiveerDialog({
     return [...canoniekeRedenen];
   }, [canoniekeRedenen, defaultReason]);
 
-  const [reason, setReason] = useState<string>(defaultReason ?? redenen[0]);
+  const initialReason = requireReasonSelection ? '' : (defaultReason ?? redenen[0]);
+  const [reason, setReason] = useState<string>(initialReason);
   const [note, setNote] = useState<string>('');
   const [bezig, setBezig] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setReason(defaultReason ?? redenen[0]);
+      setReason(requireReasonSelection ? '' : (defaultReason ?? redenen[0]));
       setNote('');
     }
-  }, [open, defaultReason, redenen]);
+  }, [open, defaultReason, redenen, requireReasonSelection]);
 
   const isAnders = reason === 'Anders';
   const isLegacy = !!defaultReason
@@ -92,6 +95,7 @@ export default function ArchiveerDialog({
               value={reason}
               onChange={e => setReason(e.target.value)}
             >
+              {requireReasonSelection && <option value="">— Kies reden —</option>}
               {redenen.map(r => (
                 <option key={r} value={r}>
                   {r}{defaultReason === r && !(canoniekeRedenen as readonly string[]).includes(r) ? ' (legacy)' : ''}
