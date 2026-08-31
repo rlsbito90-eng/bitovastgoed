@@ -77,19 +77,19 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Diagnose en synchroniseer npm-lock tijdelijk
+      - name: Synchroniseer npm-lock op fixbranch
+        if: github.head_ref == 'fix/ci-interactive-test-timeout'
         run: |
           npm install --package-lock-only --ignore-scripts
-          git diff --stat -- package-lock.json
-          git diff -- package-lock.json > npm-lock-diff.patch
-
-      - name: Upload npm-lock diagnose
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-lock-diff
-          path: npm-lock-diff.patch
-          retention-days: 3
-          if-no-files-found: ignore
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json is al synchroon"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: synchroniseer npm lockfile"
+            git push origin HEAD:fix/ci-interactive-test-timeout
+          fi
 
       - name: Install dependencies deterministisch
         run: npm ci
