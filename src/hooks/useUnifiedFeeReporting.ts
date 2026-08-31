@@ -7,6 +7,7 @@ export interface UnifiedFeeRow {
   feeSource: 'object' | 'deal';
   pipelineFee: number;
   realizedFee: number;
+  realizedAt?: string;
   objectForecastFeeReference?: number;
   dealFeeReference?: number;
 }
@@ -17,13 +18,14 @@ const fromDb = (row: any): UnifiedFeeRow => ({
   feeSource: row.fee_source === 'deal' ? 'deal' : 'object',
   pipelineFee: Number(row.pipeline_fee ?? 0),
   realizedFee: Number(row.realized_fee ?? 0),
+  realizedAt: row.realized_at ?? undefined,
   objectForecastFeeReference: row.object_forecast_fee_reference != null
     ? Number(row.object_forecast_fee_reference)
     : undefined,
   dealFeeReference: row.deal_fee_reference != null ? Number(row.deal_fee_reference) : undefined,
 });
 
-export function useUnifiedFeeReporting() {
+export function useUnifiedFeeReporting(realizedYear = new Date().getFullYear()) {
   const [rows, setRows] = useState<UnifiedFeeRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -49,13 +51,20 @@ export function useUnifiedFeeReporting() {
     void reload();
   }, [reload]);
 
-  const stats = useMemo(() => ({
-    pipelineBedrag: rows.reduce((sum, row) => sum + row.pipelineFee, 0),
-    gerealiseerdBedrag: rows.reduce((sum, row) => sum + row.realizedFee, 0),
-    objectForecastAantal: rows.filter(row => row.feeSource === 'object' && row.pipelineFee > 0).length,
-    dealForecastAantal: rows.filter(row => row.feeSource === 'deal' && row.pipelineFee > 0).length,
-    gerealiseerdAantal: rows.filter(row => row.realizedFee > 0).length,
-  }), [rows]);
+  const stats = useMemo(() => {
+    const realizedRows = rows.filter(row => {
+      if (row.realizedFee <= 0 || !row.realizedAt) return false;
+      return new Date(row.realizedAt).getFullYear() === realizedYear;
+    });
+
+    return {
+      pipelineBedrag: rows.reduce((sum, row) => sum + row.pipelineFee, 0),
+      gerealiseerdBedrag: realizedRows.reduce((sum, row) => sum + row.realizedFee, 0),
+      objectForecastAantal: rows.filter(row => row.feeSource === 'object' && row.pipelineFee > 0).length,
+      dealForecastAantal: rows.filter(row => row.feeSource === 'deal' && row.pipelineFee > 0).length,
+      gerealiseerdAantal: realizedRows.length,
+    };
+  }, [rows, realizedYear]);
 
   return { rows, stats, loading, error, reload };
 }
