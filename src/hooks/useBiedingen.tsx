@@ -12,6 +12,12 @@ type Scope =
   | { relatieId: string }
   | { all: true };
 
+export type AcceptOfferResult = {
+  dealId?: string;
+  objectId: string;
+  relatieId: string;
+};
+
 export function useBiedingen(scope: Scope) {
   const [items, setItems] = useState<Bieding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,25 +100,47 @@ export function useBiedingen(scope: Scope) {
     await fetch();
   }, [fetch]);
 
-  const acceptOffer = useCallback(async (id: string, opts: { wijsAndereAf: boolean }) => {
+  /**
+   * Canonical transaction boundary.
+   *
+   * A Deal is deliberately NOT created for every interested candidate or
+   * indicative bid. The Deal starts when a bid is accepted and the buyer
+   * becomes preferred bidder / enters an exclusive transaction position.
+   * The database function performs the complete transition atomically so the
+   * Object Pipeline, bid and Deal cannot drift apart halfway through a save.
+   */
+  const acceptOffer = useCallback(async (
+    id: string,
+    opts: { wijsAndereAf: boolean },
+  ): Promise<AcceptOfferResult> => {
     const bieding = items.find(b => b.id === id);
     if (!bieding) throw new Error('Bieding niet gevonden');
-    await update(id, { status: 'geaccepteerd', acceptedAt: new Date().toISOString() });
-    if (opts.wijsAndereAf) {
-      const andere = items.filter(b =>
-        b.id !== id &&
-        b.objectId === bieding.objectId &&
-        ['concept', 'ontvangen', 'in_behandeling', 'tegenvoorstel_gedaan', 'aangepast_bod_gevraagd'].includes(b.status),
-      );
-      for (const a of andere) {
-        await update(a.id, {
-          status: 'afgewezen',
-          rejectedAt: new Date().toISOString(),
-          rejectedReason: 'Niet gekozen — ander bod geaccepteerd',
-        });
-      }
-    }
-  }, [items, update]);
+
+    const { data, error } = await (supabase as any).rpc('accept_bieding_en_start_deal', {
+      p_bieding_id: id,
+      p_wijs_andere_af: opts.wijsAndereAf,
+    });
+    if (error) throw error;
+
+    const row = Array.isArray(data) ? data[0] : data;
+    const dealId = row?.deal_id as string | undefined;
+
+    await logSystemContactMoment({
+      type: 'bod_ontvangen',
+      title: `Bieding geaccepteerd · Preferred bidder · ${fmtEur(bieding.bedrag)}`,
+      description: 'Transactiepositie gestart; object doorgezet naar Preferred bidder / exclusiviteit.',
+      objectId: bieding.objectId,
+      relatieId: bieding.relatieId,
+      dealId: dealId ?? null,
+    });
+
+    await fetch();
+    return {
+      dealId,
+      objectId: bieding.objectId,
+      relatieId: bieding.relatieId,
+    };
+  }, [items, fetch]);
 
   const rejectOffer = useCallback(async (id: string, reden: string) => {
     await update(id, { status: 'afgewezen', rejectedAt: new Date().toISOString(), rejectedReason: reden });

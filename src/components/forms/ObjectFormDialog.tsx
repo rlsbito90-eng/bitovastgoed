@@ -54,7 +54,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDataStore } from '@/hooks/useDataStore';
 import type {
-  ObjectVastgoed, AssetClass, VerhuurStatus, ObjectStatus,
+  ObjectVastgoed, AssetClass, VerhuurStatus,
   Energielabel, OnderhoudsstaatNiveau, VerkoperVia,
 } from '@/data/mock-data';
 import {
@@ -76,7 +76,6 @@ import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
 import { Info, Image, FileText, Users, AlertCircle, AlertTriangle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
 import { DOCUMENT_TYPE_LABELS } from '@/data/mock-data';
 import type { DocumentType } from '@/data/mock-data';
-import ArchiveerDialog from '@/components/ArchiveerDialog';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -114,7 +113,7 @@ const leegForm: FormState = {
   propertyTypeId: undefined,
   propertySubtypeIds: [],
   dealTypeIds: [],
-  status: 'te_beoordelen',
+  status: 'beschikbaar',
   aanbiedingswijze: 'off_market',
   beschikbaarVanaf: undefined,
   bron: undefined,
@@ -336,16 +335,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
     });
   };
 
-  // Archief-modal state — opent vóór save bij eindstatus
-  const [archiefOpen, setArchiefOpen] = useState(false);
-
-  const finalStatussen: ObjectStatus[] = ['verkocht', 'ingetrokken', 'afgevallen'];
-  const defaultReasonVoorStatus = (s: ObjectStatus): string => {
-    if (s === 'verkocht') return 'Verkocht via Bito Vastgoed';
-    if (s === 'ingetrokken') return 'Ingetrokken door eigenaar';
-    return 'Succesvol afgerond';
-  };
-
   const persist = async (extra: Partial<ObjectVastgoed> = {}, archiefMelding?: string) => {
     setBezig(true);
     const data = {
@@ -399,12 +388,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
         setPreflightOpen(true);
         return;
       }
-    }
-    const triggertArchief = finalStatussen.includes(form.status)
-      && (!object || !object.isArchived);
-    if (triggertArchief) {
-      setArchiefOpen(true);
-      return;
     }
     await persist();
   };
@@ -550,21 +533,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                       onChange={e => set('internReferentienummer', e.target.value || undefined)}
                       placeholder="BITO-YYYY-NNN (wordt automatisch gegenereerd)"
                     />
-                  </Veld>
-                  <Veld label="Objectstatus">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.status}
-                      onChange={e => set('status', e.target.value as ObjectStatus)}
-                    >
-                      <option value="te_beoordelen">Te beoordelen</option>
-                      <option value="beschikbaar">Beschikbaar</option>
-                      <option value="on_hold">On hold</option>
-                      <option value="onder_optie">Onder optie</option>
-                      <option value="verkocht">Verkocht</option>
-                      <option value="ingetrokken">Ingetrokken</option>
-                      <option value="afgevallen">Afgevallen</option>
-                    </select>
                   </Veld>
                   <Veld label="Aanbiedingswijze">
                     <select
@@ -1642,27 +1610,6 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
         </AlertDialogContent>
       </AlertDialog>
 
-      <ArchiveerDialog
-        open={archiefOpen}
-        onOpenChange={setArchiefOpen}
-        kind="object"
-        defaultReason={defaultReasonVoorStatus(form.status)}
-        showSkip
-        triggerHint={`Status wijzigt naar "${form.status === 'verkocht' ? 'Verkocht' : form.status === 'ingetrokken' ? 'Ingetrokken' : 'Afgevallen'}". Archiveer direct mee, of bewaar alleen de status.`}
-        onConfirm={async ({ reason, note }) => {
-          setArchiefOpen(false);
-          await persist({
-            isArchived: true,
-            archivedAt: new Date().toISOString(),
-            archivedReason: reason,
-            archivedNote: note,
-          }, 'Object gearchiveerd en verplaatst naar Archief.');
-        }}
-        onSkip={() => {
-          // Save status zonder archiveren — overschrijf auto-archief in store
-          persist({ isArchived: false, archivedAt: undefined, archivedReason: undefined, archivedNote: undefined });
-        }}
-      />
     </Dialog>
   );
 }

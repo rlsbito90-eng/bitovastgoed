@@ -1,16 +1,19 @@
-// Toont en beheert de objectpipelinefase op ObjectDetailPage.
-// - Huidige fase + kleur
-// - Datum laatste fase-update
-// - Indicatie of fase handmatig is vastgezet (pipelineStageLocked)
-// - Dropdown om fase handmatig te wijzigen (locked = true)
-// - Knop "Automatische voortgang weer inschakelen" (locked = false)
-// - Link "Bekijk in Pipeline"
+// Toont en beheert de centrale Object-lifecycle op ObjectDetailPage.
+// - Objectstatus = beschikbaarheid van het object, direct wijzigbaar zonder edit-formulier
+// - Trajectfase = commerciële voortgang in de Object Pipeline
+// - Feeprognose = Objectniveau tot Preferred bidder / exclusiviteit
+// - Deal fee supersedes Object forecast pas vanaf de echte transactiepositie
 
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import type { ObjectVastgoed } from '@/data/mock-data';
-import { Lock, Unlock, ExternalLink, GitBranch } from 'lucide-react';
+import { useObjectFeeForecast } from '@/hooks/useObjectFeeForecast';
+import type { ObjectVastgoed, ObjectStatus } from '@/data/mock-data';
+import { OBJECT_STATUS_LABELS, formatCurrency } from '@/data/mock-data';
+import { Lock, Unlock, ExternalLink, GitBranch, Building2, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NumberField } from '@/components/ui/number-field';
+import { Input } from '@/components/ui/input';
+import ArchiveerDialog from '@/components/ArchiveerDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
@@ -20,29 +23,242 @@ interface Props {
   object: ObjectVastgoed;
 }
 
+const BESCHIKBAARHEIDSSTATUSSEN: ObjectStatus[] = [
+  'beschikbaar',
+  'on_hold',
+  'onder_optie',
+  'verkocht',
+  'ingetrokken',
+];
+
 export default function ObjectPipelineFaseSectie({ object }: Props) {
   const {
     getDefaultObjectPipeline, getStagesVoorPipeline,
-    setObjectPipelineStage, updateObject,
+    setObjectPipelineStage, updateObject, unarchiveObject, getDealsByObject,
   } = useDataStore();
 
   const [bezig, setBezig] = useState(false);
+  const [statusBezig, setStatusBezig] = useState(false);
+  const [feeDirty, setFeeDirty] = useState(false);
+  const [eindstatusOpen, setEindstatusOpen] = useState(false);
+  const [pendingEindstatus, setPendingEindstatus] = useState<ObjectStatus | null>(null);
+
   const pipeline = getDefaultObjectPipeline();
   const stages = pipeline ? getStagesVoorPipeline(pipeline.id) : [];
+  const huidigeStageId = object.pipelineStageId ?? stages[0]?.id;
+  const huidigeStage = stages.find(s => s.id === huidigeStageId);
+  const preferredBidderStage = stages.find(s => s.slug === 'preferred_bidder');
+  const hasTransactionPosition = !!(
+    huidigeStage && preferredBidderStage && huidigeStage.sortOrder >= preferredBidderStage.sortOrder
+  );
+
+  const statusIsLegacy = !BESCHIKBAARHEIDSSTATUSSEN.includes(object.status);
+  const statusSelectValue = statusIsLegacy ? '' : object.status;
+
+  const {
+    forecast,
+    setForecast,
+    loading: feeLoading,
+    saving: feeSaving,
+    save: saveFeeForecast,
+  } = useObjectFeeForecast(object.id);
+
+  // Oude CRM-Deals zijn vaak kandidaatregistraties. Alleen wanneer het Object
+  // daadwerkelijk de transactiegrens heeft bereikt, mag de Deal fee leidend zijn.
+  const actieveDealRecords = getDealsByObject(object.id).filter(d => !d.isArchived && !d.softDeletedAt);
+  const heeftConcreteDeal = hasTransactionPosition && actieveDealRecords.length > 0;
+
+  const wijzigStatus = async (nieuweStatus: ObjectStatus) => {
+    if (!nieuweStatus || nieuweStatus === object.status) return;
+
+    const isEindstatus = nieuweStatus === 'verkocht' || nieuweStatus === 'ingetrokken';
+    if (isEindstatus) {
+      setPendingEindstatus(nieuweStatus);
+      setEindstatusOpen(true);
+      return;
+    }
+
+    setStatusBezig(true);
+    try {
+      await updateObject(object.id, { status: nieuweStatus });
+
+      if (object.isArchived) {
+        await unarchiveObject(object.id);
+      }
+
+      toast.success(`Objectstatus gewijzigd naar ${OBJECT_STATUS_LABELS[nieuweStatus]}`);
+    } catch (err: any) {
+      toast.error(`Objectstatus bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+    } finally {
+      setStatusBezig(false);
+    }
+  };
+
+  const statusSelect = (
+    <select
+      className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
+      value={statusSelectValue}
+      disabled={statusBezig}
+      onChange={e => wijzigStatus(e.target.value as ObjectStatus)}
+    >
+      {statusIsLegacy && (
+        <option value="" disabled>
+          {OBJECT_STATUS_LABELS[object.status]} — legacy, kies nieuwe status
+        </option>
+      )}
+      {BESCHIKBAARHEIDSSTATUSSEN.map(status => (
+        <option key={status} value={status}>{OBJECT_STATUS_LABELS[status]}</option>
+      ))}
+    </select>
+  );
+
+  const saveFee = async () => {
+    try {
+      await saveFeeForecast(forecast);
+      setFeeDirty(false);
+      toast.success('Feeprognose opgeslagen');
+    } catch (err: any) {
+      toast.error(`Feeprognose opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
+  };
+
+  const setFeePct = (percentage?: number) => {
+    const next = { ...forecast, percentage };
+    if (percentage != null && object.vraagprijs != null) {
+      next.bedrag = Math.round(object.vraagprijs * (percentage / 100));
+    }
+    setForecast(next);
+    setFeeDirty(true);
+  };
+
+  const feeSection = (
+    <div className="border-t border-border/50 pt-4 space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="space-y-1">
+          <h2 className="section-title flex items-center gap-2">
+            <Coins className="h-4 w-4" /> Feeprognose
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Verwachte fee op Objectniveau tot er een echte transactiepositie ontstaat.
+          </p>
+        </div>
+        {heeftConcreteDeal && (
+          <span className="inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
+            Deal fee is nu leidend
+          </span>
+        )}
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <label className="field-label block mb-1.5">Verwachte fee (%)</label>
+          <NumberField
+            decimals={2}
+            value={forecast.percentage}
+            disabled={feeLoading || feeSaving}
+            onChange={setFeePct}
+            placeholder="bv. 1,5"
+          />
+        </div>
+        <div>
+          <label className="field-label block mb-1.5">Verwachte fee (€)</label>
+          <NumberField
+            value={forecast.bedrag}
+            disabled={feeLoading || feeSaving}
+            onChange={bedrag => {
+              setForecast({ ...forecast, bedrag });
+              setFeeDirty(true);
+            }}
+            placeholder="bv. 15.000"
+          />
+        </div>
+        <div>
+          <label className="field-label block mb-1.5">Fee-structuur</label>
+          <Input
+            value={forecast.structuur ?? ''}
+            disabled={feeLoading || feeSaving}
+            onChange={e => {
+              setForecast({ ...forecast, structuur: e.target.value || undefined });
+              setFeeDirty(true);
+            }}
+            placeholder="bv. 1% koper, success fee"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[11px] text-muted-foreground">
+          {heeftConcreteDeal
+            ? `Objectprognose ${forecast.bedrag != null ? formatCurrency(forecast.bedrag) : '—'} blijft referentie en telt niet mee; de concrete Deal fee is de rapportagebron.`
+            : actieveDealRecords.length > 0
+              ? 'Er bestaan nog legacy Deal-records uit het oude kandidaatmodel. Die overschrijven deze Objectfee niet vóór Preferred bidder / exclusiviteit.'
+              : 'Rapportage gebruikt deze Objectfee als prognose. Vanaf Preferred bidder / exclusiviteit neemt uitsluitend de Deal fee het over.'}
+        </p>
+        <Button type="button" size="sm" onClick={saveFee} disabled={!feeDirty || feeSaving || feeLoading}>
+          {feeSaving ? 'Opslaan…' : 'Feeprognose opslaan'}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const eindstatusDialog = (
+    <ArchiveerDialog
+      open={eindstatusOpen}
+      onOpenChange={(open) => {
+        setEindstatusOpen(open);
+        if (!open) setPendingEindstatus(null);
+      }}
+      kind="object"
+      requireReasonSelection
+      triggerHint={pendingEindstatus === 'verkocht'
+        ? 'Het object wordt als Verkocht gearchiveerd. Kies bewust of Bito de transactie heeft gesloten of dat het object extern is verkocht; dit bepaalt de funnel- en fee-rapportage.'
+        : 'Het object wordt als Ingetrokken gearchiveerd. Kies de feitelijke reden; gekoppelde actieve Deals worden als verloren afgesloten.'}
+      onConfirm={async ({ reason, note }) => {
+        if (!pendingEindstatus) return;
+        setStatusBezig(true);
+        try {
+          await updateObject(object.id, {
+            status: pendingEindstatus,
+            archivedReason: reason,
+            archivedNote: note,
+          });
+          toast.success(`Objectstatus gewijzigd naar ${OBJECT_STATUS_LABELS[pendingEindstatus]}`);
+          setEindstatusOpen(false);
+          setPendingEindstatus(null);
+        } catch (err: any) {
+          toast.error(`Objectstatus bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
+        } finally {
+          setStatusBezig(false);
+        }
+      }}
+    />
+  );
 
   if (!pipeline || stages.length === 0) {
     return (
-      <section className="section-card p-5 sm:p-6 space-y-3">
-        <h2 className="section-title flex items-center gap-2">
-          <GitBranch className="h-4 w-4" /> Trajectfase
-        </h2>
-        <p className="text-sm text-muted-foreground">Geen actieve Object Pipeline geconfigureerd.</p>
-      </section>
+      <>
+        <section className="section-card p-5 sm:p-6 space-y-4">
+          <div className="space-y-1">
+            <h2 className="section-title flex items-center gap-2">
+              <Building2 className="h-4 w-4" /> Beschikbaarheid
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Objectstatus staat los van de commerciële trajectfase.
+            </p>
+          </div>
+          {statusSelect}
+          {statusIsLegacy && (
+            <p className="text-[11px] text-warning">
+              Dit object gebruikt nog een oude processtatus. Er wordt niets automatisch geconverteerd; kies bewust een beschikbaarheidsstatus.
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground">Geen actieve Object Pipeline geconfigureerd.</p>
+          {feeSection}
+        </section>
+        {eindstatusDialog}
+      </>
     );
   }
-
-  const huidigeStageId = object.pipelineStageId ?? stages[0]?.id;
-  const huidigeStage = stages.find(s => s.id === huidigeStageId);
 
   const wijzig = async (nieuweStageId: string) => {
     if (!nieuweStageId || nieuweStageId === huidigeStageId) return;
@@ -70,91 +286,125 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
   };
 
   return (
-    <section className="section-card p-5 sm:p-6 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <h2 className="section-title flex items-center gap-2">
-            <GitBranch className="h-4 w-4" /> Trajectfase
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Pipeline: <span className="font-medium text-foreground">{pipeline.name}</span>
-          </p>
+    <>
+      <section className="section-card p-5 sm:p-6 space-y-5">
+        <div className="grid md:grid-cols-2 gap-5">
+          <div className="space-y-3 md:pr-5 md:border-r md:border-border/60">
+            <div className="space-y-1">
+              <h2 className="section-title flex items-center gap-2">
+                <Building2 className="h-4 w-4" /> Beschikbaarheid
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Staat los van Dealflow en kan hier direct worden gewijzigd.
+              </p>
+            </div>
+
+            <div>
+              <label className="field-label block mb-1.5">Objectstatus</label>
+              {statusSelect}
+            </div>
+
+            {statusIsLegacy && (
+              <p className="text-[11px] text-warning">
+                Huidige waarde is een oude processtatus. Kies bewust een nieuwe beschikbaarheidsstatus; er vindt geen stille conversie plaats.
+              </p>
+            )}
+
+            <p className="text-[11px] text-muted-foreground">
+              Verkocht en Ingetrokken vragen om een expliciete reden en archiveren het object automatisch. Terugzetten naar een actieve status activeert het object weer.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <h2 className="section-title flex items-center gap-2">
+                  <GitBranch className="h-4 w-4" /> Trajectfase
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Pipeline: <span className="font-medium text-foreground">{pipeline.name}</span>
+                </p>
+              </div>
+              <Link
+                to="/pipeline"
+                className="shrink-0 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+              >
+                Bekijk in Pipeline <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {huidigeStage ? (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium border rounded-full"
+                  style={huidigeStage.color ? { borderColor: huidigeStage.color, color: huidigeStage.color } : undefined}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: huidigeStage.color ?? 'currentColor' }}
+                  />
+                  {huidigeStage.name}
+                </span>
+              ) : (
+                <span className="text-sm text-muted-foreground">Geen fase ingesteld</span>
+              )}
+
+              {object.pipelineStageLocked ? (
+                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-warning/10 text-warning border border-warning/30 rounded-full">
+                  <Lock className="h-3 w-3" /> Handmatig vastgezet
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-muted text-muted-foreground rounded-full">
+                  <Unlock className="h-3 w-3" /> Automatische voortgang
+                </span>
+              )}
+
+              {object.pipelineUpdatedAt && (
+                <span className="text-xs text-muted-foreground">
+                  Laatste fase-update: {format(new Date(object.pipelineUpdatedAt), "d MMM yyyy 'om' HH:mm", { locale: nl })}
+                </span>
+              )}
+            </div>
+
+            <div className="grid sm:grid-cols-[1fr_auto] gap-2 items-end">
+              <div>
+                <label className="field-label block mb-1.5">Fase wijzigen</label>
+                <select
+                  className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
+                  value={huidigeStageId ?? ''}
+                  disabled={bezig}
+                  onChange={e => wijzig(e.target.value)}
+                >
+                  {!huidigeStageId && <option value="">— Kies een fase —</option>}
+                  {stages.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              {object.pipelineStageLocked && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={bezig}
+                  onClick={ontgrendel}
+                  className="gap-1.5"
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  Auto. voortgang aan
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
-        <Link
-          to="/pipeline"
-          className="shrink-0 inline-flex items-center gap-1 text-xs text-accent hover:underline"
-        >
-          Bekijk in Pipeline <ExternalLink className="h-3 w-3" />
-        </Link>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {huidigeStage ? (
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium border rounded-full"
-            style={huidigeStage.color ? { borderColor: huidigeStage.color, color: huidigeStage.color } : undefined}
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: huidigeStage.color ?? 'currentColor' }}
-            />
-            {huidigeStage.name}
-          </span>
-        ) : (
-          <span className="text-sm text-muted-foreground">Geen fase ingesteld</span>
-        )}
+        {feeSection}
 
-        {object.pipelineStageLocked ? (
-          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-warning/10 text-warning border border-warning/30 rounded-full">
-            <Lock className="h-3 w-3" /> Handmatig vastgezet
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-muted text-muted-foreground rounded-full">
-            <Unlock className="h-3 w-3" /> Automatische voortgang
-          </span>
-        )}
-
-        {object.pipelineUpdatedAt && (
-          <span className="text-xs text-muted-foreground">
-            Laatste fase-update: {format(new Date(object.pipelineUpdatedAt), "d MMM yyyy 'om' HH:mm", { locale: nl })}
-          </span>
-        )}
-      </div>
-
-      <div className="grid sm:grid-cols-[1fr_auto] gap-2 items-end">
-        <div>
-          <label className="field-label block mb-1.5">Fase wijzigen</label>
-          <select
-            className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
-            value={huidigeStageId ?? ''}
-            disabled={bezig}
-            onChange={e => wijzig(e.target.value)}
-          >
-            {!huidigeStageId && <option value="">— Kies een fase —</option>}
-            {stages.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-        {object.pipelineStageLocked && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={bezig}
-            onClick={ontgrendel}
-            className="gap-1.5"
-          >
-            <Unlock className="h-3.5 w-3.5" />
-            Auto. voortgang aan
-          </Button>
-        )}
-      </div>
-
-      <p className="text-[11px] text-muted-foreground">
-        Handmatig wijzigen vergrendelt de fase. Automatische voortgang via kandidaten loopt dan niet door —
-        gebruik de knop hierboven om dit weer in te schakelen.
-      </p>
-    </section>
+        <p className="text-[11px] text-muted-foreground border-t border-border/50 pt-3">
+          Handmatig wijzigen van de trajectfase vergrendelt alleen de commerciële voortgang. De Objectstatus blijft een afzonderlijke beschikbaarheidsstatus.
+        </p>
+      </section>
+      {eindstatusDialog}
+    </>
   );
 }
