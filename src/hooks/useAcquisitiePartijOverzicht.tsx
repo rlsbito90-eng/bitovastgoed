@@ -25,9 +25,10 @@ function bouwPartijenOverzichtGecachet(
   return cachedPartijen;
 }
 
-export function useAlleOffMarketBrievenVoorPartijen() {
+export function useAlleOffMarketBrievenVoorPartijen(enabled = true) {
   return useQuery({
     queryKey: ['off-market-brieven-partijoverzicht'],
+    enabled,
     queryFn: async (): Promise<OffMarketBrief[]> => {
       const { data, error } = await (supabase as any)
         .from('off_market_brieven')
