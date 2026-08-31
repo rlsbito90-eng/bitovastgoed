@@ -5,13 +5,12 @@
 -- 2. Preserve legacy safety: never guess a winner when historical data contains
 --    multiple active candidate-Deals and no accepted bid identifies the buyer.
 -- 3. Establish one economic fee source for reporting:
---      no Deal   -> Object forecast fee
---      Deal      -> Deal fee (Object forecast is reference-only)
+--      before transaction threshold -> Object forecast fee
+--      preferred bidder / exclusivity -> Deal fee
 --      closed won Deal -> realized Deal fee
 
 -- ---------------------------------------------------------------------------
 -- Object-level fee forecast. This is deliberately separate from Deal fee.
--- A Deal fee is the contract/transaction amount and always wins for reporting.
 -- ---------------------------------------------------------------------------
 alter table public.objecten
   add column if not exists verwachte_fee_pct numeric,
@@ -21,7 +20,7 @@ alter table public.objecten
 comment on column public.objecten.verwachte_fee_pct is
   'Forecast fee percentage before a concrete transaction Deal exists.';
 comment on column public.objecten.verwachte_fee_bedrag is
-  'Forecast fee amount before a concrete transaction Deal exists. Reference-only once a Deal exists.';
+  'Forecast fee amount before a concrete transaction Deal exists. Reference-only once the Object reaches preferred bidder / exclusivity.';
 comment on column public.objecten.verwachte_fee_structuur is
   'Forecast fee structure/notes before a concrete transaction Deal exists.';
 
@@ -146,16 +145,37 @@ comment on function public.sync_deals_from_object_terminal_status() is
 -- ---------------------------------------------------------------------------
 -- Canonical fee reporting view — explicit anti-double-count contract.
 --
--- One row per Object. Exactly one current reporting source is selected:
--- - closed-won Deal for realized reporting;
--- - otherwise active Deal fee;
--- - otherwise active Object forecast fee.
--- Archived/lost Deal fees and archived Object forecasts never remain pipeline.
+-- Legacy Deal records are candidate history until the Object has actually
+-- reached Preferred bidder / exclusivity. This prevents old candidate-Deals
+-- from suppressing a valid Object fee forecast during migration.
 -- ---------------------------------------------------------------------------
 create or replace view public.object_fee_reporting
 with (security_invoker = true)
 as
-with ranked_deals as (
+with object_context as (
+  select
+    o.*,
+    current_stage.sort_order as current_stage_order,
+    preferred_stage.sort_order as preferred_stage_order,
+    (
+      current_stage.sort_order is not null
+      and preferred_stage.sort_order is not null
+      and current_stage.sort_order >= preferred_stage.sort_order
+    ) as has_transaction_position
+  from public.objecten o
+  left join public.pipeline_stages current_stage
+    on current_stage.id = o.pipeline_stage_id
+  left join lateral (
+    select ps.sort_order
+    from public.pipeline_stages ps
+    where ps.pipeline_id = coalesce(o.pipeline_id, current_stage.pipeline_id)
+      and ps.slug = 'preferred_bidder'
+      and ps.is_active = true
+    order by ps.sort_order asc
+    limit 1
+  ) preferred_stage on true
+  where o.soft_deleted_at is null
+), ranked_deals as (
   select
     d.*,
     row_number() over (
@@ -180,13 +200,14 @@ select
   o.id as object_id,
   c.id as deal_id,
   case
-    when c.id is not null then 'deal'
+    when c.closed_at is not null and c.fase = 'afgerond' then 'deal'
+    when o.has_transaction_position and c.id is not null and c.is_archived = false then 'deal'
     else 'object'
   end as fee_source,
   case
     when c.closed_at is not null and c.fase = 'afgerond' then 0::numeric
-    when c.id is not null and c.is_archived = false then coalesce(c.commissie_bedrag, 0)::numeric
-    when c.id is not null then 0::numeric
+    when o.has_transaction_position and c.id is not null and c.is_archived = false
+      then coalesce(c.commissie_bedrag, 0)::numeric
     when o.is_archived = false then coalesce(o.verwachte_fee_bedrag, 0)::numeric
     else 0::numeric
   end as pipeline_fee,
@@ -199,12 +220,12 @@ select
     when c.closed_at is not null and c.fase = 'afgerond' then c.closed_at
     else null
   end as realized_at,
+  o.has_transaction_position,
   o.verwachte_fee_bedrag as object_forecast_fee_reference,
   c.commissie_bedrag as deal_fee_reference,
   c.is_archived as deal_is_archived
-from public.objecten o
-left join chosen c on c.object_id = o.id
-where o.soft_deleted_at is null;
+from object_context o
+left join chosen c on c.object_id = o.id;
 
 comment on view public.object_fee_reporting is
-  'Canonical one-fee-per-object reporting projection. Deal fee supersedes Object forecast; closed-won fee moves from pipeline to realized instead of being added twice.';
+  'Canonical one-fee-per-object reporting projection. Legacy candidate Deals do not replace Object forecast before preferred bidder / exclusivity; closed-won fee moves from pipeline to realized.';
