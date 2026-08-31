@@ -1,8 +1,8 @@
 // Toont en beheert de centrale Object-lifecycle op ObjectDetailPage.
 // - Objectstatus = beschikbaarheid van het object, direct wijzigbaar zonder edit-formulier
 // - Trajectfase = commerciële voortgang in de Object Pipeline
-// - Feeprognose = Objectniveau totdat een concrete Deal bestaat
-// - Deal fee supersedes Object forecast in rapportage; nooit dubbel tellen
+// - Feeprognose = Objectniveau tot Preferred bidder / exclusiviteit
+// - Deal fee supersedes Object forecast pas vanaf de echte transactiepositie
 
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface Props {
   object: ObjectVastgoed;
@@ -38,8 +38,17 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
 
   const [bezig, setBezig] = useState(false);
   const [statusBezig, setStatusBezig] = useState(false);
+  const [feeDirty, setFeeDirty] = useState(false);
+
   const pipeline = getDefaultObjectPipeline();
   const stages = pipeline ? getStagesVoorPipeline(pipeline.id) : [];
+  const huidigeStageId = object.pipelineStageId ?? stages[0]?.id;
+  const huidigeStage = stages.find(s => s.id === huidigeStageId);
+  const preferredBidderStage = stages.find(s => s.slug === 'preferred_bidder');
+  const hasTransactionPosition = !!(
+    huidigeStage && preferredBidderStage && huidigeStage.sortOrder >= preferredBidderStage.sortOrder
+  );
+
   const statusIsLegacy = !BESCHIKBAARHEIDSSTATUSSEN.includes(object.status);
   const statusSelectValue = statusIsLegacy ? '' : object.status;
 
@@ -50,14 +59,11 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     saving: feeSaving,
     save: saveFeeForecast,
   } = useObjectFeeForecast(object.id);
-  const [feeDirty, setFeeDirty] = useState(false);
 
-  useEffect(() => {
-    setFeeDirty(false);
-  }, [object.id, forecast.percentage, forecast.bedrag, forecast.structuur]);
-
-  const transactionDeals = getDealsByObject(object.id).filter(d => !d.isArchived && !d.softDeletedAt);
-  const heeftConcreteDeal = transactionDeals.length > 0;
+  // Oude CRM-Deals zijn vaak kandidaatregistraties. Alleen wanneer het Object
+  // daadwerkelijk de transactiegrens heeft bereikt, mag de Deal fee leidend zijn.
+  const actieveDealRecords = getDealsByObject(object.id).filter(d => !d.isArchived && !d.softDeletedAt);
+  const heeftConcreteDeal = hasTransactionPosition && actieveDealRecords.length > 0;
 
   const wijzigStatus = async (nieuweStatus: ObjectStatus) => {
     if (!nieuweStatus || nieuweStatus === object.status) return;
@@ -78,8 +84,6 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     try {
       await updateObject(object.id, { status: nieuweStatus });
 
-      // Een eerder gearchiveerd object dat bewust terug naar een actieve
-      // beschikbaarheidsstatus gaat, moet ook daadwerkelijk weer actief worden.
       if (object.isArchived && !isEindstatus) {
         await unarchiveObject(object.id);
       }
@@ -137,7 +141,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
             <Coins className="h-4 w-4" /> Feeprognose
           </h2>
           <p className="text-xs text-muted-foreground">
-            Verwachte fee op Objectniveau zolang er nog geen concrete transactie-Deal bestaat.
+            Verwachte fee op Objectniveau tot er een echte transactiepositie ontstaat.
           </p>
         </div>
         {heeftConcreteDeal && (
@@ -187,8 +191,10 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-[11px] text-muted-foreground">
           {heeftConcreteDeal
-            ? `Objectprognose ${forecast.bedrag != null ? formatCurrency(forecast.bedrag) : '—'} blijft zichtbaar als referentie, maar telt niet meer mee zodra een Deal bestaat.`
-            : 'Rapportage gebruikt deze Objectfee als prognose. Zodra een Deal ontstaat, neemt uitsluitend de Deal fee het over.'}
+            ? `Objectprognose ${forecast.bedrag != null ? formatCurrency(forecast.bedrag) : '—'} blijft referentie en telt niet mee; de concrete Deal fee is de rapportagebron.`
+            : actieveDealRecords.length > 0
+              ? 'Er bestaan nog legacy Deal-records uit het oude kandidaatmodel. Die overschrijven deze Objectfee niet vóór Preferred bidder / exclusiviteit.'
+              : 'Rapportage gebruikt deze Objectfee als prognose. Vanaf Preferred bidder / exclusiviteit neemt uitsluitend de Deal fee het over.'}
         </p>
         <Button type="button" size="sm" onClick={saveFee} disabled={!feeDirty || feeSaving || feeLoading}>
           {feeSaving ? 'Opslaan…' : 'Feeprognose opslaan'}
@@ -219,9 +225,6 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
       </section>
     );
   }
-
-  const huidigeStageId = object.pipelineStageId ?? stages[0]?.id;
-  const huidigeStage = stages.find(s => s.id === huidigeStageId);
 
   const wijzig = async (nieuweStageId: string) => {
     if (!nieuweStageId || nieuweStageId === huidigeStageId) return;
