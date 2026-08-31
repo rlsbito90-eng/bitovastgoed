@@ -18,15 +18,22 @@ describe('CRM lifecycle lost reasons', () => {
     expect(classifyLostReason('Proces / timing')).toBe('process_timing');
   });
 
-  it('onderscheidt succes en administratief archiveren van verlies', () => {
+  it('vereist expliciete succesformulering voor won', () => {
     expect(classifyLostReason('Succesvol afgerond')).toBe('won');
-    expect(classifyLostReason('Verkocht via Bito Vastgoed')).toBe('won');
+    expect(classifyLostReason('Succesvol afgerond via Bito Vastgoed')).toBe('won');
+    // Legacy/default tekst alleen is bewust onvoldoende bewijs voor realized fee.
+    expect(classifyLostReason('Verkocht via Bito Vastgoed')).toBe('other');
     expect(classifyLostReason('Handmatig gearchiveerd')).toBe('manual_archive');
   });
 
   it('behoudt een expliciete Anders-optie in beide canonieke keuzelijsten', () => {
     expect(OBJECT_ARCHIVE_REASONS).toContain('Anders');
     expect(DEAL_ARCHIVE_REASONS).toContain('Anders');
+  });
+
+  it('biedt een expliciete won-keuze en externe verkoop als aparte objectredenen', () => {
+    expect(OBJECT_ARCHIVE_REASONS).toContain('Succesvol afgerond via Bito Vastgoed');
+    expect(OBJECT_ARCHIVE_REASONS).toContain('Verkocht extern / aan derde');
   });
 
   it('geeft onbekende vrije tekst veilig terug als other', () => {
