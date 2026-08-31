@@ -1,22 +1,22 @@
-// Toont en beheert de objectpipelinefase op ObjectDetailPage.
+// Toont en beheert de centrale Object-lifecycle op ObjectDetailPage.
 // - Objectstatus = beschikbaarheid van het object, direct wijzigbaar zonder edit-formulier
 // - Trajectfase = commerciële voortgang in de Object Pipeline
-// - Datum laatste fase-update
-// - Indicatie of fase handmatig is vastgezet (pipelineStageLocked)
-// - Dropdown om fase handmatig te wijzigen (locked = true)
-// - Knop "Automatische voortgang weer inschakelen" (locked = false)
-// - Link "Bekijk in Pipeline"
+// - Feeprognose = Objectniveau totdat een concrete Deal bestaat
+// - Deal fee supersedes Object forecast in rapportage; nooit dubbel tellen
 
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import { useObjectFeeForecast } from '@/hooks/useObjectFeeForecast';
 import type { ObjectVastgoed, ObjectStatus } from '@/data/mock-data';
-import { OBJECT_STATUS_LABELS } from '@/data/mock-data';
-import { Lock, Unlock, ExternalLink, GitBranch, Building2 } from 'lucide-react';
+import { OBJECT_STATUS_LABELS, formatCurrency } from '@/data/mock-data';
+import { Lock, Unlock, ExternalLink, GitBranch, Building2, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NumberField } from '@/components/ui/number-field';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Props {
   object: ObjectVastgoed;
@@ -33,7 +33,7 @@ const BESCHIKBAARHEIDSSTATUSSEN: ObjectStatus[] = [
 export default function ObjectPipelineFaseSectie({ object }: Props) {
   const {
     getDefaultObjectPipeline, getStagesVoorPipeline,
-    setObjectPipelineStage, updateObject, unarchiveObject,
+    setObjectPipelineStage, updateObject, unarchiveObject, getDealsByObject,
   } = useDataStore();
 
   const [bezig, setBezig] = useState(false);
@@ -43,14 +43,33 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
   const statusIsLegacy = !BESCHIKBAARHEIDSSTATUSSEN.includes(object.status);
   const statusSelectValue = statusIsLegacy ? '' : object.status;
 
+  const {
+    forecast,
+    setForecast,
+    loading: feeLoading,
+    saving: feeSaving,
+    save: saveFeeForecast,
+  } = useObjectFeeForecast(object.id);
+  const [feeDirty, setFeeDirty] = useState(false);
+
+  useEffect(() => {
+    setFeeDirty(false);
+  }, [object.id, forecast.percentage, forecast.bedrag, forecast.structuur]);
+
+  const transactionDeals = getDealsByObject(object.id).filter(d => !d.isArchived && !d.softDeletedAt);
+  const heeftConcreteDeal = transactionDeals.length > 0;
+
   const wijzigStatus = async (nieuweStatus: ObjectStatus) => {
     if (!nieuweStatus || nieuweStatus === object.status) return;
 
     const isEindstatus = nieuweStatus === 'verkocht' || nieuweStatus === 'ingetrokken';
     if (isEindstatus) {
       const label = OBJECT_STATUS_LABELS[nieuweStatus];
+      const extra = nieuweStatus === 'verkocht'
+        ? ' Een gekoppelde transactie-Deal wordt waar mogelijk automatisch als gewonnen afgerond; overige actieve Deals als verloren.'
+        : ' Eventuele actieve Deals worden automatisch als verloren afgesloten.';
       const akkoord = window.confirm(
-        `Objectstatus wijzigen naar “${label}”? Het object wordt daarmee ook gearchiveerd.`,
+        `Objectstatus wijzigen naar “${label}”? Het object wordt daarmee ook gearchiveerd.${extra}`,
       );
       if (!akkoord) return;
     }
@@ -91,6 +110,93 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     </select>
   );
 
+  const saveFee = async () => {
+    try {
+      await saveFeeForecast(forecast);
+      setFeeDirty(false);
+      toast.success('Feeprognose opgeslagen');
+    } catch (err: any) {
+      toast.error(`Feeprognose opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+    }
+  };
+
+  const setFeePct = (percentage?: number) => {
+    const next = { ...forecast, percentage };
+    if (percentage != null && object.vraagprijs != null) {
+      next.bedrag = Math.round(object.vraagprijs * (percentage / 100));
+    }
+    setForecast(next);
+    setFeeDirty(true);
+  };
+
+  const feeSection = (
+    <div className="border-t border-border/50 pt-4 space-y-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="space-y-1">
+          <h2 className="section-title flex items-center gap-2">
+            <Coins className="h-4 w-4" /> Feeprognose
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Verwachte fee op Objectniveau zolang er nog geen concrete transactie-Deal bestaat.
+          </p>
+        </div>
+        {heeftConcreteDeal && (
+          <span className="inline-flex items-center rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent">
+            Deal fee is nu leidend
+          </span>
+        )}
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <label className="field-label block mb-1.5">Verwachte fee (%)</label>
+          <NumberField
+            decimals={2}
+            value={forecast.percentage}
+            disabled={feeLoading || feeSaving}
+            onChange={setFeePct}
+            placeholder="bv. 1,5"
+          />
+        </div>
+        <div>
+          <label className="field-label block mb-1.5">Verwachte fee (€)</label>
+          <NumberField
+            value={forecast.bedrag}
+            disabled={feeLoading || feeSaving}
+            onChange={bedrag => {
+              setForecast({ ...forecast, bedrag });
+              setFeeDirty(true);
+            }}
+            placeholder="bv. 15.000"
+          />
+        </div>
+        <div>
+          <label className="field-label block mb-1.5">Fee-structuur</label>
+          <Input
+            value={forecast.structuur ?? ''}
+            disabled={feeLoading || feeSaving}
+            onChange={e => {
+              setForecast({ ...forecast, structuur: e.target.value || undefined });
+              setFeeDirty(true);
+            }}
+            placeholder="bv. 1% koper, success fee"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-[11px] text-muted-foreground">
+          {heeftConcreteDeal
+            ? `Objectprognose ${forecast.bedrag != null ? formatCurrency(forecast.bedrag) : '—'} blijft zichtbaar als referentie, maar telt niet meer mee zodra een Deal bestaat.`
+            : 'Rapportage gebruikt deze Objectfee als prognose. Zodra een Deal ontstaat, neemt uitsluitend de Deal fee het over.'}
+        </p>
+        <Button type="button" size="sm" onClick={saveFee} disabled={!feeDirty || feeSaving || feeLoading}>
+          {feeSaving ? 'Opslaan…' : 'Feeprognose opslaan'}
+        </Button>
+      </div>
+    </div>
+  );
+
   if (!pipeline || stages.length === 0) {
     return (
       <section className="section-card p-5 sm:p-6 space-y-4">
@@ -109,6 +215,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
           </p>
         )}
         <p className="text-sm text-muted-foreground">Geen actieve Object Pipeline geconfigureerd.</p>
+        {feeSection}
       </section>
     );
   }
@@ -252,6 +359,8 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
           </div>
         </div>
       </div>
+
+      {feeSection}
 
       <p className="text-[11px] text-muted-foreground border-t border-border/50 pt-3">
         Handmatig wijzigen van de trajectfase vergrendelt alleen de commerciële voortgang. De Objectstatus blijft een afzonderlijke beschikbaarheidsstatus.
