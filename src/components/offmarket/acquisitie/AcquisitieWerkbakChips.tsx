@@ -8,7 +8,7 @@ import type { ActieSubfilter, WerkbakView } from '@/lib/offMarket/acquisitie/wer
 import { ACTIE_SUBFILTER_LABEL, WERKBAK_LABEL } from '@/lib/offMarket/acquisitie/werkbak';
 import { leesRadarBulkSelectie } from '@/lib/offMarket/acquisitie/bulkSelectionPersistence';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
-import { useBrievenVoorSignalen } from '@/hooks/useAcquisitieReadiness';
+import { useAlleOffMarketBrievenVoorPartijen } from '@/hooks/useAcquisitiePartijOverzicht';
 import { Button } from '@/components/ui/button';
 import BulkEmailVoorbereidenDialog from './BulkEmailVoorbereidenDialog';
 
@@ -33,10 +33,10 @@ export default function AcquisitieWerkbakChips({
   werkbak, subfilter, onWerkbakChange, onSubfilterChange, counts,
 }: AcquisitieWerkbakChipsProps) {
   const { data: alleSignalen = [], isLoading: signalenLaden } = useOffMarketSignalen();
+  const { data: emailBrieven = [], isLoading: brievenLaden } = useAlleOffMarketBrievenVoorPartijen();
   const [emailScopeIds, setEmailScopeIds] = useState<string[]>([]);
   const [emailOpenGevraagd, setEmailOpenGevraagd] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
-  const { data: emailBrieven = [], isLoading: brievenLaden } = useBrievenVoorSignalen(emailScopeIds);
 
   const emailSignalen = useMemo(() => {
     const scope = new Set(emailScopeIds);
