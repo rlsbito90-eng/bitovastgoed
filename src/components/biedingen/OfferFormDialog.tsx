@@ -178,8 +178,8 @@ export default function OfferFormDialog({
     return {
       id: d.id,
       primair: obj?.titel || obj?.adres || 'Deal',
-      secundair: d.fase,
-      searchHaystack: norm([obj?.titel, obj?.adres, d.fase].filter(Boolean).join(' ')),
+      secundair: 'Concrete transactie',
+      searchHaystack: norm([obj?.titel, obj?.adres, 'concrete transactie'].filter(Boolean).join(' ')),
     };
   }), [deals, getObjectById]);
 

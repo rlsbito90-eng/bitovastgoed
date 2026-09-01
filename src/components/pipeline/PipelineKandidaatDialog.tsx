@@ -57,7 +57,7 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
       const OPTIONAL_NULLABLE_KEYS: (keyof PipelineKandidaat)[] = [
         'redenAfgevallen', 'notities',
         'teaserVerstuurdOp', 'ndaVerstuurdOp', 'ndaGetekendOp', 'informatieGedeeldOp',
-        'bezichtigingDatum', 'biedingBedrag', 'biedingVoorwaarden', 'gewensteLevering',
+        'bezichtigingDatum',
         'laatsteContactdatum', 'volgendeActie', 'volgendeActieOmschrijving', 'volgendeActieDatum',
         'zoekprofielId',
       ];
@@ -156,6 +156,11 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
           </TabsContent>
 
           <TabsContent value="bieding" className="space-y-4 pt-4">
+            <div className="max-w-sm">
+              <Label>Bezichtiging-datum</Label>
+              <Input type="date" value={form.bezichtigingDatum ?? ''} onChange={e => set('bezichtigingDatum', e.target.value)} />
+              <p className="text-[11px] text-muted-foreground mt-1">Kandidaatvoortgang; staat los van biedingsvoorwaarden.</p>
+            </div>
             <div className="rounded-md border border-border bg-muted/30 p-4 space-y-3">
               <div>
                 <div className="text-sm font-medium">Biedingen centraal geregistreerd</div>
