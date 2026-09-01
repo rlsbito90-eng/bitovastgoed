@@ -18,6 +18,7 @@ import { OfferStatusBadge, OfferTypeBadge, OfferDirectionBadge } from './OfferBa
 import OfferFormDialog from './OfferFormDialog';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
 import type { Bieding, BiedingStatus } from '@/lib/biedingen/types';
+import { getNegotiationPositions, nextCounterDirection } from '@/lib/biedingen/progression';
 
 type Scope = { objectId: string } | { dealId: string } | { relatieId: string };
 const ACTIEF: BiedingStatus[] = ['concept', 'ontvangen', 'in_behandeling', 'tegenvoorstel_gedaan', 'aangepast_bod_gevraagd'];
@@ -62,14 +63,20 @@ export default function BiedingenSection({
     [items, showHistory],
   );
 
+  const positions = useMemo(() => getNegotiationPositions(items), [items]);
+
   const stats = useMemo(() => {
     const actief = items.filter(b => ACTIEF.includes(effectieveStatus(b)));
     const geaccepteerd = items.find(b => b.status === 'geaccepteerd') ?? null;
-    const hoogsteActief = actief.reduce<Bieding | null>(
-      (best, b) => (b.bedrag != null && (!best || (best.bedrag ?? 0) < b.bedrag) ? b : best), null);
-    const laagsteActief = actief.reduce<Bieding | null>(
-      (best, b) => (b.bedrag != null && (!best || (best.bedrag ?? Infinity) > b.bedrag) ? b : best), null);
-    return { aantalActief: actief.length, totaalAantal: items.length, hoogsteActief, laagsteActief, geaccepteerd };
+    const kopersbiedingen = actief.filter(b => b.richting === 'van_koper' && b.bedrag != null);
+    const verkopersvoorstellen = actief.filter(b => (b.richting === 'van_verkoper' || b.richting === 'namens_verkoper') && b.bedrag != null);
+    const hoogsteKopersbod = kopersbiedingen.reduce<Bieding | null>(
+      (best, b) => (!best || (best.bedrag ?? 0) < (b.bedrag ?? 0) ? b : best), null);
+    const laatsteVerkopersvoorstel = [...verkopersvoorstellen].sort((a, b) =>
+      new Date(b.createdAt || b.bieddatum).getTime() - new Date(a.createdAt || a.bieddatum).getTime()
+    )[0] ?? null;
+    const openTrajecten = new Set(actief.map(b => b.relatieId)).size;
+    return { aantalActief: actief.length, openTrajecten, totaalAantal: items.length, hoogsteKopersbod, laatsteVerkopersvoorstel, geaccepteerd };
   }, [items]);
 
   const handleNew = () => { setEditTarget(null); setCounterTo(null); setFormOpen(true); };
@@ -107,7 +114,7 @@ export default function BiedingenSection({
             <CardTitle className="text-base flex items-center gap-2 flex-wrap">
               {title}
               <span className="text-xs font-normal text-muted-foreground">
-                {stats.aantalActief} actief{stats.totaalAantal !== stats.aantalActief ? ` · ${stats.totaalAantal} totaal` : ''}
+                {stats.openTrajecten} open traject{stats.openTrajecten === 1 ? '' : 'en'} · {stats.totaalAantal} voorstel{stats.totaalAantal === 1 ? '' : 'len'}
               </span>
             </CardTitle>
           </div>
@@ -123,20 +130,20 @@ export default function BiedingenSection({
           {/* KPI strip */}
           {!compact && items.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <KpiTile label="Open biedingen" value={String(stats.aantalActief)} />
+              <KpiTile label="Open biedingsreeksen" value={String(stats.openTrajecten)} />
               <KpiTile
-                label="Hoogste actief"
-                value={stats.hoogsteActief?.bedrag != null ? fmtEur(stats.hoogsteActief.bedrag) : '—'}
-                sub={vraagprijs && stats.hoogsteActief?.bedrag
-                  ? vraagprijsDelta(stats.hoogsteActief.bedrag, vraagprijs)?.label ?? undefined
+                label="Hoogste kopersbod"
+                value={stats.hoogsteKopersbod?.bedrag != null ? fmtEur(stats.hoogsteKopersbod.bedrag) : '—'}
+                sub={vraagprijs && stats.hoogsteKopersbod?.bedrag
+                  ? vraagprijsDelta(stats.hoogsteKopersbod.bedrag, vraagprijs)?.label ?? undefined
                   : undefined}
-                subTone={vraagprijs && stats.hoogsteActief?.bedrag
-                  ? vraagprijsDelta(stats.hoogsteActief.bedrag, vraagprijs)?.tone : undefined}
+                subTone={vraagprijs && stats.hoogsteKopersbod?.bedrag
+                  ? vraagprijsDelta(stats.hoogsteKopersbod.bedrag, vraagprijs)?.tone : undefined}
                 icon={<ArrowUp className="h-3.5 w-3.5" />}
               />
               <KpiTile
-                label="Laagste actief"
-                value={stats.laagsteActief?.bedrag != null ? fmtEur(stats.laagsteActief.bedrag) : '—'}
+                label="Laatste verkopersvoorstel"
+                value={stats.laatsteVerkopersvoorstel?.bedrag != null ? fmtEur(stats.laatsteVerkopersvoorstel.bedrag) : '—'}
                 icon={<ArrowDown className="h-3.5 w-3.5" />}
               />
               <KpiTile
@@ -145,6 +152,20 @@ export default function BiedingenSection({
                 icon={<Check className="h-3.5 w-3.5" />}
                 tone={stats.geaccepteerd ? 'emerald' : 'neutral'}
               />
+            </div>
+          )}
+
+          {!compact && positions.some(p => p.latestSeller) && (
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Actuele onderhandelingspositie</div>
+              {positions.filter(p => p.latestBuyer || p.latestSeller).map(p => (
+                <div key={p.relatieId} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 sm:items-center text-sm">
+                  <div className="min-w-0">{renderRelatieLabel(p.relatieId)}</div>
+                  <div><span className="text-xs text-muted-foreground">Koper</span> <span className="font-medium">{p.latestBuyer?.bedrag != null ? fmtEur(p.latestBuyer.bedrag) : '—'}</span></div>
+                  <div><span className="text-xs text-muted-foreground">Verkoper</span> <span className="font-medium">{p.latestSeller?.bedrag != null ? fmtEur(p.latestSeller.bedrag) : '—'}</span></div>
+                  <div><span className="text-xs text-muted-foreground">Gap</span> <span className="font-medium">{p.gap != null ? fmtEur(Math.abs(p.gap)) : '—'}</span></div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -165,7 +186,7 @@ export default function BiedingenSection({
                     <tr>
                       <th className="text-left font-medium px-3 py-2">Datum</th>
                       {showObjectCol && <th className="text-left font-medium px-3 py-2">Object</th>}
-                      {showRelatieCol && <th className="text-left font-medium px-3 py-2">Bieder</th>}
+                      {showRelatieCol && <th className="text-left font-medium px-3 py-2">Kandidaat / traject</th>}
                       <th className="text-left font-medium px-3 py-2">Type</th>
                       <th className="text-right font-medium px-3 py-2">Bedrag</th>
                       {vraagprijs && <th className="text-right font-medium px-3 py-2">Δ vraagprijs</th>}
@@ -343,7 +364,7 @@ function RowActions({ b, onEdit, onCounter, onAccept, onReject, onDelete }: {
         <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" />Bewerken</DropdownMenuItem>
         {isActief && (
           <>
-            <DropdownMenuItem onClick={onCounter}><CornerDownRight className="h-3.5 w-3.5 mr-2" />Tegenvoorstel</DropdownMenuItem>
+            <DropdownMenuItem onClick={onCounter}><CornerDownRight className="h-3.5 w-3.5 mr-2" />{nextCounterDirection(b.richting) === 'van_koper' ? 'Nieuw tegenbod koper' : 'Tegenvoorstel verkoper'}</DropdownMenuItem>
             <DropdownMenuItem onClick={onAccept}><Check className="h-3.5 w-3.5 mr-2 text-success" />Accepteren</DropdownMenuItem>
             <DropdownMenuItem onClick={onReject}><X className="h-3.5 w-3.5 mr-2 text-destructive" />Afwijzen</DropdownMenuItem>
           </>

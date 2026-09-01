@@ -41,6 +41,7 @@ export default function ObjectPipelineKanban() {
   const filtered = useMemo(() => {
     const q = zoek.trim().toLowerCase();
     return objecten.filter(o => {
+      if (o.isArchived || o.softDeletedAt) return false;
       if (q) {
         const hay = `${o.titel} ${o.plaats} ${o.adres ?? ''}`.toLowerCase();
         if (!hay.includes(q)) return false;

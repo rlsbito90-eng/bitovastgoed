@@ -123,7 +123,7 @@ export const PIPELINE_FASES: { key: PipelineFase; label: string }[] = [
   { key: 'informatie_gedeeld',      label: 'Informatie gedeeld' },
   { key: 'bezichtiging_gepland',    label: 'Bezichtiging gepland' },
   { key: 'bezichtiging_geweest',    label: 'Bezichtiging geweest' },
-  { key: 'indicatieve_bieding',     label: 'Indicatieve bieding' },
+  { key: 'indicatieve_bieding',     label: 'Bieding / prijsvoorstel' },
   { key: 'onderhandeling',          label: 'Onderhandeling' },
   { key: 'loi_ontvangen',           label: 'LOI ontvangen' },
   { key: 'due_diligence',           label: 'Due diligence' },
@@ -483,8 +483,8 @@ export const KANDIDAAT_NAAR_OBJECT_STAGE: Partial<Record<PipelineFase, string>> 
   koopovereenkomst_concept: 'koopovereenkomst',
   koopovereenkomst_getekend: 'koopovereenkomst',
   transport_closing: 'closing',
-  afgerond: 'afgerond',
-  afgevallen: 'afgevallen',
+  // Terminale Objectstatus is altijd een bewuste Object-actie.
+  // Een individuele kandidaat mag het Object nooit winnen/verliezen.
 };
 
 export interface ObjectHuurder {

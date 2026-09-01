@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,6 +17,9 @@ import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog'
 import { getLaatsteContactDatum } from '@/lib/relatieContact';
 import { MessageSquarePlus } from 'lucide-react';
 import { format } from 'date-fns';
+import { useBiedingen } from '@/hooks/useBiedingen';
+import { fmtEur } from '@/lib/biedingen/format';
+import { getNegotiationPositions } from '@/lib/biedingen/progression';
 import { nl } from 'date-fns/locale';
 
 interface Props {
@@ -35,6 +37,15 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
   useEffect(() => { if (open) setForm(kandidaat); }, [open, kandidaat]);
 
   const laatsteContact = getLaatsteContactDatum(kandidaat.relatieId, contactMoments);
+  const { items: objectBiedingen } = useBiedingen({ objectId: kandidaat.objectId });
+  const kandidaatBiedingen = useMemo(
+    () => objectBiedingen.filter(b => b.relatieId === kandidaat.relatieId),
+    [objectBiedingen, kandidaat.relatieId],
+  );
+  const positie = useMemo(
+    () => getNegotiationPositions(kandidaatBiedingen)[0] ?? null,
+    [kandidaatBiedingen],
+  );
 
   const relatie = getRelatieById(kandidaat.relatieId);
   const set = <K extends keyof PipelineKandidaat>(k: K, v: PipelineKandidaat[K]) =>
@@ -46,11 +57,16 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
       const OPTIONAL_NULLABLE_KEYS: (keyof PipelineKandidaat)[] = [
         'redenAfgevallen', 'notities',
         'teaserVerstuurdOp', 'ndaVerstuurdOp', 'ndaGetekendOp', 'informatieGedeeldOp',
-        'bezichtigingDatum', 'biedingBedrag', 'biedingVoorwaarden', 'gewensteLevering',
+        'bezichtigingDatum',
         'laatsteContactdatum', 'volgendeActie', 'volgendeActieOmschrijving', 'volgendeActieDatum',
         'zoekprofielId',
       ];
       const patch: any = { ...form };
+      // Deze velden zijn voortaan alleen een projectie van de centrale biedingenmodule.
+      delete patch.biedingBedrag;
+      delete patch.biedingVoorwaarden;
+      delete patch.financieringsvoorbehoud;
+      delete patch.gewensteLevering;
       for (const k of OPTIONAL_NULLABLE_KEYS) {
         if (patch[k] === undefined || patch[k] === '') patch[k] = null;
       }
@@ -75,7 +91,7 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
           <TabsList className="w-full">
             <TabsTrigger value="status">Status</TabsTrigger>
             <TabsTrigger value="documenten">Documenten</TabsTrigger>
-            <TabsTrigger value="bieding">Bieding</TabsTrigger>
+            <TabsTrigger value="bieding">Biedingen</TabsTrigger>
             <TabsTrigger value="opvolging">Opvolging</TabsTrigger>
           </TabsList>
 
@@ -139,34 +155,37 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
             ))}
           </TabsContent>
 
-          <TabsContent value="bieding" className="space-y-3 pt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label>Bezichtiging-datum</Label>
-                <Input type="date" value={form.bezichtigingDatum ?? ''} onChange={e => set('bezichtigingDatum', e.target.value)} />
-              </div>
-              <div>
-                <Label>Bieding (€)</Label>
-                <NumberField value={form.biedingBedrag} onChange={v => set('biedingBedrag', v)} />
-              </div>
+          <TabsContent value="bieding" className="space-y-4 pt-4">
+            <div className="max-w-sm">
+              <Label>Bezichtiging-datum</Label>
+              <Input type="date" value={form.bezichtigingDatum ?? ''} onChange={e => set('bezichtigingDatum', e.target.value)} />
+              <p className="text-[11px] text-muted-foreground mt-1">Kandidaatvoortgang; staat los van biedingsvoorwaarden.</p>
             </div>
-            <div>
-              <Label>Bieding voorwaarden</Label>
-              <Textarea rows={2} value={form.biedingVoorwaarden ?? ''} onChange={e => set('biedingVoorwaarden', e.target.value)} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 sm:pt-6">
-                <Checkbox checked={!!form.financieringsvoorbehoud} onCheckedChange={v => set('financieringsvoorbehoud', !!v)} />
-                <Label className="cursor-default">Financieringsvoorbehoud</Label>
-              </div>
+            <div className="rounded-md border border-border bg-muted/30 p-4 space-y-3">
               <div>
-                <Label>Gewenste levering</Label>
-                <Input type="date" value={form.gewensteLevering ?? ''} onChange={e => set('gewensteLevering', e.target.value)} />
+                <div className="text-sm font-medium">Biedingen centraal geregistreerd</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Bedragen, voorwaarden en tegenvoorstellen beheer je op het Object onder Dealflow → Biedingen. Deze kandidaatkaart toont alleen de actuele projectie.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Laatste kopersbod</div>
+                  <div className="text-sm font-semibold mt-1">{positie?.latestBuyer?.bedrag != null ? fmtEur(positie.latestBuyer.bedrag) : '—'}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Laatste verkopersvoorstel</div>
+                  <div className="text-sm font-semibold mt-1">{positie?.latestSeller?.bedrag != null ? fmtEur(positie.latestSeller.bedrag) : '—'}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Voorstellen</div>
+                  <div className="text-sm font-semibold mt-1">{kandidaatBiedingen.length}</div>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox checked={!!form.feeAkkoord} onCheckedChange={v => set('feeAkkoord', !!v)} />
-              <Label className="cursor-default">Fee akkoord</Label>
+              <Label className="cursor-default">Fee akkoord met kandidaat</Label>
             </div>
           </TabsContent>
 
