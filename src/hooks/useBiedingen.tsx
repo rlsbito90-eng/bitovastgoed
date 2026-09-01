@@ -5,6 +5,9 @@ import { biedingFromDb, biedingToDb } from '@/lib/biedingen/db';
 import { logSystemContactMoment } from '@/lib/contactMoments';
 import { fmtEur } from '@/lib/biedingen/format';
 import { BIEDING_TYPE_LABELS, BIEDING_STATUS_LABELS } from '@/lib/biedingen/types';
+import { useDataStore } from '@/hooks/useDataStore';
+import { getOfferProgressTarget, shouldAdvanceCandidate } from '@/lib/biedingen/progression';
+import type { PipelineKandidaat } from '@/data/mock-data';
 
 type Scope =
   | { objectId: string }
@@ -19,6 +22,7 @@ export type AcceptOfferResult = {
 };
 
 export function useBiedingen(scope: Scope) {
+  const { pipelineKandidaten, addPipelineKandidaat, updatePipelineKandidaat } = useDataStore();
   const [items, setItems] = useState<Bieding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +51,46 @@ export function useBiedingen(scope: Scope) {
 
   const refresh = fetch;
 
+  const syncKandidaatUitBieding = useCallback(async (bieding: Bieding) => {
+    const target = getOfferProgressTarget(bieding);
+    if (!target) return;
+
+    const existing = pipelineKandidaten.find(k => k.objectId === bieding.objectId && k.relatieId === bieding.relatieId);
+    const buyerProjection: Partial<PipelineKandidaat> = bieding.richting === 'van_koper'
+      ? {
+          biedingBedrag: bieding.bedrag ?? undefined,
+          biedingVoorwaarden: bieding.voorwaarden ?? undefined,
+          gewensteLevering: bieding.gewensteLevering ?? undefined,
+          ...(bieding.financieringsvoorbehoud === 'ja' ? { financieringsvoorbehoud: true } : {}),
+          ...(bieding.financieringsvoorbehoud === 'geen' ? { financieringsvoorbehoud: false } : {}),
+        }
+      : {};
+
+    if (!existing) {
+      const created = await addPipelineKandidaat({
+        objectId: bieding.objectId,
+        relatieId: bieding.relatieId,
+        pipelineFase: target,
+        interesseNiveau: 'warm',
+        teaserVerstuurd: false,
+        ndaVerstuurd: false,
+        ndaGetekend: false,
+        informatieGedeeld: false,
+        feeAkkoord: false,
+        ...buyerProjection,
+      });
+      if (created) await updatePipelineKandidaat(created.id, { pipelineFase: target });
+      return;
+    }
+
+    const patch: Partial<PipelineKandidaat> = { ...buyerProjection };
+    if (shouldAdvanceCandidate(existing.pipelineFase, target)) {
+      patch.pipelineFase = target;
+      if (existing.pipelineFase === 'afgevallen') patch.redenAfgevallen = '';
+    }
+    if (Object.keys(patch).length > 0) await updatePipelineKandidaat(existing.id, patch);
+  }, [pipelineKandidaten, addPipelineKandidaat, updatePipelineKandidaat]);
+
   const create = useCallback(async (payload: Partial<Bieding>) => {
     const { data: auth } = await supabase.auth.getUser();
     const insertPayload = biedingToDb({
@@ -60,6 +104,7 @@ export function useBiedingen(scope: Scope) {
       .maybeSingle();
     if (error) throw error;
     const created = biedingFromDb(data);
+    await syncKandidaatUitBieding(created);
     await logSystemContactMoment({
       type: 'bod_ontvangen',
       title: `Bieding toegevoegd · ${BIEDING_TYPE_LABELS[created.offerType]} · ${fmtEur(created.bedrag)}`,
@@ -70,7 +115,7 @@ export function useBiedingen(scope: Scope) {
     });
     await fetch();
     return created;
-  }, [fetch]);
+  }, [fetch, syncKandidaatUitBieding]);
 
   const update = useCallback(async (id: string, patch: Partial<Bieding>) => {
     const { data, error } = await supabase
@@ -81,6 +126,7 @@ export function useBiedingen(scope: Scope) {
       .maybeSingle();
     if (error) throw error;
     const updated = biedingFromDb(data);
+    await syncKandidaatUitBieding(updated);
     if (patch.status) {
       await logSystemContactMoment({
         type: 'bod_ontvangen',
@@ -92,7 +138,7 @@ export function useBiedingen(scope: Scope) {
     }
     await fetch();
     return updated;
-  }, [fetch]);
+  }, [fetch, syncKandidaatUitBieding]);
 
   const remove = useCallback(async (id: string) => {
     const { error } = await supabase.from('biedingen' as any).delete().eq('id', id);
@@ -122,6 +168,8 @@ export function useBiedingen(scope: Scope) {
     });
     if (error) throw error;
 
+    await syncKandidaatUitBieding({ ...bieding, status: 'geaccepteerd' });
+
     const row = Array.isArray(data) ? data[0] : data;
     const dealId = row?.deal_id as string | undefined;
 
@@ -140,7 +188,7 @@ export function useBiedingen(scope: Scope) {
       objectId: bieding.objectId,
       relatieId: bieding.relatieId,
     };
-  }, [items, fetch]);
+  }, [items, fetch, syncKandidaatUitBieding]);
 
   const rejectOffer = useCallback(async (id: string, reden: string) => {
     await update(id, { status: 'afgewezen', rejectedAt: new Date().toISOString(), rejectedReason: reden });

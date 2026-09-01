@@ -1553,31 +1553,42 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     const updated = pipelineFromDb(data);
     setPipelineKandidaten(prev => prev.map(x => x.id === id ? updated : x));
 
-    // -- AUTOMATION: lichte vooruitgang van objectfase wanneer kandidaat verschuift --
+    // -- AUTOMATION: kandidaat kan het Object alleen vooruit helpen, nooit afsluiten --
     if (patch.pipelineFase) {
       try {
+        if (updated.pipelineFase === 'afgevallen' || updated.pipelineFase === 'afgerond') return;
+
         const { KANDIDAAT_NAAR_OBJECT_STAGE } = await import('@/data/mock-data');
         const targetSlug = KANDIDAAT_NAAR_OBJECT_STAGE[updated.pipelineFase];
         const obj = objecten.find(o => o.id === updated.objectId);
-        if (!targetSlug || !obj || obj.pipelineStageLocked) return;
+        if (!targetSlug || !obj) return;
+
+        // Lees live DB-state: event-driven transitions zoals Preferred bidder
+        // mogen nooit door een stale clientstate worden teruggezet.
+        const { data: liveObject, error: liveError } = await supabase.from('objecten')
+          .select('pipeline_id, pipeline_stage_id, pipeline_stage_locked')
+          .eq('id', updated.objectId)
+          .single();
+        if (liveError || !liveObject || (liveObject as any).pipeline_stage_locked) return;
 
         const defaultPipeline = pipelines.find(p => p.entityType === 'object' && p.isDefault) ?? pipelines.find(p => p.entityType === 'object');
-        const pipelineIdForLookup = obj.pipelineId ?? defaultPipeline?.id;
+        const pipelineIdForLookup = (liveObject as any).pipeline_id ?? obj.pipelineId ?? defaultPipeline?.id;
         if (!pipelineIdForLookup) return;
 
         const targetStage = pipelineStages.find(s => s.slug === targetSlug && s.pipelineId === pipelineIdForLookup);
-        const huidig = pipelineStages.find(s => s.id === obj.pipelineStageId);
+        const huidig = pipelineStages.find(s => s.id === (liveObject as any).pipeline_stage_id);
         if (!targetStage) return;
         if (huidig && targetStage.sortOrder <= huidig.sortOrder) return;
 
+        const now = new Date().toISOString();
         const { error: e2 } = await supabase.from('objecten').update({
           pipeline_stage_id: targetStage.id,
           pipeline_id: targetStage.pipelineId,
-          pipeline_updated_at: new Date().toISOString(),
+          pipeline_updated_at: now,
         }).eq('id', obj.id);
         if (!e2) {
           setObjecten(prev => prev.map(x => x.id === obj.id
-            ? { ...x, pipelineStageId: targetStage.id, pipelineId: targetStage.pipelineId, pipelineUpdatedAt: new Date().toISOString() }
+            ? { ...x, pipelineStageId: targetStage.id, pipelineId: targetStage.pipelineId, pipelineUpdatedAt: now }
             : x));
         }
       } catch (e) {

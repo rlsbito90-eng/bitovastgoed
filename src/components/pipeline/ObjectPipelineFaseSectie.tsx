@@ -277,7 +277,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     setBezig(true);
     try {
       await updateObject(object.id, { pipelineStageLocked: false });
-      toast.success('Automatische voortgang weer ingeschakeld');
+      toast.success('Automatisch volgen van kandidaatvoortgang hervat');
     } catch (err: any) {
       toast.error(`Ontgrendelen mislukt: ${err.message ?? 'onbekende fout'}`);
     } finally {
@@ -355,7 +355,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-muted text-muted-foreground rounded-full">
-                  <Unlock className="h-3 w-3" /> Automatische voortgang
+                  <Unlock className="h-3 w-3" /> Volgt kandidaten automatisch
                 </span>
               )}
 
@@ -391,7 +391,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
                   className="gap-1.5"
                 >
                   <Unlock className="h-3.5 w-3.5" />
-                  Auto. voortgang aan
+                  Automatisch volgen hervatten
                 </Button>
               )}
             </div>
