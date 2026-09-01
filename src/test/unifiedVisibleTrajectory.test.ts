@@ -12,6 +12,10 @@ describe('één zichtbare commerciële trajectfase', () => {
     expect(source).not.toContain('DEAL_FASE_LABELS[deal.fase]');
     expect(source).not.toContain('FASE_KANS[deal.fase]');
     expect(source).not.toContain('DealKandidatenSectie');
+    expect(source).toContain('Archiveer deal');
+    expect(source).not.toContain('Deal verwijderen?');
+    expect(source).not.toContain('Trash2');
+    expect(source).not.toContain('handleDelete');
   });
 
   it('presenteert een oude Deal-relatie niet automatisch als koper', () => {

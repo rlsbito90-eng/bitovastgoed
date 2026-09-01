@@ -1,5 +1,5 @@
 import { useState, ReactNode } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
   formatCurrency,
@@ -10,7 +10,7 @@ import {
 } from '@/data/mock-data';
 import { LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
 import {
-  ArrowLeft, Pencil, Trash2, Star, Trophy, AlertCircle,
+  ArrowLeft, Pencil, Star, Trophy, AlertCircle,
   Building2, Landmark, Users as UsersIcon, Archive, ArchiveRestore,
 } from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
@@ -23,10 +23,6 @@ import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import BiedingenSection from '@/components/biedingen/BiedingenSection';
 
 import DealMarktwaardeReadOnly from '@/components/deal/DealMarktwaardeReadOnly';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
@@ -44,7 +40,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 export default function DealDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const store = useDataStore();
   const deal = store.getDealById(id!);
   const trajectory = useObjectTrajectoryStage(deal?.objectId);
@@ -69,16 +64,6 @@ export default function DealDetailPage() {
   const gewogenCommissie = deal.commissieBedrag != null
     ? deal.commissieBedrag * trajectKans
     : null;
-
-  const handleDelete = async () => {
-    try {
-      await store.deleteDeal(deal.id);
-      toast.success('Deal gearchiveerd');
-      navigate('/deals');
-    } catch (err: any) {
-      toast.error(`Verwijderen mislukt: ${err.message ?? 'onbekende fout'}`);
-    }
-  };
 
   return (
     <div className="page-shell-detail">
@@ -120,23 +105,6 @@ export default function DealDetailPage() {
               <Archive className="h-4 w-4" /> Archiveer deal
             </button>
           )}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button className="inline-flex items-center justify-center px-2.5 py-2 text-sm border border-destructive/30 rounded-md hover:bg-destructive/10 transition-colors text-destructive" aria-label="Verwijderen">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Deal verwijderen?</AlertDialogTitle>
-                <AlertDialogDescription>Verwijdert deze deal uit alle lijsten (soft delete). Het record blijft in de database staan voor herstel.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
         <div className="min-w-0">
           <h1 className="text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-tight break-words">
