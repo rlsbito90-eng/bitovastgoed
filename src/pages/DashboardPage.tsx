@@ -10,17 +10,16 @@ import {
   isDealActief,
   isDealGerealiseerd,
   getDealRealisatieDatum,
-  FASE_KANS,
-  DEAL_FASE_LABELS,
 } from '@/data/mock-data';
-import type { DealFase, Taak } from '@/data/mock-data';
+import type { Taak } from '@/data/mock-data';
 import { isStrongMatch } from '@/lib/derivations';
 import {
   LeadStatusBadge,
-  DealFaseBadge,
   MatchScoreBadge,
 } from '@/components/StatusBadges';
 import PageHeader from '@/components/PageHeader';
+import TrajectoryStageBadge from '@/components/pipeline/TrajectoryStageBadge';
+import { getPreferredBidderStage, getTrajectoryProbability, getTrajectoryStage, isConcreteTransactionPosition } from '@/lib/lifecycle/trajectory';
 import {
   TrendingUp,
   Flame,
@@ -129,20 +128,6 @@ function KPICard({
 }
 
 /* ------------------------------------------------------------------ */
-/* Pipeline stages (operationele dealflow)                             */
-/* ------------------------------------------------------------------ */
-
-const pipelineFases: DealFase[] = [
-  'lead',
-  'introductie',
-  'interesse',
-  'bezichtiging',
-  'bieding',
-  'onderhandeling',
-  'closing',
-];
-
-/* ------------------------------------------------------------------ */
 /* Main page                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -166,6 +151,15 @@ export default function DashboardPage() {
 
   const actieveObjecten = useMemo(() => objecten.filter(o => !o.isArchived), [objecten]);
   const actieveDeals    = useMemo(() => deals.filter(isDealActief), [deals]);
+  const defaultPipeline = store.getDefaultObjectPipeline();
+  const pipelineStages = defaultPipeline
+    ? store.getStagesVoorPipeline(defaultPipeline.id).filter(stage => stage.isActive && !stage.isLost)
+    : [];
+  const preferredBidderStage = getPreferredBidderStage(pipelineStages);
+  const stageForObject = (objectId: string) => getTrajectoryStage(store.getObjectById(objectId), pipelineStages);
+  const concreteDeals = actieveDeals.filter(deal =>
+    isConcreteTransactionPosition(stageForObject(deal.objectId), preferredBidderStage)
+  );
   const openTaken       = useMemo(() => taken.filter(t => isOpenTaskStatus(t.status)), [taken]);
   const actieveWerktaken = useMemo(() => openTaken.filter(t => t.status !== 'wacht_op_reactie'), [openTaken]);
   const warmeRelaties = useMemo(() => relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief'), [relaties]);
@@ -192,11 +186,6 @@ export default function DashboardPage() {
     ? commissieStats.pipelineBedragTotaal
     : unifiedFees.stats.pipelineBedrag;
 
-  const closingDeals = useMemo(
-    () => actieveDeals.filter(d => d.fase === 'bieding' || d.fase === 'onderhandeling' || d.fase === 'closing'),
-    [actieveDeals],
-  );
-
   const taakAchterstallig = useMemo(
     () => sorteerTaken(actieveWerktaken.filter(t => isTaskOverdue(t, nu)), nu),
     [actieveWerktaken, planningRows],
@@ -215,46 +204,43 @@ export default function DashboardPage() {
   );
   const urgentCount = taakAchterstallig.length + taakVandaag.length;
 
-  const pipelinePerFase = useMemo(() => {
-    return pipelineFases.map(fase => {
-      const facetDeals = actieveDeals.filter(d => d.fase === fase);
-      const waarde = facetDeals.reduce((s, d) => s + (store.getObjectById(d.objectId)?.vraagprijs ?? 0), 0);
-      const fee = facetDeals.reduce((s, d) => s + (d.commissieBedrag ?? 0), 0);
-      const gewogen = fee * FASE_KANS[fase];
-      return { fase, aantal: facetDeals.length, waarde, fee, gewogen };
-    });
-  }, [actieveDeals, store]);
-  const totaalActieveDeals = pipelinePerFase.reduce((s, x) => s + x.aantal, 0) || 1;
-  const maxAantal = Math.max(1, ...pipelinePerFase.map(x => x.aantal));
-  const maxGewogen = Math.max(0, ...pipelinePerFase.map(x => x.gewogen));
+  const feeByObject = new Map(unifiedFees.rows.map(row => [row.objectId, row.pipelineFee]));
+  const pipelinePerFase = pipelineStages
+    .map(stage => {
+      const faseObjecten = actieveObjecten.filter(object => object.pipelineStageId === stage.id);
+      const waarde = faseObjecten.reduce((som, object) => som + (object.vraagprijs ?? 0), 0);
+      const fee = faseObjecten.reduce((som, object) => som + (feeByObject.get(object.id) ?? 0), 0);
+      const gewogen = fee * getTrajectoryProbability(stage);
+      return { stage, aantal: faseObjecten.length, waarde, fee, gewogen };
+    })
+    .filter(item => item.aantal > 0);
+  const totaalActieveObjecten = pipelinePerFase.reduce((som, item) => som + item.aantal, 0) || 1;
+  const maxAantal = Math.max(1, ...pipelinePerFase.map(item => item.aantal));
+  const maxGewogen = Math.max(0, ...pipelinePerFase.map(item => item.gewogen));
 
   const forecast = useMemo(() => {
     const buckets = [30, 60, 90].map(d => ({ days: d, bedrag: 0, count: 0 }));
     const today = nu.getTime();
-    for (const d of actieveDeals) {
+    for (const d of concreteDeals) {
       if (!d.verwachteClosingdatum || !d.commissieBedrag) continue;
       const dt = new Date(d.verwachteClosingdatum).getTime();
       const diff = (dt - today) / (1000 * 60 * 60 * 24);
       if (diff < 0 || diff > 90) continue;
-      const gewogen = d.commissieBedrag * FASE_KANS[d.fase];
+      const gewogen = d.commissieBedrag * getTrajectoryProbability(stageForObject(d.objectId));
       for (const b of buckets) {
         if (diff <= b.days) { b.bedrag += gewogen; b.count += 1; }
       }
     }
     return buckets;
-  }, [actieveDeals, nu]);
+  }, [concreteDeals, nu, objecten]);
 
-  const topDeals = useMemo(() => {
-    const fasePrio: Record<DealFase, number> = {
-      closing: 0, onderhandeling: 1, bieding: 2, bezichtiging: 3,
-      interesse: 4, introductie: 5, lead: 6, afgerond: 9, afgevallen: 9,
-    };
-    return [...actieveDeals].sort((a, b) => (fasePrio[a.fase] ?? 9) - (fasePrio[b.fase] ?? 9)).slice(0, 6);
-  }, [actieveDeals]);
+  const topDeals = [...concreteDeals]
+    .sort((a, b) => (stageForObject(b.objectId)?.sortOrder ?? 0) - (stageForObject(a.objectId)?.sortOrder ?? 0))
+    .slice(0, 6);
 
   const beschikbareObjecten = actieveObjecten.filter(o => o.status === 'beschikbaar').length;
-  const objectenZonderKandidaten = actieveObjecten.filter(o => !o.isArchived).filter(o => !deals.some(d => d.objectId === o.id && isDealActief(d))).length;
-  const dealsZonderActiviteit = actieveDeals.filter(d => {
+  const objectenZonderKandidaten = actieveObjecten.filter(object => !store.pipelineKandidaten.some(kandidaat => kandidaat.objectId === object.id)).length;
+  const dealsZonderActiviteit = concreteDeals.filter(d => {
     if (!d.datumFollowUp) return true;
     const last = new Date(d.datumFollowUp).getTime();
     return (nu.getTime() - last) / (1000 * 60 * 60 * 24) > 7;
@@ -297,7 +283,7 @@ export default function DashboardPage() {
           </div>
           <div className="min-w-0">
             <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Concrete Deals</p>
-            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">{actieveDeals.length}</p>
+            <p className="font-mono-data text-[15px] sm:text-[17px] font-semibold text-foreground mt-1 leading-none">{concreteDeals.length}</p>
           </div>
           <div className="min-w-0">
             <p className="text-[9.5px] sm:text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em]">Actieve kopers</p>
@@ -316,24 +302,24 @@ export default function DashboardPage() {
       <section className="section-card">
         <header className="section-header">
           <div className="min-w-0">
-            <h2 className="section-title flex items-center gap-2"><Activity className="h-4 w-4 text-accent" />Pipeline momentum</h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">Live overzicht van transactiefases — klik voor detail</p>
+            <h2 className="section-title flex items-center gap-2"><Activity className="h-4 w-4 text-accent" />Object Pipeline momentum</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">Live overzicht van de enige commerciële trajectfase — klik voor Pipeline</p>
           </div>
-          <Link to="/deals" className="section-link inline-flex items-center gap-1 group">Alle deals <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" /></Link>
+          <Link to="/pipeline" className="section-link inline-flex items-center gap-1 group">Naar Pipeline <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" /></Link>
         </header>
         <div className="p-5 lg:p-6">
           <div className="hidden md:flex items-stretch gap-1.5 mb-2">
-            {pipelinePerFase.map(({ fase, aantal, waarde, gewogen }, idx) => {
+            {pipelinePerFase.map(({ stage, aantal, waarde, gewogen }, idx) => {
               const isFirst = idx === 0;
               const isLast = idx === pipelinePerFase.length - 1;
               const intensity = 0.06 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.26;
               const heightPct = (aantal / maxAantal) * 100;
-              const pct = Math.round((aantal / totaalActieveDeals) * 100);
+              const pct = Math.round((aantal / totaalActieveObjecten) * 100);
               const isHotspot = gewogen > 0 && gewogen === maxGewogen;
               return (
-                <Link key={fase} to={`/deals?fase=${fase}`} className={`pipeline-stage rounded-sm ${isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'} ${isHotspot ? 'pipeline-stage--active' : ''}`} style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }} title={`${DEAL_FASE_LABELS[fase]}: ${aantal} · ${formatCurrencyCompact(waarde)} · fee ${formatCurrencyCompact(gewogen)}`}>
+                <Link key={stage.id} to="/pipeline" className={`pipeline-stage rounded-sm ${isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'} ${isHotspot ? 'pipeline-stage--active' : ''}`} style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }} title={`${stage.name}: ${aantal} · ${formatCurrencyCompact(waarde)} · fee ${formatCurrencyCompact(gewogen)}`}>
                   <div className="flex items-center justify-between gap-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/70 truncate">{DEAL_FASE_LABELS[fase]}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/70 truncate">{stage.name}</p>
                     {isHotspot && <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.18)]" aria-hidden />}
                   </div>
                   <div className="flex items-baseline gap-1.5 mt-1.5"><span className="text-[22px] font-semibold font-mono-data text-foreground leading-none tracking-tight">{aantal}</span><span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span></div>
@@ -346,14 +332,14 @@ export default function DashboardPage() {
           </div>
 
           <div className="md:hidden grid grid-cols-2 gap-2">
-            {pipelinePerFase.map(({ fase, aantal, waarde }) => {
-              const pct = Math.round((aantal / totaalActieveDeals) * 100);
-              const intensity = 0.04 + (pipelineFases.indexOf(fase) / Math.max(1, pipelineFases.length - 1)) * 0.14;
+            {pipelinePerFase.map(({ stage, aantal, waarde }, idx) => {
+              const pct = Math.round((aantal / totaalActieveObjecten) * 100);
+              const intensity = 0.04 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.14;
               return (
-                <Link key={fase} to={`/deals?fase=${fase}`} className="relative overflow-hidden rounded-xl border border-border/70 px-3 py-2.5 active:scale-[0.98] transition-all min-w-0" style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}>
-                  <p className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">{DEAL_FASE_LABELS[fase]}</p>
+                <Link key={stage.id} to="/pipeline" className="relative overflow-hidden rounded-xl border border-border/70 px-3 py-2.5 active:scale-[0.98] transition-all min-w-0" style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}>
+                  <p className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">{stage.name}</p>
                   <p className="font-mono-data text-[15px] font-semibold text-foreground mt-1.5 leading-none truncate">{formatCurrencyCompact(waarde)}</p>
-                  <div className="flex items-baseline gap-1.5 mt-1.5"><span className="text-[12px] font-mono-data font-semibold text-foreground/80">{aantal}</span><span className="text-[10px] text-muted-foreground">deals · {pct}%</span></div>
+                  <div className="flex items-baseline gap-1.5 mt-1.5"><span className="text-[12px] font-mono-data font-semibold text-foreground/80">{aantal}</span><span className="text-[10px] text-muted-foreground">objecten · {pct}%</span></div>
                   <div className="mt-2 h-0.5 bg-foreground/5 rounded-full overflow-hidden"><div className="h-full bg-accent rounded-full bar-fill" style={{ width: `${Math.max(6, (aantal / maxAantal) * 100)}%` }} /></div>
                 </Link>
               );
@@ -364,7 +350,7 @@ export default function DashboardPage() {
 
       <section className="section-card flex flex-col">
         <header className="section-header">
-          <div className="min-w-0"><h2 className="section-title">Actieve deals</h2><p className="text-[11px] text-muted-foreground mt-0.5">{topDeals.length} van {actieveDeals.length} — meest gevorderd</p></div>
+          <div className="min-w-0"><h2 className="section-title">Concrete transacties</h2><p className="text-[11px] text-muted-foreground mt-0.5">{topDeals.length} van {concreteDeals.length} — vanaf Preferred bidder / exclusiviteit</p></div>
           <Link to="/deals" className="section-link inline-flex items-center gap-1">Alle deals <ArrowRight className="h-3 w-3" /></Link>
         </header>
         <div className="divide-y divide-border/60">
@@ -379,12 +365,12 @@ export default function DashboardPage() {
                     <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'}{object?.plaats ? <span className="text-muted-foreground/60"> · {object.plaats}</span> : null}</p>
                     <div className="flex items-center gap-2 mt-2">{object?.vraagprijs != null && <span className="text-[11px] font-mono-data text-muted-foreground">{formatCurrencyCompact(object.vraagprijs)}</span>}{deal.commissieBedrag != null && <span className="text-[11px] font-mono-data font-semibold text-accent bg-accent/8 ring-1 ring-accent/15 px-1.5 py-0.5 rounded-md">fee {formatCurrencyCompact(deal.commissieBedrag)}</span>}</div>
                   </div>
-                  <DealFaseBadge fase={deal.fase} />
+                  <TrajectoryStageBadge objectId={deal.objectId} />
                 </div>
               </Link>
             );
           })}
-          {topDeals.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Geen actieve deals.</p>}
+          {topDeals.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Geen concrete transacties. Kandidaten vóór Preferred bidder staan op het Object.</p>}
         </div>
       </section>
 

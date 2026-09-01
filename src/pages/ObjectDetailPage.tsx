@@ -35,12 +35,10 @@ import {
   deriveVerhuurMetrics,
   isStrongMatch,
   countKandidaten,
-  selectLeadDeal,
-  calculateExpectedFee,
 
 } from '@/lib/derivations';
 
-import { ObjectStatusBadge, DealFaseBadge, MatchScoreBadge } from '@/components/StatusBadges';
+import { ObjectStatusBadge, MatchScoreBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, MapPin, Pencil, Trash2, EyeOff, Star,
   FileText, Download, Building2, Phone, Mail,
@@ -89,6 +87,8 @@ import { buildMapsUrl } from '@/lib/maps';
 import { useKadasterDataRecords } from '@/hooks/useKadasterDataRecords';
 import { useKadasterDocumentenForObject } from '@/hooks/useKadasterDocumenten';
 import { getObjectIntegriteitVoorObject } from '@/lib/objecten/objectIntegriteit';
+import TrajectoryStageBadge from '@/components/pipeline/TrajectoryStageBadge';
+import { getPreferredBidderStage, getTrajectoryProbability, getTrajectoryStage, isConcreteTransactionPosition } from '@/lib/lifecycle/trajectory';
 
 /* ============================================================
  * Local presentational primitives — institutional dealroom look
@@ -1050,10 +1050,18 @@ export default function ObjectDetailPage() {
   const barIsHandmatig = bar.source === 'override';
   const prijsPerM2Str = prijsPerM2.value != null ? formatEurPerM2(object.vraagprijs, m2VoorBerekening) : '—';
 
-  // Lead deal voor cockpit — centrale selector (Prompt 3.6)
-  const leadDeal = selectLeadDeal(deals, object.id);
-  // Gewogen verwachte fee voor lead deal — centrale helper
-  const leadDealVerwachteFee = leadDeal ? calculateExpectedFee([leadDeal]) : 0;
+  // Concrete Deal bestaat pas vanaf Preferred bidder / exclusiviteit.
+  // Oude Deal-rijen vóór die grens blijven historie en sturen de cockpit niet.
+  const defaultPipeline = store.getDefaultObjectPipeline();
+  const trajectoryStages = defaultPipeline ? store.getStagesVoorPipeline(defaultPipeline.id) : [];
+  const currentTrajectoryStage = getTrajectoryStage(object, trajectoryStages);
+  const preferredBidderStage = getPreferredBidderStage(trajectoryStages);
+  const hasTransactionPosition = isConcreteTransactionPosition(currentTrajectoryStage, preferredBidderStage);
+  const activeDealRecords = deals.filter(d => !d.isArchived && !d.softDeletedAt);
+  const leadDeal = hasTransactionPosition && activeDealRecords.length === 1 ? activeDealRecords[0] : null;
+  const leadDealVerwachteFee = leadDeal?.commissieBedrag != null
+    ? leadDeal.commissieBedrag * getTrajectoryProbability(currentTrajectoryStage)
+    : 0;
 
 
   const handleDelete = async () => {
@@ -2346,15 +2354,15 @@ export default function ObjectDetailPage() {
           <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Deal cockpit
+                Transactie cockpit
               </p>
-              {leadDeal && <DealFaseBadge fase={leadDeal.fase} />}
+              <TrajectoryStageBadge objectId={object.id} />
             </div>
 
             {leadDeal ? (
               <div className="space-y-3">
                 <div>
-                  <p className="field-label">Lead deal</p>
+                  <p className="field-label">Koper / preferred bidder</p>
                   <Link
                     to={`/deals/${leadDeal.id}`}
                     className="text-sm font-medium text-foreground hover:text-accent inline-flex items-center gap-1 mt-0.5"
@@ -2382,8 +2390,8 @@ export default function ObjectDetailPage() {
 
                 <div className="grid grid-cols-2 gap-2 hairline pt-3">
                   <div>
-                    <p className="field-label">Deals</p>
-                    <p className="font-mono-data text-sm font-semibold mt-0.5">{deals.length}</p>
+                    <p className="field-label">Concrete deals</p>
+                    <p className="font-mono-data text-sm font-semibold mt-0.5">{leadDeal ? 1 : 0}</p>
                   </div>
                   <div>
                     <p className="field-label">Kandidaten</p>
@@ -2394,7 +2402,7 @@ export default function ObjectDetailPage() {
             ) : (
               <div className="text-center py-4">
                 <Target className="h-7 w-7 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">Nog geen actieve deal gekoppeld.</p>
+                <p className="text-xs text-muted-foreground">Nog geen concrete Deal. Kandidaten en biedingen blijven op het Object tot Preferred bidder / exclusiviteit.</p>
               </div>
             )}
           </div>

@@ -129,6 +129,14 @@ export default function DealFormDialog({
   const pipelineProbability = currentObjectStage?.probability != null
     ? currentObjectStage.probability / 100
     : 0;
+  const isConcreteTransactionPosition = Boolean(
+    currentObjectStage && preferredBidderStage && (
+      currentObjectStage.isWon || currentObjectStage.isLost || currentObjectStage.sortOrder >= preferredBidderStage.sortOrder
+    ),
+  );
+  const relatieLabel = isEdit && !isConcreteTransactionPosition
+    ? 'Legacy relatie (oude Deal) *'
+    : 'Preferred bidder / koper *';
 
   // Auto-bereken commissie-bedrag als vraagprijs bekend + pct ingevuld.
   // In fase 2 verhuist de prognose naar het Object; bestaande Deal-fees blijven
@@ -299,6 +307,15 @@ export default function DealFormDialog({
                 </div>
               )}
 
+              {isEdit && !isConcreteTransactionPosition && (
+                <div className="p-3 bg-warning/8 border border-warning/30 rounded-md flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 text-warning shrink-0" />
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Dit is een oud Deal-record van vóór Preferred bidder / exclusiviteit. De gekoppelde relatie kan verkoper, aanbieder of een oude kandidaatkoppeling zijn en wordt niet als koper geïnterpreteerd.
+                  </p>
+                </div>
+              )}
+
               <Sectie titel="Koppelingen">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <EntityPicker
@@ -315,7 +332,7 @@ export default function DealFormDialog({
                     recentIds={readRecent('object')}
                   />
                   <EntityPicker
-                    label="Preferred bidder / koper *"
+                    label={relatieLabel}
                     pickerTitle="Kies relatie"
                     searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
                     emptyLabel="Geen gekoppelde relatie"

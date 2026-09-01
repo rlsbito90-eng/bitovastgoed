@@ -4,7 +4,7 @@
 // Secties:
 //  1. KPI rij (gerealiseerd, pipeline, deals, gem. dealgrootte)
 //  2. Commissie per maand (lijngrafiek, dit jaar vs vorig jaar)
-//  3. Conversie funnel (deals per fase, met drop-off %)
+//  3. Object Pipeline momentum (deals per fase, met drop-off %)
 //  4. Top bronnen (welke relaties leveren meeste afgeronde deals)
 //  5. Gemiddelde doorlooptijd per fase
 //  6. Top 10 grootste afgeronde deals
@@ -18,28 +18,26 @@ import {
   formatCurrencyCompact,
   formatDate,
   ASSET_CLASS_LABELS,
-  DEAL_FASE_LABELS,
-  FASE_KANS,
 } from '@/data/mock-data';
-import type { Deal, DealFase } from '@/data/mock-data';
+import type { Deal } from '@/data/mock-data';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts';
 import {
-  TrendingUp, Award, Target, Activity, Users, Building2, Trophy, ArrowDown,
+  TrendingUp, Award, Target, Activity, Users, Building2, Trophy,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const FASE_VOLGORDE: DealFase[] = [
-  'lead', 'introductie', 'interesse', 'bezichtiging', 'bieding',
-  'onderhandeling', 'closing', 'afgerond',
-];
+import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
+import { getTrajectoryProbability, getTrajectoryStage } from '@/lib/lifecycle/trajectory';
 
 export default function RapportagePage() {
   const store = useDataStore();
   const huidigJaar = new Date().getFullYear();
   const [jaar, setJaar] = useState(huidigJaar);
+  const unifiedFees = useUnifiedFeeReporting(jaar);
+  const defaultPipeline = store.getDefaultObjectPipeline();
+  const pipelineStages = defaultPipeline ? store.getStagesVoorPipeline(defaultPipeline.id) : [];
 
   const jaarDoel = store.getJaarDoel(jaar);
   const vorigJaarDoel = store.getJaarDoel(jaar - 1);
@@ -85,30 +83,25 @@ export default function RapportagePage() {
     });
   }, [maandData, jaarDoel]);
 
-  // Conversie funnel - deals ooit in elke fase (cumulatief richting hoger)
+  // Huidige Object Pipeline — de enige commerciële trajectfase.
   const funnel = useMemo(() => {
-    // Deals die deze fase OF een latere fase hebben bereikt
-    const dealsThisYear = store.deals.filter(d => {
-      const dealJaar = d.verwachteClosingdatum
-        ? new Date(d.verwachteClosingdatum).getFullYear()
-        : new Date(d.datumEersteContact).getFullYear();
-      return dealJaar === jaar;
-    });
+    const actieveObjecten = store.objecten.filter(object => !object.isArchived);
+    return pipelineStages
+      .filter(stage => stage.isActive && !stage.isLost)
+      .map(stage => ({
+        fase: stage.name,
+        aantal: actieveObjecten.filter(object => object.pipelineStageId === stage.id).length,
+      }))
+      .filter(row => row.aantal > 0);
+  }, [store.objecten, pipelineStages]);
 
-    return FASE_VOLGORDE.map((fase, idx) => {
-      const indexHuidig = FASE_VOLGORDE.indexOf(fase);
-      const aantal = dealsThisYear.filter(d => {
-        if (d.fase === 'afgevallen') return idx === 0; // afgevallen tellen alleen in 'lead'
-        const dealIdx = FASE_VOLGORDE.indexOf(d.fase);
-        return dealIdx >= indexHuidig;
-      }).length;
-      return { fase: DEAL_FASE_LABELS[fase], aantal };
-    });
-  }, [store.deals, jaar]);
-
-  const conversiePct = funnel[0].aantal > 0
-    ? Math.round((funnel[funnel.length - 1].aantal / funnel[0].aantal) * 100)
-    : 0;
+  const pipelineBedragTotaal = unifiedFees.stats.pipelineBedrag;
+  const pipelineBedragGewogen = unifiedFees.rows.reduce((som, row) => {
+    const object = store.getObjectById(row.objectId);
+    const stage = getTrajectoryStage(object, pipelineStages);
+    return som + row.pipelineFee * getTrajectoryProbability(stage);
+  }, 0);
+  const pipelineAantalObjecten = unifiedFees.rows.filter(row => row.pipelineFee > 0).length;
 
   // Top bronnen — relaties met meeste afgeronde deals
   const topBronnen = useMemo(() => {
@@ -218,14 +211,14 @@ export default function RapportagePage() {
         <KPICard
           icon={TrendingUp}
           label="Pipeline (gewogen)"
-          value={formatCurrencyCompact(stats.pipelineBedragGewogen)}
-          subtext={`${stats.pipelineAantalDeals} actief · totaal ${formatCurrencyCompact(stats.pipelineBedragTotaal)}`}
+          value={formatCurrencyCompact(pipelineBedragGewogen)}
+          subtext={`${pipelineAantalObjecten} objecten · totaal ${formatCurrencyCompact(pipelineBedragTotaal)}`}
         />
         <KPICard
           icon={Activity}
-          label="Conversie funnel"
-          value={`${conversiePct}%`}
-          subtext={`${funnel[0].aantal} leads → ${funnel[funnel.length - 1].aantal} closes`}
+          label="Object Pipeline"
+          value={`${funnel.length} actieve fases`}
+          subtext={`${store.objecten.filter(object => !object.isArchived).length} actieve objecten`}
         />
         <KPICard
           icon={Building2}
@@ -312,47 +305,42 @@ export default function RapportagePage() {
         </div>
       </div>
 
-      {/* Conversiefunnel */}
+      {/* Huidige Object Pipeline-verdeling — géén historische conversiefunnel. */}
       <div className="section-card p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="section-title">Conversie funnel · {jaar}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="section-title">Object Pipeline momentum</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Huidige verdeling van actieve objecten over de commerciële trajectfase.
+            </p>
+          </div>
           <span className="text-xs text-muted-foreground">
-            {funnel[0].aantal} leads → {funnel[funnel.length - 1].aantal} closes ({conversiePct}%)
+            {store.objecten.filter(object => !object.isArchived).length} actieve objecten · {funnel.length} bezette fases
           </span>
         </div>
-        <div className="space-y-1.5">
-          {funnel.map((rij, idx) => {
-            const max = funnel[0].aantal || 1;
-            const pct = (rij.aantal / max) * 100;
-            const dropoff = idx > 0 && funnel[idx - 1].aantal > 0
-              ? Math.round(((funnel[idx - 1].aantal - rij.aantal) / funnel[idx - 1].aantal) * 100)
-              : null;
-            return (
-              <div key={rij.fase}>
-                {idx > 0 && dropoff != null && dropoff > 0 && (
-                  <div className="flex items-center gap-1 pl-4 text-[10px] text-muted-foreground -mt-0.5 mb-0.5">
-                    <ArrowDown className="h-2.5 w-2.5" /> -{dropoff}%
-                  </div>
-                )}
-                <div className="flex items-center gap-3">
-                  <div className="w-28 sm:w-32 text-xs text-muted-foreground shrink-0">{rij.fase}</div>
+        {funnel.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">Geen actieve objecten in de Object Pipeline.</p>
+        ) : (
+          <div className="space-y-2">
+            {funnel.map((rij) => {
+              const max = Math.max(1, ...funnel.map(item => item.aantal));
+              const pct = (rij.aantal / max) * 100;
+              return (
+                <div key={rij.fase} className="flex items-center gap-3">
+                  <div className="w-32 sm:w-44 text-xs text-muted-foreground shrink-0 truncate" title={rij.fase}>{rij.fase}</div>
                   <div className="flex-1 h-7 bg-muted/40 rounded-md overflow-hidden">
                     <div
-                      className={`h-full flex items-center px-2 text-xs font-medium font-mono-data transition-all ${
-                        idx === funnel.length - 1
-                          ? 'bg-green-500/80 text-white'
-                          : 'bg-accent/70 text-accent-foreground'
-                      }`}
+                      className="h-full flex items-center px-2 text-xs font-medium font-mono-data bg-accent/70 text-accent-foreground transition-all"
                       style={{ width: `${Math.max(pct, 4)}%` }}
                     >
                       {rij.aantal}
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

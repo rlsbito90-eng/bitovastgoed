@@ -11,7 +11,7 @@ import {
   COMMUNICATIE_KANAAL_LABELS,
 } from '@/data/mock-data';
 import {
-  LeadStatusBadge, DealFaseBadge, MatchScoreBadge, PrioriteitBadge,
+  LeadStatusBadge, MatchScoreBadge, PrioriteitBadge,
 } from '@/components/StatusBadges';
 import {
   ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
@@ -36,6 +36,8 @@ import { isTaakTeLaat, deadlineLabel } from '@/lib/taakHelpers';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
+import TrajectoryStageBadge from '@/components/pipeline/TrajectoryStageBadge';
+import { getPreferredBidderStage, getTrajectoryStage, isConcreteTransactionPosition } from '@/lib/lifecycle/trajectory';
 
 const DEALSTRUCTUUR_LABELS: Record<string, string> = {
   direct: 'Direct eigendom',
@@ -74,7 +76,15 @@ export default function RelatieDetailPage() {
 
   const contactpersonen = store.getContactpersonenVoorRelatie(relatie.id);
   const zoekprofielen = store.getZoekprofielenByRelatie(relatie.id);
-  const deals = store.getDealsByRelatie(relatie.id);
+  const allRelationDeals = store.getDealsByRelatie(relatie.id);
+  const defaultPipeline = store.getDefaultObjectPipeline();
+  const trajectoryStages = defaultPipeline ? store.getStagesVoorPipeline(defaultPipeline.id) : [];
+  const preferredBidderStage = getPreferredBidderStage(trajectoryStages);
+  const deals = allRelationDeals.filter(deal => {
+    if (deal.fase === 'afgerond' || deal.fase === 'afgevallen') return true;
+    const stage = getTrajectoryStage(store.getObjectById(deal.objectId), trajectoryStages);
+    return isConcreteTransactionPosition(stage, preferredBidderStage);
+  });
   const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
   const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
   const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
@@ -394,7 +404,7 @@ export default function RelatieDetailPage() {
                             {deal.commissieBedrag != null && ` · commissie ${formatCurrency(deal.commissieBedrag)}`}
                           </p>
                         </div>
-                        <DealFaseBadge fase={deal.fase} />
+                        <TrajectoryStageBadge objectId={deal.objectId} />
                       </div>
                     </Link>
                   );
