@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 
 import type { ActieSubfilter, WerkbakView } from '@/lib/offMarket/acquisitie/werkbak';
 import { ACTIE_SUBFILTER_LABEL, WERKBAK_LABEL } from '@/lib/offMarket/acquisitie/werkbak';
-import { leesRadarBulkSelectie } from '@/lib/offMarket/acquisitie/bulkSelectionPersistence';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { useAlleOffMarketBrievenVoorPartijen } from '@/hooks/useAcquisitiePartijOverzicht';
 import { Button } from '@/components/ui/button';
@@ -27,10 +26,14 @@ export interface AcquisitieWerkbakChipsProps {
     werkbak: Record<WerkbakView, number>;
     subfilter: Record<ActieSubfilter, number>;
   };
+  geselecteerdeRadarIds: string[];
+  zichtbareRadarIds: string[];
+  onVolgendeBrief: () => void;
 }
 
 export default function AcquisitieWerkbakChips({
   werkbak, subfilter, onWerkbakChange, onSubfilterChange, counts,
+  geselecteerdeRadarIds, zichtbareRadarIds, onVolgendeBrief,
 }: AcquisitieWerkbakChipsProps) {
   const { data: alleSignalen = [], isLoading: signalenLaden } = useOffMarketSignalen();
   const [emailScopeIds, setEmailScopeIds] = useState<string[]>([]);
@@ -53,49 +56,34 @@ export default function AcquisitieWerkbakChips({
     setEmailOpen(true);
   }, [emailOpenGevraagd, signalenLaden, brievenLaden, emailSignalen.length]);
 
-  const leesZichtbareGeselecteerdeRadarIds = (): string[] => Array.from(
-    document.querySelectorAll<HTMLElement>(
-      '[data-testid="acquisitie-selectie-rij"][data-selected="true"][data-signaal-id]',
-    ),
-  ).map((rij) => rij.dataset.signaalId).filter((id): id is string => Boolean(id));
+  const zichtbareSet = useMemo(() => new Set(zichtbareRadarIds), [zichtbareRadarIds]);
+  const zichtbareSelectie = useMemo(
+    () => geselecteerdeRadarIds.filter((id) => zichtbareSet.has(id)),
+    [geselecteerdeRadarIds, zichtbareSet],
+  );
 
-  const openVolgendeBrief = () => {
-    const zichtbaar = leesZichtbareGeselecteerdeRadarIds();
-    if (zichtbaar.length === 0) {
+  const valideerOpvolgselectie = (): string[] | null => {
+    if (zichtbareSelectie.length === 0) {
       toast.info('Selecteer eerst één of meer dossiers in Opvolgen.');
-      return;
+      return null;
     }
-
-    const volledigeSelectie = Array.from(leesRadarBulkSelectie());
-    const zichtbaarSet = new Set(zichtbaar);
-    const bevatVerborgenSelectie = volledigeSelectie.length !== zichtbaar.length
-      || volledigeSelectie.some((id) => !zichtbaarSet.has(id));
-    if (bevatVerborgenSelectie) {
+    if (zichtbareSelectie.length !== geselecteerdeRadarIds.length) {
       toast.warning('Je selectie bevat ook dossiers buiten de huidige Opvolgen-lijst.', {
         description: 'Wis de selectie en selecteer alleen de vervolgacties die je nu wilt verwerken.',
       });
-      return;
+      return null;
     }
+    return zichtbareSelectie;
+  };
 
-    // De bestaande Radar-briefwizard is de canonieke partij-/campagnebewuste
-    // productieroute. Deze centrale knop opent bewust exact diezelfde actie,
-    // zodat Brief 2/3 geen concurrerende implementatie krijgt.
-    const bestaandeActie = document.querySelector<HTMLButtonElement>(
-      '[data-testid="acquisitie-bulk-brieven-voorbereiden"]',
-    );
-    if (!bestaandeActie) {
-      toast.error('Radar-briefactie is niet beschikbaar voor deze selectie.');
-      return;
-    }
-    bestaandeActie.click();
+  const openVolgendeBrief = () => {
+    if (!valideerOpvolgselectie()) return;
+    onVolgendeBrief();
   };
 
   const openEmailOpvolging = () => {
-    const ids = leesZichtbareGeselecteerdeRadarIds();
-    if (ids.length === 0) {
-      toast.info('Selecteer eerst één of meer dossiers in Opvolgen.');
-      return;
-    }
+    const ids = valideerOpvolgselectie();
+    if (!ids) return;
     setEmailScopeIds(ids);
     setEmailOpenGevraagd(true);
   };

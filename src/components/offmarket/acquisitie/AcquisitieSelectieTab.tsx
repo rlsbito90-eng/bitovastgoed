@@ -54,6 +54,7 @@ import AcquisitieWerkbakChips from './AcquisitieWerkbakChips';
 import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
 import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
+import BulkVolgendeBriefDialog from './BulkVolgendeBriefDialog';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
 import ProductiekernPrintbatchWerkbak from './ProductiekernPrintbatchWerkbak';
 import AcquisitieDossierRij from './AcquisitieDossierRij';
@@ -674,6 +675,7 @@ export default function AcquisitieSelectieTab() {
   }
 
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [opvolgWizardOpen, setOpvolgWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [pandenverkennerKadasterOpen, setPandenverkennerKadasterOpen] = useState(false);
   const [pandenverkennerBriefOpen, setPandenverkennerBriefOpen] = useState(false);
@@ -790,6 +792,22 @@ export default function AcquisitieSelectieTab() {
   }
 
   const geselecteerdeSignalenBulk = Array.from(bulkSelectie).map(id => signaalIndex.get(id)).filter((s): s is OffMarketSignaal => !!s);
+  const opvolgContext = !zoekActief && werkbak === 'actie' && subfilter === 'opvolgen';
+  const openOpvolgWizard = () => {
+    const zichtbaar = new Set(gefilterd.map(({ signaal }) => signaal.id));
+    const zichtbareSelectie = Array.from(bulkSelectie).filter((id) => zichtbaar.has(id));
+    if (zichtbareSelectie.length === 0) {
+      toast.info('Selecteer eerst één of meer dossiers in Opvolgen.');
+      return;
+    }
+    if (zichtbareSelectie.length !== bulkSelectie.size) {
+      toast.warning('Je selectie bevat ook dossiers buiten de huidige Opvolgen-lijst.', {
+        description: 'Wis de selectie en selecteer alleen de vervolgacties die je nu wilt verwerken.',
+      });
+      return;
+    }
+    setOpvolgWizardOpen(true);
+  };
   const totaalSelectie = bulkSelectie.size + bulkVastgoedkansSelectie.size;
   const totaalZichtbaar = gecombineerdeVolgorde.length;
   const bronTellingen = {
@@ -936,7 +954,16 @@ export default function AcquisitieSelectieTab() {
       <AcquisitieKpis kpis={kpis} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <AcquisitieWerkbakChips werkbak={werkbak} subfilter={subfilter} onWerkbakChange={setWerkbak} onSubfilterChange={setSubfilter} counts={tellingen} />
+        <AcquisitieWerkbakChips
+          werkbak={werkbak}
+          subfilter={subfilter}
+          onWerkbakChange={setWerkbak}
+          onSubfilterChange={setSubfilter}
+          counts={tellingen}
+          geselecteerdeRadarIds={Array.from(bulkSelectie)}
+          zichtbareRadarIds={gefilterd.map(({ signaal }) => signaal.id)}
+          onVolgendeBrief={openOpvolgWizard}
+        />
         {!werkronde && bronFilter !== 'pandenverkenner' && gefilterd.length > 0 && (
           <Button type="button" size="sm" variant="default" onClick={primaireVerwerkActie} data-testid="acquisitie-verwerk-selectie" disabled={primaireVerwerkDisabled}>
             <PlayCircle className="h-4 w-4" />{primaireVerwerkLabel()}
@@ -1020,14 +1047,15 @@ export default function AcquisitieSelectieTab() {
           {totaalSelectie === 0 ? (
             <Button type="button" variant="outline" size="sm" onClick={selecteerZichtbareBulk} disabled={totaalZichtbaar === 0} data-testid="acquisitie-bulk-selecteer-zichtbare"><Users className="h-3.5 w-3.5" />Selecteer resultaten ({totaalZichtbaar})</Button>
           ) : (
-            <><span className="font-medium text-foreground" data-testid="acquisitie-bulk-telling">{bulkTotalen.dossiers} geselecteerd · {bulkTotalen.radar} Radar · {bulkTotalen.pandenverkenner} Pandenverkenner · {bulkTotalen.geadresseerden} geadresseerden · {bulkTotalen.geschikteBrieven} brieven gereed</span><Button type="button" variant="ghost" size="sm" onClick={wisBulk}>Wis selectie</Button></>
+            <><span className="font-medium text-foreground" data-testid="acquisitie-bulk-telling">{bulkTotalen.dossiers} geselecteerd · {bulkTotalen.radar} Radar · {bulkTotalen.pandenverkenner} Pandenverkenner · {bulkTotalen.geadresseerden} geadresseerden · {opvolgContext ? 'volgende stap wordt per ontvanger bepaald' : `${bulkTotalen.geschikteBrieven} brieven gereed`}</span><Button type="button" variant="ghost" size="sm" onClick={wisBulk}>Wis selectie</Button></>
           )}
           {totaalSelectie > 0 && totaalZichtbaar > totaalSelectie && <Button type="button" variant="ghost" size="sm" onClick={selecteerZichtbareBulk}>Selecteer alle {totaalZichtbaar} resultaten</Button>}
         </div>
         {totaalSelectie > 0 && (
           <div className="acquisitie-selection-actions grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {bulkSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setWizardOpen(true)} data-testid="acquisitie-bulk-brieven-voorbereiden"><Mail className="h-3.5 w-3.5" />Radar-brieven</Button>}
-            {bulkSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPdfOpen(true)} data-testid="acquisitie-bulk-gecombineerde-pdf"><FileDown className="h-3.5 w-3.5" />Radar-productie</Button>}
+            {bulkSelectie.size > 0 && opvolgContext && <Button type="button" size="sm" variant="secondary" onClick={openOpvolgWizard} data-testid="acquisitie-bulk-volgende-brief"><Mail className="h-3.5 w-3.5" />Volgende brief</Button>}
+            {bulkSelectie.size > 0 && !opvolgContext && <Button type="button" size="sm" variant="secondary" onClick={() => setWizardOpen(true)} data-testid="acquisitie-bulk-brieven-voorbereiden"><Mail className="h-3.5 w-3.5" />Radar-brieven</Button>}
+            {bulkSelectie.size > 0 && !opvolgContext && <Button type="button" size="sm" variant="secondary" onClick={() => setPdfOpen(true)} data-testid="acquisitie-bulk-gecombineerde-pdf"><FileDown className="h-3.5 w-3.5" />Radar-productie</Button>}
             {bulkVastgoedkansSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPandenverkennerKadasterOpen(true)} data-testid="acquisitie-bulk-kadaster-vastgoedkansen">Bulk Kadaster</Button>}
             {bulkVastgoedkansSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPandenverkennerBriefOpen(true)} data-testid="acquisitie-bulk-brieven-vastgoedkansen"><Mail className="h-3.5 w-3.5" />Pandenverkenner-brieven</Button>}
             <Button type="button" size="sm" variant="ghost" onClick={verwijderBulkUitSelectie} disabled={verwijderUitSelectie.isPending || verwijderVastgoedkans.isPending} data-testid="acquisitie-bulk-uit-selectie" className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" />Uit Acquisitieselectie ({totaalSelectie})</Button>
@@ -1059,6 +1087,7 @@ export default function AcquisitieSelectieTab() {
 
       <FocusModus open={focusOpen} onClose={() => { setFocusOpen(false); setVerwerkScopeIds(null); }} items={focusItems} index={focusIndex} onIndexChange={setFocusIndex} focusScopeIds={verwerkScopeIds} selectedIds={Array.from(bulkSelectie)} />
       <BulkBriefVoorbereidenWizard open={wizardOpen} onClose={() => setWizardOpen(false)} signalen={geselecteerdeSignalenBulk} brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))} />
+      <BulkVolgendeBriefDialog open={opvolgWizardOpen} onClose={() => setOpvolgWizardOpen(false)} signalen={geselecteerdeSignalenBulk} brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))} />
       <GecombineerdeBrievenPdfDialog open={pdfOpen} onClose={() => setPdfOpen(false)} signalen={geselecteerdeSignalenBulk} toegevoegdOpPerSignaal={toegevoegdOpPerSignaal} brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))} />
       <PandenverkennerBulkKadasterDialog open={pandenverkennerKadasterOpen} onOpenChange={setPandenverkennerKadasterOpen} kansen={geselecteerdeVastgoedkansenBulk} />
       <PandenverkennerBulkBriefDialog open={pandenverkennerBriefOpen} onOpenChange={setPandenverkennerBriefOpen} kansen={geselecteerdeVastgoedkansenBulk} />
