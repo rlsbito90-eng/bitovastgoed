@@ -5,6 +5,7 @@ import { nl } from 'date-fns/locale';
 import type { OffMarketSignaal } from '@/lib/offMarket/types';
 import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import type { ReadinessFase, SignaalReadiness } from '@/lib/offMarket/acquisitie/readiness';
+import { actueleVerzondenBrievenPerGeadresseerde } from '@/lib/offMarket/acquisitie/postCampagneVoortgang';
 import { vandaagNl, isDatumInToekomstNl } from '@/lib/datum/nlDatum';
 
 export type Werkbak = 'actie' | 'wachten' | 'afgehandeld';
@@ -67,17 +68,27 @@ function actieveBrieven(brieven: OffMarketBrief[]): OffMarketBrief[] {
   return brieven.filter(b => !b.archived_at);
 }
 
+function actueleOpvolgbrieven(brieven: OffMarketBrief[]): OffMarketBrief[] {
+  return actueleVerzondenBrievenPerGeadresseerde(actieveBrieven(brieven))
+    .filter((brief) => {
+      const respons = brief.responsstatus ?? null;
+      return !respons || respons === 'geen_reactie';
+    });
+}
+
 function heeftUitsluitendToekomstigeOpvolging(brieven: OffMarketBrief[], vandaag = vandaagISO()): boolean {
   const actief = actieveBrieven(brieven);
   if (actief.length === 0) return false;
+  // Een open concept/BR blijft een fysieke productiestap en mag nooit door een
+  // historische opvolgdatum naar Wachten verdwijnen.
+  if (actief.some((brief) => {
+    const kanaal = brief.kanaal ?? 'post';
+    return kanaal === 'post' && (brief.status === 'concept' || brief.status === 'definitief');
+  })) return false;
+  const opvolgbrieven = actueleOpvolgbrieven(actief);
+  if (opvolgbrieven.length === 0) return false;
   let heeftToekomstig = false;
-  for (const b of actief) {
-    const respons = b.responsstatus ?? null;
-    if (respons && respons !== 'geen_reactie') continue;
-    const status = b.status ?? null;
-    const vs = (b.verzendstatus ?? '') as string;
-    const isVerzonden = status === 'verstuurd' || vs === 'gepost' || vs === 'verzonden';
-    if (!isVerzonden) return false;
+  for (const b of opvolgbrieven) {
     const opv = b.opvolgdatum ?? null;
     if (!opv || !isDatumInToekomst(opv, vandaag)) return false;
     heeftToekomstig = true;
@@ -87,10 +98,8 @@ function heeftUitsluitendToekomstigeOpvolging(brieven: OffMarketBrief[], vandaag
 
 function eerstvolgendeToekomstigeOpvolgdatum(brieven: OffMarketBrief[], vandaag = vandaagISO()): string | null {
   let laagste: string | null = null;
-  for (const b of actieveBrieven(brieven)) {
+  for (const b of actueleOpvolgbrieven(brieven)) {
     const opv = b.opvolgdatum ?? null;
-    const respons = b.responsstatus ?? null;
-    if (respons && respons !== 'geen_reactie') continue;
     if (!opv || !isDatumInToekomst(opv, vandaag)) continue;
     if (laagste === null || opv < laagste) laagste = opv;
   }
@@ -99,10 +108,8 @@ function eerstvolgendeToekomstigeOpvolgdatum(brieven: OffMarketBrief[], vandaag 
 
 function vroegsteOpvolgdatumOpen(brieven: OffMarketBrief[], vandaag = vandaagISO()): string | null {
   let laagste: string | null = null;
-  for (const b of actieveBrieven(brieven)) {
+  for (const b of actueleOpvolgbrieven(brieven)) {
     const opv = b.opvolgdatum ?? null;
-    const respons = b.responsstatus ?? null;
-    if (respons && respons !== 'geen_reactie') continue;
     if (!opv || opv > vandaag) continue;
     if (laagste === null || opv < laagste) laagste = opv;
   }

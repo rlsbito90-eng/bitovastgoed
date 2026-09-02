@@ -51,6 +51,7 @@ function virtueleGeadresseerden(signaal: OffMarketSignaal): GeadresseerdeReadine
         volledigPostadres: isVolledigPostadres(adres),
         laatsteBrief: null,
         heeftActiefConcept: false,
+        heeftDefinitief: false,
         heeftVerstuurd: false,
         heeftGeprint: false,
         heeftGepost: false,

@@ -3,7 +3,10 @@
 // koude acquisitiewizard wordt hier bewust niet opnieuw uitgevoerd.
 
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Mail } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  CheckCircle2, ChevronLeft, ChevronRight, FileCheck2, Loader2, Mail,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -24,8 +27,22 @@ import { standaardtekstPayloadVoorPlanItem } from '@/lib/offMarket/acquisitie/bu
 interface Props {
   open: boolean;
   onClose: () => void;
+  onVoorbereid: (scope: VervolgbriefProductieScope) => void;
+  onNaarProductie: (scope: VervolgbriefProductieScope) => void;
   signalen: OffMarketSignaal[];
   brieven: OffMarketBrief[];
+}
+
+export interface VervolgbriefProductieScope {
+  briefIds: string[];
+  signaalIds: string[];
+}
+
+interface VoorbereidResultaat {
+  aangemaakt: number;
+  hergebruikt: number;
+  mislukt: number;
+  scope: VervolgbriefProductieScope;
 }
 
 type Stap = 'ontvangers' | 'controle' | 'klaar';
@@ -34,12 +51,20 @@ function rijKey(rij: PostOpvolgRij): string {
   return `${rij.kandidaat.signaalId}|${rij.kandidaat.geadresseerdeKey}`;
 }
 
-export default function BulkVolgendeBriefDialog({ open, onClose, signalen, brieven }: Props) {
+export default function BulkVolgendeBriefDialog({
+  open,
+  onClose,
+  onVoorbereid,
+  onNaarProductie,
+  signalen,
+  brieven,
+}: Props) {
+  const queryClient = useQueryClient();
   const upsert = useUpsertBrief();
   const [stap, setStap] = useState<Stap>('ontvangers');
   const [uitgesloten, setUitgesloten] = useState<Set<string>>(new Set());
   const [bezig, setBezig] = useState(false);
-  const [resultaat, setResultaat] = useState<{ aangemaakt: number; hergebruikt: number; mislukt: number } | null>(null);
+  const [resultaat, setResultaat] = useState<VoorbereidResultaat | null>(null);
 
   const overzicht = useMemo(
     () => bouwBulkPostOpvolgPlan({ signalen, brieven, uitgeslotenKeys: uitgesloten }),
@@ -74,9 +99,17 @@ export default function BulkVolgendeBriefDialog({ open, onClose, signalen, briev
     let aangemaakt = 0;
     let hergebruikt = 0;
     let mislukt = 0;
+    const briefIds = new Set<string>();
+    const signaalIds = new Set<string>();
     try {
       for (const planItem of overzicht.plan) {
         if (planItem.actie === 'hergebruiken') {
+          if (!planItem.bestaandeBrief) {
+            mislukt += 1;
+            continue;
+          }
+          briefIds.add(planItem.bestaandeBrief.id);
+          signaalIds.add(planItem.signaalId);
           hergebruikt += 1;
           continue;
         }
@@ -84,14 +117,34 @@ export default function BulkVolgendeBriefDialog({ open, onClose, signalen, briev
         const signaal = signaalIndex.get(planItem.signaalId);
         if (!signaal) { mislukt += 1; continue; }
         try {
-          await upsert.mutateAsync(standaardtekstPayloadVoorPlanItem({ signaal, plan: planItem }));
+          const brief = await upsert.mutateAsync(
+            standaardtekstPayloadVoorPlanItem({ signaal, plan: planItem }),
+          );
+          briefIds.add(brief.id);
+          signaalIds.add(brief.signaal_id);
           aangemaakt += 1;
         } catch {
           mislukt += 1;
         }
       }
-      setResultaat({ aangemaakt, hergebruikt, mislukt });
+
+      // Deze wizard schrijft meerdere losse briefrecords, terwijl de
+      // Acquisitieselectie één bulkquery gebruikt. Ververs die query één keer
+      // nadat de volledige set gereed is, zodat de productiewerkbank exact deze
+      // nieuwe concepten kan openen zonder pagina-refresh.
+      try {
+        await queryClient.invalidateQueries({ queryKey: ['off-market-brieven-bulk'] });
+      } catch {
+        toast.warning('De brieven zijn opgeslagen, maar het overzicht kon niet direct worden ververst.');
+      }
+
+      const scope: VervolgbriefProductieScope = {
+        briefIds: [...briefIds].sort(),
+        signaalIds: [...signaalIds].sort(),
+      };
+      setResultaat({ aangemaakt, hergebruikt, mislukt, scope });
       setStap('klaar');
+      if (scope.briefIds.length > 0) onVoorbereid(scope);
       const gereed = aangemaakt + hergebruikt;
       if (mislukt > 0) toast.error(`${gereed} vervolgbrieven voorbereid · ${mislukt} mislukt`);
       else toast.success(`${gereed} vervolgbrieven voorbereid`);
@@ -190,7 +243,9 @@ export default function BulkVolgendeBriefDialog({ open, onClose, signalen, briev
                   <Stat label="Bestaand" value={resultaat.hergebruikt} />
                   <Stat label="Mislukt" value={resultaat.mislukt} />
                 </div>
-                <p className="text-sm text-muted-foreground">De concepten zijn beschikbaar bij Printen & posten. Verzendhistorie en eerdere brieven zijn niet gewijzigd.</p>
+                <p className="text-sm text-muted-foreground">
+                  De concepten staan klaar voor controle. Ga door naar productie om ze definitief te maken, samen in één printbatch te plaatsen en daarna de fysieke print- en posthandeling als batch te registreren. Verzendhistorie en eerdere brieven zijn niet gewijzigd.
+                </p>
               </section>
             )}
           </div>
@@ -203,7 +258,18 @@ export default function BulkVolgendeBriefDialog({ open, onClose, signalen, briev
               {stap === 'controle' && <Button type="button" size="sm" variant="ghost" onClick={() => setStap('ontvangers')} disabled={bezig}><ChevronLeft className="h-4 w-4" />Vorige</Button>}
               {stap === 'ontvangers' && <Button type="button" size="sm" onClick={() => setStap('controle')} disabled={geselecteerdeBrieven === 0}>Controle <ChevronRight className="h-4 w-4" /></Button>}
               {stap === 'controle' && <Button type="button" size="sm" onClick={bereidVoor} disabled={bezig || geselecteerdeBrieven === 0}>{bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}{geselecteerdeBrieven} concepten voorbereiden</Button>}
-              {stap === 'klaar' && <Button type="button" size="sm" onClick={onClose}>Sluiten</Button>}
+              {stap === 'klaar' && resultaat.scope.briefIds.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => onNaarProductie(resultaat.scope)}
+                  data-testid="bulk-opvolg-naar-productie"
+                >
+                  <FileCheck2 className="h-4 w-4" />
+                  Door naar productie ({resultaat.scope.briefIds.length})
+                </Button>
+              )}
+              {stap === 'klaar' && <Button type="button" size="sm" variant="ghost" onClick={onClose}>Later sluiten</Button>}
               {stap !== 'klaar' && <Button type="button" size="sm" variant="ghost" onClick={onClose} disabled={bezig}>Annuleren</Button>}
             </div>
           </div>

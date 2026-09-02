@@ -28,6 +28,8 @@ interface Props {
   signalen: OffMarketSignaal[];
   toegevoegdOpPerSignaal: Map<string, string | null>;
   brieven: OffMarketBrief[];
+  /** Optionele exacte briefscope, bijvoorbeeld de zojuist gemaakte Brief 2/3-set. */
+  briefIds?: readonly string[];
 }
 
 interface Kandidaat {
@@ -39,12 +41,40 @@ interface Kandidaat {
 }
 
 export default function GecombineerdeBrievenPdfDialog({
-  open, onClose, signalen, toegevoegdOpPerSignaal, brieven,
+  open, onClose, signalen, toegevoegdOpPerSignaal, brieven, briefIds,
 }: Props) {
   const { data: acquisitieSelecties = [] } = useAcquisitieSelectie();
+  const explicieteBriefIds = useMemo(
+    () => briefIds ? new Set(briefIds) : null,
+    [briefIds],
+  );
+  const scopeBrieven = useMemo(
+    () => explicieteBriefIds
+      ? brieven.filter((brief) => explicieteBriefIds.has(brief.id))
+      : brieven,
+    [brieven, explicieteBriefIds],
+  );
+  const scopeSignaalIds = useMemo(
+    () => explicieteBriefIds
+      ? new Set(scopeBrieven.map((brief) => brief.signaal_id))
+      : null,
+    [explicieteBriefIds, scopeBrieven],
+  );
+  const scopeSignalen = useMemo(
+    () => scopeSignaalIds
+      ? signalen.filter((signaal) => scopeSignaalIds.has(signaal.id))
+      : signalen,
+    [signalen, scopeSignaalIds],
+  );
+  const explicieteScopeAfgerond = Boolean(
+    explicieteBriefIds
+      && scopeBrieven.length === explicieteBriefIds.size
+      && scopeBrieven.length > 0
+      && scopeBrieven.every((brief) => brief.status === 'verstuurd'),
+  );
   const canoniekeScope = useMemo(
-    () => bouwCanoniekeRadarSelectieScope(signalen, brieven),
-    [signalen, brieven],
+    () => bouwCanoniekeRadarSelectieScope(scopeSignalen, scopeBrieven),
+    [scopeSignalen, scopeBrieven],
   );
   useEffect(() => {
     if (!open || canoniekeScope.nietGereed.length === 0) return;
@@ -59,9 +89,9 @@ export default function GecombineerdeBrievenPdfDialog({
   }, [open, canoniekeScope]);
   const signaalIndex = useMemo(() => {
     const m = new Map<string, OffMarketSignaal>();
-    for (const s of signalen) m.set(s.id, s);
+    for (const s of scopeSignalen) m.set(s.id, s);
     return m;
-  }, [signalen]);
+  }, [scopeSignalen]);
 
   const kandidaten = useMemo<Kandidaat[]>(() => {
     const out: Kandidaat[] = [];
@@ -113,7 +143,7 @@ export default function GecombineerdeBrievenPdfDialog({
     if (scopeGeinitialiseerd.current) return;
 
     const conceptIds = gesorteerd.filter(k => k.printbaar).map(k => k.brief.id);
-    const definitieveIds = brieven
+    const definitieveIds = scopeBrieven
       .filter((b) => !b.archived_at
         && (b.kanaal ?? 'post') === 'post'
         && b.status === 'definitief'
@@ -124,7 +154,7 @@ export default function GecombineerdeBrievenPdfDialog({
     if (formeleScope.length === 0 && gesorteerd.length === 0) return;
     setSelectie(new Set(formeleScope));
     scopeGeinitialiseerd.current = true;
-  }, [open, gesorteerd, brieven, signaalIndex]);
+  }, [open, gesorteerd, scopeBrieven, signaalIndex]);
 
   function toggle(id: string) {
     setSelectie(prev => {
@@ -159,6 +189,19 @@ export default function GecombineerdeBrievenPdfDialog({
     () => new Set(productieScopeBrieven.filter((b) => b.status === 'definitief').map((b) => b.signaal_id)).size,
     [productieScopeBrieven],
   );
+  // Na de expliciete bulk-postactie verandert de operationele briefprojectie
+  // direct naar `verstuurd`. Houd de reeds geopende BAT-scope daarom binnen
+  // deze modal vast, zodat de bevestiging "batch volledig gepost" niet tijdens
+  // dezelfde handeling uit beeld verdwijnt.
+  const [batBriefIds, setBatBriefIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!open) {
+      setBatBriefIds([]);
+      return;
+    }
+    if (definitieveBriefIds.length === 0) return;
+    setBatBriefIds((huidig) => [...new Set([...huidig, ...definitieveBriefIds])].sort());
+  }, [open, definitieveBriefIds]);
 
   const [bezig, setBezig] = useState(false);
   async function download() {
@@ -232,14 +275,20 @@ export default function GecombineerdeBrievenPdfDialog({
                 </Button>
               </div>
 
+              {explicieteScopeAfgerond && (
+                <div className="flex items-center gap-2 rounded-md border border-success/35 bg-success/10 px-3 py-2 text-xs text-success" data-testid="radar-productie-scope-gepost">
+                  Deze volledige productiescope is als batch gepost geregistreerd.
+                </div>
+              )}
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm" data-testid="radar-productie-canonieke-telling">
                 <Stat label="Geselecteerde signalen" value={canoniekeScope.telling.signalen} />
                 <Stat label="Geadresseerden" value={canoniekeScope.telling.geadresseerden} />
                 <Stat label="Conceptbrieven gereed" value={teGenereren.length} />
-                <Stat label="Niet gereed" value={canoniekeScope.telling.nietGereed} />
+                <Stat label="Niet gereed" value={explicieteScopeAfgerond ? 0 : canoniekeScope.telling.nietGereed} />
               </div>
 
-              {canoniekeScope.nietGereed.length > 0 && (
+              {!explicieteScopeAfgerond && canoniekeScope.nietGereed.length > 0 && (
                 <ul className="rounded-md border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200" data-testid="radar-productie-niet-gereed">
                   {canoniekeScope.nietGereed.map((regel) => (
                     <li key={`${regel.signaalId}|${regel.briefId ?? 'zonder-brief'}`}>
@@ -321,8 +370,8 @@ export default function GecombineerdeBrievenPdfDialog({
                 <p className="text-sm font-semibold">3. Formele printbatch</p>
                 <p className="text-[11px] text-muted-foreground">BAT en productiebestanden ontstaan uitsluitend uit definitieve BR-brieven.</p>
               </div>
-              {definitieveBriefIds.length > 0 ? (
-                <ProductiewerkbankBulkPrintbatchActies briefIds={definitieveBriefIds} />
+              {batBriefIds.length > 0 ? (
+                <ProductiewerkbankBulkPrintbatchActies briefIds={batBriefIds} />
               ) : (
                 <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground" data-testid="productiewerkbank-geen-definitieve-brieven">
                   Nog geen definitieve BR-brieven in deze scope. Deze fase wordt pas actief nadat een brief definitief is gemaakt.
