@@ -117,6 +117,22 @@ describe('bepaalWerkbakContext', () => {
     expect(ctx.procesDatum?.label).toContain('Wachten tot');
   });
 
+  it('gebruikt voor dezelfde geadresseerde alleen de nieuwste briefstap als opvolging', () => {
+    const ctx = bepaal('gepost', [
+      brief({
+        geadresseerde_key: 'persoon-1', status: 'verstuurd', verzendstatus: 'gepost',
+        campagne_stap: 'brief_1', verzonden_op: '2026-07-01T10:00:00Z', opvolgdatum: '2026-07-22',
+      }),
+      brief({
+        geadresseerde_key: 'persoon-1', status: 'verstuurd', verzendstatus: 'gepost',
+        campagne_stap: 'brief_2', verzonden_op: '2026-08-01T10:00:00Z', opvolgdatum: '2026-08-22',
+      }),
+    ]);
+
+    expect(ctx.werkbak).toBe('wachten');
+    expect(ctx.procesDatum?.iso).toBe('2026-08-22');
+  });
+
   it('houdt een gepost signaal in Actie wanneer een opvolgdatum ontbreekt', () => {
     const ctx = bepaal('gepost', [
       brief({ status: 'verstuurd', verzendstatus: 'gepost', opvolgdatum: null }),

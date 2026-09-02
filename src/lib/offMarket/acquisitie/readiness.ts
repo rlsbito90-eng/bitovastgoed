@@ -12,6 +12,10 @@ import type { OffMarketBrief } from '@/hooks/useOffMarketBrieven';
 import { geadresseerdeKey } from '@/lib/offMarket/brieven/geadresseerdeKey';
 import { isVolledigPostadres as isVolledigPostadresCentraal } from '@/lib/offMarket/acquisitie/postadres';
 import { isAdresControleReden } from '@/lib/offMarket/acquisitie/rechtenbewusteEigenaar';
+import {
+  actueleVerzondenBrievenPerGeadresseerde,
+  isActueleOnverzondenPostbrief,
+} from '@/lib/offMarket/acquisitie/postCampagneVoortgang';
 
 // ---------------------------------------------------------------------
 // Fases
@@ -171,8 +175,10 @@ export interface GeadresseerdeReadiness {
   volledigPostadres: boolean;
   /** Meest gevorderde niet-gearchiveerde brief van deze geadresseerde. */
   laatsteBrief: OffMarketBrief | null;
-  /** Actief postconcept (status=concept, geen verstuurde postbrief). */
+  /** Actueel postconcept voor de eerstvolgende nog niet verzonden briefstap. */
   heeftActiefConcept: boolean;
+  /** Actuele formele BR die nog niet in een geposte batch zit. */
+  heeftDefinitief: boolean;
   /** Postbrief met status=verstuurd. */
   heeftVerstuurd: boolean;
   /** Postbrief met verzendstatus geprint / in_envelop. */
@@ -252,8 +258,11 @@ export function geadresseerdenVoorSignaal(
     const ref = refSorted[0];
 
     const postVerstuurd = postBrieven.filter(b => b.status === 'verstuurd');
-    const postConcepten = postBrieven.filter(b => b.status === 'concept');
-    const verstgeprint = postBrieven.some(b => {
+    const actueleOnverzondenPostbrieven = postBrieven.filter((brief) =>
+      isActueleOnverzondenPostbrief(brief, postBrieven));
+    const postConcepten = actueleOnverzondenPostbrieven.filter(b => b.status === 'concept');
+    const postDefinitief = actueleOnverzondenPostbrieven.filter(b => b.status === 'definitief');
+    const verstgeprint = actueleOnverzondenPostbrieven.some(b => {
       const v = (b.verzendstatus ?? '') as string;
       return v === 'geprint' || v === 'in_envelop';
     });
@@ -264,7 +273,8 @@ export function geadresseerdenVoorSignaal(
     const emailVerzonden = emailBrieven.some(b =>
       b.status === 'verstuurd' || (b.verzendstatus as string | null) === 'verzonden'
     );
-    const opvolgOpen = lijst.some(b => isOpvolgingOpen(b));
+    const laatsteVerzending = actueleVerzondenBrievenPerGeadresseerde(lijst)[0] ?? null;
+    const opvolgOpen = laatsteVerzending ? isOpvolgingOpen(laatsteVerzending) : false;
     const responsBinnen = lijst.some(b => {
       const r = (b as any).responsstatus as string | null | undefined;
       return !!r && r !== 'geen_reactie';
@@ -272,13 +282,20 @@ export function geadresseerdenVoorSignaal(
 
     // "Beste" postadres voor volledigheidscheck: prefereer postbrieven,
     // val terug op meest recente brief (ref) wanneer er geen postbrief is.
-    const postRef = [...postBrieven].sort((a, b) =>
+    const postRefBron = actueleOnverzondenPostbrieven.length > 0
+      ? actueleOnverzondenPostbrieven
+      : postBrieven;
+    const postRef = [...postRefBron].sort((a, b) =>
       (b.updated_at ?? b.created_at ?? '').localeCompare(
         a.updated_at ?? a.created_at ?? '',
       ))[0] ?? ref;
 
     // Sterkste laatste brief = hoogste verzendstatus, tie-break op updated_at.
+    const actueleIds = new Set(actueleOnverzondenPostbrieven.map((brief) => brief.id));
     const sorted = [...lijst].sort((a, b) => {
+      const actueelA = actueleIds.has(a.id) ? 1 : 0;
+      const actueelB = actueleIds.has(b.id) ? 1 : 0;
+      if (actueelA !== actueelB) return actueelB - actueelA;
       const ra = VERZEND_RANG[(a.verzendstatus ?? 'concept') as string] ?? 0;
       const rb = VERZEND_RANG[(b.verzendstatus ?? 'concept') as string] ?? 0;
       if (ra !== rb) return rb - ra;
@@ -294,7 +311,8 @@ export function geadresseerdenVoorSignaal(
       verzendadres: postRef.verzendadres ?? ref.verzendadres ?? null,
       volledigPostadres: isVolledigPostadres(postRef.verzendadres ?? ref.verzendadres),
       laatsteBrief: sorted[0] ?? null,
-      heeftActiefConcept: postConcepten.length > 0 && postVerstuurd.length === 0,
+      heeftActiefConcept: postConcepten.length > 0,
+      heeftDefinitief: postDefinitief.length > 0,
       heeftVerstuurd: postVerstuurd.length > 0,
       heeftGeprint: verstgeprint,
       heeftGepost: verstgepost,
@@ -319,6 +337,7 @@ export function geadresseerdenVoorSignaal(
         volledigPostadres: isVolledigPostadres(adres),
         laatsteBrief: null,
         heeftActiefConcept: false,
+        heeftDefinitief: false,
         heeftVerstuurd: false,
         heeftGeprint: false,
         heeftGepost: false,
@@ -350,7 +369,7 @@ export function tellGeadresseerden(g: GeadresseerdeReadiness[]): GeadresseerdenT
   for (const x of g) {
     if (x.volledigPostadres) metVolledigAdres += 1;
     if (x.heeftActiefConcept) metActiefConcept += 1;
-    if (x.heeftActiefConcept && x.volledigPostadres && !x.heeftGeprint && !x.heeftGepost) {
+    if ((x.heeftActiefConcept || x.heeftDefinitief) && x.volledigPostadres && !x.heeftGeprint) {
       gereedVoorPrint += 1;
     }
     if (x.heeftGeprint || x.heeftGepost) geprintOfGepost += 1;
@@ -429,22 +448,23 @@ export function bepaalSignaalReadiness({ signaal, brieven }: BepaalReadinessInpu
       blokkadeReden = 'Geen geadresseerde gevonden.';
     }
   } else if (alleenAdresAchterhalen || geadresseerden.every(g =>
-    !g.volledigPostadres && !g.heeftActiefConcept && !g.heeftVerstuurd && !g.heeftEmailVerzonden
+    !g.volledigPostadres && !g.heeftActiefConcept && !g.heeftDefinitief && !g.heeftVerstuurd && !g.heeftEmailVerzonden
   )) {
     fase = 'adres_ontbreekt';
     blokkadeReden = eigenaarControleReden ?? 'Geen geadresseerde heeft een volledig postadres.';
   } else if (geadresseerden.every(g => g.responsBinnen && (g.heeftVerstuurd || g.heeftEmailVerzonden))) {
     fase = 'afgerond';
+  } else if (geadresseerden.some(g => g.heeftGeprint)) {
+    fase = 'geprint';
+  } else if (geadresseerden.some(g =>
+    (g.heeftActiefConcept || g.heeftDefinitief) && g.volledigPostadres)) {
+    fase = 'gereed_voor_print';
+  } else if (geadresseerden.some(g => g.heeftActiefConcept)) {
+    fase = 'concept_gereed';
   } else if (geadresseerden.some(g => g.opvolgingOpen)) {
     fase = 'opvolging_open';
   } else if (geadresseerden.some(g => g.heeftGepost)) {
     fase = 'gepost';
-  } else if (geadresseerden.some(g => g.heeftGeprint)) {
-    fase = 'geprint';
-  } else if (geadresseerden.some(g => g.heeftActiefConcept && g.volledigPostadres)) {
-    fase = 'gereed_voor_print';
-  } else if (geadresseerden.some(g => g.heeftActiefConcept)) {
-    fase = 'concept_gereed';
   } else if (geadresseerden.some(g => g.heeftEmailVerzonden)) {
     // Alleen e-mail verstuurd, geen post-progressie of post-concept.
     fase = 'email_verzonden';

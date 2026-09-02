@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { CheckCheck, Loader2, MailCheck, PrinterCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,6 +29,7 @@ export default function ProductiekernPrintPostBevestiging({
   brieven,
   onBatchChange,
 }: Props) {
+  const queryClient = useQueryClient();
   const [bezig, setBezig] = useState<'print' | 'post' | null>(null);
   const writes = useMemo(() => maakStandaardProductiekernBrowserWriteSamenstelling(), []);
 
@@ -37,6 +39,21 @@ export default function ProductiekernPrintPostBevestiging({
     const auth = await supabase.auth.getUser();
     if (auth.error || !auth.data.user?.id) throw new Error('Ingelogde gebruiker kon niet worden vastgesteld.');
     return auth.data.user.id;
+  }
+
+  async function verversOperationeleProjecties() {
+    // Print/post is formeel op BAT + briefversie vastgelegd. De operationele
+    // Acquisitieselectie projecteert die status via eigen bulkqueries en moet
+    // daarom meteen opnieuw lezen; anders lijkt iedere brief nog handmatig te
+    // moeten worden bijgewerkt.
+    await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: ['off-market-brieven-bulk'] }),
+      queryClient.invalidateQueries({ queryKey: ['off_market_brieven'] }),
+      queryClient.invalidateQueries({ queryKey: ['off-market-acquisitie-productiekern'] }),
+      queryClient.invalidateQueries({ queryKey: ['off-market-acquisitie-selectie'] }),
+      queryClient.invalidateQueries({ queryKey: ['off-market-signalen'] }),
+      queryClient.invalidateQueries({ queryKey: ['off-market-kpi'] }),
+    ]);
   }
 
   async function bevestigPrint() {
@@ -51,6 +68,7 @@ export default function ProductiekernPrintPostBevestiging({
         printdatum,
       }, writes.transactieRepository);
       onBatchChange({ ...batch, status: 'geprint', printdatum });
+      await verversOperationeleProjecties();
       toast.success(`${batch.batchnummer} gemarkeerd als geprint.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Printbevestiging is mislukt.');
@@ -72,6 +90,7 @@ export default function ProductiekernPrintPostBevestiging({
         verzenddatum,
       }, writes.transactieRepository);
       onBatchChange({ ...batch, status: 'gepost', verzenddatum });
+      await verversOperationeleProjecties();
       toast.success(`${brieven.length} ${brieven.length === 1 ? 'brief' : 'brieven'} als gepost geregistreerd.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Postbevestiging is niet volledig verwerkt. Veilige retry is mogelijk.');

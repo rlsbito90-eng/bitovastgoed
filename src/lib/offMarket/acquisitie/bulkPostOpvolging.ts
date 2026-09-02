@@ -18,6 +18,7 @@ import {
   type BulkKandidaat,
   type PlanItem,
 } from './bulkBrief';
+import { volgendePostCampagneStap } from './postCampagneVoortgang';
 
 const STAPPEN: CampagneStap[] = ['brief_1', 'brief_2', 'brief_3'];
 
@@ -62,31 +63,6 @@ function relevantePostbrieven(
   );
 }
 
-/**
- * Leid de volgende stap af uit daadwerkelijk verzonden postbrieven.
- * Expliciete stapvelden zijn leidend; legacy-records zonder stap vullen
- * chronologisch de eerste nog lege positie in.
- */
-function volgendeStap(brieven: readonly OffMarketBrief[]): CampagneStap | null {
-  const verstuurd = brieven
-    .filter((brief) => brief.status === 'verstuurd')
-    .sort((a, b) => String(a.verzonden_op ?? a.created_at).localeCompare(String(b.verzonden_op ?? b.created_at)));
-  if (verstuurd.length === 0) return null;
-
-  const bezet = new Set<CampagneStap>();
-  for (const brief of verstuurd) {
-    if (STAPPEN.includes(brief.campagne_stap as CampagneStap)) {
-      bezet.add(brief.campagne_stap as CampagneStap);
-      continue;
-    }
-    const eersteLege = STAPPEN.find((stap) => !bezet.has(stap));
-    if (eersteLege) bezet.add(eersteLege);
-  }
-
-  const hoogste = Math.max(...[...bezet].map((stap) => STAPPEN.indexOf(stap)));
-  return hoogste >= STAPPEN.length - 1 ? null : STAPPEN[hoogste + 1];
-}
-
 function bouwRij(kandidaat: BulkKandidaat, brieven: readonly OffMarketBrief[]): PostOpvolgRij {
   const relevant = relevantePostbrieven(brieven, kandidaat);
   const respons = relevant.find((brief) =>
@@ -114,7 +90,7 @@ function bouwRij(kandidaat: BulkKandidaat, brieven: readonly OffMarketBrief[]): 
       reden: 'Voor deze geadresseerde is nog geen postbrief als verzonden geregistreerd.',
     };
   }
-  const stap = volgendeStap(relevant);
+  const stap = volgendePostCampagneStap(relevant);
   if (!stap) {
     return {
       kandidaat, volgendeStap: null, productieToegestaan: false,

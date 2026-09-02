@@ -18,6 +18,14 @@ const selectieBron = readFileSync(
   resolve(process.cwd(), 'src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx'),
   'utf8',
 );
+const productieDialogBron = readFileSync(
+  resolve(process.cwd(), 'src/components/offmarket/acquisitie/GecombineerdeBrievenPdfDialog.tsx'),
+  'utf8',
+);
+const printPostBron = readFileSync(
+  resolve(process.cwd(), 'src/components/offmarket/acquisitie/ProductiekernPrintPostBevestiging.tsx'),
+  'utf8',
+);
 const planBron = readFileSync(
   resolve(process.cwd(), 'src/lib/offMarket/acquisitie/bulkEmail.ts'),
   'utf8',
@@ -44,6 +52,25 @@ describe('Centrale Radar-opvolging', () => {
     expect(opvolgDialogBron).toContain('uitzonderingen');
     expect(opvolgDialogBron).toContain('Er wordt niets automatisch geprint of verzonden');
     expect(opvolgDialogBron).toContain('Bestaande handmatig aangepaste concepten blijven ongewijzigd');
+  });
+
+  it('laat de exacte vervolgbriefscope doorstromen naar de bestaande productiekern', () => {
+    expect(opvolgDialogBron).toContain('VervolgbriefProductieScope');
+    expect(opvolgDialogBron).toContain("queryKey: ['off-market-brieven-bulk']");
+    expect(opvolgDialogBron).toContain('bulk-opvolg-naar-productie');
+    expect(opvolgDialogBron).toContain('Door naar productie');
+    expect(selectieBron).toContain('onVoorbereid={vervolgbrievenVoorbereid}');
+    expect(selectieBron).toContain('onNaarProductie={openVervolgbriefProductie}');
+    expect(selectieBron).toContain('briefIds={productieBriefIds ?? undefined}');
+    expect(productieDialogBron).toContain('explicieteBriefIds');
+    expect(productieDialogBron).toContain('ProductiewerkbankBulkPrintbatchActies');
+  });
+
+  it('ververst na batchprint en batchpost de operationele werkvoorraad', () => {
+    expect(printPostBron).toContain('verversOperationeleProjecties');
+    expect(printPostBron).toContain("queryKey: ['off-market-brieven-bulk']");
+    expect(printPostBron).toContain("queryKey: ['off-market-acquisitie-productiekern']");
+    expect(printPostBron).toContain('Alle brieven daadwerkelijk gepost');
   });
 
   it('verstuurt e-mail nooit automatisch maar ondersteunt centrale verzendregistratie', () => {

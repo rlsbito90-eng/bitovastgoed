@@ -171,6 +171,74 @@ describe('readiness — fase-beslisboom', () => {
     expect(r.fase).toBe('opvolging_open');
   });
 
+  it('Brief 2-concept wint van de historische geposte Brief 1', () => {
+    const r = bepaalSignaalReadiness({
+      signaal: mkSignaal(),
+      brieven: [
+        mkBrief({
+          id: 'b1', eigenaar_naam: 'X', verzendadres: VOLLEDIG_ADRES,
+          geadresseerde_key: 'k|x', campagne_stap: 'brief_1',
+          status: 'verstuurd', verzendstatus: 'gepost',
+          verzonden_op: '2026-01-01T12:00:00Z', opvolgdatum: '2026-01-22',
+        }),
+        mkBrief({
+          id: 'b2', eigenaar_naam: 'X', verzendadres: VOLLEDIG_ADRES,
+          geadresseerde_key: 'k|x', campagne_stap: 'brief_2',
+          status: 'concept', verzendstatus: 'concept',
+          created_at: '2026-02-01T10:00:00Z', updated_at: '2026-02-01T10:00:00Z',
+        }),
+      ],
+    });
+
+    expect(r.fase).toBe('gereed_voor_print');
+    expect(r.geadresseerden[0].heeftActiefConcept).toBe(true);
+    expect(r.geadresseerden[0].laatsteBrief?.id).toBe('b2');
+  });
+
+  it('een definitieve Brief 2 blijft printklaar na de geposte Brief 1', () => {
+    const r = bepaalSignaalReadiness({
+      signaal: mkSignaal(),
+      brieven: [
+        mkBrief({
+          id: 'b1', eigenaar_naam: 'X', verzendadres: VOLLEDIG_ADRES,
+          geadresseerde_key: 'k|x', campagne_stap: 'brief_1',
+          status: 'verstuurd', verzendstatus: 'gepost',
+        }),
+        mkBrief({
+          id: 'b2', eigenaar_naam: 'X', verzendadres: VOLLEDIG_ADRES,
+          geadresseerde_key: 'k|x', campagne_stap: 'brief_2',
+          status: 'definitief', verzendstatus: 'concept', briefnummer: 'BR2026000002',
+        }),
+      ],
+    });
+
+    expect(r.fase).toBe('gereed_voor_print');
+    expect(r.geadresseerden[0].heeftDefinitief).toBe(true);
+  });
+
+  it('een nieuwe toekomstige Brief 2-opvolging vervangt de verlopen Brief 1-datum', () => {
+    const r = bepaalSignaalReadiness({
+      signaal: mkSignaal(),
+      brieven: [
+        mkBrief({
+          id: 'b1', eigenaar_naam: 'X', verzendadres: VOLLEDIG_ADRES,
+          geadresseerde_key: 'k|x', campagne_stap: 'brief_1',
+          status: 'verstuurd', verzendstatus: 'gepost',
+          verzonden_op: '2020-01-01T12:00:00Z', opvolgdatum: '2020-01-22',
+        }),
+        mkBrief({
+          id: 'b2', eigenaar_naam: 'X', verzendadres: VOLLEDIG_ADRES,
+          geadresseerde_key: 'k|x', campagne_stap: 'brief_2',
+          status: 'verstuurd', verzendstatus: 'gepost',
+          verzonden_op: '2099-01-01T12:00:00Z', opvolgdatum: '2099-01-22',
+        }),
+      ],
+    });
+
+    expect(r.fase).toBe('gepost');
+    expect(r.geadresseerden[0].opvolgingOpen).toBe(false);
+  });
+
   it('archief-status → afgerond', () => {
     const r = bepaalSignaalReadiness({
       signaal: mkSignaal({ status: 'archief' }),

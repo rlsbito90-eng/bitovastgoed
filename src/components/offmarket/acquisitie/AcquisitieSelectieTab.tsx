@@ -54,7 +54,9 @@ import AcquisitieWerkbakChips from './AcquisitieWerkbakChips';
 import { ReadinessBadge, WaarschuwingBadges } from './ReadinessBadge';
 import FocusModus from './FocusModus';
 import BulkBriefVoorbereidenWizard from './BulkBriefVoorbereidenWizard';
-import BulkVolgendeBriefDialog from './BulkVolgendeBriefDialog';
+import BulkVolgendeBriefDialog, {
+  type VervolgbriefProductieScope,
+} from './BulkVolgendeBriefDialog';
 import GecombineerdeBrievenPdfDialog from './GecombineerdeBrievenPdfDialog';
 import ProductiekernPrintbatchWerkbak from './ProductiekernPrintbatchWerkbak';
 import AcquisitieDossierRij from './AcquisitieDossierRij';
@@ -677,6 +679,7 @@ export default function AcquisitieSelectieTab() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [opvolgWizardOpen, setOpvolgWizardOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [productieBriefIds, setProductieBriefIds] = useState<string[] | null>(null);
   const [pandenverkennerKadasterOpen, setPandenverkennerKadasterOpen] = useState(false);
   const [pandenverkennerBriefOpen, setPandenverkennerBriefOpen] = useState(false);
 
@@ -807,6 +810,27 @@ export default function AcquisitieSelectieTab() {
       return;
     }
     setOpvolgWizardOpen(true);
+  };
+  const vervolgbrievenVoorbereid = (scope: VervolgbriefProductieScope) => {
+    setProductieBriefIds(scope.briefIds);
+    // De nieuwe concepten horen niet langer in Opvolgen. Houd de expliciete
+    // selectie vast, maar toon na sluiten direct de productiestap.
+    setWerkbak('actie');
+    setSubfilter('printen_posten');
+    setPrintPost('te_printen');
+  };
+  const openVervolgbriefProductie = (scope: VervolgbriefProductieScope) => {
+    vervolgbrievenVoorbereid(scope);
+    setOpvolgWizardOpen(false);
+    setPdfOpen(true);
+  };
+  const openRadarProductie = () => {
+    setProductieBriefIds(null);
+    setPdfOpen(true);
+  };
+  const sluitRadarProductie = () => {
+    setPdfOpen(false);
+    setProductieBriefIds(null);
   };
   const totaalSelectie = bulkSelectie.size + bulkVastgoedkansSelectie.size;
   const totaalZichtbaar = gecombineerdeVolgorde.length;
@@ -1055,7 +1079,7 @@ export default function AcquisitieSelectieTab() {
           <div className="acquisitie-selection-actions grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {bulkSelectie.size > 0 && opvolgContext && <Button type="button" size="sm" variant="secondary" onClick={openOpvolgWizard} data-testid="acquisitie-bulk-volgende-brief"><Mail className="h-3.5 w-3.5" />Volgende brief</Button>}
             {bulkSelectie.size > 0 && !opvolgContext && <Button type="button" size="sm" variant="secondary" onClick={() => setWizardOpen(true)} data-testid="acquisitie-bulk-brieven-voorbereiden"><Mail className="h-3.5 w-3.5" />Radar-brieven</Button>}
-            {bulkSelectie.size > 0 && !opvolgContext && <Button type="button" size="sm" variant="secondary" onClick={() => setPdfOpen(true)} data-testid="acquisitie-bulk-gecombineerde-pdf"><FileDown className="h-3.5 w-3.5" />Radar-productie</Button>}
+            {bulkSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={openRadarProductie} data-testid="acquisitie-bulk-gecombineerde-pdf"><FileDown className="h-3.5 w-3.5" />Radar-productie</Button>}
             {bulkVastgoedkansSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPandenverkennerKadasterOpen(true)} data-testid="acquisitie-bulk-kadaster-vastgoedkansen">Bulk Kadaster</Button>}
             {bulkVastgoedkansSelectie.size > 0 && <Button type="button" size="sm" variant="secondary" onClick={() => setPandenverkennerBriefOpen(true)} data-testid="acquisitie-bulk-brieven-vastgoedkansen"><Mail className="h-3.5 w-3.5" />Pandenverkenner-brieven</Button>}
             <Button type="button" size="sm" variant="ghost" onClick={verwijderBulkUitSelectie} disabled={verwijderUitSelectie.isPending || verwijderVastgoedkans.isPending} data-testid="acquisitie-bulk-uit-selectie" className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" />Uit Acquisitieselectie ({totaalSelectie})</Button>
@@ -1087,8 +1111,22 @@ export default function AcquisitieSelectieTab() {
 
       <FocusModus open={focusOpen} onClose={() => { setFocusOpen(false); setVerwerkScopeIds(null); }} items={focusItems} index={focusIndex} onIndexChange={setFocusIndex} focusScopeIds={verwerkScopeIds} selectedIds={Array.from(bulkSelectie)} />
       <BulkBriefVoorbereidenWizard open={wizardOpen} onClose={() => setWizardOpen(false)} signalen={geselecteerdeSignalenBulk} brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))} />
-      <BulkVolgendeBriefDialog open={opvolgWizardOpen} onClose={() => setOpvolgWizardOpen(false)} signalen={geselecteerdeSignalenBulk} brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))} />
-      <GecombineerdeBrievenPdfDialog open={pdfOpen} onClose={() => setPdfOpen(false)} signalen={geselecteerdeSignalenBulk} toegevoegdOpPerSignaal={toegevoegdOpPerSignaal} brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))} />
+      <BulkVolgendeBriefDialog
+        open={opvolgWizardOpen}
+        onClose={() => setOpvolgWizardOpen(false)}
+        onVoorbereid={vervolgbrievenVoorbereid}
+        onNaarProductie={openVervolgbriefProductie}
+        signalen={geselecteerdeSignalenBulk}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
+      />
+      <GecombineerdeBrievenPdfDialog
+        open={pdfOpen}
+        onClose={sluitRadarProductie}
+        signalen={geselecteerdeSignalenBulk}
+        toegevoegdOpPerSignaal={toegevoegdOpPerSignaal}
+        brieven={brieven.filter(b => bulkSelectie.has(b.signaal_id))}
+        briefIds={productieBriefIds ?? undefined}
+      />
       <PandenverkennerBulkKadasterDialog open={pandenverkennerKadasterOpen} onOpenChange={setPandenverkennerKadasterOpen} kansen={geselecteerdeVastgoedkansenBulk} />
       <PandenverkennerBulkBriefDialog open={pandenverkennerBriefOpen} onOpenChange={setPandenverkennerBriefOpen} kansen={geselecteerdeVastgoedkansenBulk} />
     </section>
