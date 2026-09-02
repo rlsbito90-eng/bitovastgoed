@@ -10,6 +10,14 @@ const emailBron = readFileSync(
   resolve(process.cwd(), 'src/components/offmarket/acquisitie/BulkEmailVoorbereidenDialog.tsx'),
   'utf8',
 );
+const opvolgDialogBron = readFileSync(
+  resolve(process.cwd(), 'src/components/offmarket/acquisitie/BulkVolgendeBriefDialog.tsx'),
+  'utf8',
+);
+const selectieBron = readFileSync(
+  resolve(process.cwd(), 'src/components/offmarket/acquisitie/AcquisitieSelectieTab.tsx'),
+  'utf8',
+);
 const planBron = readFileSync(
   resolve(process.cwd(), 'src/lib/offMarket/acquisitie/bulkEmail.ts'),
   'utf8',
@@ -21,12 +29,21 @@ describe('Centrale Radar-opvolging', () => {
     expect(chipsBron).toContain('Centrale opvolging');
     expect(chipsBron).toContain('Volgende brief');
     expect(chipsBron).toContain('E-mail opvolgen');
-    expect(chipsBron).toContain('acquisitie-bulk-brieven-voorbereiden');
+    expect(chipsBron).toContain('onVolgendeBrief');
   });
 
-  it('gebruikt voor post exact de bestaande canonieke Radar-briefwizard', () => {
-    expect(chipsBron).toContain('De bestaande Radar-briefwizard is de canonieke partij-/campagnebewuste');
-    expect(chipsBron).toContain('bestaandeActie.click()');
+  it('scheidt bestaande postopvolging van de partijrouting voor nieuwe signalen', () => {
+    expect(chipsBron).not.toContain('bestaandeActie.click()');
+    expect(selectieBron).toContain('BulkVolgendeBriefDialog');
+    expect(opvolgDialogBron).toContain('De eerder verzonden brief is bronwaarheid');
+    expect(opvolgDialogBron).not.toContain('useRadarPartyCampaignContext');
+    expect(opvolgDialogBron).not.toContain('usePersistRadarCampaignRouting');
+  });
+
+  it('maakt uitzonderingen zichtbaar en verzendt of print niets automatisch', () => {
+    expect(opvolgDialogBron).toContain('uitzonderingen');
+    expect(opvolgDialogBron).toContain('Er wordt niets automatisch geprint of verzonden');
+    expect(opvolgDialogBron).toContain('Bestaande handmatig aangepaste concepten blijven ongewijzigd');
   });
 
   it('verstuurt e-mail nooit automatisch maar ondersteunt centrale verzendregistratie', () => {
