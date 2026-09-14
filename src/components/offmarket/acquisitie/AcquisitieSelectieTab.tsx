@@ -184,11 +184,11 @@ function pastInWerkvoorraadFilter(status: WerkvoorraadStatus, filter: Werkvoorra
 export default function AcquisitieSelectieTab() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: items = [], isLoading } = useAcquisitieSelectie();
+  const { data: items = [], isLoading, isSuccess: selectieGeladen } = useAcquisitieSelectie();
   const verwijderUitSelectie = useVerwijderUitAcquisitieSelectie();
   const verwijderVastgoedkans = useVerwijderVastgoedkansUitAcquisitieSelectie();
   const wijzigWerkvoorraadStatus = useWijzigWerkvoorraadStatus();
-  const { data: signalen = [] } = useOffMarketSignalen();
+  const { data: signalen = [], isSuccess: signalenGeladen } = useOffMarketSignalen();
   const { getKansById } = useVastgoedkansen();
 
   const signaalIndex = useMemo(() => {
@@ -535,16 +535,17 @@ export default function AcquisitieSelectieTab() {
   }, [bulkSelectie]);
 
   // Houd een herstelde selectie schoon wanneer dossiers intussen uit de
-  // Acquisitieselectie zijn verwijderd. Wacht tot de selectiequery geladen is,
-  // anders zou een lege initiële fetch de bewaarde selectie wissen.
+  // Acquisitieselectie zijn verwijderd. Wacht tot zowel de selectie als de
+  // signalenlijst succesvol geladen is; de twee queries voltooien onafhankelijk.
+  // Anders kan een lege initiële signalenlijst de bewaarde selectie wissen.
   useEffect(() => {
-    if (isLoading) return;
+    if (!selectieGeladen || !signalenGeladen) return;
     const beperkt = beperkRadarBulkSelectie(
       bulkSelectie,
       geselecteerdeSignalen.map((signaal) => signaal.id),
     );
     if (!setsZijnGelijk(beperkt, bulkSelectie)) setBulkSelectie(beperkt);
-  }, [isLoading, geselecteerdeSignalen, bulkSelectie]);
+  }, [selectieGeladen, signalenGeladen, geselecteerdeSignalen, bulkSelectie]);
   const toggleBulk = (id: string) => setBulkSelectie(prev => {
     const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next;
   });
