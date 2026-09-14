@@ -164,8 +164,11 @@ export function useUpsertBrief() {
       });
       return data as OffMarketBrief;
     },
-    onSuccess: (b) => {
-      qc.invalidateQueries({ queryKey: ['off_market_brieven', b.signaal_id] });
+    onSuccess: async (b) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['off_market_brieven', b.signaal_id] }),
+        qc.invalidateQueries({ queryKey: ['off-market-brieven-bulk'] }),
+      ]);
     },
   });
 }

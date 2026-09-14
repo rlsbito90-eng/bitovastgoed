@@ -24,8 +24,7 @@ import { useUpsertBrief } from '@/hooks/useOffMarketBrieven';
 import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-function wrap() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function wrap(qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return ({ children }: any) => (
     <QueryClientProvider client={qc}>{children}</QueryClientProvider>
   );
@@ -63,5 +62,33 @@ describe('useUpsertBrief — opslaan concept wijzigt signaalstatus niet', () => 
     expect(insertBrief).toHaveBeenCalled();
     expect(insertBrief.mock.calls[0][0]).toMatchObject({ status: 'concept' });
     // De test slaagt: fromMock zou hebben gegooid bij off_market_signalen.
+  });
+
+  it('ververst na opslaan ook de bulkbriefscope van Radar-productie', async () => {
+    const createdRow = {
+      id: 'b-new', signaal_id: 's1', status: 'concept',
+    };
+    fromMock.mockImplementation((t: string) => {
+      if (t === 'off_market_brieven') {
+        return {
+          insert: () => ({
+            select: () => ({
+              single: () => Promise.resolve({ data: createdRow, error: null }),
+            }),
+          }),
+        };
+      }
+      if (t === 'off_market_brief_events') return { insert: insertEvents };
+      throw new Error('onverwachte tabel ' + t);
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(qc, 'invalidateQueries').mockResolvedValue(undefined);
+    const { result } = renderHook(() => useUpsertBrief(), { wrapper: wrap(qc) });
+
+    await result.current.mutateAsync({ signaal_id: 's1', brieftekst: 'tekst' });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['off_market_brieven', 's1'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['off-market-brieven-bulk'] });
   });
 });
