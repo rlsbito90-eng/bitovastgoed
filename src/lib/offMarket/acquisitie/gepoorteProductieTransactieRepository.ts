@@ -8,6 +8,7 @@ import type {
   BatchDocumentenRegistrerenInput,
   BatchDocumentversieVernieuwenInput,
   BatchGeprintMarkerenInput,
+  BatchGepostMarkerenInput,
   BriefDefinitiefMakenInput,
   BriefGepostMarkerenInput,
 } from './productieTransactieContract';
@@ -53,6 +54,11 @@ implements AcquisitieProductieTransactieRepository {
   markeerBatchGeprint(input: BatchGeprintMarkerenInput): Promise<void> {
     this.eisSchrijftoegang('markeerBatchGeprint');
     return this.achterliggendeRepository.markeerBatchGeprint(input);
+  }
+
+  markeerBatchGepost(input: BatchGepostMarkerenInput): Promise<void> {
+    this.eisSchrijftoegang('markeerBatchGepost');
+    return this.achterliggendeRepository.markeerBatchGepost(input);
   }
 
   markeerBriefGepost(input: BriefGepostMarkerenInput): Promise<void> {

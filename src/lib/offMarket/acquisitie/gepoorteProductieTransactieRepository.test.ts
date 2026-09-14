@@ -13,6 +13,7 @@ function maakAchterliggendeRepository(): AcquisitieProductieTransactieRepository
     registreerBatchdocumenten: vi.fn().mockResolvedValue(undefined),
     vernieuwBatchdocumenten: vi.fn().mockResolvedValue(undefined),
     markeerBatchGeprint: vi.fn().mockResolvedValue(undefined),
+    markeerBatchGepost: vi.fn().mockResolvedValue(undefined),
     markeerBriefGepost: vi.fn().mockResolvedValue(undefined),
   };
 }
@@ -47,6 +48,9 @@ describe('GepoorteAcquisitieProductieTransactieRepository', () => {
     expect(() => repository.markeerBatchGeprint(willekeurigeInput))
       .toThrow(ProductieTransactiesNietGeactiveerdError);
     expect(achterliggend.markeerBatchGeprint).not.toHaveBeenCalled();
+    expect(() => repository.markeerBatchGepost(willekeurigeInput))
+      .toThrow(ProductieTransactiesNietGeactiveerdError);
+    expect(achterliggend.markeerBatchGepost).not.toHaveBeenCalled();
   });
 
   it('delegeert iedere handeling alleen bij expliciete schrijftoegang', async () => {
@@ -64,12 +68,14 @@ describe('GepoorteAcquisitieProductieTransactieRepository', () => {
     await repository.registreerBatchdocumenten(willekeurigeInput);
     await repository.vernieuwBatchdocumenten(willekeurigeInput);
     await repository.markeerBatchGeprint(willekeurigeInput);
+    await repository.markeerBatchGepost(willekeurigeInput);
     await repository.markeerBriefGepost(willekeurigeInput);
 
     expect(achterliggend.maakBriefDefinitief).toHaveBeenCalledOnce();
     expect(achterliggend.registreerBatchdocumenten).toHaveBeenCalledOnce();
     expect(achterliggend.vernieuwBatchdocumenten).toHaveBeenCalledOnce();
     expect(achterliggend.markeerBatchGeprint).toHaveBeenCalledOnce();
+    expect(achterliggend.markeerBatchGepost).toHaveBeenCalledOnce();
     expect(achterliggend.markeerBriefGepost).toHaveBeenCalledOnce();
   });
 });
