@@ -23,3 +23,20 @@ describe('2026 gemeenten provinciekeuze',()=>{
    expect(normaliseerGemeenteNaam("'s-Gravenhage")).toBe('den haag');
  });
 });
+
+import { berekenMatchScore, type Zoekprofiel, type ObjectVastgoed } from '@/data/mock-data';
+describe('legacy score: gemeente is niet automatisch woonplaats of provincie',()=>{
+ const obj={id:'o',type:'wonen',propertyTypeId:'wonen',provincie:'Utrecht',plaats:'Mijdrecht',vraagprijs:450000} as ObjectVastgoed;
+ const zp={id:'z',relatieId:'r',naam:'Gemeente De Ronde Venen',typeVastgoed:[],propertyTypeIds:['wonen'],
+   regio:['Utrecht'],steden:['gemeente:De Ronde Venen'],prijsMax:900000,status:'actief'} as Zoekprofiel;
+ it('voorkomt 20 onterechte regiopunten zonder bevestigde gemeentecode',()=>{
+   const m=berekenMatchScore(obj,zp);
+   expect(m).not.toBeNull();
+   expect(m?.ontbrekendeData).toContain('regio');
+   expect(m?.factoren.some(f=>f.categorie==='regio' && f.aard==='positief')).toBe(false);
+ });
+ it('ondersteunt heel Nederland bij bestaande scoreberekening',()=>{
+   const m=berekenMatchScore(obj,{...zp,steden:[],regio:['Heel Nederland']});
+   expect(m?.factoren.some(f=>f.categorie==='regio' && f.aard==='positief')).toBe(true);
+ });
+});
