@@ -30,7 +30,7 @@ import type {
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
-import { valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
+import { parseerSteden, valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
 
 interface Props {
   open: boolean;
@@ -95,13 +95,16 @@ export default function ZoekprofielFormDialog({
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('basis');
+  const [stedenTekst, setStedenTekst] = useState('');
 
   useEffect(() => {
     if (zoekprofiel) {
       const { id, ...rest } = zoekprofiel;
       setForm({ ...leegForm, ...rest });
+      setStedenTekst((rest.steden ?? []).join(', '));
     } else {
       setForm({ ...leegForm, relatieId: defaultRelatieId || '' });
+      setStedenTekst('');
     }
     setTab('basis');
   }, [zoekprofiel, open, defaultRelatieId]);
@@ -110,6 +113,10 @@ export default function ZoekprofielFormDialog({
     setForm(prev => ({ ...prev, [k]: v }));
 
   const num = (v: string) => v === '' ? undefined : Number(v);
+  const wijzigSteden = (tekst: string) => {
+    setStedenTekst(tekst);
+    set('steden', parseerSteden(tekst));
+  };
 
   // Bij wijzigen van typeVastgoed: filter subcategorieIds zodat ze bij het type passen
   const setTypeVastgoed = (types: AssetClass[]) => {
@@ -254,8 +261,8 @@ export default function ZoekprofielFormDialog({
                   </Veld>
                   <Veld label="Steden (optioneel, scheiden met komma)">
                     <Input
-                      value={(form.steden ?? []).join(', ')}
-                      onChange={e => set('steden', e.target.value.split(',').map(x => x.trim()).filter(Boolean))}
+                      value={stedenTekst}
+                      onChange={e => wijzigSteden(e.target.value)}
                       placeholder="Bijv. Breda, Tilburg of Rotterdam"
                     />
                   </Veld>
@@ -340,8 +347,8 @@ export default function ZoekprofielFormDialog({
               <Sectie titel="Specifieke steden (optioneel)">
                 <Veld label="Steden (kommagescheiden)">
                   <Input
-                    value={(form.steden ?? []).join(', ')}
-                    onChange={e => set('steden', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                    value={stedenTekst}
+                    onChange={e => wijzigSteden(e.target.value)}
                     placeholder="Plaats(en) of regio('s)"
                   />
                 </Veld>

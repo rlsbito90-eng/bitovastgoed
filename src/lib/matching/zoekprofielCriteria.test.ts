@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { valideerZoekprofielCriteria as check } from './zoekprofielCriteria';
+import { parseerSteden, valideerZoekprofielCriteria as check } from './zoekprofielCriteria';
 
 describe('Breed zoekprofiel zonder verplicht mandaat of vastgoedtype', () => {
   it('laat regio alleen toe', () => {
@@ -30,5 +30,15 @@ describe('Breed zoekprofiel zonder verplicht mandaat of vastgoedtype', () => {
   it('laat enkele of beide geldige budgetten toe', () => {
     expect(check({prijsMin:500_000,prijsMax:500_000})).toEqual({ok:true});
     expect(check({prijsMin:0,prijsMax:100_000})).toEqual({ok:true});
+  });
+});
+
+describe('Stedeninvoer: betrouwbaar typen en normaliseren', () => {
+  it('verwerkt meerdere plaatsen en verwijdert dubbele namen', () => {
+    expect(parseerSteden('Breda, Rotterdam, breda, Utrecht')).toEqual(['Breda','Rotterdam','Utrecht']);
+  });
+  it('laat onvoltooide invoer toe zonder lege steden op te slaan', () => {
+    expect(parseerSteden('Breda, ')).toEqual(['Breda']);
+    expect(parseerSteden(' , ')).toEqual([]);
   });
 });

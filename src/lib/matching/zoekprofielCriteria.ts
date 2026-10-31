@@ -19,6 +19,15 @@ type ValidatieUitkomst =
 
 const gevuld = (waarden?: readonly string[] | null) => Boolean(waarden?.some(x=>x.trim().length>0));
 
+export function parseerSteden(tekst: string): string[] {
+  const gezien = new Set<string>();
+  return tekst.split(',').map(s => s.trim()).filter(s => {
+    if (!s || gezien.has(s.toLocaleLowerCase('nl-NL'))) return false;
+    gezien.add(s.toLocaleLowerCase('nl-NL'));
+    return true;
+  });
+}
+
 export function valideerZoekprofielCriteria(p: ZoekprofielCriteriaInput): ValidatieUitkomst {
   if (!gevuld(p.typeVastgoed) && !gevuld(p.propertyTypeIds) &&
       !gevuld(p.propertySubtypeIds) && !gevuld(p.dealTypeIds) &&
