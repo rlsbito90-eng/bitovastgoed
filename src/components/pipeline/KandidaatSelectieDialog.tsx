@@ -25,7 +25,7 @@ import {
 import { kiesBesteZoekprofielMatch } from '@/lib/pipeline/zoekprofielKeuze';
 import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstellenR2';
 import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
-import type { maakKandidaatConcept } from '@/lib/matching/rolMandaatAdapter';
+import { isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen } from '@/lib/matching/rolMandaatAdapter';
 
 
 interface Props {
@@ -80,7 +80,7 @@ const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale:
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
   const {
     relaties, contactpersonen, getObjectById,
-    getZoekprofielenByRelatie, addPipelineKandidaat, zoekprofielen,
+    getZoekprofielenByRelatie, addPipelineKandidaat, getPipelineVoorObject, zoekprofielen,
   } = useDataStore();
 
   const object = getObjectById(objectId);
@@ -298,6 +298,56 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   };
 
 
+  const handleR2Toevoegen = async () => {
+    if(bezig || !r2Concept || !object || r2Concept.objectId!==objectId) return;
+    const relatieId=r2Concept.contactRelatieId;
+    if(!isAanbiedbaar(object)) {
+      toast.error('Object is niet meer beschikbaar voor nieuwe suggesties.');
+      return;
+    }
+    if(reedsGekoppeld.has(relatieId) || getPipelineVoorObject(objectId).some(x=>x.relatieId===relatieId)) {
+      toast.error('Deze partij is al gekoppeld. Open de bestaande kandidaat in de pipeline.');
+      return;
+    }
+    const actueel=maakKandidaatVoorstellen(object,relaties,zoekprofielen,{reedsGekoppeld});
+    const partij=actueel.find(x=>x.relatieId===relatieId);
+    const route=partij?.alleRoutes.find(x=>x.zoekprofielId===r2Concept.gekozenMandaatId && x.kwalificatie!=='afwijkend');
+    if(!route || !partij) {
+      toast.error('Deze suggestie is gewijzigd. Selecteer de partij opnieuw.');
+      setR2Concept(null);
+      return;
+    }
+    const handoff=maakKandidaatConcept(object,partij,route.key);
+    if(!handoff.ok) {
+      toast.error('Deze suggestie kan niet meer worden toegevoegd.');
+      return;
+    }
+    setBezig(true);
+    try {
+      await addPipelineKandidaat({
+        objectId,
+        relatieId,
+        zoekprofielId:route.zoekprofielId??undefined,
+        pipelineFase:'match_gevonden',
+        interesseNiveau:'lauw',
+        teaserVerstuurd:false,
+        ndaVerstuurd:false,
+        ndaGetekend:false,
+        informatieGedeeld:false,
+        feeAkkoord:false,
+      });
+      toast.success('Kandidaat aan object gekoppeld');
+      setR2Concept(null);
+      onToegevoegd?.();
+      onOpenChange(false);
+    } catch(err) {
+      console.error('R2 kandidaat koppelen mislukt',{objectId,relatieId,err});
+      toast.error(beschrijfKandidaatFout(err));
+    } finally {
+      setBezig(false);
+    }
+  };
+
   const handleQuickCreated = (r: Relatie) => {
     // Voeg nieuwe relatie toe aan selectie; behoud bestaande selectie.
     setGeselecteerd(prev => {
@@ -342,14 +392,14 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
             <button type="button" aria-pressed={r2Actief}
               onClick={() => { setToonR2(true); setR2Concept(null); }}
               className={`rounded-md px-3 py-2 text-sm border ${r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
-              Matches op zoekprofiel (proef)
+              Matches op zoekprofiel
             </button>
           </nav>
         )}
 
         {r2Actief && (
           <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 space-y-4">
-            <p className="text-xs text-muted-foreground">Alleen bekijken en een conceptkeuze voorbereiden. Er worden geen kandidaten, biedingen of contactmomenten opgeslagen.</p>
+            <p className="text-xs text-muted-foreground">Bekijk passende partijen, kies een zoekroute en voeg de kandidaat na controle zelf toe. Er worden geen berichten, biedingen of contactmomenten automatisch aangemaakt.</p>
             {object ? <KandidaatVoorstellenR2
               object={object} relaties={relaties} zoekprofielen={zoekprofielen}
               reedsGekoppeld={reedsGekoppeld}
@@ -360,7 +410,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               onConceptGekozen={setR2Concept}
             /> : <p className="text-sm text-muted-foreground">Object wordt geladen.</p>}
             {r2Concept && <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1" role="status">
-              <p className="font-medium text-sm">Keuze voorbereid — niet opgeslagen</p>
+              <p className="font-medium text-sm">Kandidaat geselecteerd — nog niet toegevoegd</p>
               <p className="text-xs">Contact: {relaties.find(r => r.id === r2Concept.contactRelatieId)?.bedrijfsnaam || 'Relatie'} · Direct benaderbare partij</p>
               <p className="text-xs text-muted-foreground">Zoekcriteria zijn leidend. Een mandaat is niet verplicht; de uiteindelijke koper kan later worden vastgelegd.</p>
             </div>}
@@ -579,8 +629,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         <DialogFooter className="px-5 py-3 border-t border-border bg-card shrink-0">
           {r2Actief ? (
             <>
-              <p className="text-xs text-muted-foreground mr-auto self-center">Proefweergave: geen opslag of verzending.</p>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Sluiten</Button>
+              <p className="text-xs text-muted-foreground mr-auto self-center">Alleen een expliciete klik op ‘Kandidaat toevoegen’ legt de koppeling vast. Geen automatische verzending.</p>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
+              <Button onClick={handleR2Toevoegen} disabled={!r2Concept||bezig}>
+                {bezig?'Bezig…':'Kandidaat toevoegen'}
+              </Button>
             </>
           ) : (
             <>
