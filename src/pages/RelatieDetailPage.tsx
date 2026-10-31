@@ -486,7 +486,7 @@ export default function RelatieDetailPage() {
                   </p>}
                   {(zp.steden ?? []).some(x=>!isGemeenteToken(x)) && <p className="text-xs text-muted-foreground break-words">
                     Plaatsen: {(zp.steden ?? []).filter(x=>!isGemeenteToken(x)).join(', ')}
-                  </p>
+                  </p>}
                   {(zp.prijsMin != null || zp.prijsMax != null) && (
                     <p className="text-xs text-muted-foreground font-mono-data">
                       {zp.prijsMin != null && zp.prijsMax != null
