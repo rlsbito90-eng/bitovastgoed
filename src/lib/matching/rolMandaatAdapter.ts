@@ -208,7 +208,16 @@ export function maakKandidaatVoorstellen(
    const routes=[beoordelen(object,r,relaties),...profiles.map(p=>beoordelen(object,r,relaties,p))]
     .filter((x):x is ProfielRoute=>x!==null).filter(x=>options.toonAfwijkende||x.kwalificatie!=='afwijkend');
    if(!routes.length)continue;
-   routes.sort((a,b)=>rang[b.kwalificatie]-rang[a.kwalificatie] || (a.bron==='zoekprofiel'?-1:1));
+   routes.sort((a,b)=>{
+     const scoreVerschil=rang[b.kwalificatie]-rang[a.kwalificatie];
+     if(scoreVerschil) return scoreVerschil;
+     // Bij gelijk matchniveau: een bevestigd mandaat krijgt voorrang.
+     const bevestigingVerschil=Number(b.bevestiging==='bevestigd')-Number(a.bevestiging==='bevestigd');
+     if(bevestigingVerschil) return bevestigingVerschil;
+     if(a.bron!==b.bron) return a.bron==='zoekprofiel'?-1:1;
+     // Een vaste, symmetrische tie-breaker voorkomt wisselende routelijsten.
+     return a.naam.localeCompare(b.naam,'nl') || a.key.localeCompare(b.key);
+   });
    result.push({relatieId:r.id,besteRoute:routes[0],alleRoutes:routes,
       aandachtNodig:routes[0].kwalificatie!=='passend'||routes[0].bevestiging!=='bevestigd',
       kanAutomatischVersturen:false,kanAutomatischBodMaken:false});

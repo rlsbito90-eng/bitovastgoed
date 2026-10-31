@@ -164,3 +164,18 @@ test('bevestigde koperrol geeft pas een koperreferentie bij directe relatiecrite
  const rows=voorstel(object(),[relatie({commercialRoles:['koper']})]);
  assert.equal(rows[0].besteRoute.koperRelatieId,'r1');
 });
+
+test('bevestigd mandaat krijgt bij gelijk matchniveau voorrang, onafhankelijk van invoervolgorde',()=>{
+ const b=relatie({id:'b',type:'makelaar',commercialRoles:['bemiddelaar'],
+   propertyTypeIds:[],budgetMax:undefined});
+ const onduidelijk=profiel({id:'z-onduidelijk',relatieId:'b',naam:'A netwerk',
+   mandateType:'voor_netwerk',mandateConfirmed:false});
+ const bevestigd=profiel({id:'z-bevestigd',relatieId:'b',naam:'Z bevestigd',
+   mandateType:'namens_opdrachtgever',mandateConfirmed:true});
+ for(const input of [[onduidelijk,bevestigd],[bevestigd,onduidelijk]]){
+   const rows=voorstel(object(),[b],input);
+   assert.equal(rows.length,1);
+   assert.equal(rows[0].alleRoutes.length,2);
+   assert.equal(rows[0].besteRoute.zoekprofielId,'z-bevestigd');
+ }
+});

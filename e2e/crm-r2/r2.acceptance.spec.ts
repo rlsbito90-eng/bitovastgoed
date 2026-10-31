@@ -21,9 +21,11 @@ test('desktop: meerdere zoekmandaten per bemiddelaar en geen dubbele kandidaatre
   await expect(broker.locator('details')).toHaveCount(2);
   await expect(page.getByRole('heading',{name:'Reeds gekoppelde relatie'})).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'Afwijkende partij'})).toHaveCount(0);
-  await broker.getByText('Horeca namens belegger',{exact:false}).click();
-  await expect(broker.getByText('Uiteindelijke koper nog niet vastgesteld.')).toBeVisible();
-  await broker.getByRole('button',{name:'Bereid keuze voor (geen opslag)'}).first().click();
+  await expect(broker.locator('details').first().locator('summary')).toContainText('Horeca namens belegger');
+  const gekozenMandaat=broker.locator('details').filter({hasText:'Horeca namens belegger'});
+  await gekozenMandaat.locator('summary').click();
+  await expect(gekozenMandaat.getByText('Uiteindelijke koper nog niet vastgesteld.')).toBeVisible();
+  await gekozenMandaat.getByRole('button',{name:'Bereid keuze voor (geen opslag)'}).click();
   await expect(page.getByRole('status').last()).toContainText('Gekozen contact: Horecamakelaar Nederland');
   await expect(page.getByRole('status').last()).toContainText('koper: niet bevestigd');
   await expect(page.getByRole('button',{name:/Verstuur|Toevoegen|Opslaan/})).toHaveCount(0);
