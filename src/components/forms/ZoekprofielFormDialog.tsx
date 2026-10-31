@@ -30,6 +30,7 @@ import type {
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import { valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
 
 interface Props {
   open: boolean;
@@ -128,19 +129,17 @@ export default function ZoekprofielFormDialog({
       setTab('basis');
       return;
     }
-    const heeftType =
-      (form.propertyTypeIds?.length ?? 0) > 0 ||
-      (form.typeVastgoed?.length ?? 0) > 0;
-    if (!heeftType) {
-      toast.error('Kies ten minste één type vastgoed');
-      setTab('wat');
+    const resultaat = valideerZoekprofielCriteria(form);
+    if (!resultaat.ok) {
+      toast.error(resultaat.fout);
+      setTab(resultaat.tab);
       return;
     }
     setBezig(true);
 
     const data = {
       ...form,
-      naam: form.naam.trim() || 'Naamloos zoekprofiel',
+      naam: form.naam.trim() || 'Breed zoekprofiel',
     };
 
     try {
@@ -160,7 +159,7 @@ export default function ZoekprofielFormDialog({
   };
 
   const assetOptions = Object.entries(ASSET_CLASS_LABELS).map(([value, label]) => ({ value, label }));
-  const regioOptions = REGIO_OPTIES.map(r => ({ value: r, label: r }));
+  const regioOptions = ['Heel Nederland', ...REGIO_OPTIES].map(r => ({ value: r, label: r }));
   const transactietypeOptions = Object.entries(TRANSACTIETYPE_LABELS).map(([value, label]) => ({ value, label }));
 
   // Subcategorie-opties op basis van gekozen asset classes
@@ -186,7 +185,7 @@ export default function ZoekprofielFormDialog({
         <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
           <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
             <TabsList className="inline-flex">
-              <TabsTrigger value="basis">Basis</TabsTrigger>
+              <TabsTrigger value="basis">Snel invoeren</TabsTrigger>
               <TabsTrigger value="wat">Wat</TabsTrigger>
               <TabsTrigger value="kenmerken">Kenmerken</TabsTrigger>
               <TabsTrigger value="voorkeuren">Voorkeuren</TabsTrigger>
@@ -200,14 +199,14 @@ export default function ZoekprofielFormDialog({
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Profielnaam" span={2}>
                     <Input value={form.naam} onChange={e => set('naam', e.target.value)}
-                      placeholder="bv. Logistiek NH €5-15m" />
+                      placeholder="Bijv. Woningen Noord-Brabant tot € 1 miljoen" />
                   </Veld>
                   <Veld label="Gekoppelde relatie *">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.relatieId}
                       onChange={e => set('relatieId', e.target.value)}
-                      disabled={!!defaultRelatieId && !isEdit}
+                      disabled={!!defaultRelatieId}
                     >
                       <option value="">— Kies relatie —</option>
                       {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
@@ -226,6 +225,48 @@ export default function ZoekprofielFormDialog({
                       <option value="gearchiveerd">Gearchiveerd</option>
                     </select>
                   </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Snel invoeren — bekende zoekcriteria">
+                <p className="text-sm text-muted-foreground">
+                  Vul alleen in wat je van deze partij weet. Dit geldt ook voor makelaars en bemiddelaars;
+                  een formeel mandaat is niet nodig. Niet ingevulde velden blijven open.
+                  Deze waarden zijn dezelfde als op de tabbladen Wat en Kenmerken.
+                </p>
+                <div className="space-y-4">
+                  <Veld label="Vastgoedtype (optioneel als regio of budget bekend is)">
+                    <MultiSelectChips
+                      options={propertyTypes.map(pt => ({ value: pt.id, label: pt.name }))}
+                      value={form.propertyTypeIds ?? []}
+                      onChange={v => {
+                        const geldig = subtypesForTypes(v).map(s => s.id);
+                        setForm(prev => ({
+                          ...prev, propertyTypeIds: v,
+                          propertySubtypeIds: (prev.propertySubtypeIds ?? []).filter(id => geldig.includes(id)),
+                        }));
+                      }}
+                    />
+                  </Veld>
+                  <Veld label="Zoekgebied (optioneel)">
+                    <MultiSelectChips options={regioOptions} value={form.regio}
+                      onChange={v => set('regio', v)} />
+                  </Veld>
+                  <Veld label="Steden (optioneel, scheiden met komma)">
+                    <Input
+                      value={(form.steden ?? []).join(', ')}
+                      onChange={e => set('steden', e.target.value.split(',').map(x => x.trim()).filter(Boolean))}
+                      placeholder="Bijv. Breda, Tilburg of Rotterdam"
+                    />
+                  </Veld>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Veld label="Budget vanaf (€)">
+                      <NumberField value={form.prijsMin} onChange={v => set('prijsMin', v)} />
+                    </Veld>
+                    <Veld label="Budget tot (€)">
+                      <NumberField value={form.prijsMax} onChange={v => set('prijsMax', v)} />
+                    </Veld>
+                  </div>
                 </div>
               </Sectie>
 
@@ -449,7 +490,7 @@ export default function ZoekprofielFormDialog({
           <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
             <Button onClick={handleSave} disabled={bezig}>
-              {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}
+              {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Zoekprofiel toevoegen')}
             </Button>
           </div>
         </Tabs>

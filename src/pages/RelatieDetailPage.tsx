@@ -5,6 +5,7 @@ import {
   getMatchesForRelatieFromData,
   formatCurrency,
   formatDate,
+  type Zoekprofiel,
   ASSET_CLASS_LABELS,
   INVESTEERDER_SUBTYPE_LABELS,
   KAPITAAL_SITUATIE_LABELS,
@@ -63,6 +64,7 @@ export default function RelatieDetailPage() {
   const relatie = store.getRelatieById(id!);
   const [editOpen, setEditOpen] = useState(false);
   const [zpOpen, setZpOpen] = useState(false);
+  const [zpBewerken, setZpBewerken] = useState<Zoekprofiel | null>(null);
   const [logOpen, setLogOpen] = useState(false);
 
   if (!relatie) {
@@ -436,21 +438,33 @@ export default function RelatieDetailPage() {
           <section className="section-card">
             <header className="section-header">
               <h2 className="section-title">Zoekprofielen ({zoekprofielen.length})</h2>
-              <button onClick={() => setZpOpen(true)} className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80">
-                <Plus className="h-3 w-3" /> Nieuw
+              <button onClick={() => { setZpBewerken(null); setZpOpen(true); }}
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80">
+                <Plus className="h-3 w-3" /> Zoekprofiel toevoegen
               </button>
             </header>
             <div className="divide-y divide-border/70">
               {zoekprofielen.length === 0 && (
-                <p className="px-5 py-6 text-xs text-muted-foreground">Nog geen zoekprofielen.</p>
+                <p className="px-5 py-6 text-xs text-muted-foreground">
+                  Nog geen aanvullende zoekprofielen. De algemene aankoopcriteria van deze relatie blijven beschikbaar.
+                  Voeg een profiel toe voor een specifieke zoekrichting.
+                </p>
               )}
               {zoekprofielen.map(zp => (
                 <div key={zp.id} className="px-5 py-3.5 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium text-foreground truncate flex-1">{zp.naam}</p>
-                    <span className="text-[10px] uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
-                      P{zp.prioriteit}
-                    </span>
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                        {zp.status === 'actief' ? 'Actief' : zp.status === 'pauze' ? 'Pauze' : 'Gearchiveerd'} · P{zp.prioriteit}
+                      </span>
+                      <button type="button" aria-label={`Bewerk zoekprofiel ${zp.naam}`}
+                        onClick={() => { setZpBewerken(zp); setZpOpen(true); }}
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-border text-muted-foreground hover:text-accent hover:bg-muted/40"
+                        title="Zoekprofiel bewerken">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
                     <PropertyTypeBadges
@@ -463,12 +477,18 @@ export default function RelatieDetailPage() {
                     <SubtypeBadges ids={(zp as any).propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
                     <DealtypeBadges ids={(zp as any).dealTypeIds} max={2} variant="compact" showEmpty={false} />
                   </div>
-                  {zp.regio.length > 0 && (
-                    <p className="text-xs text-muted-foreground truncate">{zp.regio.join(', ')}</p>
+                  {(zp.regio.length > 0 || (zp.steden?.length ?? 0) > 0) && (
+                    <p className="text-xs text-muted-foreground break-words">
+                      {[...zp.regio, ...(zp.steden ?? [])].join(', ')}
+                    </p>
                   )}
-                  {zp.prijsMax && (
+                  {(zp.prijsMin != null || zp.prijsMax != null) && (
                     <p className="text-xs text-muted-foreground font-mono-data">
-                      {formatCurrency(zp.prijsMin)} – {formatCurrency(zp.prijsMax)}
+                      {zp.prijsMin != null && zp.prijsMax != null
+                        ? `${formatCurrency(zp.prijsMin)} – ${formatCurrency(zp.prijsMax)}`
+                        : zp.prijsMin != null
+                          ? `Vanaf ${formatCurrency(zp.prijsMin)}`
+                          : `Tot ${formatCurrency(zp.prijsMax)}`}
                     </p>
                   )}
                 </div>
@@ -516,7 +536,12 @@ export default function RelatieDetailPage() {
       </div>
 
       <RelatieFormDialog open={editOpen} onOpenChange={setEditOpen} relatie={relatie} />
-      <ZoekprofielFormDialog open={zpOpen} onOpenChange={setZpOpen} defaultRelatieId={relatie.id} />
+      <ZoekprofielFormDialog
+        open={zpOpen}
+        onOpenChange={next => { setZpOpen(next); if (!next) setZpBewerken(null); }}
+        defaultRelatieId={relatie.id}
+        zoekprofiel={zpBewerken}
+      />
       <ContactMomentFormDialog open={logOpen} onOpenChange={setLogOpen} defaultRelatieId={relatie.id} />
     </div>
   );
