@@ -30,6 +30,9 @@ import type {
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
+import { parseerSteden, valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
+import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
+import GemeentePicker from '@/components/forms/GemeentePicker';
 
 interface Props {
   open: boolean;
@@ -94,13 +97,16 @@ export default function ZoekprofielFormDialog({
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('basis');
+  const [stedenTekst, setStedenTekst] = useState('');
 
   useEffect(() => {
     if (zoekprofiel) {
       const { id, ...rest } = zoekprofiel;
       setForm({ ...leegForm, ...rest });
+      setStedenTekst((rest.steden ?? []).filter(x=>!isGemeenteToken(x)).join(', '));
     } else {
       setForm({ ...leegForm, relatieId: defaultRelatieId || '' });
+      setStedenTekst('');
     }
     setTab('basis');
   }, [zoekprofiel, open, defaultRelatieId]);
@@ -109,6 +115,20 @@ export default function ZoekprofielFormDialog({
     setForm(prev => ({ ...prev, [k]: v }));
 
   const num = (v: string) => v === '' ? undefined : Number(v);
+  const wijzigSteden = (tekst: string) => {
+    setStedenTekst(tekst);
+    setForm(prev=>({
+      ...prev,
+      steden:[...(prev.steden ?? []).filter(isGemeenteToken), ...parseerSteden(tekst)],
+    }));
+  };
+  const gekozenGemeenten=(form.steden ?? []).filter(isGemeenteToken).map(gemeenteUitToken);
+  const wijzigGemeenten = (gemeenten: string[]) => {
+    setForm(prev=>({
+      ...prev,
+      steden:[...(prev.steden ?? []).filter(x=>!isGemeenteToken(x)),...gemeenten.map(alsGemeenteToken)],
+    }));
+  };
 
   // Bij wijzigen van typeVastgoed: filter subcategorieIds zodat ze bij het type passen
   const setTypeVastgoed = (types: AssetClass[]) => {
@@ -128,19 +148,17 @@ export default function ZoekprofielFormDialog({
       setTab('basis');
       return;
     }
-    const heeftType =
-      (form.propertyTypeIds?.length ?? 0) > 0 ||
-      (form.typeVastgoed?.length ?? 0) > 0;
-    if (!heeftType) {
-      toast.error('Kies ten minste één type vastgoed');
-      setTab('wat');
+    const resultaat = valideerZoekprofielCriteria(form);
+    if (!resultaat.ok) {
+      toast.error(resultaat.fout);
+      setTab(resultaat.tab);
       return;
     }
     setBezig(true);
 
     const data = {
       ...form,
-      naam: form.naam.trim() || 'Naamloos zoekprofiel',
+      naam: form.naam.trim() || 'Breed zoekprofiel',
     };
 
     try {
@@ -160,7 +178,7 @@ export default function ZoekprofielFormDialog({
   };
 
   const assetOptions = Object.entries(ASSET_CLASS_LABELS).map(([value, label]) => ({ value, label }));
-  const regioOptions = REGIO_OPTIES.map(r => ({ value: r, label: r }));
+  const regioOptions = ['Heel Nederland', ...REGIO_OPTIES].map(r => ({ value: r, label: r }));
   const transactietypeOptions = Object.entries(TRANSACTIETYPE_LABELS).map(([value, label]) => ({ value, label }));
 
   // Subcategorie-opties op basis van gekozen asset classes
@@ -186,7 +204,7 @@ export default function ZoekprofielFormDialog({
         <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
           <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
             <TabsList className="inline-flex">
-              <TabsTrigger value="basis">Basis</TabsTrigger>
+              <TabsTrigger value="basis">Snel invoeren</TabsTrigger>
               <TabsTrigger value="wat">Wat</TabsTrigger>
               <TabsTrigger value="kenmerken">Kenmerken</TabsTrigger>
               <TabsTrigger value="voorkeuren">Voorkeuren</TabsTrigger>
@@ -200,14 +218,14 @@ export default function ZoekprofielFormDialog({
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Profielnaam" span={2}>
                     <Input value={form.naam} onChange={e => set('naam', e.target.value)}
-                      placeholder="bv. Logistiek NH €5-15m" />
+                      placeholder="Bijv. Woningen Noord-Brabant tot € 1 miljoen" />
                   </Veld>
                   <Veld label="Gekoppelde relatie *">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.relatieId}
                       onChange={e => set('relatieId', e.target.value)}
-                      disabled={!!defaultRelatieId && !isEdit}
+                      disabled={!!defaultRelatieId}
                     >
                       <option value="">— Kies relatie —</option>
                       {sorteerRelatiesVoorDropdown(relaties, contactpersonen).map(r => (
@@ -226,6 +244,51 @@ export default function ZoekprofielFormDialog({
                       <option value="gearchiveerd">Gearchiveerd</option>
                     </select>
                   </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Snel invoeren — bekende zoekcriteria">
+                <p className="text-sm text-muted-foreground">
+                  Vul alleen in wat je van deze partij weet. Dit geldt ook voor makelaars en bemiddelaars;
+                  een formeel mandaat is niet nodig. Niet ingevulde velden blijven open.
+                  Deze waarden zijn dezelfde als op de tabbladen Wat en Kenmerken.
+                </p>
+                <div className="space-y-4">
+                  <Veld label="Vastgoedtype (optioneel als regio of budget bekend is)">
+                    <MultiSelectChips
+                      options={propertyTypes.map(pt => ({ value: pt.id, label: pt.name }))}
+                      value={form.propertyTypeIds ?? []}
+                      onChange={v => {
+                        const geldig = subtypesForTypes(v).map(s => s.id);
+                        setForm(prev => ({
+                          ...prev, propertyTypeIds: v,
+                          propertySubtypeIds: (prev.propertySubtypeIds ?? []).filter(id => geldig.includes(id)),
+                        }));
+                      }}
+                    />
+                  </Veld>
+                  <Veld label="Zoekgebied (optioneel)">
+                    <MultiSelectChips options={regioOptions} value={form.regio}
+                      onChange={v => set('regio', v)} />
+                  </Veld>
+                  <Veld label="Gemeenten (optioneel)">
+                    <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
+                  </Veld>
+                  <Veld label="Plaatsen of steden (optioneel, scheiden met komma)">
+                    <Input
+                      value={stedenTekst}
+                      onChange={e => wijzigSteden(e.target.value)}
+                      placeholder="Bijv. Breda, Tilburg of Rotterdam"
+                    />
+                  </Veld>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <Veld label="Budget vanaf (€)">
+                      <NumberField value={form.prijsMin} onChange={v => set('prijsMin', v)} />
+                    </Veld>
+                    <Veld label="Budget tot (€)">
+                      <NumberField value={form.prijsMax} onChange={v => set('prijsMax', v)} />
+                    </Veld>
+                  </div>
                 </div>
               </Sectie>
 
@@ -296,11 +359,14 @@ export default function ZoekprofielFormDialog({
                 />
               </Sectie>
 
+              <Sectie titel="Gemeenten binnen gekozen provincies (optioneel)">
+                <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
+              </Sectie>
               <Sectie titel="Specifieke steden (optioneel)">
                 <Veld label="Steden (kommagescheiden)">
                   <Input
-                    value={(form.steden ?? []).join(', ')}
-                    onChange={e => set('steden', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                    value={stedenTekst}
+                    onChange={e => wijzigSteden(e.target.value)}
                     placeholder="Plaats(en) of regio('s)"
                   />
                 </Veld>
@@ -449,7 +515,7 @@ export default function ZoekprofielFormDialog({
           <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
             <Button onClick={handleSave} disabled={bezig}>
-              {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}
+              {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Zoekprofiel toevoegen')}
             </Button>
           </div>
         </Tabs>

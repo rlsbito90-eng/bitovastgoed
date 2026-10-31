@@ -23,6 +23,9 @@ import {
   type KandidaatResultaat,
 } from '@/lib/pipeline/kandidaatFouten';
 import { kiesBesteZoekprofielMatch } from '@/lib/pipeline/zoekprofielKeuze';
+import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstellenR2';
+import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
+import { isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen } from '@/lib/matching/rolMandaatAdapter';
 
 
 interface Props {
@@ -77,7 +80,7 @@ const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale:
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
   const {
     relaties, contactpersonen, getObjectById,
-    getZoekprofielenByRelatie, addPipelineKandidaat,
+    getZoekprofielenByRelatie, addPipelineKandidaat, getPipelineVoorObject, zoekprofielen,
   } = useDataStore();
 
   const object = getObjectById(objectId);
@@ -95,6 +98,10 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [bezig, setBezig] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [toonR2, setToonR2] = useState(false);
+  type R2Concept = Extract<ReturnType<typeof maakKandidaatConcept>, { ok: true }>['concept'];
+  const [r2Concept, setR2Concept] = useState<R2Concept | null>(null);
+  const r2Actief = MATCH_R2_PREVIEW_ENABLED && toonR2;
   const zoekRef = useRef<HTMLInputElement>(null);
 
   // Reset bij open
@@ -104,6 +111,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       setFilterPlaats(''); setBudgetMinFilter(''); setBudgetMaxFilter('');
       setAlleenActief(false); setGeselecteerd(new Set()); setQuickOpen(false);
       setSortKey('match'); setSortDir('desc');
+      setToonR2(false); setR2Concept(null);
     }
   }, [open]);
 
@@ -290,6 +298,56 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   };
 
 
+  const handleR2Toevoegen = async () => {
+    if(bezig || !r2Concept || !object || r2Concept.objectId!==objectId) return;
+    const relatieId=r2Concept.contactRelatieId;
+    if(!isAanbiedbaar(object)) {
+      toast.error('Object is niet meer beschikbaar voor nieuwe suggesties.');
+      return;
+    }
+    if(reedsGekoppeld.has(relatieId) || getPipelineVoorObject(objectId).some(x=>x.relatieId===relatieId)) {
+      toast.error('Deze partij is al gekoppeld. Open de bestaande kandidaat in de pipeline.');
+      return;
+    }
+    const actueel=maakKandidaatVoorstellen(object,relaties,zoekprofielen,{reedsGekoppeld});
+    const partij=actueel.find(x=>x.relatieId===relatieId);
+    const route=partij?.alleRoutes.find(x=>x.zoekprofielId===r2Concept.gekozenMandaatId && x.kwalificatie!=='afwijkend');
+    if(!route || !partij) {
+      toast.error('Deze suggestie is gewijzigd. Selecteer de partij opnieuw.');
+      setR2Concept(null);
+      return;
+    }
+    const handoff=maakKandidaatConcept(object,partij,route.key);
+    if(!handoff.ok) {
+      toast.error('Deze suggestie kan niet meer worden toegevoegd.');
+      return;
+    }
+    setBezig(true);
+    try {
+      await addPipelineKandidaat({
+        objectId,
+        relatieId,
+        zoekprofielId:route.zoekprofielId??undefined,
+        pipelineFase:'match_gevonden',
+        interesseNiveau:'lauw',
+        teaserVerstuurd:false,
+        ndaVerstuurd:false,
+        ndaGetekend:false,
+        informatieGedeeld:false,
+        feeAkkoord:false,
+      });
+      toast.success('Kandidaat aan object gekoppeld');
+      setR2Concept(null);
+      onToegevoegd?.();
+      onOpenChange(false);
+    } catch(err) {
+      console.error('R2 kandidaat koppelen mislukt',{objectId,relatieId,err});
+      toast.error(beschrijfKandidaatFout(err));
+    } finally {
+      setBezig(false);
+    }
+  };
+
   const handleQuickCreated = (r: Relatie) => {
     // Voeg nieuwe relatie toe aan selectie; behoud bestaande selectie.
     setGeselecteerd(prev => {
@@ -324,8 +382,43 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           </p>
         </DialogHeader>
 
+        {MATCH_R2_PREVIEW_ENABLED && (
+          <nav className="px-5 py-2 flex flex-wrap gap-2 border-b border-border" aria-label="Wijze van kandidaatselectie">
+            <button type="button" aria-pressed={!r2Actief}
+              onClick={() => { setToonR2(false); setR2Concept(null); }}
+              className={`rounded-md px-3 py-2 text-sm border ${!r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
+              Bestaande selectie
+            </button>
+            <button type="button" aria-pressed={r2Actief}
+              onClick={() => { setToonR2(true); setR2Concept(null); }}
+              className={`rounded-md px-3 py-2 text-sm border ${r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
+              Matches op zoekprofiel
+            </button>
+          </nav>
+        )}
+
+        {r2Actief && (
+          <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 space-y-4">
+            <p className="text-xs text-muted-foreground">Bekijk passende partijen, kies een zoekroute en voeg de kandidaat na controle zelf toe. Er worden geen berichten, biedingen of contactmomenten automatisch aangemaakt.</p>
+            {object ? <KandidaatVoorstellenR2
+              object={object} relaties={relaties} zoekprofielen={zoekprofielen}
+              reedsGekoppeld={reedsGekoppeld}
+              relatieNaam={id => {
+                const r = relaties.find(item => item.id === id);
+                return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
+              }}
+              onConceptGekozen={setR2Concept}
+            /> : <p className="text-sm text-muted-foreground">Object wordt geladen.</p>}
+            {r2Concept && <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1" role="status">
+              <p className="font-medium text-sm">Kandidaat geselecteerd — nog niet toegevoegd</p>
+              <p className="text-xs">Contact: {relaties.find(r => r.id === r2Concept.contactRelatieId)?.bedrijfsnaam || 'Relatie'} · Direct benaderbare partij</p>
+              <p className="text-xs text-muted-foreground">Zoekcriteria zijn leidend. Een mandaat is niet verplicht; de uiteindelijke koper kan later worden vastgelegd.</p>
+            </div>}
+          </div>
+        )}
+
         {/* Zoek + filters */}
-        <div className="px-5 py-3 border-b border-border bg-muted/20 space-y-2.5 shrink-0">
+        {!r2Actief && <div className="px-5 py-3 border-b border-border bg-muted/20 space-y-2.5 shrink-0">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -440,10 +533,10 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               </button>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Lijst */}
-        <div className="flex-1 overflow-y-auto min-h-[200px]">
+        {!r2Actief && <div className="flex-1 overflow-y-auto min-h-[200px]">
           {gesorteerd.length === 0 ? (
             <div className="p-8 text-sm text-muted-foreground text-center space-y-3">
               <p>{filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}</p>
@@ -531,13 +624,25 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               </div>
             </>
           )}
-        </div>
+        </div>}
 
         <DialogFooter className="px-5 py-3 border-t border-border bg-card shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-          <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig}>
-            {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
-          </Button>
+          {r2Actief ? (
+            <>
+              <p className="text-xs text-muted-foreground mr-auto self-center">Alleen een expliciete klik op ‘Kandidaat toevoegen’ legt de koppeling vast. Geen automatische verzending.</p>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
+              <Button onClick={handleR2Toevoegen} disabled={!r2Concept||bezig}>
+                {bezig?'Bezig…':'Kandidaat toevoegen'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
+              <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig}>
+                {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
 

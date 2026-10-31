@@ -4360,6 +4360,7 @@ export type Database = {
           bron_relatie: string | null
           budget_max: number | null
           budget_min: number | null
+          commercial_roles: string[] | null
           contactpersoon: string | null
           created_at: string
           deal_type_ids: string[]
@@ -4411,6 +4412,7 @@ export type Database = {
           bron_relatie?: string | null
           budget_max?: number | null
           budget_min?: number | null
+          commercial_roles?: string[] | null
           contactpersoon?: string | null
           created_at?: string
           deal_type_ids?: string[]
@@ -4462,6 +4464,7 @@ export type Database = {
           bron_relatie?: string | null
           budget_max?: number | null
           budget_min?: number | null
+          commercial_roles?: string[] | null
           contactpersoon?: string | null
           created_at?: string
           deal_type_ids?: string[]

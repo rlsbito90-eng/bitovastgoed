@@ -5,6 +5,7 @@
 // - CRUD voor alle tabellen (inclusief fase-1 uitbreidingen)
 // - Soft delete waar geconfigureerd
 
+import { leesCommercieleRollen, schrijfCommercieleRollen } from '@/lib/relaties/commercieleRollen';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -87,6 +88,7 @@ const relatieFromDb = (r: any): Relatie => ({
   bedrijfsnaam: r.bedrijfsnaam ?? '',
   contactpersoon: r.contactpersoon ?? '',
   type: r.type_partij ?? 'belegger',
+  commercialRoles: leesCommercieleRollen(r.commercial_roles),
   investeerderSubtype: r.investeerder_subtype ?? undefined,
   telefoon: r.telefoon ?? '',
   email: r.email ?? '',
@@ -127,6 +129,7 @@ const relatieToDb = (r: Partial<Relatie>) => cleanPayload({
   bedrijfsnaam: r.bedrijfsnaam !== undefined ? (r.bedrijfsnaam?.trim() || '') : undefined,
   contactpersoon: r.contactpersoon !== undefined ? (r.contactpersoon || null) : undefined,
   type_partij: r.type,
+  commercial_roles: schrijfCommercieleRollen(r.commercialRoles),
   investeerder_subtype: r.investeerderSubtype !== undefined ? (r.investeerderSubtype || null) : undefined,
   telefoon: r.telefoon !== undefined ? (r.telefoon || null) : undefined,
   email: r.email !== undefined ? (r.email || null) : undefined,
@@ -637,7 +640,7 @@ const zoekprofielFromDb = (z: any): Zoekprofiel => ({
   propertySubtypeIds: z.property_subtype_ids_v2 ?? [],
   dealTypeIds: z.deal_type_ids ?? [],
   regio: z.regio ?? [],
-  stad: z.steden?.[0] ?? undefined,
+  stad: z.steden?.find((v:string)=>!v.startsWith('gemeente:')) ?? undefined,
   steden: z.steden ?? [],
   prijsMin: z.prijs_min ?? undefined,
   prijsMax: z.prijs_max ?? undefined,

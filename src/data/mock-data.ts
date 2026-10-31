@@ -7,6 +7,10 @@
 
 export type LeadStatus = 'koud' | 'lauw' | 'warm' | 'actief';
 
+/** Commercial roles can overlap; unknown/not entered is represented by null. */
+export type CommercieleRol = 'koper' | 'verkoper' | 'makelaar' | 'bemiddelaar'
+  | 'ontwikkelaar' | 'adviseur' | 'beheerder' | 'financier' | 'overig';
+
 export type PartijType =
   | 'belegger' | 'ontwikkelaar' | 'eigenaar'
   | 'makelaar' | 'partner' | 'overig';
@@ -206,6 +210,8 @@ export interface Relatie {
   bedrijfsnaam: string;
   contactpersoon: string;   // legacy; gedetailleerd in RelatieContactpersoon[]
   type: PartijType;
+  /** Optional additive field; null = not investigated, [] = explicitly no roles. */
+  commercialRoles?: CommercieleRol[] | null;
   investeerderSubtype?: InvesteerderSubtype;
   telefoon: string;
   email: string;
@@ -1001,6 +1007,7 @@ function regioMatcht(profiel: Zoekprofiel, object: ObjectVastgoed): boolean {
   return profiel.regio.some(r => {
     const key = r.trim().toLowerCase();
     if (!key) return false;
+    if (['heel nederland','nederland','landelijk','heel nl'].includes(key)) return true;
     if (key === 'randstad') {
       return RANDSTAD_PROVINCIES.map(p => p.toLowerCase()).includes(provincie);
     }
@@ -1170,18 +1177,30 @@ export function berekenMatchScore(
   // ----------------------------------------------------------------
   // 4. REGIO (bestaande logica, max 20)
   // ----------------------------------------------------------------
-  if (profiel.regio && profiel.regio.length > 0) {
+  const gemeentenInZoekprofiel = (profiel.steden ?? []).filter(x=>x.startsWith('gemeente:'));
+  const lossePlaatsen = (profiel.steden ?? []).filter(x=>!x.startsWith('gemeente:'));
+  if (gemeentenInZoekprofiel.length>0) {
+    // Het bestaande ObjectVastgoed-model heeft geen gevalideerde bestuurlijke gemeente.
+    // Dus geen onterechte positieve 20-puntenmatch uitsluitend op basis van de provincie.
+    ontbrekendeData.push('regio');
+    factoren.push({ categorie:'regio', aard:'ontbrekend',
+      label:'Geselecteerde gemeenten nog niet verifieerbaar via objectlocatie', punten:0, max:20 });
+  } else if (lossePlaatsen.length>0) {
+    if (!lossePlaatsen.some(x=>x.trim().toLowerCase()===(object.plaats ?? '').trim().toLowerCase())) return null;
+    score+=20;
+    factoren.push({ categorie:'regio', aard:'positief',
+      label:'Plaats matcht met zoekprofiel', punten:20, max:20 });
+    redenen.push('Plaats komt overeen');
+  } else if (profiel.regio && profiel.regio.length>0) {
     if (!regioMatcht(profiel, object)) return null;
-    score += 20;
-    const label = `Regio matcht (${object.plaats || object.provincie})`;
+    score+=20;
+    const label=`Regio matcht (${object.plaats || object.provincie})`;
     redenen.push(label);
-    factoren.push({ categorie: 'regio', aard: 'positief', label, punten: 20, max: 20 });
+    factoren.push({ categorie:'regio', aard:'positief', label, punten:20, max:20 });
   } else {
-    score += 5;
-    factoren.push({
-      categorie: 'regio', aard: 'ontbrekend',
-      label: 'Geen regio-voorkeur opgegeven', punten: 5, max: 20,
-    });
+    score+=5;
+    factoren.push({ categorie:'regio', aard:'ontbrekend',
+      label:'Geen regio-voorkeur opgegeven', punten:5, max:20 });
   }
 
   // ----------------------------------------------------------------

@@ -1,0 +1,272 @@
+/**
+ * Bito CRM — R2 candidate read adapter (v0.6).
+ * PURE read model: no DB calls, no localStorage, no transmissions or writes.
+ * Designed for input from existing useDataStore Relatie, Zoekprofiel, ObjectVastgoed.
+ * A direct party can have general criteria or active search profiles without any formal mandate.
+ * All optional fields are FUTURE (not yet present in production database).
+ */
+
+import { isGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
+
+import type { CommercieleRol } from '../../data/mock-data';
+export type { CommercieleRol };
+export type MandaatType = 'eigen_aankoop' | 'namens_opdrachtgever' | 'voor_netwerk' | 'onbekend';
+export type MatchKwalificatie = 'passend' | 'te_verifieren' | 'afwijkend' | 'onvoldoende';
+export type ContactRoute = 'directe_partij';
+export type ObjectAvailability = 'aanbiedbaar' | 'niet_aanbiedbaar';
+
+export interface CrmRelatieInput {
+  id: string;
+  type?: string;
+  softDeletedAt?: string | null;
+  commercialRoles?: readonly CommercieleRol[] | null; // Future nullable field; null = legacy unknown, [] = explicitly none
+  assetClasses?: readonly string[] | null;
+  propertyTypeIds?: readonly string[] | null;
+  propertySubtypeIds?: readonly string[] | null;
+  dealTypeIds?: readonly string[] | null;
+  regio?: readonly string[] | null;
+  budgetMin?: number | null;
+  budgetMax?: number | null;
+  aankoopcriteria?: string | null;
+}
+export interface CrmMandaatInput {
+  id: string;
+  relatieId: string;
+  status: string;
+  naam?: string;
+  typeVastgoed?: readonly string[] | null;
+  propertyTypeIds?: readonly string[] | null;
+  propertySubtypeIds?: readonly string[] | null;
+  dealTypeIds?: readonly string[] | null;
+  regio?: readonly string[] | null;
+  steden?: readonly string[] | null;
+  prijsMin?: number | null;
+  prijsMax?: number | null;
+  mandateType?: MandaatType | null; // Future field
+  mandateConfirmed?: boolean | null; // Future field
+  principalRelatieId?: string | null; // Future field: do NOT assume seller/buyer identity from contact.
+  principalVerified?: boolean | null; // Future field
+}
+export interface CrmObjectInput {
+  id: string;
+  status: string;
+  softDeletedAt?: string | null;
+  isArchived?: boolean | null;
+  type?: string;
+  propertyTypeId?: string | null;
+  propertySubtypeIds?: readonly string[] | null;
+  dealTypeIds?: readonly string[] | null;
+  vraagprijs?: number | null;
+  plaats?: string | null;
+  provincie?: string | null;
+  /** Optioneel: alleen als gemeente geverifieerd is, niet uit plaatsnaam afleiden. */
+  gemeente?: string | null;
+}
+export interface MatchToelichting {
+  matcht: string[];
+  controleer: string[];
+  afwijkend: string[];
+}
+export interface ProfielRoute {
+  /** Stable key in read model. For relation virtual profile do not persist as UUID. */
+  key: string;
+  zoekprofielId: string | null;
+  bron: 'relatie_basis' | 'zoekprofiel';
+  naam: string;
+  route: ContactRoute;
+  kwalificatie: MatchKwalificatie;
+  bevestiging: 'bevestigd' | 'te_verifieren';
+  koperRelatieId: string | null;
+  redenVanRoute: string;
+  toelichting: MatchToelichting;
+}
+export interface KandidaatVoorstel {
+  /** One row for every contact relation, never a fabricated buyer relation. */
+  relatieId: string;
+  besteRoute: ProfielRoute;
+  alleRoutes: ProfielRoute[];
+  aandachtNodig: boolean;
+  /** A suggestion is never consent to send information. */
+  kanAutomatischVersturen: false;
+  kanAutomatischBodMaken: false;
+}
+
+const gevuld = (a?: readonly unknown[] | null): a is readonly unknown[] => !!a && a.length > 0;
+const getRoles = (r: CrmRelatieInput) => Array.isArray(r.commercialRoles) ? r.commercialRoles : null;
+const has = (roles: readonly CommercieleRol[] | null, role: CommercieleRol) => roles?.includes(role) === true;
+const overlap = (a?: readonly string[] | null, b?: readonly string[] | null) => !!a && !!b && a.some(x => b.includes(x));
+
+/** Availability applies only to *new* proactive suggestions, not historical candidate lists. */
+export function isAanbiedbaar(o: CrmObjectInput): boolean {
+  return o.status === 'beschikbaar' && !o.isArchived && !o.softDeletedAt;
+}
+
+function heeftBasisCriteria(r: CrmRelatieInput): boolean {
+  return !!(gevuld(r.propertyTypeIds) || gevuld(r.assetClasses) ||
+    gevuld(r.propertySubtypeIds) || gevuld(r.dealTypeIds) ||
+    gevuld(r.regio) || r.budgetMin != null || r.budgetMax != null);
+}
+
+function heeftProfielCriteria(p: CrmMandaatInput): boolean {
+  return !!(gevuld(p.propertyTypeIds) || gevuld(p.typeVastgoed) ||
+    gevuld(p.propertySubtypeIds) || gevuld(p.dealTypeIds) ||
+    gevuld(p.regio) || gevuld(p.steden) || p.prijsMin != null || p.prijsMax != null);
+}
+
+/** Contact brokers and investors directly; no mandate validation gate. */
+function routeType(r: CrmRelatieInput, p?: CrmMandaatInput): { route: ContactRoute; reden: string } | null {
+  if(p){
+    if(p.status!=='actief' || !heeftProfielCriteria(p)) return null;
+    return {route:'directe_partij',reden:'actief zoekprofiel'};
+  }
+  const roles=getRoles(r);
+  const zoekendeRol=roles?.some(x=>x==='koper'||x==='bemiddelaar'||x==='makelaar'||x==='ontwikkelaar')??false;
+  const legacyZoekendePartij=['belegger','ontwikkelaar','makelaar'].includes(r.type??'');
+  if(!heeftBasisCriteria(r) || (!zoekendeRol && !legacyZoekendePartij))return null;
+  return {route:'directe_partij',reden:'algemene zoekcriteria'};
+}
+function normaliseerRegio(s:string):string{
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
+}
+const LANDELIJK=new Set(['nederland','heel nederland','landelijk','heel nl']);
+
+function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmRelatieInput[], p?:CrmMandaatInput):ProfielRoute|null {
+  const route = routeType(r,p); if(!route) return null;
+  const matcht:string[]=[],controleer:string[]=[],afwijkend:string[]=[];
+  const types = p ? p.propertyTypeIds : r.propertyTypeIds;
+  const legacy = p ? p.typeVastgoed : r.assetClasses;
+  const subtypes = p ? p.propertySubtypeIds : r.propertySubtypeIds;
+  const dealTypes = p ? p.dealTypeIds : r.dealTypeIds;
+  const rawRegion = p ? p.regio : r.regio;
+  const rawCities = p?.steden;
+  const min = p ? p.prijsMin : r.budgetMin;
+  const max = p ? p.prijsMax : r.budgetMax;
+  let geverifieerd=0,controleNodig=false;
+  if(gevuld(types)){
+    if(o.propertyTypeId){
+      if(types.includes(o.propertyTypeId)){matcht.push('Vastgoedtype komt overeen');geverifieerd++}
+      else afwijkend.push('Vastgoedtype wijkt af');
+    }else{controleer.push('Objecttype in nieuwe taxonomie ontbreekt');controleNodig=true}
+  }else if(gevuld(legacy)){
+    if(o.type){
+      if(legacy.includes(o.type)){matcht.push('Vastgoedtype komt overeen');geverifieerd++}
+      else afwijkend.push('Vastgoedtype wijkt af');
+    }else{controleer.push('Vastgoedtype object ontbreekt');controleNodig=true}
+  }
+  // Niet ingevuld = brede zoekcriteria, dus geen kunstmatige mismatch.
+  if(gevuld(subtypes)){
+    if(gevuld(o.propertySubtypeIds)){
+      if(overlap(subtypes,o.propertySubtypeIds)){matcht.push('Subcategorie komt overeen');geverifieerd++}
+      else{controleer.push('Subcategorieën verschillen; handmatig beoordelen');controleNodig=true}
+    }else{controleer.push('Subcategorie object ontbreekt');controleNodig=true}
+  }
+  if(gevuld(dealTypes)){
+    if(gevuld(o.dealTypeIds)){
+      if(overlap(dealTypes,o.dealTypeIds)){matcht.push('Dealtype of strategie overlapt');geverifieerd++}
+      else{controleer.push('Dealtype of strategie verschilt; handmatig beoordelen');controleNodig=true}
+    }else{controleer.push('Dealtype object ontbreekt');controleNodig=true}
+  }
+  const gekozenGemeenten=(rawCities??[]).filter(isGemeenteToken).map(gemeenteUitToken);
+  const gekozenPlaatsen=(rawCities??[]).filter(x=>!isGemeenteToken(x));
+  const objectLocaties=[o.plaats,o.provincie].filter(Boolean).map(x=>normaliseerRegio(x!));
+  // Specifieke gemeente of plaats beperkt de provincieselectie; provincies zijn anders brede scope.
+  if(gekozenGemeenten.length){
+    if(o.gemeente){
+      if(gekozenGemeenten.some(g=>normaliseerGemeenteNaam(g)===normaliseerGemeenteNaam(o.gemeente!))){
+        matcht.push('Bestuurlijke gemeente komt overeen');geverifieerd++;
+      }else if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
+        matcht.push('Plaats komt overeen');geverifieerd++;
+      }else afwijkend.push('Gemeente buiten het gekozen zoekgebied');
+    }else{
+      controleer.push('Gemeente van object onbekend; bestuurlijke gemeente eerst verifiëren');
+      controleNodig=true;
+    }
+  }else if(gekozenPlaatsen.length){
+    if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
+      matcht.push('Plaats komt overeen');geverifieerd++;
+    }else{
+      controleer.push('Plaats buiten gekozen locatie of handmatige controle nodig');
+      controleNodig=true;
+    }
+  }else if(gevuld(rawRegion)){
+    if(rawRegion!.some(x=>{
+      const r=normaliseerRegio(x);
+      return LANDELIJK.has(r)||objectLocaties.includes(r);
+    })){matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++}
+    else{controleer.push('Zoekregio is niet automatisch te verifiëren');controleNodig=true}
+  }
+  if(min!=null||max!=null){
+    if(typeof o.vraagprijs==='number'&&Number.isFinite(o.vraagprijs)){
+      if((min!=null&&o.vraagprijs<min)||(max!=null&&o.vraagprijs>max))afwijkend.push('Vraagprijs buiten opgegeven budgetgrenzen');
+      else{matcht.push('Vraagprijs binnen budget');geverifieerd++}
+    }else{controleer.push('Vraagprijs van object ontbreekt');controleNodig=true}
+  }
+  let koperRelatieId:string|null=null;
+  // De contactpartij kan zelf koper zijn, maar een makelaar is niet automatisch de eindkoper.
+  if(has(getRoles(r),'koper')&&(r.type!=='makelaar'||p?.mandateType==='eigen_aankoop'))
+    koperRelatieId=r.id;
+  else if(p?.mandateType==='namens_opdrachtgever' && p.principalVerified && p.principalRelatieId &&
+    p.principalRelatieId!==r.id && relaties.some(x=>x.id===p.principalRelatieId&&!x.softDeletedAt))
+    koperRelatieId=p.principalRelatieId;
+  const kwalificatie:MatchKwalificatie=afwijkend.length?'afwijkend':
+    geverifieerd===0?'onvoldoende':controleNodig?'te_verifieren':'passend';
+  if(!koperRelatieId)controleer.push('Uiteindelijke koper eventueel later in het traject vaststellen');
+  const routeConfirmed=has(getRoles(r),'koper')||has(getRoles(r),'bemiddelaar');
+
+  return {key:p?`zoekprofiel:${p.id}`:`relatie:${r.id}:basis`,zoekprofielId:p?.id??null,
+    bron:p?'zoekprofiel':'relatie_basis',naam:p?.naam??'Algemene zoekcriteria',route:route.route,
+    kwalificatie,bevestiging:routeConfirmed?'bevestigd':'te_verifieren',
+    koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend}};
+}
+
+const rang:Record<MatchKwalificatie,number>={passend:4,te_verifieren:3,onvoldoende:2,afwijkend:1};
+
+/**
+ * Read-only adapter over existing CRM store records. Never writes to object_pipeline.
+ * A rejected/archived object returns no new proactive candidates. Existing data stays unchanged.
+ */
+export function maakKandidaatVoorstellen(
+ object:CrmObjectInput, relaties:readonly CrmRelatieInput[], zoekprofielen:readonly CrmMandaatInput[],
+ options:{reedsGekoppeld?:ReadonlySet<string>; toonAfwijkende?:boolean}={}
+):KandidaatVoorstel[]{
+ if(!isAanbiedbaar(object))return [];
+ const result:KandidaatVoorstel[]=[];
+ for(const r of relaties){
+   if(r.softDeletedAt||options.reedsGekoppeld?.has(r.id))continue;
+   const profiles=zoekprofielen.filter(p=>p.relatieId===r.id&&p.status==='actief');
+   const routes=[beoordelen(object,r,relaties),...profiles.map(p=>beoordelen(object,r,relaties,p))]
+    .filter((x):x is ProfielRoute=>x!==null).filter(x=>options.toonAfwijkende||x.kwalificatie!=='afwijkend');
+   if(!routes.length)continue;
+   routes.sort((a,b)=>{
+     const scoreVerschil=rang[b.kwalificatie]-rang[a.kwalificatie];
+     if(scoreVerschil) return scoreVerschil;
+     // Mandaatstatus is geen matchingvoorwaarde of rangschikkingscriterium.
+     if(a.bron!==b.bron) return a.bron==='zoekprofiel'?-1:1;
+     // Een vaste, symmetrische tie-breaker voorkomt wisselende routelijsten.
+     return a.naam.localeCompare(b.naam,'nl') || a.key.localeCompare(b.key);
+   });
+   result.push({relatieId:r.id,besteRoute:routes[0],alleRoutes:routes,
+      aandachtNodig:routes[0].kwalificatie!=='passend',
+      kanAutomatischVersturen:false,kanAutomatischBodMaken:false});
+ }
+ return result.sort((a,b)=>rang[b.besteRoute.kwalificatie]-rang[a.besteRoute.kwalificatie]);
+}
+
+/**
+ * Explicit human handoff. Values are presentation-only; no action or SQL.
+ * Existing object_pipeline only supports one row/object/relation; do not add a phantom buyer.
+ */
+export function maakKandidaatConcept(
+  object:CrmObjectInput, voorstel:KandidaatVoorstel,gekozenRouteKey:string
+) {
+  const gekozen=voorstel.alleRoutes.find(x=>x.key===gekozenRouteKey);
+  if(!gekozen) return {ok:false as const,reden:'Zoekmandaat niet gevonden'};
+  if(!isAanbiedbaar(object))return {ok:false as const,reden:'Object is niet beschikbaar'};
+  if(gekozen.kwalificatie==='afwijkend')return {ok:false as const,reden:'Harde criteria wijken af'};
+  return {ok:true as const,concept:{objectId:object.id,contactRelatieId:voorstel.relatieId,
+      gekozenMandaatId:gekozen.zoekprofielId,contactRoute:gekozen.route,
+      koperRelatieId:gekozen.koperRelatieId,controles:gekozen.toelichting.controleer,
+      // Deliberately no bid, contract, NDA, fee, or contact log side-effects.
+      kanAutomatischVersturen:false as const,kanAutomatischBodMaken:false as const}};
+}

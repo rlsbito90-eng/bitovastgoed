@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import CommercieleRollenPicker from '@/components/forms/CommercieleRollenPicker';
 
 interface Props {
   open: boolean;
@@ -90,6 +91,7 @@ const DEALSTRUCTUUR_LABELS: Record<Dealstructuur, string> = {
 const leegForm: FormState = {
   bedrijfsnaam: '',
   type: 'belegger',
+  commercialRoles: null,
   investeerderSubtype: undefined,
   telefoon: '',
   email: '',
@@ -411,6 +413,13 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="bv. event X, intro door Y" />
                   </Veld>
                 </div>
+              </Sectie>
+
+              <Sectie titel="Commerciële rollen (meerdere mogelijk)">
+                <CommercieleRollenPicker
+                  value={form.commercialRoles}
+                  onChange={rollen=>set('commercialRoles',rollen)}
+                />
               </Sectie>
 
               {/* === KVK & VESTIGINGSADRES === */}
