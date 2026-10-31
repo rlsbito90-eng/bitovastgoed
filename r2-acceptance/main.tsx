@@ -8,6 +8,8 @@ import { createRoot } from 'react-dom/client';
 import '../src/index.css';
 import { KandidaatVoorstellenR2 } from '../src/components/pipeline/KandidaatVoorstellenR2';
 import GemeentePicker from '../src/components/forms/GemeentePicker';
+import CommercieleRollenPicker from '../src/components/forms/CommercieleRollenPicker';
+import type { CommercieleRol } from '../src/data/mock-data';
 import type { CrmMandaatInput, CrmObjectInput, CrmRelatieInput } from '../src/lib/matching/rolMandaatAdapter';
 
 const object: CrmObjectInput = {
@@ -50,6 +52,15 @@ function GemeenteAcceptatie() {
  </section>;
 }
 
+function RollenAcceptatie(){
+ const [rollen,setRollen]=useState<CommercieleRol[] | null>(null);
+ return <section aria-label="Commerciële rollen acceptatie" style={{marginTop:24,padding:16,border:'1px solid #e3d9cc',borderRadius:12}}>
+  <h2 style={{fontSize:20,fontWeight:700}}>Commerciële rollen — test</h2>
+  <p style={{fontSize:13}}>Bestaand type partij: makelaar. Dit blijft ongewijzigd.</p>
+  <CommercieleRollenPicker value={rollen} onChange={setRollen}/>
+  <p role="status">Rollen: {rollen===null?'onbekend':rollen.length?rollen.join(', '):'bewust leeg'}</p>
+ </section>;
+}
 function App() {
  const [keuze,setKeuze]=useState<string | null>(null);
  return <div style={{background:'#f5f1ec',minHeight:'100vh',padding:'18px 12px'}}>
@@ -67,6 +78,7 @@ function App() {
    />
    {keuze && <div style={{marginTop:'20px',padding:'14px',borderRadius:'10px',background:'#f2ede5'}} role="status">{keuze}</div>}
    <GemeenteAcceptatie />
+   <RollenAcceptatie />
   </main>
  </div>;
 }

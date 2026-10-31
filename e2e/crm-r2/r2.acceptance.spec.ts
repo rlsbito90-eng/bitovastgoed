@@ -66,3 +66,22 @@ test('provincie naar gemeente: zoeken, selecteren, bewaren en afwijkende provinc
  expect(over).toBeLessThanOrEqual(2);
  await page.screenshot({path:'test-results/r2-gemeenten-mobiel.png',fullPage:true});
 });
+
+// Test the actual roles UI in isolation with synthetic data.
+test('meerdere rollen, onbekend versus leeg en geen mandaatpoort op mobiel',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ const section=page.getByRole('region',{name:'Commerciële rollen acceptatie'});
+ await expect(section.getByRole('status')).toContainText('onbekend');
+ await section.getByRole('checkbox',{name:'Nog niet vastgesteld'}).uncheck();
+ await expect(section.getByRole('status')).toContainText('bewust leeg');
+ await section.getByRole('checkbox',{name:'Koper',exact:true}).check();
+ await section.getByRole('checkbox',{name:'Verkoper',exact:true}).check();
+ await section.getByRole('checkbox',{name:'Bemiddelaar',exact:true}).check();
+ await expect(section.getByRole('status')).toContainText('koper, verkoper, bemiddelaar');
+ await expect(section).toContainText('Bestaand type partij: makelaar');
+ await section.getByRole('checkbox',{name:'Nog niet vastgesteld'}).check();
+ await expect(section.getByRole('status')).toContainText('onbekend');
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+ expect(overflow).toBeLessThanOrEqual(2);
+ await page.screenshot({path:'test-results/r2-rollen-mobiel.png',fullPage:true});
+});
