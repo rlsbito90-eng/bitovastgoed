@@ -26,8 +26,8 @@ test('desktop: meerdere zoekmandaten per bemiddelaar en geen dubbele kandidaatre
   await gekozenMandaat.locator('summary').click();
   await expect(gekozenMandaat.getByText('Deze relatie kan rechtstreeks worden benaderd.')).toBeVisible();
   await gekozenMandaat.getByRole('button',{name:'Bereid keuze voor (geen opslag)'}).click();
-  await expect(page.getByRole('status').last()).toContainText('Gekozen contact: Horecamakelaar Nederland');
-  await expect(page.getByRole('status').last()).toContainText('eindkoper: later vaststellen');
+  await expect(page.getByRole('status').filter({hasText:'Gekozen contact:'})).toContainText('Gekozen contact: Horecamakelaar Nederland');
+  await expect(page.getByRole('status').filter({hasText:'Gekozen contact:'})).toContainText('eindkoper: later vaststellen');
   await expect(page.getByRole('button',{name:/Verstuur|Toevoegen|Opslaan/})).toHaveCount(0);
   await page.screenshot({path:'test-results/r2-desktop.png',fullPage:true});
 });
