@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PARTIJPROFIELEN, VASTGOEDSTRATEGIEEN } from './partijprofiel';
 
 const migration = readFileSync(
- new URL('../../../supabase/migrations/20261101100000_add_partijprofiel_en_vastgoed_strategieen_a13.sql', import.meta.url),
+ resolve(process.cwd(), 'supabase/migrations/20261101100000_add_partijprofiel_en_vastgoed_strategieen_a13.sql'),
  'utf8'
 );
 
