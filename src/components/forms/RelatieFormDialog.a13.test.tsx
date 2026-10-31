@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
  close:vi.fn(),
  success:vi.fn(),
  error:vi.fn(),
+ confirm:vi.fn(),
  contactpersonen:[] as unknown[],
 }));
 
@@ -29,12 +30,6 @@ vi.mock('@/hooks/useDataStore',()=>({
 }));
 vi.mock('@/hooks/usePropertyTaxonomie',()=>({
  usePropertyTaxonomie:()=>({propertyTypes:[],dealTypes:[],subtypesForTypes:()=>[]}),
-}));
-// Deze tests controleren het echte formulier en de opslagpayload, niet de afzonderlijke dirty-guard.
-vi.mock('@/hooks/useFormDirtyGuard',()=>({
- useFormDirtyGuard:(_open:boolean,_value:unknown,onOpenChange:(v:boolean)=>void)=>({
-  isDirty:false,guardedOnOpenChange:onOpenChange,
- }),
 }));
 vi.mock('sonner',()=>({toast:{success:mocks.success,error:mocks.error}}));
 
@@ -57,6 +52,7 @@ const primair:RelatieContactpersoon={
 
 beforeEach(()=>{
  vi.clearAllMocks();
+ vi.spyOn(window,'confirm').mockReturnValue(true);
  mocks.contactpersonen=[primair];
  mocks.updateRelatie.mockResolvedValue(undefined);
  mocks.updateContactpersoon.mockResolvedValue(undefined);
@@ -154,4 +150,95 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
   expect(payload.vastgoedStrategieen).toBeNull();
   expect(mocks.updateRelatie).not.toHaveBeenCalled();
  });
+ it('vraagt niet om bevestiging bij ongewijzigd sluiten na hydratatie',()=>{
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  expect(window.confirm).not.toHaveBeenCalled();
+  expect(mocks.close).toHaveBeenCalledWith(false);
+ });
+
+ it('beschermt gewijzigde contactpersoon zonder relatieveldwijziging bij sluiten',()=>{
+  vi.mocked(window.confirm).mockReturnValueOnce(false).mockReturnValueOnce(true);
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  fireEvent.change(screen.getByPlaceholderText('naam@bedrijf.nl'),{target:{value:'bewerkt@voorbeeld.test'}});
+  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(mocks.close).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  expect(mocks.close).toHaveBeenCalledWith(false);
+  expect(mocks.updateContactpersoon).not.toHaveBeenCalled();
+ });
+
+ it('beschermt gewijzigd partijprofiel bij sluiten',()=>{
+  vi.mocked(window.confirm).mockReturnValueOnce(false);
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{target:{value:'vastgoedondernemer'}});
+  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  expect(mocks.close).not.toHaveBeenCalled();
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+ });
+
+ it('verwijdert de primaire contactpersoon niet als diens naam leeg wordt gemaakt',async()=>{
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  fireEvent.change(screen.getByPlaceholderText('Naam contactpersoon'),{target:{value:''}});
+  fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+  await waitFor(()=>expect(mocks.error).toHaveBeenCalledWith(
+   'Vul de naam van de primaire contactpersoon in. Verwijderen kan afzonderlijk via Contactpersonen.'
+  ));
+  expect(mocks.updateRelatie).not.toHaveBeenCalled();
+  expect(mocks.deleteContactpersoon).not.toHaveBeenCalled();
+  expect(mocks.close).not.toHaveBeenCalled();
+ });
+
+ it('waarschuwt voor gedeeltelijke opslag en staat gecontroleerde herpoging toe',async()=>{
+  mocks.updateContactpersoon.mockRejectedValueOnce(new Error('Contactgegevens tijdelijk niet bereikbaar'));
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  fireEvent.change(screen.getByPlaceholderText('naam@bedrijf.nl'),{target:{value:'gewijzigd@voorbeeld.test'}});
+  fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+  await waitFor(()=>expect(mocks.error).toHaveBeenCalledWith(
+   expect.stringContaining('Relatiegegevens zijn opgeslagen, maar de contactpersoon niet')
+  ));
+  expect(mocks.close).not.toHaveBeenCalled();
+  expect(mocks.updateRelatie).toHaveBeenCalledTimes(1);
+  expect(mocks.updateContactpersoon).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+  await waitFor(()=>expect(mocks.updateContactpersoon).toHaveBeenCalledTimes(2));
+  await waitFor(()=>expect(mocks.close).toHaveBeenCalledWith(false));
+  expect(mocks.deleteContactpersoon).not.toHaveBeenCalled();
+ });
+
+ it('herhaalt aanmaken niet bij gedeeltelijke mislukking nieuwe relatie en koppelt pas bij succes',async()=>{
+  mocks.contactpersonen=[];
+  mocks.addContactpersoon.mockRejectedValueOnce(new Error('Primaire contactpersoon niet aangemaakt'))
+   .mockResolvedValueOnce({...primair,id:'nieuw-cp-1'});
+  const onCreated=vi.fn();
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close}
+   initialValues={{bedrijfsnaam:'Nieuw testbedrijf'}} initialPrimaireContactpersoon={{naam:'Nieuw contact'}}
+   onCreated={onCreated} />);
+  fireEvent.click(screen.getByRole('button',{name:'Aanmaken'}));
+  await waitFor(()=>expect(mocks.error).toHaveBeenCalledWith(
+   expect.stringContaining('Relatiegegevens zijn opgeslagen, maar de contactpersoon niet')
+  ));
+  expect(onCreated).not.toHaveBeenCalled();
+  expect(mocks.addRelatie).toHaveBeenCalledTimes(1);
+  expect(mocks.close).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+  await waitFor(()=>expect(onCreated).toHaveBeenCalledWith('synthetisch-nieuw'));
+  expect(mocks.addRelatie).toHaveBeenCalledTimes(1);
+  expect(mocks.addContactpersoon).toHaveBeenCalledTimes(2);
+  expect(mocks.updateRelatie).toHaveBeenCalledWith('synthetisch-nieuw',expect.any(Object));
+  expect(mocks.close).toHaveBeenCalledWith(false);
+ });
+
+ it('blokkeert sluiten tijdens lopende opslag',async()=>{
+  let klaar!:()=>void;
+  mocks.updateRelatie.mockImplementationOnce(()=>new Promise<void>(resolve=>{klaar=resolve;}));
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+  await waitFor(()=>expect(mocks.updateRelatie).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button',{name:'Sluiten'})).toBeDisabled();
+  klaar();
+  await waitFor(()=>expect(mocks.close).toHaveBeenCalledWith(false));
+ });
+
 });

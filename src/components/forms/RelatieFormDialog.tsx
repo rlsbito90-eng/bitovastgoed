@@ -16,8 +16,8 @@
 //   3. Investeerder — budget, kapitaal, dealstructuur + comm.voorkeur + NDA
 //   4. Notities     — aankoop/verkoop, opvolging
 
-import { useState, useEffect, ReactNode } from 'react';
-import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
+import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -144,38 +144,58 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
   const [naamloosConfirmOpen, setNaamloosConfirmOpen] = useState(false);
+  // Bewaak het volledige formulier, inclusief de primaire contactpersoon.
+  // De basislijn wordt pas NA de hydratie vastgesteld, niet bij de lege eerste render.
+  const [openerSnapshot, setOpenerSnapshot] = useState<string | null>(null);
+  const nieuwAangemaaktIdRef = useRef<string | undefined>();
+  const isDirty = open && openerSnapshot !== null &&
+    JSON.stringify({ form, contactpersoonInput }) !== openerSnapshot;
+  const { confirmDiscard } = useDirtyGuard(isDirty);
+
+  const guardedOnOpenChange = (next: boolean) => {
+    if (next) { onOpenChange(true); return; }
+    if (bezig) return;
+    if (isDirty && !confirmDiscard()) return;
+    onOpenChange(false);
+  };
 
   // Hydreer form bij open. Pre-fill ook de primaire contactpersoon-input
   // vanuit relatie_contactpersonen (waar is_primair = true).
   useEffect(() => {
+    let beginForm: FormState;
+    let beginContactpersoon: PrimaireContactpersoonInput;
     if (relatie) {
       const { id, laatsteContact, softDeletedAt, contactpersoon, ...rest } = relatie;
-      setForm({ ...leegForm, ...rest });
+      beginForm = { ...leegForm, ...rest };
       setGemaaktId(relatie.id);
 
-      // Zoek de primaire contactpersoon in de store
+      // Zoek de primaire contactpersoon in de store.
       const primair = store.contactpersonen?.find(
         c => c.relatieId === relatie.id && c.isPrimair,
       );
       if (primair) {
-        setContactpersoonInput({
+        beginContactpersoon = {
           naam: primair.naam ?? '',
           functie: primair.functie ?? '',
           email: primair.email ?? '',
           telefoon: primair.telefoon ?? '',
-          telefoonMobiel: (primair as any).telefoonMobiel ?? '',
-        });
+          telefoonMobiel: primair.telefoonMobiel ?? '',
+        };
         setPrimaireContactpersoonId(primair.id);
       } else {
-        setContactpersoonInput(leegPrimaireContactpersoon);
+        beginContactpersoon = { ...leegPrimaireContactpersoon };
         setPrimaireContactpersoonId(undefined);
       }
     } else {
-      setForm({ ...leegForm, ...(initialValues ?? {}) });
-      setContactpersoonInput({ ...leegPrimaireContactpersoon, ...(initialPrimaireContactpersoon ?? {}) });
+      beginForm = { ...leegForm, ...(initialValues ?? {}) };
+      beginContactpersoon = { ...leegPrimaireContactpersoon, ...(initialPrimaireContactpersoon ?? {}) };
       setPrimaireContactpersoonId(undefined);
       setGemaaktId(undefined);
     }
+    setForm(beginForm);
+    setContactpersoonInput(beginContactpersoon);
+    setOpenerSnapshot(JSON.stringify({ form: beginForm, contactpersoonInput: beginContactpersoon }));
+    nieuwAangemaaktIdRef.current = undefined;
     setTab('algemeen');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relatie?.id, open]);
@@ -218,7 +238,15 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const performSave = async () => {
     if (bezig) return;
     const cpNaam = contactpersoonInput.naam?.trim();
+    // Primair contact verwijderen moet bewust in het Contactpersonenpaneel gebeuren.
+    // Alleen een naam leegmaken mag niet stilzwijgend een bestaande rij verwijderen.
+    if (primaireContactpersoonId && !cpNaam) {
+      setTab('algemeen');
+      toast.error('Vul de naam van de primaire contactpersoon in. Verwijderen kan afzonderlijk via Contactpersonen.');
+      return;
+    }
     setBezig(true);
+    let relatieOpgeslagen = false;
 
     const data = { ...form, bedrijfsnaam: form.bedrijfsnaam.trim() };
 
@@ -235,12 +263,14 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
           laatsteContact: '', // niet meer automatisch vullen; tijdlijn is bron van waarheid
           contactpersoon: '', // legacy veld; nieuwe structuur via contactpersonen-tabel
         } as Omit<Relatie, 'id'>);
-        if (nieuw?.id) {
-          werkRelatieId = nieuw.id;
-          setGemaaktId(nieuw.id);
-          try { onCreated?.(nieuw.id); } catch { /* noop */ }
+        if (!nieuw?.id) {
+          throw new Error('De database gaf geen relatie-ID terug. Controleer of de relatie is aangemaakt voordat je opnieuw probeert.');
         }
+        werkRelatieId = nieuw.id;
+        setGemaaktId(nieuw.id);
+        nieuwAangemaaktIdRef.current = nieuw.id;
       }
+      relatieOpgeslagen = true;
 
       // 2. Primaire contactpersoon opslaan / updaten / verwijderen
       if (werkRelatieId) {
@@ -273,17 +303,23 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
             decisionMaker: false,
           });
           if (nieuweCp?.id) setPrimaireContactpersoonId(nieuweCp.id);
-        } else if (!cpNaam && primaireContactpersoonId) {
-          // Naam is leeg gemaakt → primaire contactpersoon verwijderen
-          await store.deleteContactpersoon?.(primaireContactpersoonId);
-          setPrimaireContactpersoonId(undefined);
         }
       }
 
+      // Pas na het voltooien van beide opslagstappen de nieuwe relatie koppelen.
+      // Een mislukte contactpersoon-update blijft daardoor herstelbaar in dit formulier.
+      const nieuwAangemaaktId = nieuwAangemaaktIdRef.current;
+      nieuwAangemaaktIdRef.current = undefined;
       toast.success(isEdit || gemaaktId ? 'Relatie bijgewerkt' : 'Relatie aangemaakt');
       onOpenChange(false);
+      if (nieuwAangemaaktId) {
+        try { onCreated?.(nieuwAangemaaktId); } catch { /* callback mag opslag niet ongedaan maken */ }
+      }
     } catch (err: any) {
-      toast.error(err.message ?? 'Opslaan mislukt');
+      const oorzaak = err instanceof Error ? err.message : 'Onbekende opslagfout';
+      toast.error(relatieOpgeslagen
+        ? `Relatiegegevens zijn opgeslagen, maar de contactpersoon niet (${oorzaak}). Controleer de contactgegevens en probeer opnieuw; er kunnen al wijzigingen zijn doorgevoerd.`
+        : oorzaak);
     } finally {
       setBezig(false);
     }
@@ -292,8 +328,6 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const assetOptions = Object.entries(ASSET_CLASS_LABELS).map(([value, label]) => ({ value, label }));
   const regioOptions = REGIO_OPTIES.map(r => ({ value: r, label: r }));
   const dealstructuurOptions = Object.entries(DEALSTRUCTUUR_LABELS).map(([value, label]) => ({ value, label }));
-
-  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
@@ -683,7 +717,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
 
           {/* Footer */}
           <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => guardedOnOpenChange(false)} disabled={bezig}>
               {(isEdit || gemaaktId) ? 'Sluiten' : 'Annuleren'}
             </Button>
             <Button onClick={handleSave} disabled={bezig}>
