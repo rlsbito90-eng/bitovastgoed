@@ -244,24 +244,33 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
 
       // 2. Primaire contactpersoon opslaan / updaten / verwijderen
       if (werkRelatieId) {
+        // Alleen de in dit formulier bewerkbare velden wijzigen.
+        // Een bestaande decisionMaker, contactnotitie of communicatievoorkeur
+        // mag nooit worden overschreven door het opslaan van een partijprofiel.
+        // Lege strings worden door contactpersoonToDb als expliciete NULL opgeslagen.
         const cpData = {
           naam: cpNaam,
-          functie: contactpersoonInput.functie?.trim() || undefined,
-          email: contactpersoonInput.email?.trim() || undefined,
-          telefoon: contactpersoonInput.telefoon?.trim() || undefined,
-          telefoonMobiel: contactpersoonInput.telefoonMobiel?.trim() || undefined,
+          functie: contactpersoonInput.functie?.trim() || '',
+          email: contactpersoonInput.email?.trim() || '',
+          telefoon: contactpersoonInput.telefoon?.trim() || '',
+          telefoonMobiel: contactpersoonInput.telefoonMobiel?.trim() || '',
           isPrimair: true,
-          decisionMaker: false,
         };
 
         if (cpNaam && primaireContactpersoonId) {
-          // Update bestaande primaire
-          await store.updateContactpersoon?.(primaireContactpersoonId, cpData);
+          const bestaand = store.contactpersonen?.find(c => c.id === primaireContactpersoonId);
+          const teBewerkenVelden = ['naam', 'functie', 'email', 'telefoon', 'telefoonMobiel', 'isPrimair'] as const;
+          const gewijzigd = !bestaand || teBewerkenVelden.some(veld =>
+            (bestaand[veld] ?? '') !== (cpData[veld] ?? '')
+          );
+          // Een ongewijzigde contactpersoon niet opnieuw opslaan.
+          if (gewijzigd) await store.updateContactpersoon?.(primaireContactpersoonId, cpData);
         } else if (cpNaam && !primaireContactpersoonId) {
-          // Nieuwe primaire aanmaken
+          // Alleen bij een nieuw contact leggen we een initiële beslisserstatus vast.
           const nieuweCp = await store.addContactpersoon?.({
             relatieId: werkRelatieId,
             ...cpData,
+            decisionMaker: false,
           });
           if (nieuweCp?.id) setPrimaireContactpersoonId(nieuweCp.id);
         } else if (!cpNaam && primaireContactpersoonId) {
