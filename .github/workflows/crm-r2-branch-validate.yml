@@ -31,7 +31,19 @@ jobs:
         run: npx vitest run src/lib/matching/rolMandaatAdapter.test.ts
       - name: Production asset build (not a deployment)
         run: npm run build
+      - name: Install isolated Chromium for browser acceptance
+        run: npx playwright install --with-deps chromium
+      - name: Desktop and mobile acceptance with synthetic records
+        run: npx playwright test --config playwright.crm-r2.config.ts
       - name: Complete CRM regression tests
         run: npm test
       - name: Ensure no tracked files changed during validation
         run: git diff --exit-code
+      - name: Upload synthetic acceptance screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: crm-r2-desktop-mobile-acceptatie
+          path: test-results/r2-*.png
+          if-no-files-found: warn
+          retention-days: 3
