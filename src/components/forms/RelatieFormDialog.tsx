@@ -147,9 +147,14 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   // Bewaak het volledige formulier, inclusief de primaire contactpersoon.
   // De basislijn wordt pas NA de hydratie vastgesteld, niet bij de lege eerste render.
   const [openerSnapshot, setOpenerSnapshot] = useState<string | null>(null);
+  // Een eerdere deels geslaagde operatie blijft een openstaand hersteltaakje,
+  // ook wanneer de gebruiker na de fout niets aan de velden heeft gewijzigd.
+  const [gedeeltelijkOpgeslagen, setGedeeltelijkOpgeslagen] = useState(false);
   const nieuwAangemaaktIdRef = useRef<string | undefined>();
-  const isDirty = open && openerSnapshot !== null &&
-    JSON.stringify({ form, contactpersoonInput }) !== openerSnapshot;
+  const isDirty = open && (
+    gedeeltelijkOpgeslagen || (openerSnapshot !== null &&
+      JSON.stringify({ form, contactpersoonInput }) !== openerSnapshot)
+  );
   const { confirmDiscard } = useDirtyGuard(isDirty);
 
   const guardedOnOpenChange = (next: boolean) => {
@@ -195,6 +200,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     setForm(beginForm);
     setContactpersoonInput(beginContactpersoon);
     setOpenerSnapshot(JSON.stringify({ form: beginForm, contactpersoonInput: beginContactpersoon }));
+    setGedeeltelijkOpgeslagen(false);
     nieuwAangemaaktIdRef.current = undefined;
     setTab('algemeen');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -310,12 +316,14 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
       // Een mislukte contactpersoon-update blijft daardoor herstelbaar in dit formulier.
       const nieuwAangemaaktId = nieuwAangemaaktIdRef.current;
       nieuwAangemaaktIdRef.current = undefined;
+      setGedeeltelijkOpgeslagen(false);
       toast.success(isEdit || gemaaktId ? 'Relatie bijgewerkt' : 'Relatie aangemaakt');
       onOpenChange(false);
       if (nieuwAangemaaktId) {
         try { onCreated?.(nieuwAangemaaktId); } catch { /* callback mag opslag niet ongedaan maken */ }
       }
     } catch (err: any) {
+      if (relatieOpgeslagen) setGedeeltelijkOpgeslagen(true);
       const oorzaak = err instanceof Error ? err.message : 'Onbekende opslagfout';
       toast.error(relatieOpgeslagen
         ? `Relatiegegevens zijn opgeslagen, maar de contactpersoon niet (${oorzaak}). Controleer de contactgegevens en probeer opnieuw; er kunnen al wijzigingen zijn doorgevoerd.`

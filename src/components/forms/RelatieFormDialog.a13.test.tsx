@@ -222,6 +222,11 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
   expect(onCreated).not.toHaveBeenCalled();
   expect(mocks.addRelatie).toHaveBeenCalledTimes(1);
   expect(mocks.close).not.toHaveBeenCalled();
+  // Ondanks ongewijzigde prefillvelden moet gedeeltelijke opslag beschermd blijven.
+  vi.mocked(window.confirm).mockReturnValueOnce(false);
+  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  expect(window.confirm).toHaveBeenCalledTimes(1);
+  expect(mocks.close).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
   await waitFor(()=>expect(onCreated).toHaveBeenCalledWith('synthetisch-nieuw'));
   expect(mocks.addRelatie).toHaveBeenCalledTimes(1);
