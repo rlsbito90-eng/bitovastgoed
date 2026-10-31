@@ -27,8 +27,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Validate TypeScript
         run: npx tsc --noEmit
-      - name: Party profile model tests
-        run: npx vitest run src/lib/relaties/partijprofiel.test.ts
+      - name: A13 model, database contract and real-form tests (synthetic)
+        run: npx vitest run src/lib/relaties/partijprofiel.test.ts src/lib/relaties/partijprofiel.migration.test.ts src/components/forms/PartijprofielVelden.test.tsx src/components/forms/RelatieFormDialog.a13.test.tsx
       - name: Production asset build (no deployment)
         run: npm run build
       - name: Install isolated Chromium for A13 browser acceptance
