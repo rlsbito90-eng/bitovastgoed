@@ -76,11 +76,11 @@ test('zelfde contactrelatie met meerdere mandaten heeft één kandidatenrij',()=
  assert.equal(new Set(rows[0].alleRoutes.map(x=>x.key)).size,3);
 });
 test('gepauzeerd mandaat is niet actief',()=>{
- assert.equal(voorstel(object(),[relatie({type:'makelaar',propertyTypeIds:[]})],[profiel({status:'pauze'})]).length,0);
+ assert.equal(voorstel(object(),[relatie({type:'makelaar',propertyTypeIds:[],budgetMax:undefined})],[profiel({status:'pauze'})]).length,0);
 });
 test('concept, verlopen, gearchiveerd mandaat geen voorstel',()=>{
  for(const status of ['concept','verlopen','gearchiveerd'])
-  assert.equal(voorstel(object(),[relatie({type:'makelaar',propertyTypeIds:[]})],[profiel({status})]).length,0);
+  assert.equal(voorstel(object(),[relatie({type:'makelaar',propertyTypeIds:[],budgetMax:undefined})],[profiel({status})]).length,0);
 });
 test('makelaar kan een eigen aankoopprofiel hebben zonder koperrol of mandaatbewijs',()=>{
  const r=relatie({type:'makelaar',commercialRoles:['bemiddelaar'],propertyTypeIds:[],budgetMax:undefined});
@@ -138,7 +138,7 @@ test('zoekprofiel wordt niet aangevuld met strijdig algemeen vastgoedtype',()=>{
  const rows=voorstel(object(),[r],[p]);
  assert.equal(rows.length,1);
  assert.equal(rows[0].besteRoute.zoekprofielId,'z1');
- assert.ok(rows[0].besteRoute.toelichting.matcht.includes('Legacy vastgoedtype komt overeen'));
+ assert.ok(rows[0].besteRoute.toelichting.matcht.includes('Vastgoedtype komt overeen'));
 });
 test('zoekprofiel-budget is zelfstandig en krijgt geen hard maximum uit Relaties',()=>{
  const r=relatie({commercialRoles:['koper'],budgetMax:100_000});
