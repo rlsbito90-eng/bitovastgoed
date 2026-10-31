@@ -49,3 +49,20 @@ test('mobiel: kaarten en keuzes binnen het scherm bij 390 pixels',async ({page})
   expect(overflow,'Horizontaal uitklappen op mobiel').toBeLessThanOrEqual(2);
   await page.screenshot({path:'test-results/r2-mobile.png',fullPage:true});
 });
+
+test('provincie naar gemeente: zoeken, selecteren, bewaren en afwijkende provincie tonen',async({page})=>{
+ await page.setViewportSize({width:390,height:844});
+ const geo=page.getByRole('region',{name:'Provincie en gemeente acceptatie'});
+ await expect(geo.getByRole('textbox',{name:'Gemeente zoeken'})).toBeVisible();
+ await geo.getByRole('textbox',{name:'Gemeente zoeken'}).fill('Oisterwijk');
+ await geo.getByRole('checkbox',{name:'Oisterwijk'}).check();
+ await expect(geo.getByLabel('Geselecteerde gemeenten')).toContainText('Oisterwijk');
+ await geo.getByRole('combobox',{name:'Provincie voorbeeld'}).selectOption('Utrecht');
+ await expect(geo.getByText(/Een eerder geselecteerde gemeente valt buiten/)).toBeVisible();
+ await geo.getByRole('textbox',{name:'Gemeente zoeken'}).fill('De Ronde Venen');
+ await geo.getByRole('checkbox',{name:'De Ronde Venen'}).check();
+ await expect(geo.getByLabel('Geselecteerde gemeenten')).toContainText('De Ronde Venen');
+ const over=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+ expect(over).toBeLessThanOrEqual(2);
+ await page.screenshot({path:'test-results/r2-gemeenten-mobiel.png',fullPage:true});
+});

@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../src/index.css';
 import { KandidaatVoorstellenR2 } from '../src/components/pipeline/KandidaatVoorstellenR2';
+import GemeentePicker from '../src/components/forms/GemeentePicker';
 import type { CrmMandaatInput, CrmObjectInput, CrmRelatieInput } from '../src/lib/matching/rolMandaatAdapter';
 
 const object: CrmObjectInput = {
@@ -31,6 +32,24 @@ const namen: Record<string,string> = {
   broker:'Horecamakelaar Nederland',investor:'Directe belegger',
   linked:'Reeds gekoppelde relatie',outlier:'Afwijkende partij'
 };
+function GemeenteAcceptatie() {
+ const [provincie,setProvincie]=useState('Noord-Brabant');
+ const [gemeenten,setGemeenten]=useState<string[]>([]);
+ return <section aria-label="Provincie en gemeente acceptatie" style={{marginTop:24,padding:16,border:'1px solid #e3d9cc',borderRadius:12}}>
+  <h2 style={{fontSize:20,fontWeight:700}}>Geografisch zoekprofiel — test</h2>
+  <p style={{fontSize:13,color:'#64748b'}}>Alleen fictieve selectie; niets wordt opgeslagen.</p>
+  <label style={{display:'block',marginTop:12,marginBottom:10}}>Provincie voorbeeld
+    <select aria-label="Provincie voorbeeld" value={provincie}
+      onChange={e=>setProvincie(e.target.value)} style={{marginLeft:12,padding:8,border:'1px solid #aaa'}}>
+      <option value="Noord-Brabant">Noord-Brabant</option>
+      <option value="Utrecht">Utrecht</option>
+      <option value="Zuid-Holland">Zuid-Holland</option>
+    </select>
+  </label>
+  <GemeentePicker provincies={[provincie]} gekozen={gemeenten} onChange={setGemeenten} />
+ </section>;
+}
+
 function App() {
  const [keuze,setKeuze]=useState<string | null>(null);
  return <div style={{background:'#f5f1ec',minHeight:'100vh',padding:'18px 12px'}}>
@@ -47,6 +66,7 @@ function App() {
     onConceptGekozen={concept=>setKeuze(`Gekozen contact: ${namen[concept.contactRelatieId]}; rechtstreeks benaderbaar; eindkoper: ${concept.koperRelatieId||'later vaststellen'}; geen opslag`)}
    />
    {keuze && <div style={{marginTop:'20px',padding:'14px',borderRadius:'10px',background:'#f2ede5'}} role="status">{keuze}</div>}
+   <GemeenteAcceptatie />
   </main>
  </div>;
 }
