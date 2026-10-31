@@ -4361,6 +4361,8 @@ export type Database = {
           budget_max: number | null
           budget_min: number | null
           commercial_roles: string[] | null
+          partijprofiel: string | null
+          vastgoed_strategieen: string[] | null
           contactpersoon: string | null
           created_at: string
           deal_type_ids: string[]
@@ -4413,6 +4415,8 @@ export type Database = {
           budget_max?: number | null
           budget_min?: number | null
           commercial_roles?: string[] | null
+          partijprofiel?: string | null
+          vastgoed_strategieen?: string[] | null
           contactpersoon?: string | null
           created_at?: string
           deal_type_ids?: string[]
@@ -4465,6 +4469,8 @@ export type Database = {
           budget_max?: number | null
           budget_min?: number | null
           commercial_roles?: string[] | null
+          partijprofiel?: string | null
+          vastgoed_strategieen?: string[] | null
           contactpersoon?: string | null
           created_at?: string
           deal_type_ids?: string[]

@@ -23,6 +23,7 @@ import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
+import { labelPartijprofiel, labelVastgoedStrategie } from '@/lib/relaties/partijprofiel';
 import { isGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
 import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
@@ -188,6 +189,20 @@ export default function RelatieDetailPage() {
             {subtypeLabel && ` · ${subtypeLabel}`}
             {relatie.kvkNummer && ` · KVK ${relatie.kvkNummer}`}
           </p>
+          {(relatie.partijprofiel || (relatie.vastgoedStrategieen?.length??0)>0) && (
+            <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Partijprofiel en strategie">
+              {relatie.partijprofiel && (
+                <span className="text-xs rounded border border-border bg-muted/30 px-2 py-1">
+                  {labelPartijprofiel(relatie.partijprofiel)}
+                </span>
+              )}
+              {relatie.vastgoedStrategieen?.map(st=>(
+                <span key={st} className="text-xs rounded border border-border/60 px-2 py-1">
+                  {labelVastgoedStrategie(st)}
+                </span>
+              ))}
+            </div>
+          )}
           {relatie.commercialRoles && relatie.commercialRoles.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Commerciële rollen">
               {relatie.commercialRoles.map(rol=>(

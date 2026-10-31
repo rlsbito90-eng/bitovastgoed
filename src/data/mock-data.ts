@@ -15,6 +15,15 @@ export type PartijType =
   | 'belegger' | 'ontwikkelaar' | 'eigenaar'
   | 'makelaar' | 'partner' | 'overig';
 
+export type Partijprofiel =
+  | 'belegger' | 'ontwikkelende_belegger' | 'ontwikkelaar'
+  | 'vastgoedondernemer' | 'makelaar' | 'bemiddelaar'
+  | 'vastgoedeigenaar' | 'overig';
+
+export type VastgoedStrategie =
+  | 'langetermijnbelegging' | 'value_add' | 'transformatie'
+  | 'uitponden' | 'projectontwikkeling' | 'handel';
+
 export type InvesteerderSubtype =
   | 'private_belegger' | 'hnwi' | 'family_office' | 'institutioneel'
   | 'fonds' | 'bv' | 'nv' | 'cv';
@@ -212,6 +221,10 @@ export interface Relatie {
   type: PartijType;
   /** Optional additive field; null = not investigated, [] = explicitly no roles. */
   commercialRoles?: CommercieleRol[] | null;
+  /** Optional descriptive profile, independent of transaction roles and legacy type. */
+  partijprofiel?: Partijprofiel | null;
+  /** Strategies are optional; do not infer from profile, roles or object types. */
+  vastgoedStrategieen?: VastgoedStrategie[] | null;
   investeerderSubtype?: InvesteerderSubtype;
   telefoon: string;
   email: string;

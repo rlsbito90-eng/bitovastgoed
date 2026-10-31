@@ -8,7 +8,8 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "feature/crm-r2-preview": false
+      "feature/crm-r2-preview": false,
+      "feature/crm-partijprofiel-a13": false
     }
   }
 }

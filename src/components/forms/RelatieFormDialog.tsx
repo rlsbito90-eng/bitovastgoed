@@ -48,6 +48,7 @@ import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import CommercieleRollenPicker from '@/components/forms/CommercieleRollenPicker';
+import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 
 interface Props {
   open: boolean;
@@ -92,6 +93,8 @@ const leegForm: FormState = {
   bedrijfsnaam: '',
   type: 'belegger',
   commercialRoles: null,
+  partijprofiel: null,
+  vastgoedStrategieen: null,
   investeerderSubtype: undefined,
   telefoon: '',
   email: '',
@@ -370,7 +373,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="Bedrijfsnaam"
                     />
                   </Veld>
-                  <Veld label="Type partij">
+                  <Veld label="Hoofdtype (bestaand)">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.type}
@@ -384,7 +387,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       <option value="overig">Overig</option>
                     </select>
                   </Veld>
-                  <Veld label="Subtype">
+                  <Veld label="Investeerderscategorie / rechtsvorm (bestaand)">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.investeerderSubtype ?? ''}
@@ -413,6 +416,15 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="bv. event X, intro door Y" />
                   </Veld>
                 </div>
+              </Sectie>
+
+              <Sectie titel="Partijprofiel">
+                <PartijprofielVelden
+                  partijprofiel={form.partijprofiel}
+                  vastgoedStrategieen={form.vastgoedStrategieen}
+                  onProfielChange={waarde=>set('partijprofiel',waarde)}
+                  onStrategieenChange={waarden=>set('vastgoedStrategieen',waarden)}
+                />
               </Sectie>
 
               <Sectie titel="Commerciële rollen (meerdere mogelijk)">
