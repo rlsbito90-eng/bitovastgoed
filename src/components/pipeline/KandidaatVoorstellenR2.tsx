@@ -1,5 +1,5 @@
 /**
- * Bito CRM R2 — READ-ONLY preview component, not installed in CRM yet.
+ * Bito CRM R2 — READ-ONLY preview, one directly contactable party per row.
  * No calls to Supabase, no automatic candidates, no NDA, teaser or bid.
  */
 import { useMemo, useState } from 'react';
@@ -24,7 +24,7 @@ const label: Record<ProfielRoute['kwalificatie'],string> = {
   passend: 'Passend', te_verifieren: 'Te verifiëren', afwijkend: 'Afwijkend', onvoldoende: 'Onvoldoende gegevens',
 };
 
-/** One card per contactrelation; multiple mandate routes shown inside. */
+/** One card per contactrelation; general and specific search criteria are separate routes. */
 export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
   const [toonAfwijkend, setToonAfwijkend] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
@@ -54,19 +54,17 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
     {rows.map(p=><article key={p.relatieId} className="rounded-lg border border-border bg-card p-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0"><h3 className="font-semibold break-words">{props.relatieNaam(p.relatieId)}</h3>
-          <p className="text-xs text-muted-foreground">{p.alleRoutes.length} zoekroute{p.alleRoutes.length===1?'':'s'} · {p.besteRoute.route==='via_bemiddelaar'?'Via bemiddelaar':'Mogelijke directe koper'}</p>
+          <p className="text-xs text-muted-foreground">{p.alleRoutes.length} zoekprofiel{p.alleRoutes.length===1?'':'en'} · Direct benaderbare partij</p>
         </div>
         <span className="text-xs rounded border border-border px-2 py-1">{label[p.besteRoute.kwalificatie]}</span>
       </div>
       {p.alleRoutes.map(route=><details key={route.key} className="rounded-md border border-border/70 px-3 py-2">
-        <summary className="cursor-pointer text-sm font-medium">{route.naam} · {label[route.kwalificatie]} · {route.route==='via_bemiddelaar'?'bemiddelaar':'direct'}</summary>
+        <summary className="cursor-pointer text-sm font-medium">{route.naam} · {label[route.kwalificatie]}</summary>
         <div className="mt-3 space-y-2 text-xs">
           {route.toelichting.matcht.map(t=><p key={t}>✓ {t}</p>)}
           {route.toelichting.controleer.map(t=><p key={t} className="text-muted-foreground">Te controleren: {t}</p>)}
           {route.toelichting.afwijkend.map(t=><p key={t} className="text-destructive">Afwijking: {t}</p>)}
-          <p className="text-muted-foreground">{route.route==='via_bemiddelaar' ?
-            (route.koperRelatieId ? 'Gekoppelde koper geverifieerd; contact verloopt via bemiddelaar.' : 'Uiteindelijke koper nog niet vastgesteld.') :
-            'Deze contactrelatie is de mogelijke koper.'}</p>
+          <p className="text-muted-foreground">Deze relatie kan rechtstreeks worden benaderd. Een formeel mandaat is voor matching niet nodig; de uiteindelijke koper kan tijdens het transactietraject worden vastgelegd.</p>
           <button type="button" className="rounded-md border border-input px-3 py-2 font-medium disabled:opacity-50"
             disabled={!props.onConceptGekozen || route.kwalificatie==='afwijkend'}
             onClick={()=>selecteer(p,route)}>

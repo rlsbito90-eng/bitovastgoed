@@ -361,8 +361,8 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
             /> : <p className="text-sm text-muted-foreground">Object wordt geladen.</p>}
             {r2Concept && <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1" role="status">
               <p className="font-medium text-sm">Keuze voorbereid — niet opgeslagen</p>
-              <p className="text-xs">Contact: {relaties.find(r => r.id === r2Concept.contactRelatieId)?.bedrijfsnaam || 'Relatie'} · {r2Concept.contactRoute === 'via_bemiddelaar' ? 'Via bemiddelaar' : 'Mogelijke directe koper'}</p>
-              <p className="text-xs text-muted-foreground">Controleer het mandaat en de uiteindelijke koper vóór registratie in het echte traject.</p>
+              <p className="text-xs">Contact: {relaties.find(r => r.id === r2Concept.contactRelatieId)?.bedrijfsnaam || 'Relatie'} · Direct benaderbare partij</p>
+              <p className="text-xs text-muted-foreground">Zoekcriteria zijn leidend. Een mandaat is niet verplicht; de uiteindelijke koper kan later worden vastgelegd.</p>
             </div>}
           </div>
         )}

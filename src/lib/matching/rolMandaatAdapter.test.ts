@@ -27,34 +27,37 @@ test('gearchiveerd en soft-verwijderd object wordt niet voorgesteld',()=>{
 test('soft-verwijderde relatie wordt uitgesloten',()=>{
  assert.equal(voorstel(object(),[relatie({softDeletedAt:'2026-10-30'})]).length,0);
 });
-test('expliciete verkoper zonder koper of bemiddelaar wordt uitgesloten, ook met oude koopcriteria',()=>{
- assert.equal(voorstel(object(),[relatie({commercialRoles:['verkoper']})],[profiel()]).length,0);
+test('verkoper zonder relevante aankoopcriteria komt niet naar voren',()=>{
+ const r=relatie({type:'eigenaar',commercialRoles:['verkoper'],propertyTypeIds:[],budgetMax:undefined});
+ assert.equal(voorstel(object(),[r]).length,0);
 });
 test('eigenaar zonder zoekmandaat is niet automatisch koper',()=>{
  assert.equal(voorstel(object(),[relatie({type:'eigenaar',propertyTypeIds:['type-wonen']})]).length,0);
 });
 test('onbekende rol met oude beleggerscriteria blijft zichtbaar ter verificatie',()=>{
  const rows=voorstel();assert.equal(rows.length,1);
- assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
+ assert.equal(rows[0].besteRoute.kwalificatie,'passend');
  assert.equal(rows[0].besteRoute.bevestiging,'te_verifieren');
 });
-test('expliciete lege rollen betekenen niet stiekem koper',()=>{
- assert.equal(voorstel(object(),[relatie({commercialRoles:[]})],[profiel()]).length,0);
+test('actief zoekprofiel maakt contact direct matchbaar ook zonder vastgelegde rol',()=>{
+ const r=relatie({commercialRoles:[],propertyTypeIds:[],budgetMax:undefined});
+ const rows=voorstel(object(),[r],[profiel()]);
+ assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.koperRelatieId,null);
 });
 test('belegger én verkoper met koperrol blijft direct matchbaar',()=>{
  const rows=voorstel(object(),[relatie({commercialRoles:['koper','verkoper']})]);
- assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.route,'directe_koper');
+ assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.route,'directe_partij');
 });
 test('makelaar met oud zoekprofiel is bemiddelaar en niet de koper',()=>{
  const rows=voorstel(object(),[relatie({type:'makelaar',propertyTypeIds:[],budgetMax:undefined})],[profiel()]);
- assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.route,'via_bemiddelaar');
+ assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.route,'directe_partij');
  assert.equal(rows[0].besteRoute.koperRelatieId,null);
 });
 test('gecontroleerd netwerkmandaat schrijft geen fictieve koper toe',()=>{
  const rows=voorstel(object(),[relatie({type:'makelaar',commercialRoles:['bemiddelaar']})],
  [profiel({mandateType:'voor_netwerk',mandateConfirmed:true})]);
  assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.koperRelatieId,null);
- assert.equal(rows[0].besteRoute.route,'via_bemiddelaar');
+ assert.equal(rows[0].besteRoute.route,'directe_partij');
 });
 test('geverifieerde opdrachtgever alleen als deze bestaat en niet soft-verwijderd is',()=>{
  const broker=relatie({type:'makelaar',commercialRoles:['bemiddelaar']});
@@ -79,15 +82,14 @@ test('concept, verlopen, gearchiveerd mandaat geen voorstel',()=>{
  for(const status of ['concept','verlopen','gearchiveerd'])
   assert.equal(voorstel(object(),[relatie({type:'makelaar',propertyTypeIds:[]})],[profiel({status})]).length,0);
 });
-test('eigen aankoopmandaat zonder koperrol blokkeert',()=>{
- assert.equal(voorstel(object(),[relatie({type:'makelaar',commercialRoles:['bemiddelaar']})],
-  [profiel({mandateType:'eigen_aankoop'})]).length,0);
+test('makelaar kan een eigen aankoopprofiel hebben zonder koperrol of mandaatbewijs',()=>{
+ const r=relatie({type:'makelaar',commercialRoles:['bemiddelaar'],propertyTypeIds:[],budgetMax:undefined});
+ const rows=voorstel(object(),[r],[profiel({mandateType:'eigen_aankoop'})]);
+ assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.koperRelatieId,null);
 });
-test('bemiddelingmandaat zonder bemiddelaarrol blokkeert',()=>{
- assert.equal(voorstel(object(),[relatie({commercialRoles:['koper']})],
- [profiel({mandateType:'voor_netwerk'})]).length,1); // only relation base
- assert.equal(voorstel(object(),[relatie({commercialRoles:['koper']})],
- [profiel({mandateType:'voor_netwerk'})])[0].alleRoutes.length,1);
+test('zoekprofiel wordt benut ongeacht onbekend mandaat of commerciële rol',()=>{
+ const rows=voorstel(object(),[relatie({commercialRoles:['koper']})],[profiel({mandateType:'voor_netwerk'})]);
+ assert.equal(rows.length,1);assert.equal(rows[0].alleRoutes.length,2);
 });
 test('harde objecttype mismatch komt niet als standaardvoorstel',()=>{
  assert.equal(voorstel(object(),[relatie({propertyTypeIds:['type-kantoor']})]).length,0);
@@ -103,7 +105,7 @@ test('onbekende prijs en postcode mogen geen bevestigde match creëren',()=>{
 });
 test('regio string wordt niet als nauwkeurige codevergelijking behandeld',()=>{
  const rows=voorstel(object(),[relatie({regio:['Randstad']})]);
- assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('normaliseren')));
+ assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('Zoekregio')));
 });
 test('reeds gekoppelde relatie krijgt geen dubbel voorstel',()=>{
  assert.equal(maakKandidaatVoorstellen(object(),[relatie()],[],{reedsGekoppeld:new Set(['r1'])}).length,0);
@@ -152,7 +154,7 @@ test('nog lege profielregio mag niet automatische relatie-regio erven',()=>{
  const rows=voorstel(object(),[r],[p]);
  const active=rows[0].alleRoutes.find(x=>x.zoekprofielId==='z1');
  assert.ok(active);
- assert.ok(active?.toelichting.controleer.includes('Aankoopregio ontbreekt'));
+ assert.ok(!active?.toelichting.controleer.some(x=>x.includes('Zoekregio')));
 });
 test('legacy directe contactrelatie is geen geverifieerde economische koper',()=>{
  const rows=voorstel();assert.equal(rows[0].besteRoute.koperRelatieId,null);
@@ -165,7 +167,7 @@ test('bevestigde koperrol geeft pas een koperreferentie bij directe relatiecrite
  assert.equal(rows[0].besteRoute.koperRelatieId,'r1');
 });
 
-test('bevestigd mandaat krijgt bij gelijk matchniveau voorrang, onafhankelijk van invoervolgorde',()=>{
+test('gelijke matchkwaliteit wordt niet op mandaatstatus gerangschikt',()=>{
  const b=relatie({id:'b',type:'makelaar',commercialRoles:['bemiddelaar'],
    propertyTypeIds:[],budgetMax:undefined});
  const onduidelijk=profiel({id:'z-onduidelijk',relatieId:'b',naam:'A netwerk',
@@ -176,6 +178,43 @@ test('bevestigd mandaat krijgt bij gelijk matchniveau voorrang, onafhankelijk va
    const rows=voorstel(object(),[b],input);
    assert.equal(rows.length,1);
    assert.equal(rows[0].alleRoutes.length,2);
-   assert.equal(rows[0].besteRoute.zoekprofielId,'z-bevestigd');
+   assert.equal(rows[0].besteRoute.zoekprofielId,'z-onduidelijk');
  }
+});
+
+// Aanvullende praktijkgevallen: een contactpartij is geen bewezen eindkoper.
+test('makelaar met alleen algemene criteria is directe kandidaat zonder mandaat',()=>{
+ const r=relatie({type:'makelaar',commercialRoles:undefined,propertyTypeIds:['type-wonen'],budgetMax:600_000});
+ const rows=voorstel(object(),[r]);
+ assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.route,'directe_partij');
+ assert.equal(rows[0].besteRoute.kwalificatie,'passend');assert.equal(rows[0].besteRoute.koperRelatieId,null);
+});
+test('makelaar met enkel een breed profiel zonder mandaat wordt gematcht',()=>{
+ const r=relatie({type:'makelaar',commercialRoles:['bemiddelaar'],propertyTypeIds:[],budgetMax:undefined});
+ const rows=voorstel(object(),[r],[profiel({mandateType:undefined,mandateConfirmed:undefined,prijsMax:undefined})]);
+ assert.equal(rows.length,1);assert.equal(rows[0].alleRoutes.length,1);
+ assert.equal(rows[0].besteRoute.kwalificatie,'passend');
+});
+test('leeg profiel en lege relatiecriteria zijn geen match',()=>{
+ const r=relatie({type:'makelaar',propertyTypeIds:[],assetClasses:[],regio:[],budgetMax:undefined});
+ const p=profiel({propertyTypeIds:[],typeVastgoed:[],regio:[],prijsMax:undefined});
+ assert.equal(voorstel(object(),[r],[p]).length,0);
+});
+test('landelijke brede zoekregio is een match zonder budget of type',()=>{
+ const r=relatie({type:'makelaar',propertyTypeIds:[],budgetMax:undefined,regio:['Heel Nederland']});
+ assert.equal(voorstel(object(),[r])[0].besteRoute.kwalificatie,'passend');
+});
+test('de provincie matcht en een onzekere regiobenaming blokkeert niet hard',()=>{
+ const r=relatie({type:'makelaar',propertyTypeIds:[],budgetMax:undefined,regio:['Noord-Brabant']});
+ assert.equal(voorstel(object(),[r])[0].besteRoute.kwalificatie,'passend');
+ const m=relatie({type:'makelaar',propertyTypeIds:[],budgetMax:undefined,regio:['Randstad']});
+ assert.equal(voorstel(object(),[m])[0].besteRoute.kwalificatie,'onvoldoende');
+});
+test('breed profiel wijkt af van basiscriteria zonder mandaat als uitsluiter',()=>{
+ const r=relatie({type:'makelaar',propertyTypeIds:['type-kantoor'],budgetMax:100000});
+ const p=profiel({propertyTypeIds:['type-wonen'],prijsMax:900000,mandateConfirmed:false});
+ const rows=voorstel(object(),[r],[p]);
+ assert.equal(rows.length,1);assert.equal(rows[0].besteRoute.zoekprofielId,p.id);
+ assert.equal(rows[0].besteRoute.kwalificatie,'passend');
+ assert.ok(!rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('mandaat')));
 });

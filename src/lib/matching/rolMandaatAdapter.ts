@@ -2,13 +2,14 @@
  * Bito CRM — R2 candidate read adapter (v0.6).
  * PURE read model: no DB calls, no localStorage, no transmissions or writes.
  * Designed for input from existing useDataStore Relatie, Zoekprofiel, ObjectVastgoed.
+ * A direct party can have general criteria or active search profiles without any formal mandate.
  * All optional fields are FUTURE (not yet present in production database).
  */
 
 export type CommercieleRol = 'koper' | 'verkoper' | 'bemiddelaar' | 'beheerder' | 'adviseur' | 'financier' | 'overig';
 export type MandaatType = 'eigen_aankoop' | 'namens_opdrachtgever' | 'voor_netwerk' | 'onbekend';
 export type MatchKwalificatie = 'passend' | 'te_verifieren' | 'afwijkend' | 'onvoldoende';
-export type ContactRoute = 'directe_koper' | 'via_bemiddelaar';
+export type ContactRoute = 'directe_partij';
 export type ObjectAvailability = 'aanbiedbaar' | 'niet_aanbiedbaar';
 
 export interface CrmRelatieInput {
@@ -101,31 +102,29 @@ function heeftBasisCriteria(r: CrmRelatieInput): boolean {
     gevuld(r.regio) || r.budgetMin != null || r.budgetMax != null);
 }
 
-function routeType(r: CrmRelatieInput, p?: CrmMandaatInput): { route: ContactRoute; reden: string; mandaatType: MandaatType } | null {
-  const roles = getRoles(r);
-  if (!p) {
-    // General Relaties criteria are never an intermediary mandate.
-    if (roles && !has(roles, 'koper')) return null;
-    if (!roles && !['belegger', 'ontwikkelaar'].includes(r.type ?? '')) return null;
-    if (!heeftBasisCriteria(r)) return null;
-    return {route: 'directe_koper', reden:'algemene aankoopcriteria', mandaatType:'eigen_aankoop'};
-  }
-  if (p.status !== 'actief') return null;
-  const mt: MandaatType = p.mandateType ?? 'onbekend';
-  if (mt === 'eigen_aankoop') {
-    if (roles && !has(roles, 'koper')) return null;
-    return {route:'directe_koper',reden:'eigen aankoop',mandaatType:mt};
-  }
-  if (mt === 'namens_opdrachtgever' || mt === 'voor_netwerk') {
-    if (roles && !has(roles, 'bemiddelaar')) return null;
-    return {route:'via_bemiddelaar',reden:mt === 'voor_netwerk' ? 'kopersnetwerk' : 'namens opdrachtgever',mandaatType:mt};
-  }
-  // Existing profiles do not encode mandate kind. Never infer broker as purchaser.
-  const broker = has(roles,'bemiddelaar') || (!roles && r.type === 'makelaar');
-  if (broker) return {route:'via_bemiddelaar',reden:'oud profiel: opdrachtsoort onbekend',mandaatType:'onbekend'};
-  if (roles && !has(roles,'koper')) return null;
-  return {route:'directe_koper',reden:'oud profiel: eigen aankoop nog te bevestigen',mandaatType:'onbekend'};
+function heeftProfielCriteria(p: CrmMandaatInput): boolean {
+  return !!(gevuld(p.propertyTypeIds) || gevuld(p.typeVastgoed) ||
+    gevuld(p.propertySubtypeIds) || gevuld(p.dealTypeIds) ||
+    gevuld(p.regio) || gevuld(p.steden) || p.prijsMin != null || p.prijsMax != null);
 }
+
+/** Contact brokers and investors directly; no mandate validation gate. */
+function routeType(r: CrmRelatieInput, p?: CrmMandaatInput): { route: ContactRoute; reden: string } | null {
+  if(p){
+    if(p.status!=='actief' || !heeftProfielCriteria(p)) return null;
+    return {route:'directe_partij',reden:'actief zoekprofiel'};
+  }
+  const roles=getRoles(r);
+  const zoekendeRol=roles?.some(x=>x==='koper'||x==='bemiddelaar')??false;
+  const legacyZoekendePartij=['belegger','ontwikkelaar','makelaar'].includes(r.type??'');
+  if(!heeftBasisCriteria(r) || (!zoekendeRol && !legacyZoekendePartij))return null;
+  return {route:'directe_partij',reden:'algemene zoekcriteria'};
+}
+function normaliseerRegio(s:string):string{
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
+}
+const LANDELIJK=new Set(['nederland','heel nederland','landelijk','heel nl']);
 
 function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmRelatieInput[], p?:CrmMandaatInput):ProfielRoute|null {
   const route = routeType(r,p); if(!route) return null;
@@ -138,54 +137,60 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   const rawCities = p?.steden;
   const min = p ? p.prijsMin : r.budgetMin;
   const max = p ? p.prijsMax : r.budgetMax;
-  let geverifieerd = 0;
-  if (gevuld(types)) {
-    if (o.propertyTypeId) {
-      if (types.includes(o.propertyTypeId)) {matcht.push('Vastgoedtype komt overeen'); geverifieerd++}
+  let geverifieerd=0,controleNodig=false;
+  if(gevuld(types)){
+    if(o.propertyTypeId){
+      if(types.includes(o.propertyTypeId)){matcht.push('Vastgoedtype komt overeen');geverifieerd++}
       else afwijkend.push('Vastgoedtype wijkt af');
-    } else controleer.push('Objecttype nog niet in nieuwe taxonomie bevestigd');
-  } else if(gevuld(legacy)) {
-    if(o.type) {
-      if(legacy.includes(o.type)){matcht.push('Legacy vastgoedtype komt overeen'); geverifieerd++}
-      else afwijkend.push('Legacy vastgoedtype wijkt af');
-    } else controleer.push('Vastgoedtype object ontbreekt');
-  } else controleer.push('Vastgoedtype van zoekende partij ontbreekt');
+    }else{controleer.push('Objecttype in nieuwe taxonomie ontbreekt');controleNodig=true}
+  }else if(gevuld(legacy)){
+    if(o.type){
+      if(legacy.includes(o.type)){matcht.push('Vastgoedtype komt overeen');geverifieerd++}
+      else afwijkend.push('Vastgoedtype wijkt af');
+    }else{controleer.push('Vastgoedtype object ontbreekt');controleNodig=true}
+  }
+  // Niet ingevuld = brede zoekcriteria, dus geen kunstmatige mismatch.
   if(gevuld(subtypes)){
-    if(gevuld(o.propertySubtypeIds)) {
-      if(overlap(subtypes,o.propertySubtypeIds))matcht.push('Subcategorie komt overeen');
-      else controleer.push('Subcategorieën verschillen; controleren of dit uitsluit');
-    }else controleer.push('Subcategorie object ontbreekt');
+    if(gevuld(o.propertySubtypeIds)){
+      if(overlap(subtypes,o.propertySubtypeIds)){matcht.push('Subcategorie komt overeen');geverifieerd++}
+      else{controleer.push('Subcategorieën verschillen; handmatig beoordelen');controleNodig=true}
+    }else{controleer.push('Subcategorie object ontbreekt');controleNodig=true}
   }
   if(gevuld(dealTypes)){
-    if(gevuld(o.dealTypeIds)) {
-      if(overlap(dealTypes,o.dealTypeIds))matcht.push('Dealtype of strategie overlapt');
-      else controleer.push('Dealtype/strategie komt niet overeen; huidige taxonomie mengt kenmerken');
-    }else controleer.push('Dealtype object ontbreekt');
+    if(gevuld(o.dealTypeIds)){
+      if(overlap(dealTypes,o.dealTypeIds)){matcht.push('Dealtype of strategie overlapt');geverifieerd++}
+      else{controleer.push('Dealtype of strategie verschilt; handmatig beoordelen');controleNodig=true}
+    }else{controleer.push('Dealtype object ontbreekt');controleNodig=true}
   }
-  if(gevuld(rawRegion)||gevuld(rawCities))controleer.push('Regio of woonplaats eerst normaliseren en verifiëren');
-  else controleer.push('Aankoopregio ontbreekt');
+  const regioWaarden=[...(rawRegion??[]),...(rawCities??[])].filter(Boolean);
+  if(regioWaarden.length){
+    const objectLocaties=[o.plaats,o.provincie].filter(Boolean).map(x=>normaliseerRegio(x!));
+    if(regioWaarden.some(x=>{
+      const r=normaliseerRegio(x);
+      return LANDELIJK.has(r)||objectLocaties.includes(r);
+    })){matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++}
+    else{controleer.push('Zoekregio is niet automatisch te verifiëren');controleNodig=true}
+  }
   if(min!=null||max!=null){
-    if(typeof o.vraagprijs==='number'&&Number.isFinite(o.vraagprijs)) {
+    if(typeof o.vraagprijs==='number'&&Number.isFinite(o.vraagprijs)){
       if((min!=null&&o.vraagprijs<min)||(max!=null&&o.vraagprijs>max))afwijkend.push('Vraagprijs buiten opgegeven budgetgrenzen');
-      else {matcht.push('Vraagprijs binnen budget'); geverifieerd++}
-    }else controleer.push('Vraagprijs object ontbreekt');
-  }else controleer.push('Aankoopbudget ontbreekt');
-  const buyerConfirmed = getRoles(r)?.includes('koper') ?? false;
-  const mandateConfirmed = p?.mandateConfirmed === true;
-  const routeConfirmed = route.route === 'directe_koper' ? buyerConfirmed && (!p || mandateConfirmed) :
-    has(getRoles(r),'bemiddelaar') && mandateConfirmed && route.mandaatType !== 'onbekend';
-  if(!routeConfirmed)controleer.push('Aankoopintentie of bemiddelingsmandaat nog niet bevestigd');
-  let koperRelatieId:string|null = null;
-  if(route.route==='directe_koper' && routeConfirmed) koperRelatieId=r.id;
-  else if(route.mandaatType==='namens_opdrachtgever' && p?.principalVerified && p.principalRelatieId &&
-    p.principalRelatieId !== r.id && relaties.some(x => x.id===p.principalRelatieId && !x.softDeletedAt))
+      else{matcht.push('Vraagprijs binnen budget');geverifieerd++}
+    }else{controleer.push('Vraagprijs van object ontbreekt');controleNodig=true}
+  }
+  let koperRelatieId:string|null=null;
+  // De contactpartij kan zelf koper zijn, maar een makelaar is niet automatisch de eindkoper.
+  if(has(getRoles(r),'koper')&&(r.type!=='makelaar'||p?.mandateType==='eigen_aankoop'))
+    koperRelatieId=r.id;
+  else if(p?.mandateType==='namens_opdrachtgever' && p.principalVerified && p.principalRelatieId &&
+    p.principalRelatieId!==r.id && relaties.some(x=>x.id===p.principalRelatieId&&!x.softDeletedAt))
     koperRelatieId=p.principalRelatieId;
-  else controleer.push('Uiteindelijke koper is onbekend of niet geverifieerd');
-  const kwalificatie:MatchKwalificatie = afwijkend.length ? 'afwijkend' :
-     geverifieerd===0 ? 'onvoldoende' :
-     controleer.length>0||geverifieerd<2 ? 'te_verifieren' : 'passend';
+  const kwalificatie:MatchKwalificatie=afwijkend.length?'afwijkend':
+    geverifieerd===0?'onvoldoende':controleNodig?'te_verifieren':'passend';
+  if(!koperRelatieId)controleer.push('Uiteindelijke koper eventueel later in het traject vaststellen');
+  const routeConfirmed=has(getRoles(r),'koper')||has(getRoles(r),'bemiddelaar');
+
   return {key:p?`zoekprofiel:${p.id}`:`relatie:${r.id}:basis`,zoekprofielId:p?.id??null,
-    bron:p?'zoekprofiel':'relatie_basis',naam:p?.naam??'Algemene aankoopcriteria',route:route.route,
+    bron:p?'zoekprofiel':'relatie_basis',naam:p?.naam??'Algemene zoekcriteria',route:route.route,
     kwalificatie,bevestiging:routeConfirmed?'bevestigd':'te_verifieren',
     koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend}};
 }
@@ -211,15 +216,13 @@ export function maakKandidaatVoorstellen(
    routes.sort((a,b)=>{
      const scoreVerschil=rang[b.kwalificatie]-rang[a.kwalificatie];
      if(scoreVerschil) return scoreVerschil;
-     // Bij gelijk matchniveau: een bevestigd mandaat krijgt voorrang.
-     const bevestigingVerschil=Number(b.bevestiging==='bevestigd')-Number(a.bevestiging==='bevestigd');
-     if(bevestigingVerschil) return bevestigingVerschil;
+     // Mandaatstatus is geen matchingvoorwaarde of rangschikkingscriterium.
      if(a.bron!==b.bron) return a.bron==='zoekprofiel'?-1:1;
      // Een vaste, symmetrische tie-breaker voorkomt wisselende routelijsten.
      return a.naam.localeCompare(b.naam,'nl') || a.key.localeCompare(b.key);
    });
    result.push({relatieId:r.id,besteRoute:routes[0],alleRoutes:routes,
-      aandachtNodig:routes[0].kwalificatie!=='passend'||routes[0].bevestiging!=='bevestigd',
+      aandachtNodig:routes[0].kwalificatie!=='passend',
       kanAutomatischVersturen:false,kanAutomatischBodMaken:false});
  }
  return result.sort((a,b)=>rang[b.besteRoute.kwalificatie]-rang[a.besteRoute.kwalificatie]);

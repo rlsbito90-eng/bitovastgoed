@@ -14,16 +14,16 @@ const object: CrmObjectInput = {
   propertyTypeId:'type-wonen', vraagprijs:450000, plaats:'Breda', provincie:'Noord-Brabant'
 };
 const relaties: CrmRelatieInput[] = [
-  {id:'broker',type:'makelaar',commercialRoles:['bemiddelaar']},
+  {id:'broker',type:'makelaar',commercialRoles:['bemiddelaar'],propertyTypeIds:['type-wonen'],budgetMax:850000},
   {id:'investor',type:'belegger',commercialRoles:['koper'], propertyTypeIds:['type-wonen'],budgetMax:700000},
   {id:'linked',type:'belegger',commercialRoles:['koper'],propertyTypeIds:['type-wonen'],budgetMax:700000},
   {id:'outlier',type:'belegger',commercialRoles:['koper']}
 ];
 const zoekprofielen: CrmMandaatInput[] = [
-  {id:'broker-mandaat-1',relatieId:'broker',status:'actief',naam:'Horeca namens belegger',
-    propertyTypeIds:['type-wonen'], prijsMax:800000, mandateType:'namens_opdrachtgever',mandateConfirmed:true},
+  {id:'broker-mandaat-1',relatieId:'broker',status:'actief',naam:'Woningen tot €800k',
+    propertyTypeIds:['type-wonen'], prijsMax:800000},
   {id:'broker-mandaat-2',relatieId:'broker',status:'actief',naam:'Kopersnetwerk Brabant',
-    propertyTypeIds:['type-wonen'],prijsMax:950000,mandateType:'voor_netwerk',mandateConfirmed:false},
+    propertyTypeIds:['type-wonen'],prijsMax:950000},
   {id:'outlier-mandaat',relatieId:'outlier',status:'actief',naam:'Budget buiten bandbreedte',
     propertyTypeIds:['type-wonen'],prijsMax:200000,mandateType:'eigen_aankoop',mandateConfirmed:true}
 ];
@@ -44,7 +44,7 @@ function App() {
    <KandidaatVoorstellenR2 object={object} relaties={relaties} zoekprofielen={zoekprofielen}
     reedsGekoppeld={new Set(['linked'])}
     relatieNaam={id=>namen[id]||id}
-    onConceptGekozen={concept=>setKeuze(`Gekozen contact: ${namen[concept.contactRelatieId]}; route: ${concept.contactRoute}; koper: ${concept.koperRelatieId||'niet bevestigd'}; geen opslag`)}
+    onConceptGekozen={concept=>setKeuze(`Gekozen contact: ${namen[concept.contactRelatieId]}; rechtstreeks benaderbaar; eindkoper: ${concept.koperRelatieId||'later vaststellen'}; geen opslag`)}
    />
    {keuze && <div style={{marginTop:'20px',padding:'14px',borderRadius:'10px',background:'#f2ede5'}} role="status">{keuze}</div>}
   </main>
