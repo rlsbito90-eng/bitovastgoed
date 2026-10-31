@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import { COMMERCIELE_ROLLEN } from '@/lib/relaties/commercieleRollen';
 
 interface Props {
   open: boolean;
@@ -90,6 +91,7 @@ const DEALSTRUCTUUR_LABELS: Record<Dealstructuur, string> = {
 const leegForm: FormState = {
   bedrijfsnaam: '',
   type: 'belegger',
+  commercialRoles: null,
   investeerderSubtype: undefined,
   telefoon: '',
   email: '',
@@ -411,6 +413,35 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="bv. event X, intro door Y" />
                   </Veld>
                 </div>
+              </Sectie>
+
+              {/* Commerciële rollen naast de bestaande hoofdclassificatie. */}
+              <Sectie titel="Commerciële rollen (meerdere mogelijk)">
+                <p className="text-xs text-muted-foreground">
+                  Eén partij kan bijvoorbeeld koper én verkoper én bemiddelaar zijn.
+                  Er is geen verplicht aankoopmandaat. Laat onbekend staan als de rollen nog niet duidelijk zijn;
+                  het type partij hierboven blijft ongewijzigd.
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={form.commercialRoles === null || form.commercialRoles === undefined}
+                    onChange={e=>set('commercialRoles',e.target.checked ? null : [])}/>
+                  Nog niet vastgesteld
+                </label>
+                {form.commercialRoles != null && <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {COMMERCIELE_ROLLEN.map(rol=>(
+                    <label key={rol.value} className="flex items-center gap-2 rounded-md border p-2.5 text-sm cursor-pointer">
+                      <input type="checkbox" checked={form.commercialRoles?.includes(rol.value)??false}
+                        onChange={e=>set('commercialRoles',
+                          e.target.checked
+                            ? [...new Set([...(form.commercialRoles??[]),rol.value])]
+                            : (form.commercialRoles??[]).filter(x=>x!==rol.value))}/>
+                      <span>{rol.label}</span>
+                    </label>
+                  ))}
+                </div>}
+                {form.commercialRoles?.includes('makelaar') || form.commercialRoles?.includes('bemiddelaar')
+                  ? <p className="text-xs text-muted-foreground">Deze partij verschijnt bij passende zoekcriteria als direct benaderbare kandidaat. Een mandaat is niet vereist.</p>
+                  : null}
               </Sectie>
 
               {/* === KVK & VESTIGINGSADRES === */}

@@ -7,6 +7,10 @@
 
 export type LeadStatus = 'koud' | 'lauw' | 'warm' | 'actief';
 
+/** Commercial roles can overlap; unknown/not entered is represented by null. */
+export type CommercieleRol = 'koper' | 'verkoper' | 'makelaar' | 'bemiddelaar'
+  | 'ontwikkelaar' | 'adviseur' | 'beheerder' | 'financier' | 'overig';
+
 export type PartijType =
   | 'belegger' | 'ontwikkelaar' | 'eigenaar'
   | 'makelaar' | 'partner' | 'overig';
@@ -206,6 +210,8 @@ export interface Relatie {
   bedrijfsnaam: string;
   contactpersoon: string;   // legacy; gedetailleerd in RelatieContactpersoon[]
   type: PartijType;
+  /** Optional additive field; null = not investigated, [] = explicitly no roles. */
+  commercialRoles?: CommercieleRol[] | null;
   investeerderSubtype?: InvesteerderSubtype;
   telefoon: string;
   email: string;

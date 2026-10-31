@@ -22,6 +22,7 @@ import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog'
 import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
+import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import { isGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
 import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
@@ -187,6 +188,15 @@ export default function RelatieDetailPage() {
             {subtypeLabel && ` · ${subtypeLabel}`}
             {relatie.kvkNummer && ` · KVK ${relatie.kvkNummer}`}
           </p>
+          {relatie.commercialRoles && relatie.commercialRoles.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Commerciële rollen">
+              {relatie.commercialRoles.map(rol=>(
+                <span key={rol} className="text-xs rounded border border-border bg-muted/30 px-2 py-1">
+                  {labelCommercieleRol(rol)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

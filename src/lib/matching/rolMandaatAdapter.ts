@@ -8,7 +8,8 @@
 
 import { isGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
 
-export type CommercieleRol = 'koper' | 'verkoper' | 'bemiddelaar' | 'beheerder' | 'adviseur' | 'financier' | 'overig';
+import type { CommercieleRol } from '../../data/mock-data';
+export type { CommercieleRol };
 export type MandaatType = 'eigen_aankoop' | 'namens_opdrachtgever' | 'voor_netwerk' | 'onbekend';
 export type MatchKwalificatie = 'passend' | 'te_verifieren' | 'afwijkend' | 'onvoldoende';
 export type ContactRoute = 'directe_partij';
@@ -119,7 +120,7 @@ function routeType(r: CrmRelatieInput, p?: CrmMandaatInput): { route: ContactRou
     return {route:'directe_partij',reden:'actief zoekprofiel'};
   }
   const roles=getRoles(r);
-  const zoekendeRol=roles?.some(x=>x==='koper'||x==='bemiddelaar')??false;
+  const zoekendeRol=roles?.some(x=>x==='koper'||x==='bemiddelaar'||x==='makelaar'||x==='ontwikkelaar')??false;
   const legacyZoekendePartij=['belegger','ontwikkelaar','makelaar'].includes(r.type??'');
   if(!heeftBasisCriteria(r) || (!zoekendeRol && !legacyZoekendePartij))return null;
   return {route:'directe_partij',reden:'algemene zoekcriteria'};
