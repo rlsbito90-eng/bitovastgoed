@@ -6,6 +6,8 @@
  * All optional fields are FUTURE (not yet present in production database).
  */
 
+import { isGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
+
 export type CommercieleRol = 'koper' | 'verkoper' | 'bemiddelaar' | 'beheerder' | 'adviseur' | 'financier' | 'overig';
 export type MandaatType = 'eigen_aankoop' | 'namens_opdrachtgever' | 'voor_netwerk' | 'onbekend';
 export type MatchKwalificatie = 'passend' | 'te_verifieren' | 'afwijkend' | 'onvoldoende';
@@ -56,6 +58,8 @@ export interface CrmObjectInput {
   vraagprijs?: number | null;
   plaats?: string | null;
   provincie?: string | null;
+  /** Optioneel: alleen als gemeente geverifieerd is, niet uit plaatsnaam afleiden. */
+  gemeente?: string | null;
 }
 export interface MatchToelichting {
   matcht: string[];
@@ -162,10 +166,30 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       else{controleer.push('Dealtype of strategie verschilt; handmatig beoordelen');controleNodig=true}
     }else{controleer.push('Dealtype object ontbreekt');controleNodig=true}
   }
-  const regioWaarden=[...(rawRegion??[]),...(rawCities??[])].filter(Boolean);
-  if(regioWaarden.length){
-    const objectLocaties=[o.plaats,o.provincie].filter(Boolean).map(x=>normaliseerRegio(x!));
-    if(regioWaarden.some(x=>{
+  const gekozenGemeenten=(rawCities??[]).filter(isGemeenteToken).map(gemeenteUitToken);
+  const gekozenPlaatsen=(rawCities??[]).filter(x=>!isGemeenteToken(x));
+  const objectLocaties=[o.plaats,o.provincie].filter(Boolean).map(x=>normaliseerRegio(x!));
+  // Specifieke gemeente of plaats beperkt de provincieselectie; provincies zijn anders brede scope.
+  if(gekozenGemeenten.length){
+    if(o.gemeente){
+      if(gekozenGemeenten.some(g=>normaliseerGemeenteNaam(g)===normaliseerGemeenteNaam(o.gemeente!))){
+        matcht.push('Bestuurlijke gemeente komt overeen');geverifieerd++;
+      }else if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
+        matcht.push('Plaats komt overeen');geverifieerd++;
+      }else afwijkend.push('Gemeente buiten het gekozen zoekgebied');
+    }else{
+      controleer.push('Gemeente van object onbekend; bestuurlijke gemeente eerst verifiëren');
+      controleNodig=true;
+    }
+  }else if(gekozenPlaatsen.length){
+    if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
+      matcht.push('Plaats komt overeen');geverifieerd++;
+    }else{
+      controleer.push('Plaats buiten gekozen locatie of handmatige controle nodig');
+      controleNodig=true;
+    }
+  }else if(gevuld(rawRegion)){
+    if(rawRegion!.some(x=>{
       const r=normaliseerRegio(x);
       return LANDELIJK.has(r)||objectLocaties.includes(r);
     })){matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++}

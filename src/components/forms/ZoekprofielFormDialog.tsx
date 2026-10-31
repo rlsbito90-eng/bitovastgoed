@@ -31,6 +31,8 @@ import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 import { parseerSteden, valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
+import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
+import GemeentePicker from '@/components/forms/GemeentePicker';
 
 interface Props {
   open: boolean;
@@ -101,7 +103,7 @@ export default function ZoekprofielFormDialog({
     if (zoekprofiel) {
       const { id, ...rest } = zoekprofiel;
       setForm({ ...leegForm, ...rest });
-      setStedenTekst((rest.steden ?? []).join(', '));
+      setStedenTekst((rest.steden ?? []).filter(x=>!isGemeenteToken(x)).join(', '));
     } else {
       setForm({ ...leegForm, relatieId: defaultRelatieId || '' });
       setStedenTekst('');
@@ -115,7 +117,17 @@ export default function ZoekprofielFormDialog({
   const num = (v: string) => v === '' ? undefined : Number(v);
   const wijzigSteden = (tekst: string) => {
     setStedenTekst(tekst);
-    set('steden', parseerSteden(tekst));
+    setForm(prev=>({
+      ...prev,
+      steden:[...(prev.steden ?? []).filter(isGemeenteToken), ...parseerSteden(tekst)],
+    }));
+  };
+  const gekozenGemeenten=(form.steden ?? []).filter(isGemeenteToken).map(gemeenteUitToken);
+  const wijzigGemeenten = (gemeenten: string[]) => {
+    setForm(prev=>({
+      ...prev,
+      steden:[...(prev.steden ?? []).filter(x=>!isGemeenteToken(x)),...gemeenten.map(alsGemeenteToken)],
+    }));
   };
 
   // Bij wijzigen van typeVastgoed: filter subcategorieIds zodat ze bij het type passen
@@ -259,7 +271,10 @@ export default function ZoekprofielFormDialog({
                     <MultiSelectChips options={regioOptions} value={form.regio}
                       onChange={v => set('regio', v)} />
                   </Veld>
-                  <Veld label="Steden (optioneel, scheiden met komma)">
+                  <Veld label="Gemeenten (optioneel)">
+                    <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
+                  </Veld>
+                  <Veld label="Plaatsen of steden (optioneel, scheiden met komma)">
                     <Input
                       value={stedenTekst}
                       onChange={e => wijzigSteden(e.target.value)}
@@ -344,6 +359,9 @@ export default function ZoekprofielFormDialog({
                 />
               </Sectie>
 
+              <Sectie titel="Gemeenten binnen gekozen provincies (optioneel)">
+                <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
+              </Sectie>
               <Sectie titel="Specifieke steden (optioneel)">
                 <Veld label="Steden (kommagescheiden)">
                   <Input

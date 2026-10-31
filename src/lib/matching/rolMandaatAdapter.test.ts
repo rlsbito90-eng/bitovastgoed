@@ -218,3 +218,26 @@ test('breed profiel wijkt af van basiscriteria zonder mandaat als uitsluiter',()
  assert.equal(rows[0].besteRoute.kwalificatie,'passend');
  assert.ok(!rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('mandaat')));
 });
+
+// Gemeente is bestuurlijk en hoeft niet gelijk te zijn aan de woonplaats.
+test('gemeente De Ronde Venen bij object in Mijdrecht vergt geverifieerde gemeentenaam',()=>{
+ const r=relatie({id:'broker',type:'makelaar',propertyTypeIds:[],budgetMax:undefined});
+ const p=profiel({id:'z-gm',relatieId:'broker',propertyTypeIds:[],prijsMax:undefined,
+   regio:['Utrecht'],steden:['gemeente:De Ronde Venen']});
+ const onbekend=voorstel(object({plaats:'Mijdrecht',provincie:'Utrecht',gemeente:undefined}),[r],[p]);
+ assert.equal(onbekend.length,1); assert.equal(onbekend[0].besteRoute.kwalificatie,'onvoldoende');
+ assert.ok(onbekend[0].besteRoute.toelichting.controleer.some(x=>x.includes('Gemeente van object onbekend')));
+ const bevestigd=voorstel(object({plaats:'Mijdrecht',provincie:'Utrecht',gemeente:'De Ronde Venen'}),[r],[p]);
+ assert.equal(bevestigd[0].besteRoute.kwalificatie,'passend');
+});
+test('bekende gemeente buiten zoekprofiel wordt niet als passend gepresenteerd',()=>{
+ const r=relatie({id:'r1',type:'makelaar',propertyTypeIds:[],budgetMax:undefined});
+ const p=profiel({regio:['Noord-Brabant'],steden:['gemeente:Oisterwijk'],propertyTypeIds:[],prijsMax:undefined});
+ const rows=voorstel(object({plaats:'Tilburg',gemeente:'Tilburg',provincie:'Noord-Brabant'}),[r],[p]);
+ assert.equal(rows.length,0);
+});
+test('oude vrije plaatsnaam blijft een plaatsfilter',()=>{
+ const r=relatie({id:'r1',type:'makelaar',propertyTypeIds:[],budgetMax:undefined});
+ const p=profiel({regio:['Utrecht'],steden:['Breda'],propertyTypeIds:[],prijsMax:undefined});
+ assert.equal(voorstel(object({plaats:'Breda',provincie:'Noord-Brabant'}),[r],[p])[0].besteRoute.kwalificatie,'passend');
+});

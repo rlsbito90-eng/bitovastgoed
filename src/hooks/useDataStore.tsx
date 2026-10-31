@@ -637,7 +637,7 @@ const zoekprofielFromDb = (z: any): Zoekprofiel => ({
   propertySubtypeIds: z.property_subtype_ids_v2 ?? [],
   dealTypeIds: z.deal_type_ids ?? [],
   regio: z.regio ?? [],
-  stad: z.steden?.[0] ?? undefined,
+  stad: z.steden?.find((v:string)=>!v.startsWith('gemeente:')) ?? undefined,
   steden: z.steden ?? [],
   prijsMin: z.prijs_min ?? undefined,
   prijsMax: z.prijs_max ?? undefined,

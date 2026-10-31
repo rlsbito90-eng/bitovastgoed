@@ -22,6 +22,7 @@ import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog'
 import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
+import { isGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
 import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
@@ -477,11 +478,15 @@ export default function RelatieDetailPage() {
                     <SubtypeBadges ids={(zp as any).propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
                     <DealtypeBadges ids={(zp as any).dealTypeIds} max={2} variant="compact" showEmpty={false} />
                   </div>
-                  {(zp.regio.length > 0 || (zp.steden?.length ?? 0) > 0) && (
-                    <p className="text-xs text-muted-foreground break-words">
-                      {[...zp.regio, ...(zp.steden ?? [])].join(', ')}
-                    </p>
-                  )}
+                  {zp.regio.length>0 && <p className="text-xs text-muted-foreground break-words">
+                    Provincies/regio's: {zp.regio.join(', ')}
+                  </p>}
+                  {(zp.steden ?? []).some(isGemeenteToken) && <p className="text-xs text-muted-foreground break-words">
+                    Gemeenten: {(zp.steden ?? []).filter(isGemeenteToken).map(gemeenteUitToken).join(', ')}
+                  </p>}
+                  {(zp.steden ?? []).some(x=>!isGemeenteToken(x)) && <p className="text-xs text-muted-foreground break-words">
+                    Plaatsen: {(zp.steden ?? []).filter(x=>!isGemeenteToken(x)).join(', ')}
+                  </p>
                   {(zp.prijsMin != null || zp.prijsMax != null) && (
                     <p className="text-xs text-muted-foreground font-mono-data">
                       {zp.prijsMin != null && zp.prijsMax != null
