@@ -31,7 +31,20 @@ jobs:
         run: npx vitest run src/lib/relaties/partijprofiel.test.ts
       - name: Production asset build (no deployment)
         run: npm run build
+      - name: Install isolated Chromium for A13 browser acceptance
+        run: npx playwright install --with-deps chromium
+      - name: A13 desktop and mobile browser acceptance (synthetic only)
+        run: npx playwright test --config playwright.crm-a13.config.ts
       - name: Full regression
         run: npm test
       - name: Ensure no tracked files changed
         run: git diff --exit-code
+
+      - name: Upload A13 synthetic mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: crm-a13-mobile-browser
+          path: test-results/a13-*.png
+          if-no-files-found: warn
+          retention-days: 3

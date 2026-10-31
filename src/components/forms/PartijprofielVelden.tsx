@@ -25,9 +25,9 @@ export default function PartijprofielVelden({partijprofiel,vastgoedStrategieen,o
     </label>
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium mb-2">Vastgoedstrategie (meerdere mogelijk)</legend>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {VASTGOEDSTRATEGIEEN.map(item=><label key={item.value}
-          className="flex items-center gap-2 rounded-md border border-border p-2.5 text-sm cursor-pointer">
+          className="flex min-w-0 items-center gap-2 rounded-md border border-border p-2.5 text-sm cursor-pointer">
           <input type="checkbox" checked={vastgoedStrategieen?.includes(item.value)??false}
             onChange={e=>{
               const next=e.target.checked
@@ -35,7 +35,7 @@ export default function PartijprofielVelden({partijprofiel,vastgoedStrategieen,o
                 : (vastgoedStrategieen??[]).filter(x=>x!==item.value);
               onStrategieenChange(next.length?next:null);
             }}/>
-          <span>{item.label}</span>
+          <span className="min-w-0 break-words">{item.label}</span>
         </label>)}
       </div>
       <p className="text-xs text-muted-foreground">Geen keuze betekent onbekend. Zoekprofielen en concrete aankoopcriteria blijven leidend voor matching.</p>
