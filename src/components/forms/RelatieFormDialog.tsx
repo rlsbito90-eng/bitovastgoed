@@ -725,7 +725,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
 
           {/* Footer */}
           <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
-            <Button variant="outline" onClick={() => guardedOnOpenChange(false)} disabled={bezig}>
+            <Button variant="outline" data-testid="relatie-form-sluiten" onClick={() => guardedOnOpenChange(false)} disabled={bezig}>
               {(isEdit || gemaaktId) ? 'Sluiten' : 'Annuleren'}
             </Button>
             <Button onClick={handleSave} disabled={bezig}>

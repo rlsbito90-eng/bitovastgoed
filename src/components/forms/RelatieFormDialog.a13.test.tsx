@@ -152,7 +152,7 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
  });
  it('vraagt niet om bevestiging bij ongewijzigd sluiten na hydratatie',()=>{
   render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
-  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  fireEvent.click(screen.getByTestId('relatie-form-sluiten'));
   expect(window.confirm).not.toHaveBeenCalled();
   expect(mocks.close).toHaveBeenCalledWith(false);
  });
@@ -161,10 +161,10 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
   vi.mocked(window.confirm).mockReturnValueOnce(false).mockReturnValueOnce(true);
   render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
   fireEvent.change(screen.getByPlaceholderText('naam@bedrijf.nl'),{target:{value:'bewerkt@voorbeeld.test'}});
-  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  fireEvent.click(screen.getByTestId('relatie-form-sluiten'));
   expect(window.confirm).toHaveBeenCalledTimes(1);
   expect(mocks.close).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  fireEvent.click(screen.getByTestId('relatie-form-sluiten'));
   expect(mocks.close).toHaveBeenCalledWith(false);
   expect(mocks.updateContactpersoon).not.toHaveBeenCalled();
  });
@@ -173,7 +173,7 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
   vi.mocked(window.confirm).mockReturnValueOnce(false);
   render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
   fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{target:{value:'vastgoedondernemer'}});
-  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  fireEvent.click(screen.getByTestId('relatie-form-sluiten'));
   expect(mocks.close).not.toHaveBeenCalled();
   expect(window.confirm).toHaveBeenCalledTimes(1);
  });
@@ -224,7 +224,7 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
   expect(mocks.close).not.toHaveBeenCalled();
   // Ondanks ongewijzigde prefillvelden moet gedeeltelijke opslag beschermd blijven.
   vi.mocked(window.confirm).mockReturnValueOnce(false);
-  fireEvent.click(screen.getByRole('button',{name:'Sluiten'}));
+  fireEvent.click(screen.getByTestId('relatie-form-sluiten'));
   expect(window.confirm).toHaveBeenCalledTimes(1);
   expect(mocks.close).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
@@ -241,7 +241,7 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
   render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
   await waitFor(()=>expect(mocks.updateRelatie).toHaveBeenCalledTimes(1));
-  expect(screen.getByRole('button',{name:'Sluiten'})).toBeDisabled();
+  expect(screen.getByTestId('relatie-form-sluiten')).toBeDisabled();
   klaar();
   await waitFor(()=>expect(mocks.close).toHaveBeenCalledWith(false));
  });
