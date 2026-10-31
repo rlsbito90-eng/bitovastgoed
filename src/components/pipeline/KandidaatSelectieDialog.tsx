@@ -342,7 +342,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
             <button type="button" aria-pressed={r2Actief}
               onClick={() => { setToonR2(true); setR2Concept(null); }}
               className={`rounded-md px-3 py-2 text-sm border ${r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
-              Zoekmandaten (proef)
+              Matches op zoekprofiel (proef)
             </button>
           </nav>
         )}
