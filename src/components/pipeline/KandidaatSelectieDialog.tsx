@@ -23,6 +23,9 @@ import {
   type KandidaatResultaat,
 } from '@/lib/pipeline/kandidaatFouten';
 import { kiesBesteZoekprofielMatch } from '@/lib/pipeline/zoekprofielKeuze';
+import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstellenR2';
+import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
+import type { maakKandidaatConcept } from '@/lib/matching/rolMandaatAdapter';
 
 
 interface Props {
@@ -77,7 +80,7 @@ const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale:
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
   const {
     relaties, contactpersonen, getObjectById,
-    getZoekprofielenByRelatie, addPipelineKandidaat,
+    getZoekprofielenByRelatie, addPipelineKandidaat, zoekprofielen,
   } = useDataStore();
 
   const object = getObjectById(objectId);
@@ -95,6 +98,10 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [bezig, setBezig] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [toonR2, setToonR2] = useState(false);
+  type R2Concept = Extract<ReturnType<typeof maakKandidaatConcept>, { ok: true }>['concept'];
+  const [r2Concept, setR2Concept] = useState<R2Concept | null>(null);
+  const r2Actief = MATCH_R2_PREVIEW_ENABLED && toonR2;
   const zoekRef = useRef<HTMLInputElement>(null);
 
   // Reset bij open
@@ -104,6 +111,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       setFilterPlaats(''); setBudgetMinFilter(''); setBudgetMaxFilter('');
       setAlleenActief(false); setGeselecteerd(new Set()); setQuickOpen(false);
       setSortKey('match'); setSortDir('desc');
+      setToonR2(false); setR2Concept(null);
     }
   }, [open]);
 
@@ -324,8 +332,43 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           </p>
         </DialogHeader>
 
+        {MATCH_R2_PREVIEW_ENABLED && (
+          <nav className="px-5 py-2 flex flex-wrap gap-2 border-b border-border" aria-label="Wijze van kandidaatselectie">
+            <button type="button" aria-pressed={!r2Actief}
+              onClick={() => { setToonR2(false); setR2Concept(null); }}
+              className={`rounded-md px-3 py-2 text-sm border ${!r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
+              Bestaande selectie
+            </button>
+            <button type="button" aria-pressed={r2Actief}
+              onClick={() => { setToonR2(true); setR2Concept(null); }}
+              className={`rounded-md px-3 py-2 text-sm border ${r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
+              Zoekmandaten (proef)
+            </button>
+          </nav>
+        )}
+
+        {r2Actief && (
+          <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 space-y-4">
+            <p className="text-xs text-muted-foreground">Alleen bekijken en een conceptkeuze voorbereiden. Er worden geen kandidaten, biedingen of contactmomenten opgeslagen.</p>
+            {object ? <KandidaatVoorstellenR2
+              object={object} relaties={relaties} zoekprofielen={zoekprofielen}
+              reedsGekoppeld={reedsGekoppeld}
+              relatieNaam={id => {
+                const r = relaties.find(item => item.id === id);
+                return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
+              }}
+              onConceptGekozen={setR2Concept}
+            /> : <p className="text-sm text-muted-foreground">Object wordt geladen.</p>}
+            {r2Concept && <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1" role="status">
+              <p className="font-medium text-sm">Keuze voorbereid — niet opgeslagen</p>
+              <p className="text-xs">Contact: {relaties.find(r => r.id === r2Concept.contactRelatieId)?.bedrijfsnaam || 'Relatie'} · {r2Concept.contactRoute === 'via_bemiddelaar' ? 'Via bemiddelaar' : 'Mogelijke directe koper'}</p>
+              <p className="text-xs text-muted-foreground">Controleer het mandaat en de uiteindelijke koper vóór registratie in het echte traject.</p>
+            </div>}
+          </div>
+        )}
+
         {/* Zoek + filters */}
-        <div className="px-5 py-3 border-b border-border bg-muted/20 space-y-2.5 shrink-0">
+        {!r2Actief && <div className="px-5 py-3 border-b border-border bg-muted/20 space-y-2.5 shrink-0">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -440,10 +483,10 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               </button>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Lijst */}
-        <div className="flex-1 overflow-y-auto min-h-[200px]">
+        {!r2Actief && <div className="flex-1 overflow-y-auto min-h-[200px]">
           {gesorteerd.length === 0 ? (
             <div className="p-8 text-sm text-muted-foreground text-center space-y-3">
               <p>{filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}</p>
@@ -531,13 +574,22 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               </div>
             </>
           )}
-        </div>
+        </div>}
 
         <DialogFooter className="px-5 py-3 border-t border-border bg-card shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-          <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig}>
-            {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
-          </Button>
+          {r2Actief ? (
+            <>
+              <p className="text-xs text-muted-foreground mr-auto self-center">Proefweergave: geen opslag of verzending.</p>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Sluiten</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
+              <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig}>
+                {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
 
