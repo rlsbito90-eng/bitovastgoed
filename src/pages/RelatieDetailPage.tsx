@@ -1,4 +1,4 @@
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
@@ -7,6 +7,7 @@ import {
   formatDate,
   type Zoekprofiel,
   ASSET_CLASS_LABELS,
+  REGIO_OPTIES,
   INVESTEERDER_SUBTYPE_LABELS,
   KAPITAAL_SITUATIE_LABELS,
   COMMUNICATIE_KANAAL_LABELS,
@@ -16,13 +17,15 @@ import {
 } from '@/components/StatusBadges';
 import {
   ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
-  ShieldCheck, Linkedin, Globe, Star, Building2, Users, MessageSquarePlus,
+  ShieldCheck, Linkedin, Globe, MessageSquarePlus,
 } from 'lucide-react';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import InlinePartijprofiel from '@/components/relatie/InlinePartijprofiel';
+import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relatie/InlineRelatieSectie';
+import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import { isGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
 import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
@@ -51,14 +54,60 @@ const DEALSTRUCTUUR_LABELS: Record<string, string> = {
   share_deal: 'Share deal',
 };
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <p className="field-label">{label}</p>
-      <div className="field-value mt-1.5">{children}</div>
-    </div>
-  );
-}
+
+const BEDRIJFSVELDEN: readonly InlineRelatieVeld[] = [
+  {key:'bedrijfsnaam',label:'Bedrijfsnaam'},
+  {key:'kvkNummer',label:'KVK-nummer'},
+  {key:'website',label:'Website',kind:'url'},
+  {key:'linkedinUrl',label:'LinkedIn',kind:'url'},
+  {key:'telefoon',label:'Algemeen telefoonnummer (historisch)',
+    note:'Persoonlijke nummers staan bij Contactpersonen.'},
+  {key:'email',label:'Algemeen e-mailadres (historisch)',kind:'email'},
+  {key:'bronRelatie',label:'Herkomst van de relatie'},
+  {key:'leadStatus',label:'Leadstatus',kind:'select',options:[
+    {value:'koud',label:'Koud'},{value:'lauw',label:'Lauw'},
+    {value:'warm',label:'Warm'},{value:'actief',label:'Actief'}]},
+];
+const VESTIGINGSVELDEN: readonly InlineRelatieVeld[] = [
+  {key:'vestigingsadres',label:'Straat en huisnummer'},
+  {key:'vestigingspostcode',label:'Postcode'},
+  {key:'vestigingsplaats',label:'Plaats'},
+  {key:'vestigingsland',label:'Land'},
+];
+const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
+  {key:'regio',label:'Algemene regio’s',kind:'multi',
+    options:REGIO_OPTIES.map(value=>({value,label:value})),
+    note:'Specifieke regio’s en gemeenten leg je vast bij Zoekprofielen.'},
+  {key:'budgetMin',label:'Budget minimum (€)',kind:'number'},
+  {key:'budgetMax',label:'Budget maximum (€)',kind:'number'},
+  {key:'rendementseis',label:'Rendementseis (%)',kind:'number'},
+  {key:'kapitaalsituatie',label:'Kapitaalsituatie',kind:'select',
+    options:Object.entries(KAPITAAL_SITUATIE_LABELS).map(([value,label])=>({value,label}))},
+  {key:'eigenVermogenPct',label:'Eigen vermogen (%)',kind:'number'},
+  {key:'voorkeurDealstructuur',label:'Dealstructuur',kind:'multi',
+    options:Object.entries(DEALSTRUCTUUR_LABELS).map(([value,label])=>({value,label}))},
+  {key:'assetClasses',label:'Historische asset classes',kind:'readonly',
+    options:Object.entries(ASSET_CLASS_LABELS).map(([value,label])=>({value,label}))},
+];
+const COMMUNICATIEVELDEN: readonly InlineRelatieVeld[] = [
+  {key:'voorkeurKanaal',label:'Voorkeur kanaal',kind:'select',
+    options:Object.entries(COMMUNICATIE_KANAAL_LABELS).map(([value,label])=>({value,label}))},
+  {key:'voorkeurTaal',label:'Voorkeurstaal',kind:'select',
+    options:[{value:'nl',label:'Nederlands'},{value:'en',label:'Engels'},
+      {value:'de',label:'Duits'},{value:'fr',label:'Frans'}]},
+  {key:'ndaGetekend',label:'NDA getekend',kind:'checkbox'},
+  {key:'ndaDatum',label:'Datum ondertekening',kind:'date'},
+  {key:'investeerderSubtype',label:'Historische investeerderscategorie/rechtsvorm',
+    kind:'readonly',
+    options:Object.entries(INVESTEERDER_SUBTYPE_LABELS).map(([value,label])=>({value,label}))},
+];
+const NOTITIEVELDEN: readonly InlineRelatieVeld[] = [
+  {key:'aankoopcriteria',label:'Bestaande algemene aankoopcriteria',kind:'textarea',
+   note:'Nieuwe concrete criteria leg je vast bij Zoekprofielen. Bestaande tekst blijft behouden.'},
+  {key:'verkoopintentie',label:'Verkoopintentie',kind:'textarea'},
+  {key:'volgendeActie',label:'Losse opvolgnotitie',note:'Taken met deadlines staan bij Taken.'},
+  {key:'notities',label:'Interne notities',kind:'textarea'},
+];
 
 export default function RelatieDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -197,196 +246,36 @@ export default function RelatieDetailPage() {
           <InlinePartijprofiel relatie={relatie}
             onSave={(wijziging)=>store.updateRelatie(relatie.id,wijziging)} />
 
-          {/* CONTACTPERSONEN */}
           <section className="section-card p-5 sm:p-6 space-y-4">
-            <h2 className="section-title flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              Contactpersonen ({contactpersonen.length})
-            </h2>
-            {contactpersonen.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">
-                Nog geen contactpersonen toegevoegd. Voeg ze toe via Bewerken → tab Contact.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {contactpersonen.map(c => (
-                  <div key={c.id} className="border border-border rounded-md p-3 bg-card/50 min-w-0">
-                    <div className="flex items-center gap-x-2 gap-y-1 flex-wrap min-w-0">
-                      <p className="font-medium text-foreground break-words min-w-0">{c.naam}</p>
-                      {c.functie && <span className="text-xs text-muted-foreground break-words">· {c.functie}</span>}
-                      {c.isPrimair && (
-                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider bg-accent/20 text-accent px-2 py-0.5 rounded-full whitespace-nowrap">
-                          <Star className="h-2.5 w-2.5 fill-current" /> Primair
-                        </span>
-                      )}
-                      {c.decisionMaker && (
-                        <span className="text-[10px] uppercase tracking-wider bg-muted px-2 py-0.5 rounded-full whitespace-nowrap">
-                          Decision maker
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground min-w-0">
-                      {c.email && <a href={`mailto:${c.email}`} className="hover:text-foreground break-all">{c.email}</a>}
-                      {c.telefoon && <a href={`tel:${c.telefoon}`} className="hover:text-foreground break-all">Tel: {c.telefoon}</a>}
-                      {c.telefoonMobiel && <a href={`tel:${c.telefoonMobiel}`} className="hover:text-foreground break-all">Mobiel: {c.telefoonMobiel}</a>}
-                      {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">LinkedIn</a>}
-                      {c.voorkeurKanaal && <span>Voorkeur: {COMMUNICATIE_KANAAL_LABELS[c.voorkeurKanaal]}</span>}
-                      {c.voorkeurTaal && c.voorkeurTaal !== 'nl' && <span>Taal: {c.voorkeurTaal.toUpperCase()}</span>}
-                    </div>
-                    {c.notities && (
-                      <p className="text-xs text-muted-foreground mt-1.5 italic break-words whitespace-pre-wrap">{c.notities}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <h2 className="section-title">Contactpersonen ({contactpersonen.length})</h2>
+            <ContactpersonenPanel relatieId={relatie.id}/>
           </section>
-
-          {/* ALGEMENE CONTACTGEGEVENS (relatie-niveau) */}
-          {(relatie.email || relatie.telefoon || relatie.website || relatie.linkedinUrl || relatie.kvkNummer) && (
-            <section className="section-card p-5 sm:p-6 space-y-4">
-              <h2 className="section-title">Contactgegevens</h2>
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-                {relatie.email && (
-                  <Field label="E-mail">
-                    <a href={`mailto:${relatie.email}`} className="text-accent hover:underline break-all">{relatie.email}</a>
-                  </Field>
-                )}
-                {relatie.telefoon && (
-                  <Field label="Telefoon">
-                    <a href={`tel:${relatie.telefoon}`} className="text-accent hover:underline">{relatie.telefoon}</a>
-                  </Field>
-                )}
-                {relatie.website && (
-                  <Field label="Website">
-                    <a href={relatie.website} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline break-all">{relatie.website}</a>
-                  </Field>
-                )}
-                {relatie.linkedinUrl && (
-                  <Field label="LinkedIn">
-                    <a href={relatie.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline break-all">{relatie.linkedinUrl}</a>
-                  </Field>
-                )}
-                {relatie.kvkNummer && (
-                  <Field label="KVK-nummer">{relatie.kvkNummer}</Field>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* VASTGOEDVOORKEUREN — nieuwe taxonomie */}
-          <section className="section-card p-5 sm:p-6 space-y-4">
-            <h2 className="section-title">Vastgoedvoorkeuren</h2>
-            <ClassificatieRij
-              propertyTypeIds={(relatie as any).propertyTypeIds}
+          <InlineRelatieSectie titel="Bedrijf en algemene contactgegevens" relatie={relatie}
+            velden={BEDRIJFSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <InlineRelatieSectie titel="Vestigingsgegevens" relatie={relatie}
+            velden={VESTIGINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <section className="section-card p-5 sm:p-6 space-y-3">
+            <h2 className="section-title">Bestaande vastgoedvoorkeuren</h2>
+            <ClassificatieRij propertyTypeIds={relatie.propertyTypeIds}
               fallbackAssetClasses={relatie.assetClasses}
-              subtypeIds={(relatie as any).propertySubtypeIds}
-              dealTypeIds={(relatie as any).dealTypeIds}
-              mode="multi"
-            />
+              subtypeIds={relatie.propertySubtypeIds} dealTypeIds={relatie.dealTypeIds} mode="multi"/>
+            <p className="text-xs text-muted-foreground">Deze oudere algemene criteria blijven zichtbaar voor Matching. Nieuwe concrete zoekrichtingen horen bij Zoekprofielen.</p>
           </section>
-
-          {/* PROFIEL & VOORKEUREN */}
-          <section className="section-card p-5 sm:p-6 space-y-5">
-            <h2 className="section-title">Investeerdersprofiel</h2>
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="Regio's">
-                {relatie.regio.length ? relatie.regio.join(', ') : '—'}
-              </Field>
-              {(relatie.budgetMin || relatie.budgetMax) && (
-                <Field label="Budget">
-                  <span className="font-mono-data">
-                    {formatCurrency(relatie.budgetMin)} – {formatCurrency(relatie.budgetMax)}
-                  </span>
-                </Field>
-              )}
-              {relatie.rendementseis != null && (
-                <Field label="Rendementseis">
-                  <span className="font-mono-data">{relatie.rendementseis}%</span>
-                </Field>
-              )}
-              {relatie.kapitaalsituatie && relatie.kapitaalsituatie !== 'onbekend' && (
-                <Field label="Kapitaalsituatie">
-                  {KAPITAAL_SITUATIE_LABELS[relatie.kapitaalsituatie]}
-                  {relatie.eigenVermogenPct != null && ` · ${relatie.eigenVermogenPct}% EV`}
-                </Field>
-              )}
-              {relatie.voorkeurDealstructuur && relatie.voorkeurDealstructuur.length > 0 && (
-                <Field label="Voorkeur dealstructuur">
-                  {relatie.voorkeurDealstructuur.map(s => DEALSTRUCTUUR_LABELS[s] ?? s).join(', ')}
-                </Field>
-              )}
-              {relatie.ndaGetekend && relatie.ndaDatum && (
-                <Field label="NDA getekend op">
-                  {formatDate(relatie.ndaDatum)}
-                </Field>
-              )}
-              <Field label="Laatste contact">
-                {laatsteContactDatum
-                  ? <span className="tabular-nums">{formatDate(laatsteContactDatum)}</span>
-                  : <span className="text-muted-foreground">Nog geen contactmoment gelogd</span>}
-              </Field>
-              <Field label="Laatste activiteit">
-                {laatsteActiviteitDatum
-                  ? <span className="tabular-nums">{formatDate(laatsteActiviteitDatum)}</span>
-                  : <span className="text-muted-foreground">—</span>}
-              </Field>
-              <Field label="Volgende actie">
-                {volgendeOpenTaak
-                  ? (
-                    <span>
-                      <span className="tabular-nums">{formatDate(volgendeOpenTaak.deadline)}</span>
-                      <span className="text-muted-foreground"> · {volgendeOpenTaak.titel}</span>
-                    </span>
-                  )
-                  : <span className="text-muted-foreground">Geen openstaande taak</span>}
-              </Field>
-              <Field label="Aangemaakt op">
-                {relatie.createdAt
-                  ? <span className="tabular-nums">{formatDate(relatie.createdAt.slice(0, 10))}</span>
-                  : <span className="text-muted-foreground">—</span>}
-              </Field>
-              {relatie.bronRelatie && (
-                <Field label="Bron relatie">{relatie.bronRelatie}</Field>
-              )}
-              {relatie.voorkeurKanaal && (
-                <Field label="Voorkeur kanaal">
-                  {COMMUNICATIE_KANAAL_LABELS[relatie.voorkeurKanaal]}
-                  {relatie.voorkeurTaal && relatie.voorkeurTaal !== 'nl' && ` · ${relatie.voorkeurTaal.toUpperCase()}`}
-                </Field>
-              )}
+          <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
+            velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <InlineRelatieSectie titel="Communicatie en NDA" relatie={relatie}
+            velden={COMMUNICATIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <InlineRelatieSectie titel="Aankoop, verkoop en notities" relatie={relatie}
+            velden={NOTITIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <section className="section-card p-5 sm:p-6 space-y-3">
+            <h2 className="section-title">Activiteit en opvolging</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div><p className="field-label">Laatste contact</p><p className="field-value">{laatsteContactDatum?formatDate(laatsteContactDatum):'—'}</p></div>
+              <div><p className="field-label">Laatste activiteit</p><p className="field-value">{laatsteActiviteitDatum?formatDate(laatsteActiviteitDatum):'—'}</p></div>
+              <div><p className="field-label">Volgende open taak</p><p className="field-value">{volgendeOpenTaak?`${formatDate(volgendeOpenTaak.deadline)} · ${volgendeOpenTaak.titel}`:'—'}</p></div>
+              <div><p className="field-label">Aangemaakt op</p><p className="field-value">{relatie.createdAt?formatDate(relatie.createdAt.slice(0,10)):'—'}</p></div>
             </div>
-
-            {(relatie.aankoopcriteria || relatie.verkoopintentie || relatie.notities || relatie.volgendeActie) && (
-              <div className="space-y-4 hairline pt-5">
-                {relatie.volgendeActie && <Field label="Volgende actie">{relatie.volgendeActie}</Field>}
-                {relatie.aankoopcriteria && <Field label="Aankoopcriteria">{relatie.aankoopcriteria}</Field>}
-                {relatie.verkoopintentie && <Field label="Verkoopintentie">{relatie.verkoopintentie}</Field>}
-                {relatie.notities && <Field label="Notities">{relatie.notities}</Field>}
-              </div>
-            )}
           </section>
-
-          {/* VESTIGING (apart blok) */}
-          {(relatie.vestigingsadres || relatie.vestigingsplaats) && (
-            <section className="section-card p-5 sm:p-6 space-y-4">
-              <h2 className="section-title flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                Vestigingsgegevens
-              </h2>
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-                <Field label="Adres">
-                  {relatie.vestigingsadres ?? '—'}
-                </Field>
-                <Field label="Postcode + plaats">
-                  {[relatie.vestigingspostcode, relatie.vestigingsplaats].filter(Boolean).join(' ') || '—'}
-                </Field>
-                <Field label="Land">
-                  {relatie.vestigingsland ?? 'NL'}
-                </Field>
-              </div>
-            </section>
-          )}
 
           {/* PIPELINE */}
           <RelatiePipelineSectie relatieId={relatie.id} />
