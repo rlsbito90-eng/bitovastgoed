@@ -501,9 +501,10 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     {form.commercialRoles?.map(labelCommercieleRol).join(', ')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Bestaande rolindicaties blijven tijdelijk bewaard voor oudere matching.
-                    De aard van de partij leg je voortaan alleen vast bij Partijprofiel;
-                    concrete zoekwensen bij Zoekprofielen en feitelijke rollen in een transactie bij de deal.
+                    De aard van de partij leg je vast onder Partijprofiel. Activiteiten
+                    zoals zelf kopen of bemiddelen wijzig je rechtstreeks op de relatiepagina,
+                    bij Activiteiten en transactierollen. Concrete zoekwensen blijven bij
+                    Zoekprofielen; de uiteindelijke koper en mandaatstatus bij de deal.
                   </p>
                 </Sectie>
               )}
