@@ -56,6 +56,19 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getByRole('link',{name:'Relatie beoordelen'}).getAttribute('href'))
       .toBe('/relaties/old');
   });
+  it('maakt bestaande lopende pipeline zichtbaar bij een matchverschil',()=>{
+    const r={...old,bedrijfsnaam:'Testpartij'};
+    const pipeline=[{id:'p1',objectId:'o1',relatieId:'old',
+      pipelineFase:'teaser_verstuurd',interesseNiveau:'hoog',
+      teaserVerstuurd:true,ndaVerstuurd:false,ndaGetekend:false,
+      informatieGedeeld:false,feeAkkoord:false}];
+    render(<MemoryRouter><MatchingImpactPanel relaties={[r]} objecten={[object]}
+      zoekprofielen={[]} pipelineKandidaten={pipeline as any}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText(/1 lopende pipelinekoppelingen/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:/Bekijk 1 verschillen per object en relatie/}));
+    expect(screen.getByText('Bestaande lopende pipeline')).toBeTruthy();
+  });
   it('start de matchingvergelijking alleen na handmatige actie en zonder writes',()=>{
     render(<MatchingImpactPanel relaties={[old]} objecten={[object]} zoekprofielen={[] as Zoekprofiel[]}/>);
     expect(screen.queryByText('Koppelingen die wegvallen')).toBeNull();
