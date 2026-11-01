@@ -241,3 +241,30 @@ test('oude vrije plaatsnaam blijft een plaatsfilter',()=>{
  const p=profiel({regio:['Utrecht'],steden:['Breda'],propertyTypeIds:[],prijsMax:undefined});
  assert.equal(voorstel(object({plaats:'Breda',provincie:'Noord-Brabant'}),[r],[p])[0].besteRoute.kwalificatie,'passend');
 });
+
+
+test('A14-baseline: oude ontwikkelaar-rol blijft kandidaatroute geven bij algemene criteria',()=>{
+ const r=relatie({type:'eigenaar',commercialRoles:['ontwikkelaar']});
+ const rows=voorstel(object(),[r]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.bron,'relatie_basis');
+ assert.equal(rows[0].besteRoute.koperRelatieId,null);
+});
+
+test('A14-baseline: historische ontwikkelaar-hoofdtype maakt brede criteria matchbaar zonder extra rol',()=>{
+ const r=relatie({type:'ontwikkelaar',commercialRoles:null});
+ const rows=voorstel(object(),[r]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.bron,'relatie_basis');
+ assert.equal(rows[0].besteRoute.koperRelatieId,null);
+});
+
+test('A14-baseline: actieve zoekprofielen matchen zonder ontwikkelaar-rol of oud beleggerhoofdtype',()=>{
+ const r=relatie({type:'eigenaar',commercialRoles:null,
+   propertyTypeIds:[],budgetMax:undefined});
+ const rows=voorstel(object(),[r],[profiel()]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.bron,'zoekprofiel');
+ assert.equal(rows[0].besteRoute.zoekprofielId,'z1');
+ assert.equal(rows[0].besteRoute.koperRelatieId,null);
+});
