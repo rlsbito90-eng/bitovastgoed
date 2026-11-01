@@ -61,6 +61,17 @@ beforeEach(()=>{
 });
 
 describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',()=>{
+ it('toont oude commerciële rollen alleen-lezen en biedt geen dubbele rolselectie meer aan',async()=>{
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  expect(screen.getByText('Historische commerciële rolindicaties (alleen lezen)')).toBeTruthy();
+  expect(screen.queryByRole('group',{name:'Commerciële rollen selecteren'})).toBeNull();
+  expect(screen.queryByRole('checkbox',{name:'Ontwikkelaar'})).toBeNull();
+  expect(screen.queryByRole('checkbox',{name:'Bemiddelaar'})).toBeNull();
+  fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{target:{value:'ontwikkelaar'}});
+  fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+  await waitFor(()=>expect(mocks.updateRelatie).toHaveBeenCalledTimes(1));
+  expect(mocks.updateRelatie.mock.calls[0][1].commercialRoles).toEqual(['bemiddelaar']);
+ });
  it('slaat nieuw profiel en meerdere strategieën op zonder bestaand contact of zoekcriteria aan te passen',async()=>{
   render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
   fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
