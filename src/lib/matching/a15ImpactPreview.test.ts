@@ -103,6 +103,26 @@ describe('A15 matchingvergelijking zonder databasewijziging',()=>{
    expect(d.lopendePipelineBuitenVergelijking).toBe(1);
    expect(d.lopendePipelineMetVerschil).toBe(1);
  });
+
+ it('A15.3: ontwikkelaar kan ook bemiddelaar zijn zonder automatisch economische koper te worden',()=>{
+   const r=relatie({type:'ontwikkelaar',partijprofiel:'ontwikkelaar',commercialRoles:['bemiddelaar']});
+   const d=vergelijkMatchBeleid([object()],[r],[]);
+   expect(d.huidigeKandidaatKoppelingen).toBe(1);
+   expect(d.gesimuleerdeKandidaatKoppelingen).toBe(1);
+   expect(d.verdwenenKoppelingen).toBe(0);
+   expect(d.veranderdeBevestigingen).toBe(1);
+   expect(d.verschillen[0].oud?.besteRoute.koperRelatieId).toBeNull();
+   expect(d.verschillen[0].nieuw?.besteRoute.koperRelatieId).toBeNull();
+ });
+ it('A15.3: ontwikkelende belegger met vastgelegde koperrol mag bij overgang geen koperidentiteit verliezen',()=>{
+   const r=relatie({type:'ontwikkelaar',partijprofiel:'ontwikkelende_belegger',commercialRoles:['koper']});
+   const d=vergelijkMatchBeleid([object()],[r],[]);
+   expect(d.huidigeKandidaatKoppelingen).toBe(1);
+   expect(d.gesimuleerdeKandidaatKoppelingen).toBe(1);
+   expect(d.veranderdeKoperidentiteiten).toBe(1);
+   expect(d.verschillen[0].oud?.besteRoute.koperRelatieId).toBe('r1');
+   expect(d.verschillen[0].nieuw?.besteRoute.koperRelatieId).toBeNull();
+ });
  it('meldt geen veranderingen bij twee identieke kandidaatsets',()=>{
    const r=relatie({type:'makelaar',partijprofiel:'makelaar',commercialRoles:null,propertyTypeIds:[],budgetMax:undefined});
    const d=vergelijkMatchBeleid([object()],[r],[profiel()]);
