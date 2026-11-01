@@ -39,7 +39,7 @@ import {
   REGIO_OPTIES,
 } from '@/data/mock-data';
 import type {
-  Relatie, LeadStatus, PartijType, AssetClass,
+  Relatie, LeadStatus, AssetClass,
   InvesteerderSubtype, KapitaalSituatie, CommunicatieKanaal,
   Dealstructuur,
 } from '@/data/mock-data';
@@ -49,6 +49,7 @@ import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import CommercieleRollenPicker from '@/components/forms/CommercieleRollenPicker';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
+import { legacyTypeVoorNieuweRelatie } from '@/lib/relaties/partijprofiel';
 
 interface Props {
   open: boolean;
@@ -254,7 +255,16 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     setBezig(true);
     let relatieOpgeslagen = false;
 
-    const data = { ...form, bedrijfsnaam: form.bedrijfsnaam.trim() };
+    // Nieuwe relaties krijgen een compatibel technisch hoofdtype vanuit één invoer.
+    // Bestaande relaties behouden hun legacy type_partij, ook bij het wijzigen
+    // van hun partijprofiel. Er vindt geen retroactieve herclassificatie plaats.
+    const data = {
+      ...form,
+      bedrijfsnaam: form.bedrijfsnaam.trim(),
+      type: !isEdit && !gemaaktId && form.partijprofiel
+        ? legacyTypeVoorNieuweRelatie(form.partijprofiel)
+        : form.type,
+    };
 
     try {
       // 1. Relatie opslaan / updaten
@@ -424,20 +434,17 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="Bedrijfsnaam"
                     />
                   </Veld>
-                  <Veld label="Hoofdtype (bestaand)">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.type}
-                      onChange={e => set('type', e.target.value as PartijType)}
-                    >
-                      <option value="belegger">Belegger</option>
-                      <option value="ontwikkelaar">Ontwikkelaar</option>
-                      <option value="eigenaar">Eigenaar</option>
-                      <option value="makelaar">Makelaar</option>
-                      <option value="partner">Partner</option>
-                      <option value="overig">Overig</option>
-                    </select>
-                  </Veld>
+                  {isEdit && (
+                    <details className="sm:col-span-2 rounded-md border border-border p-3 text-sm" data-testid="relatie-legacy-type">
+                      <summary className="cursor-pointer text-muted-foreground">Historische hoofdindeling (alleen lezen)</summary>
+                      <p className="mt-2 text-muted-foreground">
+                        De bestaande hoofdindeling is <strong>{form.type}</strong>. Dit veld blijft
+                        technisch beschikbaar voor oudere CRM-functionaliteit, maar hoeft niet
+                        opnieuw te worden ingevuld. Een gewijzigd partijprofiel herschrijft
+                        bestaande classificaties niet automatisch.
+                      </p>
+                    </details>
+                  )}
                   <Veld label="Investeerderscategorie / rechtsvorm (bestaand)">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
