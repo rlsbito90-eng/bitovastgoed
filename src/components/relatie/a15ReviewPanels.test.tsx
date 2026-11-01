@@ -31,6 +31,17 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getAllByRole('link',{name:'Relatie beoordelen'})).toHaveLength(2);
     expect(screen.queryByRole('button',{name:'Alles automatisch indelen'})).toBeNull();
   });
+  it('toont per weggevallen kandidaat de relatie, het object en de reden zonder gegevens te wijzigen',()=>{
+    const r={...old,bedrijfsnaam:'Testpartij zonder profiel'};
+    render(<MemoryRouter><MatchingImpactPanel relaties={[r]} objecten={[object]} zoekprofielen={[]}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    fireEvent.click(screen.getByRole('button',{name:/Bekijk 1 verschillen per object en relatie/}));
+    expect(screen.getByText('Testpartij zonder profiel')).toBeTruthy();
+    expect(screen.getByText('Valt weg')).toBeTruthy();
+    expect(screen.getByText(/Partijprofiel ontbreekt/)).toBeTruthy();
+    expect(screen.getByRole('link',{name:'Testpartij zonder profiel'}).getAttribute('href'))
+      .toBe('/relaties/old');
+  });
   it('start de matchingvergelijking alleen na handmatige actie en zonder writes',()=>{
     render(<MatchingImpactPanel relaties={[old]} objecten={[object]} zoekprofielen={[] as Zoekprofiel[]}/>);
     expect(screen.queryByText('Koppelingen die wegvallen')).toBeNull();
