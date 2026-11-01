@@ -262,3 +262,5 @@ gecontroleerd en geaccordeerd.
 **Open blokkade:** A14-schema-uitbreiding is nog niet op productie
 toegepast; alle live relatievelden, bestaande kandidaatposities en
 standaard matching blijven ongewijzigd. PR #563 blijft draft.
+
+**Beoordelingsvolgorde A15.6:** in de kandidaatcontrole worden lopende posities in een vergevorderde pipelinefase (koopovereenkomst, due diligence, onderhandeling, indicatieve bieding) vóór een eenvoudige nieuwe match getoond. Binnen eenzelfde fase staan koperverwijzingswijzigingen en wegvallende routes bovenaan. Dit ordent uitsluitend de reviewlijst en verandert geen pipelinefase, bod of relatie.
