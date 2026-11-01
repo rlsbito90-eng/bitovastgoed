@@ -7,6 +7,14 @@ describe('Partijprofiel — onafhankelijk van commerciële rollen',()=>{
   expect(PARTIJPROFIELEN.map(x=>x.value)).toContain('ontwikkelende_belegger');
   expect(PARTIJPROFIELEN.map(x=>x.value)).toContain('vastgoedondernemer');
  });
+ it('biedt Fonds, Family office en Buitenlandse belegger één keer aan',()=>{
+  for(const waarde of ['fonds','family_office','buitenlandse_belegger'] as const){
+    expect(PARTIJPROFIELEN.filter(x=>x.value===waarde)).toHaveLength(1);
+    expect(leesPartijprofiel(waarde)).toBe(waarde);
+    expect(legacyTypeVoorNieuweRelatie(waarde)).toBe('belegger');
+  }
+  expect(PARTIJPROFIELEN.filter(x=>x.value==='ontwikkelende_belegger')).toHaveLength(1);
+ });
  it('onderscheidt onbekend (null) en onbekende waarden (fout)',()=>{
   expect(leesPartijprofiel(null)).toBeNull();
   expect(leesPartijprofiel(undefined)).toBeNull();
