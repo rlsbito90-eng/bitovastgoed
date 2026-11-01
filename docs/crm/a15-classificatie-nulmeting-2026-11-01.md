@@ -51,3 +51,28 @@ Deze controle heeft geen individuele relaties hergeclassificeerd,
 geen commerciële rollen opgeschoond, geen historische zoekcriteria
 verplaatst en geen productiecode of matching aangepast.
 De nulmeting geldt uitsluitend voor de actuele stand op deze datum.
+
+## Aanvullende dossiercontrole: identiteit en prioriteit
+
+De eerste mechanische selectie uit de oude velden gaf 10 mogelijke voorstellen.
+Een gerichte read-only dossiercontrole constateerde dat **twee** van de negen
+oude ontwikkelaarsrecords een onbruikbare bedrijfsnaam hebben (leeg of
+`Onbekend`). Eén van die records heeft bestaande contact-/pipelinehistorie.
+
+Het A15-reviewoverzicht markeert deze twee dossiers nu **als te onderzoeken
+identiteitsprobleem** in plaats van een voorstel te suggereren. Daardoor
+resteert bij deze strengere toetsing:
+
+| Status na identiteitscontrole | Aantal |
+|---|---:|
+| Reeds ingevuld nieuw Partijprofiel | 1 |
+| Te controleren voorstellen met bruikbare partijnaam | 8 |
+| Eerst onderzoeken / ontbrekend bewijs / identiteitscontrole | 83 |
+| Totaal actieve relaties | 92 |
+
+De reviewlijst prioriteert dossiers met actieve zoekprofielen en
+pipelinekoppelingen, inclusief naamloze records. Aantallen uit de oude
+kolommen zijn daarmee **voorselecties**, niet definitief bevestigde
+classificaties. Voor de latere overgang blijft bij twijfel `NULL`
+de veilige status. De huidige relaties, contacthistorie, zoekprofielen
+en pipeline zijn bij deze controle niet gemuteerd.
