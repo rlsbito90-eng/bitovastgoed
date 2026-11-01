@@ -3,6 +3,7 @@ import {
   type CrmRelatieInput, type CrmMandaatInput, type CrmObjectInput,
   type KandidaatVoorstel,
 } from './rolMandaatAdapter';
+import type { PipelineKandidaat } from '@/data/mock-data';
 
 /** A15 is read-only. These rows are review prompts, not approved future matches. */
 export type A15VerschilSoort='weggevallen'|'nieuw'|'gewijzigd';
@@ -26,6 +27,10 @@ export type A15Impact={
   veranderdeMatchkwalificaties:number;
   veranderdeBevestigingen:number;
   verschillen:A15Verschil[];
+  lopendePipelineKoppelingen:number;
+  relatiesMetLopendePipelineZonderProfiel:number;
+  lopendePipelineBuitenVergelijking:number;
+  lopendePipelineMetVerschil:number;
 };
 
 function redenVoorWegval(r:CrmRelatieInput|undefined):string{
@@ -47,6 +52,7 @@ export function vergelijkMatchBeleid(
   objecten:readonly CrmObjectInput[],
   relaties:readonly CrmRelatieInput[],
   zoekprofielen:readonly CrmMandaatInput[],
+  pipeline:readonly Pick<PipelineKandidaat,'objectId'|'relatieId'|'pipelineFase'>[]=[],
 ):A15Impact{
   const result:A15Impact={
     beschikbareObjecten:0,huidigeKandidaatKoppelingen:0,
@@ -54,6 +60,8 @@ export function vergelijkMatchBeleid(
     nieuweKoppelingen:0,objectenMetVerschil:0,veranderdeKoperidentiteiten:0,
     veranderdeBesteRoutes:0,veranderdeMatchkwalificaties:0,
     veranderdeBevestigingen:0,verschillen:[],
+    lopendePipelineKoppelingen:0,relatiesMetLopendePipelineZonderProfiel:0,
+    lopendePipelineBuitenVergelijking:0,lopendePipelineMetVerschil:0,
   };
   const relatiesPerId=new Map(relaties.map(r=>[r.id,r]));
   for(const object of objecten){
@@ -112,5 +120,19 @@ export function vergelijkMatchBeleid(
     }
     if(verschil)result.objectenMetVerschil++;
   }
+  // Existing pipeline is never a newly generated match; inspect separately.
+  const beschikbareIds=new Set(objecten.filter(isAanbiedbaar).map(o=>o.id));
+  const verschilKeys=new Set(result.verschillen.map(v=>`${v.objectId}|${v.relatieId}`));
+  const zonderProfiel=new Set<string>();
+  for(const koppeling of pipeline){
+    if(koppeling.pipelineFase==='afgevallen'||koppeling.pipelineFase==='afgerond')continue;
+    const relatie=relatiesPerId.get(koppeling.relatieId);
+    if(!relatie||relatie.softDeletedAt)continue;
+    result.lopendePipelineKoppelingen++;
+    if(!relatie.partijprofiel)zonderProfiel.add(relatie.id);
+    if(!beschikbareIds.has(koppeling.objectId))result.lopendePipelineBuitenVergelijking++;
+    if(verschilKeys.has(`${koppeling.objectId}|${koppeling.relatieId}`))result.lopendePipelineMetVerschil++;
+  }
+  result.relatiesMetLopendePipelineZonderProfiel=zonderProfiel.size;
   return result;
 }
