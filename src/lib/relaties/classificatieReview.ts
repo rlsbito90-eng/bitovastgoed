@@ -68,6 +68,7 @@ export type PrioritaireClassificatieReview=ClassificatieReview &{
   prioriteit:'hoog'|'regulier';
   actieveZoekprofielen:number;
   pipelineKoppelingen:number;
+  lopendePipelineKoppelingen:number;
   contactmomenten:number;
 };
 export function prioriteerClassificatieReviews(
@@ -78,31 +79,36 @@ export function prioriteerClassificatieReviews(
 ):PrioritaireClassificatieReview[]{
   const profiles=new Map<string,number>();
   const koppelingen=new Map<string,number>();
+  const lopende=new Map<string,number>();
   const momenten=new Map<string,number>();
   for(const z of zoekprofielen)if(z.status==='actief')
     profiles.set(z.relatieId,(profiles.get(z.relatieId)??0)+1);
-  for(const k of pipeline)
+  for(const k of pipeline){
     koppelingen.set(k.relatieId,(koppelingen.get(k.relatieId)??0)+1);
+    if(k.pipelineFase!=='afgevallen' && k.pipelineFase!=='afgerond')
+      lopende.set(k.relatieId,(lopende.get(k.relatieId)??0)+1);
+  }
   for(const m of contactmomenten)
     if(m.relatieId)momenten.set(m.relatieId,(momenten.get(m.relatieId)??0)+1);
   const result=maakClassificatieReview(relaties).map(r=>{
     const actieveZoekprofielen=profiles.get(r.relatieId)??0;
     const pipelineKoppelingen=koppelingen.get(r.relatieId)??0;
+    const lopendePipelineKoppelingen=lopende.get(r.relatieId)??0;
     const aantalContactmomenten=momenten.get(r.relatieId)??0;
     return {
       ...r,
-      actieveZoekprofielen,pipelineKoppelingen,contactmomenten:aantalContactmomenten,
-      prioriteit:(
-        (r.datakwaliteit==='naam_controleren'&&pipelineKoppelingen>0)
-        ||pipelineKoppelingen>0||actieveZoekprofielen>0
-      )?'hoog':'regulier',
+      actieveZoekprofielen,pipelineKoppelingen,lopendePipelineKoppelingen,
+      contactmomenten:aantalContactmomenten,
+      prioriteit:(lopendePipelineKoppelingen>0||actieveZoekprofielen>0)
+        ?'hoog':'regulier',
     } as PrioritaireClassificatieReview;
   });
   return result.sort((a,b)=>{
     const aHoog=a.prioriteit==='hoog'?1:0, bHoog=b.prioriteit==='hoog'?1:0;
     return bHoog-aHoog
-      ||b.pipelineKoppelingen-a.pipelineKoppelingen
+      ||b.lopendePipelineKoppelingen-a.lopendePipelineKoppelingen
       ||b.actieveZoekprofielen-a.actieveZoekprofielen
+      ||b.pipelineKoppelingen-a.pipelineKoppelingen
       ||Number(b.status==='voorstel_controleren')-Number(a.status==='voorstel_controleren')
       ||b.contactmomenten-a.contactmomenten
       ||a.relatieId.localeCompare(b.relatieId);
