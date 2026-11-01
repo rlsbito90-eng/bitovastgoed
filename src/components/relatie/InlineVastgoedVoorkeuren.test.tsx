@@ -65,7 +65,7 @@ describe('A14 vastgoedtaxonomie rechtstreeks op relatiepagina',()=>{
   render(<InlineVastgoedVoorkeuren relatie={{...relatie,propertyTypeIds:['historisch']} as Relatie}
     onSave={onSave}/>);
   fireEvent.click(screen.getByRole('button',{name:'Wijzig hier'}));
-  expect(screen.getByRole('checkbox',{name:/Historisch type \(historisch\)/})).toBeChecked();
+  expect((screen.getByRole('checkbox',{name:/Historisch type \(historisch\)/}) as HTMLInputElement).checked).toBe(true);
   fireEvent.click(screen.getByRole('button',{name:'Annuleren'}));
   expect(onSave).not.toHaveBeenCalled();
  });
