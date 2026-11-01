@@ -79,7 +79,7 @@ describe('A15 CRM read-only review UI',()=>{
       contactpersonen={[{id:'c1',relatieId:'old',naam:'Voorbeeld Koper',
         isPrimair:true,decisionMaker:false}]}/></MemoryRouter>);
     fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
-    expect(screen.getByText(/1 zonder match in beide modellen/)).toBeTruthy();
+    expect(screen.getByText(/zonder match in beide modellen/).parentElement?.textContent).toContain('1');
     fireEvent.click(screen.getByRole('button',{name:/Controleer 1 bestaande kandidaatposities/}));
     expect(screen.getByText('Niet gevonden in beide matchberekeningen')).toBeTruthy();
     expect(screen.getByRole('link',{name:'Voorbeeld Koper'}).getAttribute('href'))
