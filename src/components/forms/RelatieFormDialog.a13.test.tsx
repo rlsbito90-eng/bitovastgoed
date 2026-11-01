@@ -150,6 +150,37 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
   expect(payload.vastgoedStrategieen).toBeNull();
   expect(mocks.updateRelatie).not.toHaveBeenCalled();
  });
+ it('toont geen tweede bewerkbaar hoofdtype; bestaande technische classificatie blijft behouden',async()=>{
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  expect(screen.queryByRole('combobox',{name:'Hoofdtype (bestaand)'})).toBeNull();
+  expect(screen.getByText('Historische hoofdindeling (alleen lezen)')).toBeTruthy();
+  fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
+    target:{value:'ontwikkelende_belegger'},
+  });
+  fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+  await waitFor(()=>expect(mocks.updateRelatie).toHaveBeenCalledTimes(1));
+  const payload=mocks.updateRelatie.mock.calls[0][1];
+  expect(payload.partijprofiel).toBe('ontwikkelende_belegger');
+  expect(payload.type).toBe('makelaar');
+  expect(payload.commercialRoles).toEqual(['bemiddelaar']);
+ });
+ it('leidt uitsluitend bij een nieuwe relatie het vereiste technische hoofdtype af',async()=>{
+  mocks.contactpersonen=[];
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close}
+    initialValues={{bedrijfsnaam:'Nieuwe vastgoedeigenaar'}} />);
+  expect(screen.queryByRole('combobox',{name:'Hoofdtype (bestaand)'})).toBeNull();
+  fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
+    target:{value:'vastgoedeigenaar'},
+  });
+  fireEvent.click(screen.getByRole('button',{name:'Aanmaken'}));
+  await waitFor(()=>expect(mocks.addRelatie).toHaveBeenCalledTimes(1));
+  const payload=mocks.addRelatie.mock.calls[0][0];
+  expect(payload.type).toBe('eigenaar');
+  expect(payload.partijprofiel).toBe('vastgoedeigenaar');
+  expect(payload.commercialRoles).toBeNull();
+  expect(payload.vastgoedStrategieen).toBeNull();
+ });
+
  it('vraagt niet om bevestiging bij ongewijzigd sluiten na hydratatie',()=>{
   render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
   fireEvent.click(screen.getByTestId('relatie-form-sluiten'));
