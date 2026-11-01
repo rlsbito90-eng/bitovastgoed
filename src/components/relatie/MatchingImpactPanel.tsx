@@ -1,25 +1,29 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ObjectVastgoed, Relatie, Zoekprofiel } from '@/data/mock-data';
+import type { ObjectVastgoed, Relatie, Zoekprofiel, PipelineKandidaat } from '@/data/mock-data';
 import { vergelijkMatchBeleid, type A15VerschilSoort } from '@/lib/matching/a15ImpactPreview';
 
 /** In-memory, opt-in comparison. No persistence, outreach, or raw-data export. */
 export default function MatchingImpactPanel({
-  objecten,relaties,zoekprofielen,
+  objecten,relaties,zoekprofielen,pipelineKandidaten=[],
 }:{
   objecten:readonly ObjectVastgoed[];
   relaties:readonly Relatie[];
   zoekprofielen:readonly Zoekprofiel[];
+  pipelineKandidaten?:readonly PipelineKandidaat[];
 }){
   const [toon,setToon]=useState(false);
   const [details,setDetails]=useState(false);
   const [filter,setFilter]=useState<A15VerschilSoort|'alle'>('alle');
   const [meer,setMeer]=useState(false);
   const preview=useMemo(()=>toon
-    ?vergelijkMatchBeleid(objecten,relaties,zoekprofielen)
-    :null,[toon,objecten,relaties,zoekprofielen]);
+    ?vergelijkMatchBeleid(objecten,relaties,zoekprofielen,pipelineKandidaten)
+    :null,[toon,objecten,relaties,zoekprofielen,pipelineKandidaten]);
   const byRelatie=useMemo(()=>new Map(relaties.map(r=>[r.id,r])),[relaties]);
   const byObject=useMemo(()=>new Map(objecten.map(o=>[o.id,o])),[objecten]);
+  const lopendePipelineKeys=useMemo(()=>new Set(pipelineKandidaten
+    .filter(p=>p.pipelineFase!=='afgevallen'&&p.pipelineFase!=='afgerond')
+    .map(p=>`${p.objectId}|${p.relatieId}`)),[pipelineKandidaten]);
   const wijzigingen=preview?.verschillen.filter(x=>filter==='alle'||x.soort===filter)??[];
   const zichtbaar=meer?wijzigingen:wijzigingen.slice(0,25);
   return <section className="section-card p-4 sm:p-5 space-y-3" aria-label="Matchingvergelijking A15">
@@ -59,6 +63,11 @@ export default function MatchingImpactPanel({
           <dd className="text-lg font-semibold tabular-nums">{value}</dd>
         </div>)}
       </dl>
+      <div className="rounded-md border border-border p-3 space-y-1 text-xs" aria-label="Bescherming bestaande pipeline">
+        <p className="font-semibold">Bestaande pipeline blijft beschermd</p>
+        <p>{preview.lopendePipelineKoppelingen} lopende pipelinekoppelingen · {preview.relatiesMetLopendePipelineZonderProfiel} relaties zonder partijprofiel · {preview.lopendePipelineMetVerschil} koppelingen met een matchingverschil.</p>
+        <p className="text-muted-foreground">{preview.lopendePipelineBuitenVergelijking} lopende koppelingen vallen buiten deze simulatie doordat hun object niet aanbiedbaar is. Ze blijven behouden, maar mogen niet als gecontroleerd worden beschouwd.</p>
+      </div>
       <button type="button" className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
         onClick={()=>setDetails(x=>!x)} aria-expanded={details}>
         {details?'Verschillen verbergen':`Bekijk ${preview.verschillen.length} verschillen per object en relatie`}
@@ -88,6 +97,7 @@ export default function MatchingImpactPanel({
                   <span className="text-xs text-muted-foreground">·</span>
                   <Link className="text-sm text-accent hover:underline break-words"
                     to={`/relaties/${v.relatieId}`}>{relatie?.bedrijfsnaam||'Relatie bekijken'}</Link>
+                  {lopendePipelineKeys.has(`${v.objectId}|${v.relatieId}`)&&<span className="rounded-md border border-border px-2 py-0.5 text-xs font-semibold">Bestaande lopende pipeline</span>}
                   <span className="rounded-md border border-border px-2 py-0.5 text-xs">
                     {v.soort==='weggevallen'?'Valt weg':v.soort==='nieuw'?'Komt erbij':'Wijzigt'}
                   </span>
@@ -111,6 +121,7 @@ export default function MatchingImpactPanel({
         Een kandidaatkoppeling is één combinatie van een beschikbaar object en
         een relatie, niet een unieke koper. De simulatie houdt bestaande
         pipelinekoppelingen of eerdere benaderingen niet buiten de vergelijking.
+        Bestaande pipelinekoppelingen worden afzonderlijk ter controle geteld, niet automatisch aangepast.
         Verschillen in koperidentiteit zijn een controlepunt, geen opdracht
         om een koper automatisch te wijzigen.
       </p>
