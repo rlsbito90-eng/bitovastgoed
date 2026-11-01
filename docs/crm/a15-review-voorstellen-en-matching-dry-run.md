@@ -81,3 +81,23 @@ géén 'developer'-rol uit `commercial_roles` verwijderd, en géén enkele
 productiematch gewijzigd. A14 moet afzonderlijk worden geaccepteerd en
 de noodzakelijke nieuwe Partijprofiel CHECK in Supabase worden toegepast
 voordat de aanvullende profielwaarden kunnen worden opgeslagen.
+
+## A15.2 — bescherming van bestaande pipeline (read-only)
+
+Een nieuwe productie-SELECT telde 67 lopende kandidaatpipelinekoppelingen bij
+39 actieve relaties. Van deze relaties hebben 38 nog geen expliciet
+Partijprofiel. Van de 67 koppelingen vallen er 32 buiten de simulatie,
+omdat hun object niet de status `beschikbaar` heeft. Deze aantallen zijn
+een nulmeting, geen classificatie- of migratiebesluit.
+
+De optionele matchingvergelijking telt nu lopende pipelinekoppelingen
+**afzonderlijk** van gegenereerde kandidaatvoorstellen. Zij toont het
+aantal relaties zonder Partijprofiel binnen lopende pipeline, het aantal
+koppelingen met een matchingverschil en het aantal koppelingen buiten de
+vergelijking. Koppelingen in die laatste categorie mogen **niet** als
+gecontroleerd worden aangemerkt. Bestaande actieve pipelineparen krijgen
+een markering als er een verschil wordt getoond.
+
+Historie `afgevallen` en `afgerond` is geen lopende pipeline. Alle
+bestaande pipeline-, zoekprofiel- en contactgegevens blijven onveranderd.
+Er is niets gemigreerd of naar productie uitgerold.
