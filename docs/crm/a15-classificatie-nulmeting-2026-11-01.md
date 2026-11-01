@@ -91,3 +91,27 @@ ingevoerd tussen:
 De originele pipelinefasen, oude biedingen en contactmomenten worden niet
 gewijzigd of verwijderd. De aanbeveling voor een partijprofiel blijft
 onbevestigd, ongeacht historische contactactiviteit.
+
+## Particuliere contacten en onvolledige bedrijfsnamen
+
+Aanvullende read-only controle op 92 actieve relaties:
+
+| Ingevulde bedrijfsnaam | Aantal | Met lopende pipeline | Met contactpersoon |
+|---|---:|---:|---:|
+| Ingevuld | 73 | 27 | 44 |
+| Leeg | 8 | 5 | 8 |
+| Letterlijke waarde `Onbekend` | 11 | 7 | 11 |
+| **Totaal** | **92** | **39** | **63** |
+
+De 19 relaties zonder bruikbare bedrijfsnaam hebben **allemaal een
+geregistreerde contactpersoon**. Een ontbrekende bedrijfsnaam hoeft geen
+fout te zijn: de relatie kan op een natuurlijke persoon, zelfstandige
+vastgoedondernemer of informeel netwerkcontact slaan.
+
+Voor de review wordt daarom, waar aanwezig, de **primaire contactpersoon**
+als leeslabel gebruikt als de bedrijfsnaam leeg of `Onbekend` is.
+Zonder aanvullend bewijs wordt **geen** bedrijf verzonnen en ook geen
+Partijprofiel toegewezen. De bestaande contactpersoon- en pipelinekoppelingen
+blijven ongewijzigd. In toekomstige CRM-datamodelverbetering kan een apart
+veld `relatie_weergavenaam` of `persoon/organisatie` nuttig zijn, maar deze
+A15-fase voegt geen databasekolom toe.
