@@ -445,18 +445,28 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       </p>
                     </details>
                   )}
-                  <Veld label="Investeerderscategorie / rechtsvorm (bestaand)">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.investeerderSubtype ?? ''}
-                      onChange={e => set('investeerderSubtype', (e.target.value || undefined) as InvesteerderSubtype | undefined)}
-                    >
-                      <option value="">— Kies subtype —</option>
-                      {Object.entries(INVESTEERDER_SUBTYPE_LABELS).map(([v, l]) => (
-                        <option key={v} value={v}>{l}</option>
-                      ))}
-                    </select>
-                  </Veld>
+                  {form.investeerderSubtype && !(['bv','nv','cv'] as string[]).includes(form.investeerderSubtype)
+                    ? <div className="sm:col-span-2 rounded-md border border-border p-3 text-sm" data-testid="historische-investeerderscategorie">
+                        <span className="text-muted-foreground">Historische investeerderscategorie:</span>{' '}
+                        <strong>{INVESTEERDER_SUBTYPE_LABELS[form.investeerderSubtype]}</strong>
+                        <p className="mt-1 text-muted-foreground">
+                          Deze oudere categorie blijft bewaard. Classificeer de partij voortaan via Partijprofiel,
+                          zodat bijvoorbeeld Fonds en Family office niet dubbel worden ingevoerd.
+                        </p>
+                      </div>
+                    : <Veld label="Rechtsvorm (optioneel)">
+                        <select
+                          aria-label="Rechtsvorm"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.investeerderSubtype ?? ''}
+                          onChange={e => set('investeerderSubtype', (e.target.value || undefined) as InvesteerderSubtype | undefined)}
+                        >
+                          <option value="">— Nog niet ingevuld —</option>
+                          <option value="bv">BV</option>
+                          <option value="nv">NV</option>
+                          <option value="cv">CV</option>
+                        </select>
+                      </Veld>}
                   <Veld label="Leadstatus">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
