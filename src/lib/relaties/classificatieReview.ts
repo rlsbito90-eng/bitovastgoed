@@ -1,4 +1,5 @@
-import type { Partijprofiel, Relatie } from '@/data/mock-data';
+import type { Partijprofiel, Relatie, Zoekprofiel, PipelineKandidaat } from '@/data/mock-data';
+import type { ContactMoment } from '@/lib/contactMoments';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 
 /**
@@ -16,6 +17,7 @@ export type ClassificatieReview={
   huidigeProfiel:Partijprofiel|null;
   status:'reeds_ingevuld'|'voorstel_controleren'|'onderzoek_nodig';
   suggestie:ProfielSuggestie|null;
+  datakwaliteit?:'naam_controleren'|null;
 };
 
 export function suggereerPartijprofiel(r:Pick<Relatie,'type'|'partijprofiel'|'investeerderSubtype'>):ProfielSuggestie{
@@ -36,20 +38,73 @@ export function suggereerPartijprofiel(r:Pick<Relatie,'type'|'partijprofiel'|'in
 /** Stable read-only queue from currently loaded CRM records. Soft-deleted rows
  * excluded by default; no mutation or dispatch to Supabase. */
 export function maakClassificatieReview(
-  relaties:readonly Pick<Relatie,'id'|'type'|'partijprofiel'|'investeerderSubtype'|'softDeletedAt'>[]
+  relaties:readonly Pick<Relatie,'id'|'type'|'partijprofiel'|'investeerderSubtype'|'softDeletedAt'|'bedrijfsnaam'>[]
 ):ClassificatieReview[]{
   return relaties.filter(r=>!r.softDeletedAt).map(r=>{
     if(r.partijprofiel)return {
       relatieId:r.id,huidigeProfiel:r.partijprofiel,status:'reeds_ingevuld',suggestie:null,
     };
-    const suggestie=suggereerPartijprofiel(r);
+    const onduidelijkeNaam=!r.bedrijfsnaam?.trim()||
+      /^onbekend(?:e relatie)?$/i.test(r.bedrijfsnaam.trim());
+    const suggestie=onduidelijkeNaam
+      ?{voorstel:null,bewijs:'Identiteit van de partij eerst vaststellen; er is geen bruikbare bedrijfsnaam. Eventuele bestaande pipeline en contacthistorie blijven behouden.',
+        bron:'geen_betrouwbare_bron',zekerheid:'onvoldoende'} as ProfielSuggestie
+      :suggereerPartijprofiel(r);
     return {
       relatieId:r.id,huidigeProfiel:null,
       status:suggestie.voorstel?'voorstel_controleren':'onderzoek_nodig',
-      suggestie,
+      suggestie,datakwaliteit:onduidelijkeNaam?'naam_controleren':null,
     };
   });
 }
 export function tekstProfielSuggestie(s:ProfielSuggestie):string{
   return s.voorstel?labelPartijprofiel(s.voorstel):'Nog geen verantwoord voorstel';
+}
+
+/** Prioritering voor het menselijke reviewproces. Gebruikt alleen al geladen
+ * CRM-records en schrijft nooit naar de database. Elke bron blijft op eigen plek.
+ */
+export type PrioritaireClassificatieReview=ClassificatieReview &{
+  prioriteit:'hoog'|'regulier';
+  actieveZoekprofielen:number;
+  pipelineKoppelingen:number;
+  contactmomenten:number;
+};
+export function prioriteerClassificatieReviews(
+  relaties:readonly Relatie[],
+  zoekprofielen:readonly Zoekprofiel[],
+  pipeline:readonly PipelineKandidaat[],
+  contactmomenten:readonly ContactMoment[],
+):PrioritaireClassificatieReview[]{
+  const profiles=new Map<string,number>();
+  const koppelingen=new Map<string,number>();
+  const momenten=new Map<string,number>();
+  for(const z of zoekprofielen)if(z.status==='actief')
+    profiles.set(z.relatieId,(profiles.get(z.relatieId)??0)+1);
+  for(const k of pipeline)
+    koppelingen.set(k.relatieId,(koppelingen.get(k.relatieId)??0)+1);
+  for(const m of contactmomenten)
+    if(m.relatieId)momenten.set(m.relatieId,(momenten.get(m.relatieId)??0)+1);
+  const result=maakClassificatieReview(relaties).map(r=>{
+    const actieveZoekprofielen=profiles.get(r.relatieId)??0;
+    const pipelineKoppelingen=koppelingen.get(r.relatieId)??0;
+    const aantalContactmomenten=momenten.get(r.relatieId)??0;
+    return {
+      ...r,
+      actieveZoekprofielen,pipelineKoppelingen,contactmomenten:aantalContactmomenten,
+      prioriteit:(
+        (r.datakwaliteit==='naam_controleren'&&pipelineKoppelingen>0)
+        ||pipelineKoppelingen>0||actieveZoekprofielen>0
+      )?'hoog':'regulier',
+    } as PrioritaireClassificatieReview;
+  });
+  return result.sort((a,b)=>{
+    const aHoog=a.prioriteit==='hoog'?1:0, bHoog=b.prioriteit==='hoog'?1:0;
+    return bHoog-aHoog
+      ||b.pipelineKoppelingen-a.pipelineKoppelingen
+      ||b.actieveZoekprofielen-a.actieveZoekprofielen
+      ||Number(b.status==='voorstel_controleren')-Number(a.status==='voorstel_controleren')
+      ||b.contactmomenten-a.contactmomenten
+      ||a.relatieId.localeCompare(b.relatieId);
+  });
 }
