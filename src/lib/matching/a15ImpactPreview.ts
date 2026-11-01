@@ -209,9 +209,19 @@ export function vergelijkMatchBeleid(
     'buiten_vergelijking':3,'andere_wijziging':4,
     'profiel_ontbreekt':5,'ongewijzigd':6,
   };
-  result.pipelineControles.sort((a,b)=>prioriteit[a.status]-prioriteit[b.status]
+  // Een concreet (concept-)koopdossier of bod gaat in de audit vóór een
+  // recente nieuwe match. Een pipelinefase alleen bewijst geen getekende deal.
+  const fasePrioriteit:Partial<Record<PipelineKandidaat['pipelineFase'],number>>={
+    transport_closing:0,koopovereenkomst_getekend:1,koopovereenkomst_concept:2,
+    due_diligence:3,loi_ontvangen:4,onderhandeling:5,
+    indicatieve_bieding:6,bezichtiging_geweest:7,bezichtiging_gepland:8,
+    informatie_gedeeld:9,nda_getekend:10,nda_verstuurd:11,
+    interesse_ontvangen:12,teaser_verstuurd:13,match_gevonden:14,
+  };
+  result.pipelineControles.sort((a,b)=>
+    (fasePrioriteit[a.pipelineFase]??99)-(fasePrioriteit[b.pipelineFase]??99)
+    ||prioriteit[a.status]-prioriteit[b.status]
     ||a.objectId.localeCompare(b.objectId)
-    ||a.relatieId.localeCompare(b.relatieId)
-    ||a.pipelineFase.localeCompare(b.pipelineFase));
+    ||a.relatieId.localeCompare(b.relatieId));
   return result;
 }
