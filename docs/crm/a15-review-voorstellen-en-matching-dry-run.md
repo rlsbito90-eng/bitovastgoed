@@ -172,3 +172,40 @@ Dat is geen automatische correctie; voor release moeten die verschillen
 per bestaand kandidaatdossier beoordeeld en geaccepteerd zijn. De nieuwe
 inline-sectie maakt het vastleggen van rollen mogelijk maar rechtvaardigt
 geen onomkeerbare opschoning.
+
+## A15.5 — behoud bestaande kandidaatposities, ook buiten gegenereerde matching
+
+**Nieuwe acceptatiepoort op de draft branch:** een bestaande kandidaatpositie
+(`object_pipeline`) is een zelfstandige procesregistratie, en **niet**
+afhankelijk van het bestaan van een nieuw berekend matchvoorstel. Daarom
+vergelijkt de optionele A15-simulatie nu per lopende pipelinepositie:
+
+1. Betreft het een momenteel aanbiedbaar object? Zo niet, toon de positie als
+   **buiten simulatie**, bijvoorbeeld bij `on_hold`. De procesregistratie
+   moet volledig behouden blijven.
+2. Komt de relatie noch in het oude, noch in het nieuwe matchresultaat voor?
+   Toon **geen match in beide modellen** als controlepunt. De oude kandidaat
+   wordt **niet** verwijderd en wordt niet automatisch als afgevallen gezet.
+3. Verdwijnt de oude route door de nieuwe matching? Markeer **valt weg**.
+4. Verschilt de berekende koperverwijzing? Markeer **koperverwijzing**; pas de
+   feitelijke koperidentiteit niet automatisch aan.
+5. Verandert alleen de matchroute/kwalificatie/bevestigingsindicatie? Toon
+   **andere wijziging**.
+6. Zijn de routes gelijk maar ontbreekt een bevestigd partijprofiel? Blijf
+   **profiel ontbreekt** tonen totdat de relatie inhoudelijk is beoordeeld.
+
+Deze controle heeft een eigen filterbaar overzicht met links naar het
+bestaande object en de bestaande relatie. Particuliere contacten zonder
+bedrijfsnaam kunnen onder hun reeds geregistreerde primaire contactnaam
+zichtbaar blijven. De pipelinefase blijft leesbaar.
+
+Dit onderdeel is opzettelijk **read-only**, zonder aparte SQL-aanvraag bij
+openen; het werkt op reeds geladen CRM-data. Het maakt **geen** nieuwe
+kopers, kandidaten, biedingen, zoekprofielen of transacties aan en wist
+niets. De bestaande matchengine blijft standaard actief.
+
+**Vóór release of fysieke opschoning:** alle als risicovol aangemerkte
+pipelineposities per object en relatie inhoudelijk controleren. Zelfs
+de groep zonder zichtbaar berekend verschil is géén bewijs voor een
+juridisch vastgestelde koper. Dossierhistorie en concrete
+contact-/biedingsinformatie blijven de bron voor transacties.
