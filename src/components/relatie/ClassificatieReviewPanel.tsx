@@ -38,7 +38,7 @@ export default function ClassificatieReviewPanel({
           {' '}{voorstellen.length} controlevoorstellen · {nader} nader onderzoeken
         </p>
         <p className="text-xs text-muted-foreground">
-          {urgent} met actieve zoekprofielen of pipeline · {naamControleren} met onvolledige partijnaam
+          {urgent} met actieve zoekprofielen of lopende pipeline · {naamControleren} met onvolledige partijnaam
         </p>
       </div>
       <button type="button" onClick={()=>setOpen(v=>!v)}
@@ -49,7 +49,7 @@ export default function ClassificatieReviewPanel({
     </div>
     {open&&<div id="classificatiecontrole-inhoud" className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Hoogste prioriteit: bestaande kandidaten met zoekprofielen of pipelinehistorie.
+        Hoogste prioriteit: kandidaten met een actief zoekprofiel of een lopende pipelinefase. Afgevallen dossiers blijven zichtbaar als historie.
         Bij ontbrekende namen moet de partij eerst geïdentificeerd worden.
         Voorstellen zijn onbevestigd: er wordt niets automatisch geclassificeerd
         of verstuurd. Gebruik de bestaande relatiepagina voor controle.
@@ -78,7 +78,7 @@ export default function ClassificatieReviewPanel({
                 <p className="text-xs text-muted-foreground break-words">{s.bewijs}</p>
                 {(item.pipelineKoppelingen>0||item.actieveZoekprofielen>0||item.contactmomenten>0)&&
                   <p className="text-xs text-muted-foreground">
-                    {item.pipelineKoppelingen} pipelinekoppelingen ·
+                    {item.lopendePipelineKoppelingen} lopende / {item.pipelineKoppelingen} totale pipelinekoppelingen ·
                     {' '}{item.actieveZoekprofielen} actieve zoekprofielen ·
                     {' '}{item.contactmomenten} contactmomenten
                   </p>}
