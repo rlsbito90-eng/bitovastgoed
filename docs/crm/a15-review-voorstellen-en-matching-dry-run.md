@@ -209,3 +209,56 @@ pipelineposities per object en relatie inhoudelijk controleren. Zelfs
 de groep zonder zichtbaar berekend verschil is géén bewijs voor een
 juridisch vastgestelde koper. Dossierhistorie en concrete
 contact-/biedingsinformatie blijven de bron voor transacties.
+
+## A15.6 — vrijgavecontrole en actuele database-nulmeting (1 november 2026)
+
+Aanleiding: de laatst gecontroleerde A15.5 workflow had een falende
+UI-assertie omdat `Buiten simulatie` twee keer in het scherm voorkwam.
+De TypeScript-controle en productiebuild slaagden wel. De schermassertie is
+aangepast zodat zij expliciet beide labels verwacht.
+
+Een nieuwe **uitsluitend read-only SQL-select** op de huidige database
+leverde de volgende aantallen op (momentopname, geen client-side matching
+of acceptatie van classificaties):
+
+| Onderdeel | Aantal |
+|---|---:|
+| Lopende pipelineposities | 67 |
+| Unieke relaties met lopende pipeline | 39 |
+| Pipelineposities zonder bevestigd partijprofiel | 64 |
+| Unieke relaties in lopende pipeline zonder partijprofiel | 38 |
+| Posities met een actief zoekprofiel bij de relatie | 16 |
+| Posities zonder actief zoekprofiel bij de relatie | 51 |
+| Posities zonder gestructureerd type, regio, budget én zonder actief zoekprofiel | 12 |
+| Posities waarvan object niet beschikbaar is voor nieuwe matching | 32 |
+| Posities met historische expliciete koperrol | 3 |
+| Pipelineposities bij gearchiveerde relaties | 0 |
+
+**Definitie:** `zonder gestructureerd type, regio, budget` laat vrije
+aankoopteksten, contactmomenten, acquisitiebesprekingen, biedingen en
+bestaande pipelinehistorie buiten beschouwing. Deze 12 posities zijn
+daarom **geen** bewijs van ontbrekende koopinteresse of ongeldige relaties.
+
+De nieuwe `beoordeelA15Vrijgave` is een afzonderlijke, zuiver functionele,
+read-only releasecontrole. Zij laat de volgende voorwaarden in het CRM
+zien: niet-geclassificeerde relaties, lopende pipelineposities met
+aandachtspunten, posities zonder berekende match, wegvallende routes,
+gewijzigde koperverwijzingen, posities buiten de simulatie en andere
+wegvallende gegenereerde kandidaatvoorstellen.
+
+Daarbij blijven **drie handmatige vrijgavepoorten altijd open**:
+1. Geschikte versie-/schemacontrole en een reversibel migratieplan;
+2. Backup, herstelproef, vergelijking van aantallen en rollback-plan;
+3. Expliciete inhoudelijke én technische vrijgave na review.
+
+Er is **geen** knop die op basis van een nulstand automatisch een
+destructieve migratie of productie-release triggert. De controlerapportage
+legt **geen** goedkeuring in localStorage, database of repository vast.
+Een gesloten databewaking betekent niet dat een handmatig dossier
+als beoordeeld mag worden beschouwd. Deze poorten moeten vóór de
+daadwerkelijke verwijdering van oude velden afzonderlijk kunnen worden
+gecontroleerd en geaccordeerd.
+
+**Open blokkade:** A14-schema-uitbreiding is nog niet op productie
+toegepast; alle live relatievelden, bestaande kandidaatposities en
+standaard matching blijven ongewijzigd. PR #563 blijft draft.
