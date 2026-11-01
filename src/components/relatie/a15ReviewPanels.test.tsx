@@ -42,6 +42,20 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getByRole('link',{name:'Testpartij zonder profiel'}).getAttribute('href'))
       .toBe('/relaties/old');
   });
+  it('toont de bestaande primaire contactpersoon wanneer er geen bedrijfsnaam is',()=>{
+    const relatie={...old,bedrijfsnaam:'',type:'ontwikkelaar' as const};
+    const contactpersonen=[{
+      id:'cp1',relatieId:'old',naam:'Voorbeeld Contact',isPrimair:true,decisionMaker:false,
+    }];
+    render(<MemoryRouter><ClassificatieReviewPanel relaties={[relatie]}
+      contactpersonen={contactpersonen}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
+    expect(screen.getByText('Voorbeeld Contact')).toBeTruthy();
+    expect(screen.getByText(/particulier contact of een onderneming/)).toBeTruthy();
+    expect(screen.getByText('Onvoldoende informatie voor een voorstel')).toBeTruthy();
+    expect(screen.getByRole('link',{name:'Relatie beoordelen'}).getAttribute('href'))
+      .toBe('/relaties/old');
+  });
   it('start de matchingvergelijking alleen na handmatige actie en zonder writes',()=>{
     render(<MatchingImpactPanel relaties={[old]} objecten={[object]} zoekprofielen={[] as Zoekprofiel[]}/>);
     expect(screen.queryByText('Koppelingen die wegvallen')).toBeNull();
