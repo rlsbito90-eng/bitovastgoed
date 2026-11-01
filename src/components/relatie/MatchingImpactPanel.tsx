@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PIPELINE_FASES, type ObjectVastgoed, type Relatie, type Zoekprofiel, type PipelineKandidaat, type RelatieContactpersoon } from '@/data/mock-data';
 import { vergelijkMatchBeleid, type A15VerschilSoort, type A15PipelineControleStatus } from '@/lib/matching/a15ImpactPreview';
+import { beoordeelA15Vrijgave } from '@/lib/matching/a15ReleaseGates';
 
 const CONTROLE_LABELS:Record<A15PipelineControleStatus,string>={
   buiten_vergelijking:'Buiten simulatie',
@@ -33,6 +34,7 @@ export default function MatchingImpactPanel({
   const preview=useMemo(()=>toon
     ?vergelijkMatchBeleid(objecten,relaties,zoekprofielen,pipelineKandidaten)
     :null,[toon,objecten,relaties,zoekprofielen,pipelineKandidaten]);
+  const vrijgave=useMemo(()=>preview?beoordeelA15Vrijgave(preview,relaties):null,[preview,relaties]);
   const byRelatie=useMemo(()=>new Map(relaties.map(r=>[r.id,r])),[relaties]);
   const byObject=useMemo(()=>new Map(objecten.map(o=>[o.id,o])),[objecten]);
   const lopendePipelineKeys=useMemo(()=>new Set(pipelineKandidaten
@@ -92,6 +94,28 @@ export default function MatchingImpactPanel({
         <p>{preview.lopendePipelineKoppelingen} lopende pipelinekoppelingen · {preview.relatiesMetLopendePipelineZonderProfiel} relaties zonder partijprofiel · {preview.lopendePipelineMetVerschil} koppelingen met een matchingverschil.</p>
         <p className="text-muted-foreground">{preview.lopendePipelineBuitenVergelijking} lopende koppelingen vallen buiten deze simulatie doordat hun object niet aanbiedbaar is. Ze blijven behouden, maar mogen niet als gecontroleerd worden beschouwd.</p>
       </div>
+
+      {vrijgave&&<div className="space-y-3 border-t border-border/70 pt-3" aria-label="A15.6 vrijgavevoorwaarden">
+        <h3 className="text-sm font-semibold">A15.6 — voorwaarden voor opschoning</h3>
+        <p className="text-xs text-muted-foreground">
+          Concept-release: {vrijgave.openDatacontroles} open datacontroles en
+          {' '}{vrijgave.openHandmatigeControles} handmatige vrijgavevoorwaarden.
+          Er wordt geen migratie gestart. Een nulstand bij verschillen is geen automatische toestemming.
+        </p>
+        <div className="space-y-2">
+          {vrijgave.controles.map(x=><div key={x.id}
+            className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border/70 p-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium">{x.naam}</p>
+              <p className="text-xs text-muted-foreground">{x.toelichting}</p>
+            </div>
+            <span className="text-xs font-semibold tabular-nums">
+              {x.soort==='handmatig'?'Handmatig akkoord nodig':
+                x.open?`${x.aantal} te controleren`:'Geen open indicator'}
+            </span>
+          </div>)}
+        </div>
+      </div>}
       <div className="space-y-3 border-t border-border/70 pt-3" aria-label="A15.5 kandidaatposities">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
           <p><strong>{preview.pipelineTeBeoordelen}</strong> bestaande posities ter beoordeling</p>
