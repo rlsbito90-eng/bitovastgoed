@@ -181,6 +181,14 @@ describe('A15 matchingvergelijking zonder databasewijziging',()=>{
    expect(d.lopendePipelineKoppelingen).toBe(0);
    expect(d.pipelineControles).toHaveLength(0);
  });
+ it('A15.6 prioriteert biedingen boven nieuwe matchregistraties',()=>{
+   const r=relatie({partijprofiel:null});
+   const d=vergelijkMatchBeleid([object()],[r],[],[
+     {id:'early',objectId:'o1',relatieId:'r1',pipelineFase:'match_gevonden'},
+     {id:'offer',objectId:'o1',relatieId:'r1',pipelineFase:'indicatieve_bieding'},
+   ]);
+   expect(d.pipelineControles.map(x=>x.pipelineId)).toEqual(['offer','early']);
+ });
  it('meldt geen veranderingen bij twee identieke kandidaatsets',()=>{
    const r=relatie({type:'makelaar',partijprofiel:'makelaar',commercialRoles:null,propertyTypeIds:[],budgetMax:undefined});
    const d=vergelijkMatchBeleid([object()],[r],[profiel()]);
