@@ -6,7 +6,7 @@ import { LeadStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, ChevronRight, Upload, Users } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
-import type { LeadStatus, PartijType, Relatie } from '@/data/mock-data';
+import type { LeadStatus, Relatie } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import BulkRelatieImportDialog from '@/components/forms/BulkRelatieImportDialog';
 import RelatieHerstelImportDialog from '@/components/forms/RelatieHerstelImportDialog';
@@ -22,6 +22,11 @@ import { smartRelatieCompare, getLeadWarmteRank } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import { loadRelatiesViewState, saveRelatiesViewState } from '@/lib/relatiesViewState';
+import { PARTIJPROFIELEN } from '@/lib/relaties/partijprofiel';
+import {
+  HISTORISCHE_HOOFDTYPEN, matchRelatieProfiel, normaalProfielFilter,
+  relatieProfielLabel, type RelatieProfielFilter,
+} from '@/lib/relaties/relatieProfielFilter';
 
 export default function RelatiesPage() {
   const navigate = useNavigate();
@@ -30,14 +35,14 @@ export default function RelatiesPage() {
   const initialView = useMemo(() => loadRelatiesViewState(), []);
   const [zoek, setZoek] = useState(() => searchParams.get('q') ?? initialView.zoek);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>(initialView.statusFilter);
-  const [typeFilter, setTypeFilter] = useState<PartijType | ''>(initialView.typeFilter);
+  const [profielFilter, setProfielFilter] = useState<RelatieProfielFilter>(initialView.profielFilter);
   const [formOpen, setFormOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [herstelOpen, setHerstelOpen] = useState(false);
 
   useEffect(() => {
-    saveRelatiesViewState({ zoek, statusFilter, typeFilter });
-  }, [zoek, statusFilter, typeFilter]);
+    saveRelatiesViewState({ zoek, statusFilter, profielFilter });
+  }, [zoek, statusFilter, profielFilter]);
 
   // Een expliciete globale zoekopdracht in de URL wint van de eerder onthouden
   // sessiecontext. Dit voorkomt dat /relaties?q=... stil wordt genegeerd.
@@ -69,11 +74,11 @@ export default function RelatiesPage() {
     const list = relaties.filter(r => {
       const matchZoek = !zoek || r.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase()) || r.contactpersoon.toLowerCase().includes(zoek.toLowerCase());
       const matchStatus = !statusFilter || r.leadStatus === statusFilter;
-      const matchType = !typeFilter || r.type === typeFilter;
-      return matchZoek && matchStatus && matchType;
+      const matchProfiel = matchRelatieProfiel(r,profielFilter);
+      return matchZoek && matchStatus && matchProfiel;
     });
     return [...list].sort(activeSort.compare);
-  }, [relaties, zoek, statusFilter, typeFilter, activeSort]);
+  }, [relaties, zoek, statusFilter, profielFilter, activeSort]);
 
   useEffect(() => {
     saveListContext('relaties', filtered.map(r => r.id));
@@ -114,13 +119,18 @@ export default function RelatiesPage() {
             <option value="warm">Warm</option>
             <option value="actief">Actief</option>
           </select>
-          <select className="flex-1 sm:flex-none h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={typeFilter} onChange={e => setTypeFilter(e.target.value as PartijType | '')}>
-            <option value="">Alle typen</option>
-            <option value="belegger">Belegger</option>
-            <option value="ontwikkelaar">Ontwikkelaar</option>
-            <option value="eigenaar">Eigenaar</option>
-            <option value="makelaar">Makelaar</option>
-            <option value="partner">Partner</option>
+          <select aria-label="Filter partijprofiel"
+            className="flex-1 sm:flex-none h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
+            value={profielFilter}
+            onChange={e=>setProfielFilter(normaalProfielFilter(e.target.value))}>
+            <option value="">Alle partijprofielen</option>
+            <option value="zonder_profiel">Nog niet geclassificeerd</option>
+            <optgroup label="Partijprofiel">
+              {PARTIJPROFIELEN.map(p=><option key={p.value} value={`profiel:${p.value}`}>{p.label}</option>)}
+            </optgroup>
+            <optgroup label="Historische hoofdindeling (tijdelijk)">
+              {HISTORISCHE_HOOFDTYPEN.map(t=><option key={t} value={`legacy:${t}`}>Historisch: {t}</option>)}
+            </optgroup>
           </select>
         </div>
         <div className="sm:ml-auto">
@@ -157,7 +167,7 @@ export default function RelatiesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <RelatieNaamDisplay relatie={r} />
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate"><span className="capitalize">{r.type}</span></p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate"><span title={`Historisch hoofdtype: ${r.type}`}>{relatieProfielLabel(r)}</span></p>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       <PropertyTypeBadges
                         ids={r.propertyTypeIds}
@@ -190,7 +200,7 @@ export default function RelatiesPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="text-left px-5 py-3 field-label">Bedrijf</th>
-                    <th className="text-left px-5 py-3 field-label">Type</th>
+                    <th className="text-left px-5 py-3 field-label">Partijprofiel</th>
                     <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Vastgoedvoorkeur</th>
                     <th className="text-left px-5 py-3 field-label hidden lg:table-cell">Laatste contact</th>
                     <th className="text-left px-5 py-3 field-label">Status</th>
@@ -206,7 +216,7 @@ export default function RelatiesPage() {
                       <td className="px-5 py-3.5">
                         <RelatieNaamDisplay relatie={r} />
                       </td>
-                      <td className="px-5 py-3.5 text-muted-foreground capitalize">{r.type}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground" title={`Historisch hoofdtype: ${r.type}`}>{relatieProfielLabel(r)}</td>
                       <td className="px-5 py-3.5 hidden lg:table-cell">
                         <div className="flex flex-wrap gap-1 max-w-[260px]">
                           <PropertyTypeBadges
