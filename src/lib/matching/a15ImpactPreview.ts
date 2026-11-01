@@ -15,6 +15,19 @@ export type A15Verschil={
   oud:KandidaatVoorstel|null;
   nieuw:KandidaatVoorstel|null;
 };
+export type A15PipelineControleStatus=
+  'buiten_vergelijking'|'geen_match'|'valt_weg'|'koperverwijzing'|'andere_wijziging'|'profiel_ontbreekt'|'ongewijzigd';
+export type A15PipelineControle={
+  pipelineId:string|null;
+  objectId:string;
+  relatieId:string;
+  pipelineFase:PipelineKandidaat['pipelineFase'];
+  status:A15PipelineControleStatus;
+  redenen:string[];
+  partijprofielOntbreekt:boolean;
+  huidigeKoperRelatieId:string|null;
+  nieuweKoperRelatieId:string|null;
+};
 export type A15Impact={
   beschikbareObjecten:number;
   huidigeKandidaatKoppelingen:number;
@@ -31,6 +44,11 @@ export type A15Impact={
   relatiesMetLopendePipelineZonderProfiel:number;
   lopendePipelineBuitenVergelijking:number;
   lopendePipelineMetVerschil:number;
+  pipelineZonderGegenereerdeMatch:number;
+  pipelineWegvallendeRoutes:number;
+  pipelineGewijzigdeKoperverwijzingen:number;
+  pipelineTeBeoordelen:number;
+  pipelineControles:A15PipelineControle[];
 };
 
 function redenVoorWegval(r:CrmRelatieInput|undefined):string{
@@ -52,7 +70,7 @@ export function vergelijkMatchBeleid(
   objecten:readonly CrmObjectInput[],
   relaties:readonly CrmRelatieInput[],
   zoekprofielen:readonly CrmMandaatInput[],
-  pipeline:readonly Pick<PipelineKandidaat,'objectId'|'relatieId'|'pipelineFase'>[]=[],
+  pipeline:readonly (Pick<PipelineKandidaat,'objectId'|'relatieId'|'pipelineFase'> & Partial<Pick<PipelineKandidaat,'id'>>)[]=[],
 ):A15Impact{
   const result:A15Impact={
     beschikbareObjecten:0,huidigeKandidaatKoppelingen:0,
@@ -62,8 +80,13 @@ export function vergelijkMatchBeleid(
     veranderdeBevestigingen:0,verschillen:[],
     lopendePipelineKoppelingen:0,relatiesMetLopendePipelineZonderProfiel:0,
     lopendePipelineBuitenVergelijking:0,lopendePipelineMetVerschil:0,
+    pipelineZonderGegenereerdeMatch:0,pipelineWegvallendeRoutes:0,
+    pipelineGewijzigdeKoperverwijzingen:0,pipelineTeBeoordelen:0,
+    pipelineControles:[],
   };
   const relatiesPerId=new Map(relaties.map(r=>[r.id,r]));
+  const huidigeRoutes=new Map<string,KandidaatVoorstel>();
+  const nieuweRoutes=new Map<string,KandidaatVoorstel>();
   for(const object of objecten){
     if(!isAanbiedbaar(object))continue;
     result.beschikbareObjecten++;
@@ -73,6 +96,8 @@ export function vergelijkMatchBeleid(
     result.gesimuleerdeKandidaatKoppelingen+=nieuw.length;
     const hi=new Map(huidig.map(x=>[x.relatieId,x]));
     const ni=new Map(nieuw.map(x=>[x.relatieId,x]));
+    for(const v of huidig)huidigeRoutes.set(`${object.id}|${v.relatieId}`,v);
+    for(const v of nieuw)nieuweRoutes.set(`${object.id}|${v.relatieId}`,v);
     let verschil=false;
     for(const [id,oud] of hi){
       const voorstel=ni.get(id);
@@ -120,19 +145,73 @@ export function vergelijkMatchBeleid(
     }
     if(verschil)result.objectenMetVerschil++;
   }
-  // Existing pipeline is never a newly generated match; inspect separately.
+  // A15.5 — every existing pipeline position needs its own review.
+  // Generated matches are only suggestions. No pipeline row is ever rewritten.
   const beschikbareIds=new Set(objecten.filter(isAanbiedbaar).map(o=>o.id));
-  const verschilKeys=new Set(result.verschillen.map(v=>`${v.objectId}|${v.relatieId}`));
+  const verschilPerKey=new Map(result.verschillen.map(v=>[`${v.objectId}|${v.relatieId}`,v]));
   const zonderProfiel=new Set<string>();
+  const key=(objectId:string,relatieId:string)=>`${objectId}|${relatieId}`;
   for(const koppeling of pipeline){
     if(koppeling.pipelineFase==='afgevallen'||koppeling.pipelineFase==='afgerond')continue;
     const relatie=relatiesPerId.get(koppeling.relatieId);
     if(!relatie||relatie.softDeletedAt)continue;
     result.lopendePipelineKoppelingen++;
-    if(!relatie.partijprofiel)zonderProfiel.add(relatie.id);
-    if(!beschikbareIds.has(koppeling.objectId))result.lopendePipelineBuitenVergelijking++;
-    if(verschilKeys.has(`${koppeling.objectId}|${koppeling.relatieId}`))result.lopendePipelineMetVerschil++;
+    const ontbreekt=!relatie.partijprofiel;
+    if(ontbreekt)zonderProfiel.add(relatie.id);
+    const matchKey=key(koppeling.objectId,koppeling.relatieId);
+    const oud=huidigeRoutes.get(matchKey);
+    const nieuw=nieuweRoutes.get(matchKey);
+    const verschil=verschilPerKey.get(matchKey);
+    if(verschil)result.lopendePipelineMetVerschil++;
+    let status:A15PipelineControleStatus='ongewijzigd';
+    const redenen:string[]=[];
+    if(!beschikbareIds.has(koppeling.objectId)){
+      status='buiten_vergelijking';
+      result.lopendePipelineBuitenVergelijking++;
+      redenen.push('Object is niet aanbiedbaar of ontbreekt in de geladen objecten. Bestaande kandidaatkoppeling en proceshistorie blijven onaangetast.');
+    }else if(!oud&&!nieuw){
+      status='geen_match';
+      result.pipelineZonderGegenereerdeMatch++;
+      redenen.push('De bestaande kandidaatpositie is in geen van beide matchberekeningen terug te vinden. Het feitelijke transactiedossier blijft leidend.');
+    }else if(oud&&!nieuw){
+      status='valt_weg';
+      result.pipelineWegvallendeRoutes++;
+      redenen.push('Het voorgestelde beleid levert geen route meer voor deze bestaande kandidaat. Niet verwijderen of afwijzen zonder dossiercontrole.');
+    }else if(oud&&nieuw&&oud.besteRoute.koperRelatieId!==nieuw.besteRoute.koperRelatieId){
+      status='koperverwijzing';
+      result.pipelineGewijzigdeKoperverwijzingen++;
+      redenen.push('De berekende koperverwijzing verandert. Dit is geen wijziging van de feitelijke koper en mag niet automatisch worden doorgevoerd.');
+    }else if(verschil){
+      status='andere_wijziging';
+      redenen.push('De matchkwalificatie, beste route of bevestigingsindicatie verandert. Beoordeel de concrete kandidaatpositie.');
+    }else if(ontbreekt){
+      status='profiel_ontbreekt';
+      redenen.push('Nog geen bevestigd partijprofiel. De bestaande kandidaatpositie blijft geldig als dossierregistratie.');
+    }
+    if(ontbreekt && status!=='profiel_ontbreekt'){
+      redenen.push('Partijprofiel ontbreekt: controleer classificatie onafhankelijk van de bestaande pipeline.');
+    }
+    if(status!=='ongewijzigd')result.pipelineTeBeoordelen++;
+    result.pipelineControles.push({
+      pipelineId:koppeling.id??null,
+      objectId:koppeling.objectId,
+      relatieId:koppeling.relatieId,
+      pipelineFase:koppeling.pipelineFase,
+      status,redenen,partijprofielOntbreekt:ontbreekt,
+      huidigeKoperRelatieId:oud?.besteRoute.koperRelatieId??null,
+      nieuweKoperRelatieId:nieuw?.besteRoute.koperRelatieId??null,
+    });
   }
   result.relatiesMetLopendePipelineZonderProfiel=zonderProfiel.size;
+  // Urgent first; inspection order never changes stored pipeline order.
+  const prioriteit:Record<A15PipelineControleStatus,number>={
+    'koperverwijzing':0,'valt_weg':1,'geen_match':2,
+    'buiten_vergelijking':3,'andere_wijziging':4,
+    'profiel_ontbreekt':5,'ongewijzigd':6,
+  };
+  result.pipelineControles.sort((a,b)=>prioriteit[a.status]-prioriteit[b.status]
+    ||a.objectId.localeCompare(b.objectId)
+    ||a.relatieId.localeCompare(b.relatieId)
+    ||a.pipelineFase.localeCompare(b.pipelineFase));
   return result;
 }
