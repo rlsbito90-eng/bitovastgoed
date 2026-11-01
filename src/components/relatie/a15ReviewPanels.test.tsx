@@ -69,6 +69,34 @@ describe('A15 CRM read-only review UI',()=>{
     fireEvent.click(screen.getByRole('button',{name:/Bekijk 1 verschillen per object en relatie/}));
     expect(screen.getByText('Bestaande lopende pipeline')).toBeTruthy();
   });
+  it('A15.5 laat ook bestaande kandidaten buiten gegenereerde matching bekijken',()=>{
+    const relatie={...old,type:'eigenaar' as const,
+      propertyTypeIds:[],assetClasses:[],budgetMax:undefined,bedrijfsnaam:''};
+    const p=[{id:'p1',objectId:'o1',relatieId:'old',pipelineFase:'indicatieve_bieding'}] as any;
+    render(<MemoryRouter><MatchingImpactPanel
+      relaties={[relatie]} objecten={[object]} zoekprofielen={[]}
+      pipelineKandidaten={p}
+      contactpersonen={[{id:'c1',relatieId:'old',naam:'Voorbeeld Koper',
+        isPrimair:true,decisionMaker:false}]}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText(/1 zonder match in beide modellen/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:/Controleer 1 bestaande kandidaatposities/}));
+    expect(screen.getByText('Niet gevonden in beide matchberekeningen')).toBeTruthy();
+    expect(screen.getByRole('link',{name:'Voorbeeld Koper'}).getAttribute('href'))
+      .toBe('/relaties/old');
+    expect(screen.getByRole('link',{name:'Object bekijken'}).getAttribute('href'))
+      .toBe('/objecten/o1');
+  });
+  it('A15.5 bewaakt bestaande on-hold bieding in aparte review',()=>{
+    const p=[{id:'p1',objectId:'o1',relatieId:'old',pipelineFase:'indicatieve_bieding'}] as any;
+    render(<MemoryRouter><MatchingImpactPanel relaties={[old]}
+      objecten={[{...object,status:'on_hold'}]} zoekprofielen={[]}
+      pipelineKandidaten={p}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    fireEvent.click(screen.getByRole('button',{name:/Controleer 1 bestaande kandidaatposities/}));
+    expect(screen.getByText('Buiten simulatie')).toBeTruthy();
+    expect(screen.getByText(/Bestaande kandidaatkoppeling en proceshistorie blijven onaangetast/)).toBeTruthy();
+  });
   it('start de matchingvergelijking alleen na handmatige actie en zonder writes',()=>{
     render(<MatchingImpactPanel relaties={[old]} objecten={[object]} zoekprofielen={[] as Zoekprofiel[]}/>);
     expect(screen.queryByText('Koppelingen die wegvallen')).toBeNull();
