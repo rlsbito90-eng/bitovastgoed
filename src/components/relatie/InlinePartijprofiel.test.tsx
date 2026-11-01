@@ -51,7 +51,10 @@ describe('Inline editing relatieprofiel — synthetisch',()=>{
    fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
      target:{value:'buitenlandse_belegger'}
    });
+   const bevestig=vi.spyOn(window,'confirm').mockReturnValue(true);
    fireEvent.click(screen.getByRole('button',{name:'Annuleren'}));
+   expect(bevestig).toHaveBeenCalled();
+   bevestig.mockRestore();
    expect(save).not.toHaveBeenCalled();
    expect(screen.getByText('Ontwikkelende belegger')).toBeTruthy();
  });
@@ -67,4 +70,32 @@ describe('Inline editing relatieprofiel — synthetisch',()=>{
    expect((screen.getByRole('combobox',{name:'Partijprofiel'}) as HTMLSelectElement).value)
      .toBe('buitenlandse_belegger');
  });
+ it('behoudt onopgeslagen wijzigingen wanneer verwijderen niet is bevestigd',()=>{
+   const save=vi.fn();
+   const bevestig=vi.spyOn(window,'confirm').mockReturnValue(false);
+   render(<InlinePartijprofiel relatie={relatie} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Wijzig hier'}));
+   fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
+     target:{value:'fonds'}
+   });
+   fireEvent.click(screen.getByRole('button',{name:'Annuleren'}));
+   expect(bevestig).toHaveBeenCalled();
+   expect((screen.getByRole('combobox',{name:'Partijprofiel'}) as HTMLSelectElement).value)
+     .toBe('fonds');
+   expect(save).not.toHaveBeenCalled();
+   bevestig.mockRestore();
+ });
+ it('blokkeert overschrijven als hetzelfde profiel tussentijds elders is gewijzigd',async()=>{
+   const save=vi.fn();
+   const {rerender}=render(<InlinePartijprofiel relatie={relatie} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Wijzig hier'}));
+   fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
+     target:{value:'fonds'}
+   });
+   rerender(<InlinePartijprofiel relatie={{...relatie,partijprofiel:'makelaar'}} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   expect((await screen.findByRole('alert')).textContent).toContain('elders gewijzigd');
+   expect(save).not.toHaveBeenCalled();
+ });
+
 });
