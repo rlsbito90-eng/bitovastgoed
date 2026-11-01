@@ -143,3 +143,44 @@ gebruikerscontrole en regressietests voor contactpersonen/zoekprofielen.
 
 **Let op**: deze code staat uitsluitend op een draft branch; de A14-migratie
 is niet toegepast en er zijn geen echte relaties bijgewerkt.
+
+## A14.4 — volledige Zoekprofiel-leesweergave en inline taxonomie (featurebranch)
+
+- De reeds bestaande Zoekprofielen worden vanaf de relatiepagina in een
+  uitklapbaar, standaard geopend volledig detailoverzicht weergegeven:
+  types/subtypes/dealtypen, regio's/gemeenten/steden, bedrag, oppervlakte,
+  bouwjaar, label, verhuurstatus, rendement, WALT, leegstand,
+  ontwikkel- en transformatiepotentie, transactietype, exclusiviteit,
+  vrije tekst, status, prioriteit en laatste wijziging.
+- De leesweergave gebruikt rechtstreeks de opgeslagen zoekprofielrij,
+  zonder veldkopie, eigen opslag, of een impliciet mandaat.
+- De algemene, historische vastgoedvoorkeuren krijgen een eigen inline editor
+  voor `property_type_ids`, `property_subtype_ids` en `deal_type_ids`.
+  Die editor bewaart historische assetklassen en onbekende historische IDs
+  en weigert (bij wijzigingen) een combinatie met subtypen waarvan
+  het hoofdtype niet langer geselecteerd is.
+- Onderliggende matchingregels en de zelfstandige zoekprofieltabel zijn
+  ongewijzigd; er vindt geen bulkherclassificatie of datamigratie plaats.
+- De code heeft gerichte synthetische tests voor volledige criteriaweergave,
+  behouden legacy gegevens en subtypeafhankelijkheden.
+
+### Technische uitfaseringsvolgorde
+
+1. Inventariseer alle **lees-/schrijfafhankelijkheden** per oud veld:
+   `type_partij`, `investeerder_subtype`, `commercial_roles`,
+   `asset_classes`, `property_type_ids`, `regio`, `budget_min/max`,
+   `aankoopcriteria` en velden in de search-profile tabel.
+2. Leg per attribuut de unieke, toekomstige bron van waarheid vast,
+   inclusief bijbehorende migratieregel voor bestaande niet-lege waarden.
+3. Bereken op een read-only snapshot voor elke relatie een voorstel
+   met bewijsveld, confidence en `onbekend` bij onvoldoende informatie.
+   Geen automatische 'belegger' uit historische default afleiden.
+4. Vergelijk vóór en ná simulatie alle bestaande matchinguitkomsten
+   voor alle actieve relaties/objecten; registreer veranderingen en
+   leg uitzonderingen ter beoordeling voor.
+5. Pas pas na review een gecontroleerde, herleidbare en
+   terug te draaien dataovergang toe. Verwijder vervolgens oude
+   UI-invoer, verwijzingen in code en pas **als laatste** de
+   overbodige databasekolommen aan via afzonderlijke migratie.
+
+De A14-draft voert **geen** van die vijf destructieve overgangsstappen uit.
