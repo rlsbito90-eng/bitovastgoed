@@ -1,4 +1,4 @@
-import type { Partijprofiel, VastgoedStrategie } from '@/data/mock-data';
+import type { Partijprofiel, VastgoedStrategie, PartijType } from '@/data/mock-data';
 
 export const PARTIJPROFIELEN: readonly { value: Partijprofiel; label: string }[] = [
   {value:'belegger',label:'Belegger'},
@@ -46,3 +46,28 @@ export function schrijfVastgoedStrategieen(v:readonly VastgoedStrategie[]|null|u
 }
 export function labelPartijprofiel(value:Partijprofiel){return PARTIJPROFIELEN.find(x=>x.value===value)?.label??value}
 export function labelVastgoedStrategie(value:VastgoedStrategie){return VASTGOEDSTRATEGIEEN.find(x=>x.value===value)?.label??value}
+
+/**
+ * Compatibility only: type_partij is a required legacy column used by existing
+ * CRM features. New relations receive a broad value derived from their explicit
+ * party profile; existing relations are never reclassified here.
+ *
+ * No buyer/mandate/commercial role may be inferred from this mapping.
+ */
+export function legacyTypeVoorNieuweRelatie(profiel: Partijprofiel): PartijType {
+  switch (profiel) {
+    case 'belegger':
+    case 'ontwikkelende_belegger':
+      return 'belegger';
+    case 'ontwikkelaar':
+      return 'ontwikkelaar';
+    case 'makelaar':
+    case 'bemiddelaar':
+      return 'makelaar';
+    case 'vastgoedeigenaar':
+      return 'eigenaar';
+    case 'vastgoedondernemer':
+    case 'overig':
+      return 'overig';
+  }
+}
