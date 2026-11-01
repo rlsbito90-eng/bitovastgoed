@@ -3,11 +3,9 @@ import type { Partijprofiel, Relatie, VastgoedStrategie } from '@/data/mock-data
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 import { labelPartijprofiel, labelVastgoedStrategie } from '@/lib/relaties/partijprofiel';
 import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
+import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 
-/**
- * Relatiegegevens worden op dezelfde profielpagina gewijzigd; er wordt uitsluitend
- * een kleine patch opgeslagen, nooit een volledige verouderde relatie-snapshot.
- */
+/** Inline, isolated PATCH. Existing roles, types, budgets and search profiles are never rewritten. */
 export default function InlinePartijprofiel({
   relatie, onSave,
 }: {
@@ -17,54 +15,86 @@ export default function InlinePartijprofiel({
   const [bewerken, setBewerken] = useState(false);
   const [partijprofiel, setPartijprofiel] = useState<Partijprofiel|null>(relatie.partijprofiel??null);
   const [strategieen, setStrategieen] = useState<VastgoedStrategie[]|null>(relatie.vastgoedStrategieen??null);
+  const [basisProfiel, setBasisProfiel] = useState<Partijprofiel|null>(relatie.partijprofiel??null);
+  const [basisStrategieen, setBasisStrategieen] = useState<VastgoedStrategie[]|null>(relatie.vastgoedStrategieen??null);
   const [opslaan, setOpslaan] = useState(false);
   const [fout, setFout] = useState<string|null>(null);
+
+  const gelijk = (a:readonly string[]|null,b:readonly string[]|null) =>
+    JSON.stringify([...(a??[])].sort())===JSON.stringify([...(b??[])].sort());
+  const profielGewijzigd=partijprofiel!==basisProfiel;
+  const strategieGewijzigd=!gelijk(strategieen,basisStrategieen);
+  const { confirmDiscard }=useDirtyGuard(bewerken&&(profielGewijzigd||strategieGewijzigd));
 
   useEffect(()=>{
     setBewerken(false);
     setPartijprofiel(relatie.partijprofiel??null);
     setStrategieen(relatie.vastgoedStrategieen??null);
+    setBasisProfiel(relatie.partijprofiel??null);
+    setBasisStrategieen(relatie.vastgoedStrategieen??null);
     setFout(null);
   },[relatie.id]);
 
-  const herstel = () => {
-    if(opslaan) return;
+  // Na wijziging door een andere sectie blijven gesloten velden actueel.
+  const huidigeStrategieen=JSON.stringify(relatie.vastgoedStrategieen??null);
+  useEffect(()=>{
+    if(!bewerken){
+      setPartijprofiel(relatie.partijprofiel??null);
+      setStrategieen(relatie.vastgoedStrategieen??null);
+      setBasisProfiel(relatie.partijprofiel??null);
+      setBasisStrategieen(relatie.vastgoedStrategieen??null);
+    }
+  },[bewerken,relatie.partijprofiel,huidigeStrategieen]);
+
+  const begin=()=>{
+    setBasisProfiel(relatie.partijprofiel??null);
+    setBasisStrategieen([...(relatie.vastgoedStrategieen??[])]);
+    setPartijprofiel(relatie.partijprofiel??null);
+    setStrategieen(relatie.vastgoedStrategieen??null);
+    setFout(null);
+    setBewerken(true);
+  };
+  const herstel=()=>{
+    if(opslaan||!confirmDiscard())return;
     setPartijprofiel(relatie.partijprofiel??null);
     setStrategieen(relatie.vastgoedStrategieen??null);
     setFout(null);
     setBewerken(false);
   };
-  const bewaar = async () => {
-    if(opslaan) return;
-    const oudProfiel=relatie.partijprofiel??null;
-    const oudStrategieen=relatie.vastgoedStrategieen??null;
-    const gelijk=(a:readonly string[]|null,b:readonly string[]|null)=>
-      JSON.stringify([...(a??[])].sort())===JSON.stringify([...(b??[])].sort());
+  const bewaar=async()=>{
+    if(opslaan)return;
     const wijziging:Partial<Relatie>={};
-    if(partijprofiel!==oudProfiel) wijziging.partijprofiel=partijprofiel;
-    if(!gelijk(strategieen,oudStrategieen)) wijziging.vastgoedStrategieen=strategieen;
-    if(Object.keys(wijziging).length===0){setBewerken(false);return;}
+    if(profielGewijzigd)wijziging.partijprofiel=partijprofiel;
+    if(strategieGewijzigd)wijziging.vastgoedStrategieen=strategieen;
+    if(!Object.keys(wijziging).length){setBewerken(false);return;}
+    // Controleer alleen de velden die de gebruiker hier daadwerkelijk wijzigt.
+    if((profielGewijzigd&&(relatie.partijprofiel??null)!==basisProfiel)||
+      (strategieGewijzigd&&!gelijk(relatie.vastgoedStrategieen??null,basisStrategieen))){
+      setFout('Dit profiel is elders gewijzigd. Annuleer en open opnieuw om de actuele gegevens te zien.');
+      return;
+    }
     setOpslaan(true);setFout(null);
-    try {
+    try{
       await onSave(wijziging);
       setBewerken(false);
-    } catch(err) {
+    }catch(err){
       setFout(err instanceof Error?err.message:'Opslaan mislukt');
-    } finally {
+    }finally{
       setOpslaan(false);
     }
   };
-  return <section className="section-card p-5 sm:p-6 space-y-4" aria-label="Partijprofiel en strategieën" data-testid="inline-partijprofiel">
+  return <section className="section-card p-5 sm:p-6 space-y-4"
+    aria-label="Partijprofiel en strategieën" data-testid="inline-partijprofiel">
     <div className="flex items-center justify-between gap-3">
       <h2 className="section-title">Partijprofiel en strategieën</h2>
-      {!bewerken && <button type="button" className="text-sm text-accent hover:text-accent/80"
-        onClick={()=>setBewerken(true)}>Wijzig hier</button>}
+      {!bewerken&&<button type="button" className="text-sm text-accent hover:text-accent/80"
+        onClick={begin}>Wijzig hier</button>}
     </div>
     {bewerken ? <>
       <PartijprofielVelden partijprofiel={partijprofiel}
         vastgoedStrategieen={strategieen}
         onProfielChange={setPartijprofiel} onStrategieenChange={setStrategieen}/>
-      {fout && <p role="alert" className="text-sm text-destructive">{fout}</p>}
+      {fout&&<p role="alert" className="text-sm text-destructive">{fout}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" disabled={opslaan} onClick={herstel}
           className="rounded-md border border-border px-3 py-2 text-sm">Annuleren</button>
@@ -86,9 +116,13 @@ export default function InlinePartijprofiel({
           : 'Nog niet vastgesteld'}</p>
       </div>
     </div>}
-    {relatie.commercialRoles && relatie.commercialRoles.length>0 && <div>
-      <p className="field-label">Bestaande commerciële rollen</p>
+    {relatie.commercialRoles&&relatie.commercialRoles.length>0&&<div>
+      <p className="field-label">Bestaande rolindicaties (historisch, nog gebruikt voor matching)</p>
       <p className="field-value mt-1.5">{relatie.commercialRoles.map(labelCommercieleRol).join(', ')}</p>
+      <p className="text-xs text-muted-foreground mt-1">
+        Deze eerdere rolregistratie staat los van het partijprofiel. Een ontwikkelaar,
+        makelaar of bemiddelaar is niet automatisch de uiteindelijke koper.
+      </p>
     </div>}
   </section>;
 }
