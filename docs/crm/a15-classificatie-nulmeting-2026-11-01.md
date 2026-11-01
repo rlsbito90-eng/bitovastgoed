@@ -76,3 +76,18 @@ kolommen zijn daarmee **voorselecties**, niet definitief bevestigde
 classificaties. Voor de latere overgang blijft bij twijfel `NULL`
 de veilige status. De huidige relaties, contacthistorie, zoekprofielen
 en pipeline zijn bij deze controle niet gemuteerd.
+
+## Prioriteit van lopende pipeline (verfijning)
+
+De totale niet-soft-verwijderde `object_pipeline`-rijen omvatten ook
+`afgevallen` en `afgerond`. Voor de A15-review is daarom een onderscheid
+ingevoerd tussen:
+
+- **Pipelinehistorie**: alle reeds geladen koppelingen, ter inzage.
+- **Lopende pipeline**: koppelingen behalve `afgevallen` en `afgerond`;
+  deze tellen zwaarder mee bij de volgorde van classificatiecontrole.
+- **Actieve zoekprofielen**: afzonderlijk, eveneens hoge prioriteit.
+
+De originele pipelinefasen, oude biedingen en contactmomenten worden niet
+gewijzigd of verwijderd. De aanbeveling voor een partijprofiel blijft
+onbevestigd, ongeacht historische contactactiviteit.
