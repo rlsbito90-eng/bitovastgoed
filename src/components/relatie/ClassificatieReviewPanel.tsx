@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { Relatie, Zoekprofiel, PipelineKandidaat } from '@/data/mock-data';
+import type { Relatie, RelatieContactpersoon, Zoekprofiel, PipelineKandidaat } from '@/data/mock-data';
 import type { ContactMoment } from '@/lib/contactMoments';
 import {
   prioriteerClassificatieReviews,tekstProfielSuggestie,
@@ -10,12 +10,13 @@ import {
  * Existing matching, client records, pipeline and search profiles remain intact.
  */
 export default function ClassificatieReviewPanel({
-  relaties,zoekprofielen=[],pipelineKandidaten=[],contactMoments=[],
+  relaties,zoekprofielen=[],pipelineKandidaten=[],contactMoments=[],contactpersonen=[],
 }:{
   relaties:readonly Relatie[];
   zoekprofielen?:readonly Zoekprofiel[];
   pipelineKandidaten?:readonly PipelineKandidaat[];
   contactMoments?:readonly ContactMoment[];
+  contactpersonen?:readonly RelatieContactpersoon[];
 }){
   const [open,setOpen]=useState(false);
   const [alles,setAlles]=useState(false);
@@ -28,6 +29,11 @@ export default function ClassificatieReviewPanel({
   const naamControleren=pending.filter(r=>r.datakwaliteit==='naam_controleren').length;
   const urgent=pending.filter(r=>r.prioriteit==='hoog').length;
   const byId=new Map(relaties.map(r=>[r.id,r]));
+  const primairPerRelatie=new Map<string,RelatieContactpersoon>();
+  for(const cp of contactpersonen){
+    const huidig=primairPerRelatie.get(cp.relatieId);
+    if(!huidig||(!huidig.isPrimair&&cp.isPrimair))primairPerRelatie.set(cp.relatieId,cp);
+  }
   const shown=alles?pending:pending.slice(0,12);
   return <section className="section-card p-4 sm:p-5 space-y-3" aria-label="Classificatiecontrole">
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -64,11 +70,13 @@ export default function ClassificatieReviewPanel({
               className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] px-3 py-3">
               <div className="min-w-0 space-y-1">
                 <p className="font-medium text-sm break-words">
-                  {relatie.bedrijfsnaam?.trim()||'Naam ontbreekt — identiteit controleren'}
+                  {relatie.bedrijfsnaam?.trim() && !/^onbekend(?:e relatie)?$/i.test(relatie.bedrijfsnaam.trim())
+                    ?relatie.bedrijfsnaam.trim()
+                    :primairPerRelatie.get(relatie.id)?.naam||'Partijnaam nog niet vastgesteld'}
                   {item.prioriteit==='hoog'&&<span className="ml-2 text-xs font-normal text-accent">Prioriteit vanwege actieve CRM-koppelingen</span>}
                 </p>
                 {item.datakwaliteit==='naam_controleren'&&<p className="text-xs font-medium text-destructive">
-                  Bedrijfsnaam ontbreekt of is ‘Onbekend’. Eerst identiteit verifiëren; geen gegevens wissen.
+                  Bedrijfsnaam niet vastgesteld. Controleer of dit een particulier contact of een onderneming is; geen gegevens wissen.
                 </p>}
                 <p className="text-xs">
                   {s.voorstel
