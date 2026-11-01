@@ -111,7 +111,8 @@ export default function RelatiesPage() {
       <ClassificatieReviewPanel relaties={relaties} zoekprofielen={zoekprofielen}
         pipelineKandidaten={pipelineKandidaten} contactMoments={contactMoments}
         contactpersonen={contactpersonen}/>
-      <MatchingImpactPanel objecten={objecten} relaties={relaties} zoekprofielen={zoekprofielen}/>
+      <MatchingImpactPanel objecten={objecten} relaties={relaties} zoekprofielen={zoekprofielen}
+        pipelineKandidaten={pipelineKandidaten}/>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
