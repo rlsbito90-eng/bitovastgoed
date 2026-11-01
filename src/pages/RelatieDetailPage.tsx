@@ -86,8 +86,6 @@ const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'eigenVermogenPct',label:'Eigen vermogen (%)',kind:'number'},
   {key:'voorkeurDealstructuur',label:'Dealstructuur',kind:'multi',
     options:Object.entries(DEALSTRUCTUUR_LABELS).map(([value,label])=>({value,label}))},
-  {key:'assetClasses',label:'Historische asset classes',kind:'readonly',
-    options:Object.entries(ASSET_CLASS_LABELS).map(([value,label])=>({value,label}))},
 ];
 const COMMUNICATIEVELDEN: readonly InlineRelatieVeld[] = [
   {key:'voorkeurKanaal',label:'Voorkeur kanaal',kind:'select',
@@ -160,9 +158,6 @@ export default function RelatieDetailPage() {
     }
   };
 
-  const subtypeLabel = relatie.investeerderSubtype
-    ? INVESTEERDER_SUBTYPE_LABELS[relatie.investeerderSubtype]
-    : null;
 
   return (
     <div className="page-shell-detail">
@@ -235,7 +230,6 @@ export default function RelatieDetailPage() {
           </div>
           <p className="text-sm text-muted-foreground mt-1.5 capitalize break-words">
             {relatie.partijprofiel ? labelPartijprofiel(relatie.partijprofiel) : relatie.type}
-            {subtypeLabel && ` · ${subtypeLabel}`}
             {relatie.kvkNummer && ` · KVK ${relatie.kvkNummer}`}
           </p>
         </div>
