@@ -33,7 +33,7 @@ import {
 export default function RelatiesPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { relaties, contactMoments, taken, objecten, zoekprofielen, pipelineKandidaten } = useDataStore();
+  const { relaties, contactpersonen, contactMoments, taken, objecten, zoekprofielen, pipelineKandidaten } = useDataStore();
   const initialView = useMemo(() => loadRelatiesViewState(), []);
   const [zoek, setZoek] = useState(() => searchParams.get('q') ?? initialView.zoek);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>(initialView.statusFilter);
@@ -109,7 +109,8 @@ export default function RelatiesPage() {
       />
 
       <ClassificatieReviewPanel relaties={relaties} zoekprofielen={zoekprofielen}
-        pipelineKandidaten={pipelineKandidaten} contactMoments={contactMoments}/>
+        pipelineKandidaten={pipelineKandidaten} contactMoments={contactMoments}
+        contactpersonen={contactpersonen}/>
       <MatchingImpactPanel objecten={objecten} relaties={relaties} zoekprofielen={zoekprofielen}/>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
