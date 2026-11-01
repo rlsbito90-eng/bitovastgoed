@@ -1,8 +1,9 @@
 import { describe,expect,it } from 'vitest';
-import type { Relatie } from '@/data/mock-data';
-import { maakClassificatieReview, suggereerPartijprofiel, tekstProfielSuggestie } from './classificatieReview';
+import type { Relatie, Zoekprofiel, PipelineKandidaat } from '@/data/mock-data';
+import type { ContactMoment } from '@/lib/contactMoments';
+import { maakClassificatieReview, suggereerPartijprofiel, tekstProfielSuggestie,prioriteerClassificatieReviews } from './classificatieReview';
 const bron=(x:Partial<Relatie>={})=>({
-  id:'r1',type:'belegger',partijprofiel:null,softDeletedAt:undefined,investeerderSubtype:undefined,...x,
+  id:'r1',bedrijfsnaam:'Voorbeeld BV',type:'belegger',partijprofiel:null,softDeletedAt:undefined,investeerderSubtype:undefined,...x,
 }) as Relatie;
 describe('A15 — alleen read-only classificatievoorstellen',()=>{
   it('classificeert historische standaard Belegger NIET automatisch',()=>{
@@ -49,4 +50,38 @@ describe('A15 — alleen read-only classificatievoorstellen',()=>{
     const s=suggereerPartijprofiel(bron({commercialRoles:['ontwikkelaar'],type:'belegger'}));
     expect(s.voorstel).toBeNull();
   });
+  it('blokkeert automatische suggesties bij naamloze of alleen Onbekend genoemde partijen, zonder pipelineverlies',()=>{
+    const data=[bron({id:'leeg',bedrijfsnaam:'',type:'ontwikkelaar'}),
+      bron({id:'onbekend',bedrijfsnaam:'Onbekend',type:'ontwikkelaar'})];
+    const result=maakClassificatieReview(data);
+    expect(result).toHaveLength(2);
+    expect(result.every(r=>r.status==='onderzoek_nodig'&&r.suggestie?.voorstel===null)).toBe(true);
+    expect(result.every(r=>r.datakwaliteit==='naam_controleren')).toBe(true);
+    expect(data[0].type).toBe('ontwikkelaar');
+  });
+  it('plaatst bestaande pipeline en actieve zoekprofielen vooraan zonder profielen te wijzigen',()=>{
+    const data=[
+      bron({id:'gewone',type:'ontwikkelaar'}),
+      bron({id:'pipeline',type:'ontwikkelaar',bedrijfsnaam:''}),
+      bron({id:'profiel',type:'belegger'}),
+      bron({id:'al_ingedeeld',partijprofiel:'fonds'}),
+    ];
+    const pipeline=[{id:'p1',relatieId:'pipeline',objectId:'o1'}] as PipelineKandidaat[];
+    const profielen=[{id:'z1',relatieId:'profiel',status:'actief'}] as Zoekprofiel[];
+    const momenten=[{id:'m1',relatieId:'pipeline'}] as ContactMoment[];
+    const resultaat=prioriteerClassificatieReviews(data,profielen,pipeline,momenten);
+    expect(resultaat.map(x=>x.relatieId).slice(0,2)).toEqual(['pipeline','profiel']);
+    expect(resultaat[0]).toMatchObject({pipelineKoppelingen:1,contactmomenten:1,prioriteit:'hoog',datakwaliteit:'naam_controleren'});
+    expect(resultaat[1]).toMatchObject({actieveZoekprofielen:1,prioriteit:'hoog'});
+    expect(resultaat.find(r=>r.relatieId==='al_ingedeeld')?.huidigeProfiel).toBe('fonds');
+    expect(data[1].partijprofiel).toBeNull();
+  });
+  it('genegeerde en niet-actieve zoekprofielen verhogen de prioriteit niet',()=>{
+    const data=[bron({id:'a',bedrijfsnaam:'Voorbeeld'})];
+    const profielen=[{id:'1',relatieId:'a',status:'inactief'}] as Zoekprofiel[];
+    const result=prioriteerClassificatieReviews(data,profielen,[],[]);
+    expect(result[0].actieveZoekprofielen).toBe(0);
+    expect(result[0].prioriteit).toBe('regulier');
+  });
+
 });
