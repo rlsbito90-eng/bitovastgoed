@@ -1,0 +1,50 @@
+name: CRM A13 party profile validation
+on:
+  push:
+    branches:
+      - feature/crm-partijprofiel-a13
+permissions:
+  contents: read
+concurrency:
+  group: crm-a13-party-profile-validation
+  cancel-in-progress: true
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/feature/crm-partijprofiel-a13'
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - name: Checkout without retained credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate TypeScript
+        run: npx tsc --noEmit
+      - name: A13 model, database contract and real-form tests (synthetic)
+        run: npx vitest run src/lib/relaties/partijprofiel.test.ts src/lib/relaties/partijprofiel.migration.test.ts src/components/forms/PartijprofielVelden.test.tsx src/components/forms/RelatieFormDialog.a13.test.tsx
+      - name: Production asset build (no deployment)
+        run: npm run build
+      - name: Install isolated Chromium for A13 browser acceptance
+        run: npx playwright install --with-deps chromium
+      - name: A13 desktop and mobile browser acceptance (synthetic only)
+        run: npx playwright test --config playwright.crm-a13.config.ts
+      - name: Full regression
+        run: npm test
+      - name: Ensure no tracked files changed
+        run: git diff --exit-code
+
+      - name: Upload A13 synthetic mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: crm-a13-mobile-browser
+          path: test-results/a13-*.png
+          if-no-files-found: warn
+          retention-days: 3

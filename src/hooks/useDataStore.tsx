@@ -6,6 +6,7 @@
 // - Soft delete waar geconfigureerd
 
 import { leesCommercieleRollen, schrijfCommercieleRollen } from '@/lib/relaties/commercieleRollen';
+import { leesPartijprofiel, leesVastgoedStrategieen, schrijfPartijprofiel, schrijfVastgoedStrategieen } from '@/lib/relaties/partijprofiel';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -89,6 +90,8 @@ const relatieFromDb = (r: any): Relatie => ({
   contactpersoon: r.contactpersoon ?? '',
   type: r.type_partij ?? 'belegger',
   commercialRoles: leesCommercieleRollen(r.commercial_roles),
+  partijprofiel: leesPartijprofiel(r.partijprofiel),
+  vastgoedStrategieen: leesVastgoedStrategieen(r.vastgoed_strategieen),
   investeerderSubtype: r.investeerder_subtype ?? undefined,
   telefoon: r.telefoon ?? '',
   email: r.email ?? '',
@@ -130,6 +133,8 @@ const relatieToDb = (r: Partial<Relatie>) => cleanPayload({
   contactpersoon: r.contactpersoon !== undefined ? (r.contactpersoon || null) : undefined,
   type_partij: r.type,
   commercial_roles: schrijfCommercieleRollen(r.commercialRoles),
+  partijprofiel: schrijfPartijprofiel(r.partijprofiel),
+  vastgoed_strategieen: schrijfVastgoedStrategieen(r.vastgoedStrategieen),
   investeerder_subtype: r.investeerderSubtype !== undefined ? (r.investeerderSubtype || null) : undefined,
   telefoon: r.telefoon !== undefined ? (r.telefoon || null) : undefined,
   email: r.email !== undefined ? (r.email || null) : undefined,

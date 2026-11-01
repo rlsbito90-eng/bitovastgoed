@@ -16,8 +16,8 @@
 //   3. Investeerder — budget, kapitaal, dealstructuur + comm.voorkeur + NDA
 //   4. Notities     — aankoop/verkoop, opvolging
 
-import { useState, useEffect, ReactNode } from 'react';
-import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
+import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -48,6 +48,7 @@ import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import CommercieleRollenPicker from '@/components/forms/CommercieleRollenPicker';
+import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 
 interface Props {
   open: boolean;
@@ -92,6 +93,8 @@ const leegForm: FormState = {
   bedrijfsnaam: '',
   type: 'belegger',
   commercialRoles: null,
+  partijprofiel: null,
+  vastgoedStrategieen: null,
   investeerderSubtype: undefined,
   telefoon: '',
   email: '',
@@ -141,38 +144,64 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
   const [naamloosConfirmOpen, setNaamloosConfirmOpen] = useState(false);
+  // Bewaak het volledige formulier, inclusief de primaire contactpersoon.
+  // De basislijn wordt pas NA de hydratie vastgesteld, niet bij de lege eerste render.
+  const [openerSnapshot, setOpenerSnapshot] = useState<string | null>(null);
+  // Een eerdere deels geslaagde operatie blijft een openstaand hersteltaakje,
+  // ook wanneer de gebruiker na de fout niets aan de velden heeft gewijzigd.
+  const [gedeeltelijkOpgeslagen, setGedeeltelijkOpgeslagen] = useState(false);
+  const nieuwAangemaaktIdRef = useRef<string | undefined>();
+  const isDirty = open && (
+    gedeeltelijkOpgeslagen || (openerSnapshot !== null &&
+      JSON.stringify({ form, contactpersoonInput }) !== openerSnapshot)
+  );
+  const { confirmDiscard } = useDirtyGuard(isDirty);
+
+  const guardedOnOpenChange = (next: boolean) => {
+    if (next) { onOpenChange(true); return; }
+    if (bezig) return;
+    if (isDirty && !confirmDiscard()) return;
+    onOpenChange(false);
+  };
 
   // Hydreer form bij open. Pre-fill ook de primaire contactpersoon-input
   // vanuit relatie_contactpersonen (waar is_primair = true).
   useEffect(() => {
+    let beginForm: FormState;
+    let beginContactpersoon: PrimaireContactpersoonInput;
     if (relatie) {
       const { id, laatsteContact, softDeletedAt, contactpersoon, ...rest } = relatie;
-      setForm({ ...leegForm, ...rest });
+      beginForm = { ...leegForm, ...rest };
       setGemaaktId(relatie.id);
 
-      // Zoek de primaire contactpersoon in de store
+      // Zoek de primaire contactpersoon in de store.
       const primair = store.contactpersonen?.find(
         c => c.relatieId === relatie.id && c.isPrimair,
       );
       if (primair) {
-        setContactpersoonInput({
+        beginContactpersoon = {
           naam: primair.naam ?? '',
           functie: primair.functie ?? '',
           email: primair.email ?? '',
           telefoon: primair.telefoon ?? '',
-          telefoonMobiel: (primair as any).telefoonMobiel ?? '',
-        });
+          telefoonMobiel: primair.telefoonMobiel ?? '',
+        };
         setPrimaireContactpersoonId(primair.id);
       } else {
-        setContactpersoonInput(leegPrimaireContactpersoon);
+        beginContactpersoon = { ...leegPrimaireContactpersoon };
         setPrimaireContactpersoonId(undefined);
       }
     } else {
-      setForm({ ...leegForm, ...(initialValues ?? {}) });
-      setContactpersoonInput({ ...leegPrimaireContactpersoon, ...(initialPrimaireContactpersoon ?? {}) });
+      beginForm = { ...leegForm, ...(initialValues ?? {}) };
+      beginContactpersoon = { ...leegPrimaireContactpersoon, ...(initialPrimaireContactpersoon ?? {}) };
       setPrimaireContactpersoonId(undefined);
       setGemaaktId(undefined);
     }
+    setForm(beginForm);
+    setContactpersoonInput(beginContactpersoon);
+    setOpenerSnapshot(JSON.stringify({ form: beginForm, contactpersoonInput: beginContactpersoon }));
+    setGedeeltelijkOpgeslagen(false);
+    nieuwAangemaaktIdRef.current = undefined;
     setTab('algemeen');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relatie?.id, open]);
@@ -215,7 +244,15 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const performSave = async () => {
     if (bezig) return;
     const cpNaam = contactpersoonInput.naam?.trim();
+    // Primair contact verwijderen moet bewust in het Contactpersonenpaneel gebeuren.
+    // Alleen een naam leegmaken mag niet stilzwijgend een bestaande rij verwijderen.
+    if (primaireContactpersoonId && !cpNaam) {
+      setTab('algemeen');
+      toast.error('Vul de naam van de primaire contactpersoon in. Verwijderen kan afzonderlijk via Contactpersonen.');
+      return;
+    }
     setBezig(true);
+    let relatieOpgeslagen = false;
 
     const data = { ...form, bedrijfsnaam: form.bedrijfsnaam.trim() };
 
@@ -232,46 +269,65 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
           laatsteContact: '', // niet meer automatisch vullen; tijdlijn is bron van waarheid
           contactpersoon: '', // legacy veld; nieuwe structuur via contactpersonen-tabel
         } as Omit<Relatie, 'id'>);
-        if (nieuw?.id) {
-          werkRelatieId = nieuw.id;
-          setGemaaktId(nieuw.id);
-          try { onCreated?.(nieuw.id); } catch { /* noop */ }
+        if (!nieuw?.id) {
+          throw new Error('De database gaf geen relatie-ID terug. Controleer of de relatie is aangemaakt voordat je opnieuw probeert.');
         }
+        werkRelatieId = nieuw.id;
+        setGemaaktId(nieuw.id);
+        nieuwAangemaaktIdRef.current = nieuw.id;
       }
+      relatieOpgeslagen = true;
 
       // 2. Primaire contactpersoon opslaan / updaten / verwijderen
       if (werkRelatieId) {
+        // Alleen de in dit formulier bewerkbare velden wijzigen.
+        // Een bestaande decisionMaker, contactnotitie of communicatievoorkeur
+        // mag nooit worden overschreven door het opslaan van een partijprofiel.
+        // Lege strings worden door contactpersoonToDb als expliciete NULL opgeslagen.
         const cpData = {
           naam: cpNaam,
-          functie: contactpersoonInput.functie?.trim() || undefined,
-          email: contactpersoonInput.email?.trim() || undefined,
-          telefoon: contactpersoonInput.telefoon?.trim() || undefined,
-          telefoonMobiel: contactpersoonInput.telefoonMobiel?.trim() || undefined,
+          functie: contactpersoonInput.functie?.trim() || '',
+          email: contactpersoonInput.email?.trim() || '',
+          telefoon: contactpersoonInput.telefoon?.trim() || '',
+          telefoonMobiel: contactpersoonInput.telefoonMobiel?.trim() || '',
           isPrimair: true,
-          decisionMaker: false,
         };
 
         if (cpNaam && primaireContactpersoonId) {
-          // Update bestaande primaire
-          await store.updateContactpersoon?.(primaireContactpersoonId, cpData);
+          const bestaand = store.contactpersonen?.find(c => c.id === primaireContactpersoonId);
+          const teBewerkenVelden = ['naam', 'functie', 'email', 'telefoon', 'telefoonMobiel', 'isPrimair'] as const;
+          const gewijzigd = !bestaand || teBewerkenVelden.some(veld =>
+            (bestaand[veld] ?? '') !== (cpData[veld] ?? '')
+          );
+          // Een ongewijzigde contactpersoon niet opnieuw opslaan.
+          if (gewijzigd) await store.updateContactpersoon?.(primaireContactpersoonId, cpData);
         } else if (cpNaam && !primaireContactpersoonId) {
-          // Nieuwe primaire aanmaken
+          // Alleen bij een nieuw contact leggen we een initiële beslisserstatus vast.
           const nieuweCp = await store.addContactpersoon?.({
             relatieId: werkRelatieId,
             ...cpData,
+            decisionMaker: false,
           });
           if (nieuweCp?.id) setPrimaireContactpersoonId(nieuweCp.id);
-        } else if (!cpNaam && primaireContactpersoonId) {
-          // Naam is leeg gemaakt → primaire contactpersoon verwijderen
-          await store.deleteContactpersoon?.(primaireContactpersoonId);
-          setPrimaireContactpersoonId(undefined);
         }
       }
 
+      // Pas na het voltooien van beide opslagstappen de nieuwe relatie koppelen.
+      // Een mislukte contactpersoon-update blijft daardoor herstelbaar in dit formulier.
+      const nieuwAangemaaktId = nieuwAangemaaktIdRef.current;
+      nieuwAangemaaktIdRef.current = undefined;
+      setGedeeltelijkOpgeslagen(false);
       toast.success(isEdit || gemaaktId ? 'Relatie bijgewerkt' : 'Relatie aangemaakt');
       onOpenChange(false);
+      if (nieuwAangemaaktId) {
+        try { onCreated?.(nieuwAangemaaktId); } catch { /* callback mag opslag niet ongedaan maken */ }
+      }
     } catch (err: any) {
-      toast.error(err.message ?? 'Opslaan mislukt');
+      if (relatieOpgeslagen) setGedeeltelijkOpgeslagen(true);
+      const oorzaak = err instanceof Error ? err.message : 'Onbekende opslagfout';
+      toast.error(relatieOpgeslagen
+        ? `Relatiegegevens zijn opgeslagen, maar de contactpersoon niet (${oorzaak}). Controleer de contactgegevens en probeer opnieuw; er kunnen al wijzigingen zijn doorgevoerd.`
+        : oorzaak);
     } finally {
       setBezig(false);
     }
@@ -280,8 +336,6 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const assetOptions = Object.entries(ASSET_CLASS_LABELS).map(([value, label]) => ({ value, label }));
   const regioOptions = REGIO_OPTIES.map(r => ({ value: r, label: r }));
   const dealstructuurOptions = Object.entries(DEALSTRUCTUUR_LABELS).map(([value, label]) => ({ value, label }));
-
-  const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
@@ -370,7 +424,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="Bedrijfsnaam"
                     />
                   </Veld>
-                  <Veld label="Type partij">
+                  <Veld label="Hoofdtype (bestaand)">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.type}
@@ -384,7 +438,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       <option value="overig">Overig</option>
                     </select>
                   </Veld>
-                  <Veld label="Subtype">
+                  <Veld label="Investeerderscategorie / rechtsvorm (bestaand)">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                       value={form.investeerderSubtype ?? ''}
@@ -413,6 +467,15 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="bv. event X, intro door Y" />
                   </Veld>
                 </div>
+              </Sectie>
+
+              <Sectie titel="Partijprofiel">
+                <PartijprofielVelden
+                  partijprofiel={form.partijprofiel}
+                  vastgoedStrategieen={form.vastgoedStrategieen}
+                  onProfielChange={waarde=>set('partijprofiel',waarde)}
+                  onStrategieenChange={waarden=>set('vastgoedStrategieen',waarden)}
+                />
               </Sectie>
 
               <Sectie titel="Commerciële rollen (meerdere mogelijk)">
@@ -662,7 +725,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
 
           {/* Footer */}
           <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" data-testid="relatie-form-sluiten" onClick={() => guardedOnOpenChange(false)} disabled={bezig}>
               {(isEdit || gemaaktId) ? 'Sluiten' : 'Annuleren'}
             </Button>
             <Button onClick={handleSave} disabled={bezig}>
