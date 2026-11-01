@@ -94,7 +94,7 @@ describe('A15 CRM read-only review UI',()=>{
       pipelineKandidaten={p}/></MemoryRouter>);
     fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
     fireEvent.click(screen.getByRole('button',{name:/Controleer 1 bestaande kandidaatposities/}));
-    expect(screen.getByText('Buiten simulatie')).toBeTruthy();
+    expect(screen.getAllByText('Buiten simulatie')).toHaveLength(2);
     expect(screen.getByText(/Bestaande kandidaatkoppeling en proceshistorie blijven onaangetast/)).toBeTruthy();
   });
   it('start de matchingvergelijking alleen na handmatige actie en zonder writes',()=>{
