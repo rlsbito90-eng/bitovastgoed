@@ -506,7 +506,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     concrete zoekwensen bij Zoekprofielen en feitelijke rollen in een transactie bij de deal.
                   </p>
                 </Sectie>
-              )>
+              )}
 
               {/* === KVK & VESTIGINGSADRES === */}
               <Sectie titel="KVK & vestigingsadres">
