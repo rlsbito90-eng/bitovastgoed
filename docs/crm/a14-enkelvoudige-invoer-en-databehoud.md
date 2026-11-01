@@ -66,3 +66,48 @@ Geen automatische mandaat- of koperaanname.
 - TypeScript, formulier- en classificatietests plus regressietests controleren.
 - Bij livegang expliciete toestemming voor `main` en productiecontrole; één
   Vercel-build, geen aparte previews.
+
+
+## A14.2 — nieuwe profielopties en directe bewerking in het profiel
+
+- **Ontwikkelende belegger** bestond al; blijft precies één profieloptie.
+- Nieuwe profielopties: **Fonds**, **Family office**, **Buitenlandse belegger**.
+- Fonds en Family office komen ook voor in het historisch gemengde veld
+  `investeerder_subtype` (naast onder meer BV/NV/CV). Daarom wordt in het
+  relatieformulier voortaan alleen de **rechtsvorm** (BV/NV/CV) gevraagd; eerder
+  ingevulde categorieën worden zichtbaar en ongewijzigd bewaard. Op termijn
+  moet rechtsvorm los worden opgeslagen van de algemene classificatie.
+- In de relatiepagina is een eerste inline-sectie voor Partijprofiel en
+  Vastgoedstrategieën toegevoegd. Bewerk ter plekke, expliciet opslaan of
+  annuleren. De opslagpatch raakt uitsluitend gewijzigde profielvelden en
+  laat commerciële rollen, overige relatiegegevens, contactpersonen en
+  zoekprofielen ongemoeid.
+- De nieuwe profielen vragen een aparte **nog niet uitgevoerde** CHECK-uitbreiding:
+  `20261101130000_a14_extend_partijprofiel_values.sql`.
+- Bestaande relaties worden niet automatisch geclassificeerd. Latere
+  herclassificatie mag na een voorstelaudit per relatie en controle van de
+  bestaande gegevens, met log en ongedaanmaakmogelijkheid.
+
+## Profielpagina — nog te implementeren voor volledig direct bewerken
+
+De relatiepagina toont al contactpersonen, algemene contactgegevens,
+vastgoedvoorkeuren, investeerdersinformatie, vestiging, zoekprofielen,
+pipeline, deals, taken, matches en contactmomenten. Niet elk opgeslagen
+veld is zichtbaar en de meeste velden zijn nog niet op hun plaats bewerkbaar.
+
+**Gewenste eindtoestand**: alle relevante gegevens in logisch ingedeelde,
+ook op mobiel leesbare secties. Lege velden hebben duidelijke placeholders,
+niet stilzwijgend verborgen informatie. Elk veld of elke groep krijgt
+inline bewerken + opslaan/annuleren, zonder dat een grote modal nodig is.
+
+In de volgende fase: contactpersonen met functie/primair/beslisser/kanalen;
+bedrijfsgegevens en vestiging; vastgoed- en koopcriteria; investerings- en
+kapitaalgegevens; zoekprofielen en specifieke regio/bedrag/huur/wensen;
+notities, communicatie, NDA, bron, opvolging en overige CRM-informatie.
+Uit relationele modules zoals pipeline/deals/taken blijven hun eigen
+autorisatie- en businessregels leidend; direct bewerken mag die niet
+omzeilen. Matching-uitkomsten zijn berekend, dus geen handmatige veldedit.
+
+Voorwaarde bij iedere fase: **geen dubbele bron**, kleine gerichte
+wijzigingspatches, niet onbedoeld leegmaken, expliciete foutmelding,
+gebruikerscontrole en regressietests voor contactpersonen/zoekprofielen.
