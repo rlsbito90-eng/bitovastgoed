@@ -111,3 +111,35 @@ omzeilen. Matching-uitkomsten zijn berekend, dus geen handmatige veldedit.
 Voorwaarde bij iedere fase: **geen dubbele bron**, kleine gerichte
 wijzigingspatches, niet onbedoeld leegmaken, expliciete foutmelding,
 gebruikerscontrole en regressietests voor contactpersonen/zoekprofielen.
+
+## A14.3 — directe bewerking van aanvullende profielsecties (ontwikkelbranch)
+
+- Op Relatie-detail zijn vaste, ook bij lege waarden zichtbare secties gemaakt:
+  **Bedrijf en algemene contactgegevens**, **Vestigingsgegevens**,
+  **Bestaande vastgoedvoorkeuren**, **Investering en financiering**,
+  **Communicatie en NDA**, **Aankoop, verkoop en notities** en
+  **Activiteit en opvolging**.
+- De generieke `InlineRelatieSectie` bewerkt alleen de gebruikte velden van
+  de gekozen sectie en bouwt uitsluitend een verschilpatch. Annuleren bij
+  niet-opgeslagen wijzigingen vereist bevestiging; gelijktijdig bijgewerkte
+  velden worden niet stilzwijgend overschreven; fouten laten de invoer staan.
+- `relatieToDb` had bij gedeeltelijke updates een veiligheidsfout:
+  `budget_min`, `budget_max`, `rendementseis` en
+  `eigen_vermogen_pct` werden bij ontbrekende patchvelden NULL.
+  Dat is verholpen via `numeriekPatchVeld` en regressietests.
+- Bestaand `ContactpersonenPanel` is hergebruikt op de profielpagina:
+  geen tweede contactpersonenopslag. Inclusief mobiele nummers,
+  contactvoorkeuren en notities. Leegmaken van bewerkbare contactvelden
+  wordt expliciet opgeslagen.
+- Historische vastgoedclassificaties blijven zichtbaar, maar worden niet
+  gekopieerd naar de zelfstandige `zoekprofielen`-tabel.
+- Historische investeerderscategorie wordt op één plek als historische
+  metadata getoond, niet als tweede profielbadge in de kop.
+- Voor `Zoekprofielen`, de diepere vastgoedtaxonomie, complexe taken/pipeline
+  en andere gerelateerde modules blijft hun bestaande editroute bestaan
+  totdat zij afzonderlijk veilig inline kunnen worden geïntegreerd.
+  Deze stap omvat nog geen volledige vervanging van het oude
+  totaalformulier.
+
+**Let op**: deze code staat uitsluitend op een draft branch; de A14-migratie
+is niet toegepast en er zijn geen echte relaties bijgewerkt.
