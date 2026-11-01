@@ -8,7 +8,9 @@
 
 import { isGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
 
-import type { CommercieleRol } from '../../data/mock-data';
+import type { CommercieleRol, Partijprofiel } from '../../data/mock-data';
+/** A15 proposal may be simulated; the existing policy remains the default. */
+export type MatchingBeleid = 'bestaand' | 'profiel_eerst';
 export type { CommercieleRol };
 export type MandaatType = 'eigen_aankoop' | 'namens_opdrachtgever' | 'voor_netwerk' | 'onbekend';
 export type MatchKwalificatie = 'passend' | 'te_verifieren' | 'afwijkend' | 'onvoldoende';
@@ -20,6 +22,7 @@ export interface CrmRelatieInput {
   type?: string;
   softDeletedAt?: string | null;
   commercialRoles?: readonly CommercieleRol[] | null; // Future nullable field; null = legacy unknown, [] = explicitly none
+  partijprofiel?: Partijprofiel | null;
   assetClasses?: readonly string[] | null;
   propertyTypeIds?: readonly string[] | null;
   propertySubtypeIds?: readonly string[] | null;
@@ -114,10 +117,21 @@ function heeftProfielCriteria(p: CrmMandaatInput): boolean {
 }
 
 /** Contact brokers and investors directly; no mandate validation gate. */
-function routeType(r: CrmRelatieInput, p?: CrmMandaatInput): { route: ContactRoute; reden: string } | null {
+function routeType(r: CrmRelatieInput, p?: CrmMandaatInput, beleid:MatchingBeleid='bestaand'): { route: ContactRoute; reden: string } | null {
   if(p){
     if(p.status!=='actief' || !heeftProfielCriteria(p)) return null;
     return {route:'directe_partij',reden:'actief zoekprofiel'};
+  }
+  if(beleid==='profiel_eerst'){
+    if(!heeftBasisCriteria(r))return null;
+    const geschiktProfiel=new Set<Partijprofiel>([
+      'belegger','ontwikkelende_belegger','fonds','family_office',
+      'buitenlandse_belegger','ontwikkelaar','vastgoedondernemer',
+      'makelaar','bemiddelaar',
+    ]);
+    // Een partijprofiel bewijst geen mandaat, kooprol of uiteindelijke koper.
+    if(!r.partijprofiel||!geschiktProfiel.has(r.partijprofiel))return null;
+    return {route:'directe_partij',reden:'partijprofiel met algemene zoekcriteria (A15-simulatie)'};
   }
   const roles=getRoles(r);
   const zoekendeRol=roles?.some(x=>x==='koper'||x==='bemiddelaar'||x==='makelaar'||x==='ontwikkelaar')??false;
@@ -131,8 +145,8 @@ function normaliseerRegio(s:string):string{
 }
 const LANDELIJK=new Set(['nederland','heel nederland','landelijk','heel nl']);
 
-function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmRelatieInput[], p?:CrmMandaatInput):ProfielRoute|null {
-  const route = routeType(r,p); if(!route) return null;
+function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmRelatieInput[], p?:CrmMandaatInput,beleid:MatchingBeleid='bestaand'):ProfielRoute|null {
+  const route = routeType(r,p,beleid); if(!route) return null;
   const matcht:string[]=[],controleer:string[]=[],afwijkend:string[]=[];
   const types = p ? p.propertyTypeIds : r.propertyTypeIds;
   const legacy = p ? p.typeVastgoed : r.assetClasses;
@@ -204,7 +218,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   }
   let koperRelatieId:string|null=null;
   // De contactpartij kan zelf koper zijn, maar een makelaar is niet automatisch de eindkoper.
-  if(has(getRoles(r),'koper')&&(r.type!=='makelaar'||p?.mandateType==='eigen_aankoop'))
+  if(beleid==='bestaand'&&has(getRoles(r),'koper')&&(r.type!=='makelaar'||p?.mandateType==='eigen_aankoop'))
     koperRelatieId=r.id;
   else if(p?.mandateType==='namens_opdrachtgever' && p.principalVerified && p.principalRelatieId &&
     p.principalRelatieId!==r.id && relaties.some(x=>x.id===p.principalRelatieId&&!x.softDeletedAt))
@@ -212,7 +226,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   const kwalificatie:MatchKwalificatie=afwijkend.length?'afwijkend':
     geverifieerd===0?'onvoldoende':controleNodig?'te_verifieren':'passend';
   if(!koperRelatieId)controleer.push('Uiteindelijke koper eventueel later in het traject vaststellen');
-  const routeConfirmed=has(getRoles(r),'koper')||has(getRoles(r),'bemiddelaar');
+  const routeConfirmed=beleid==='bestaand'&&(has(getRoles(r),'koper')||has(getRoles(r),'bemiddelaar'));
 
   return {key:p?`zoekprofiel:${p.id}`:`relatie:${r.id}:basis`,zoekprofielId:p?.id??null,
     bron:p?'zoekprofiel':'relatie_basis',naam:p?.naam??'Algemene zoekcriteria',route:route.route,
@@ -228,14 +242,14 @@ const rang:Record<MatchKwalificatie,number>={passend:4,te_verifieren:3,onvoldoen
  */
 export function maakKandidaatVoorstellen(
  object:CrmObjectInput, relaties:readonly CrmRelatieInput[], zoekprofielen:readonly CrmMandaatInput[],
- options:{reedsGekoppeld?:ReadonlySet<string>; toonAfwijkende?:boolean}={}
+ options:{reedsGekoppeld?:ReadonlySet<string>; toonAfwijkende?:boolean; beleid?:MatchingBeleid}={}
 ):KandidaatVoorstel[]{
  if(!isAanbiedbaar(object))return [];
  const result:KandidaatVoorstel[]=[];
  for(const r of relaties){
    if(r.softDeletedAt||options.reedsGekoppeld?.has(r.id))continue;
    const profiles=zoekprofielen.filter(p=>p.relatieId===r.id&&p.status==='actief');
-   const routes=[beoordelen(object,r,relaties),...profiles.map(p=>beoordelen(object,r,relaties,p))]
+   const routes=[beoordelen(object,r,relaties,undefined,options.beleid),...profiles.map(p=>beoordelen(object,r,relaties,p,options.beleid))]
     .filter((x):x is ProfielRoute=>x!==null).filter(x=>options.toonAfwijkende||x.kwalificatie!=='afwijkend');
    if(!routes.length)continue;
    routes.sort((a,b)=>{
