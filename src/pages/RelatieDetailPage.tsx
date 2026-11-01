@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
@@ -116,6 +116,12 @@ export default function RelatieDetailPage() {
   const [zpOpen, setZpOpen] = useState(false);
   const [zpBewerken, setZpBewerken] = useState<Zoekprofiel | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const zoekprofielFormRef = useRef<HTMLDivElement | null>(null);
+  useEffect(()=>{
+    if(zpOpen && zoekprofielFormRef.current?.scrollIntoView){
+      zoekprofielFormRef.current.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+  },[zpOpen]);
 
   if (!relatie) {
     return (
@@ -236,6 +242,11 @@ export default function RelatieDetailPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
+        {zpOpen && <div ref={zoekprofielFormRef} className="lg:col-span-3 min-w-0">
+          <ZoekprofielFormDialog inline open={zpOpen}
+            onOpenChange={next=>{setZpOpen(next);if(!next)setZpBewerken(null);}}
+            defaultRelatieId={relatie.id} zoekprofiel={zpBewerken}/>
+        </div>}
         <div className="lg:col-span-2 space-y-4 lg:space-y-6 min-w-0">
           <InlinePartijprofiel relatie={relatie}
             onSave={(wijziging)=>store.updateRelatie(relatie.id,wijziging)} />
@@ -428,12 +439,6 @@ export default function RelatieDetailPage() {
       </div>
 
       <RelatieFormDialog open={editOpen} onOpenChange={setEditOpen} relatie={relatie} />
-      <ZoekprofielFormDialog
-        open={zpOpen}
-        onOpenChange={next => { setZpOpen(next); if (!next) setZpBewerken(null); }}
-        defaultRelatieId={relatie.id}
-        zoekprofiel={zpBewerken}
-      />
       <ContactMomentFormDialog open={logOpen} onOpenChange={setLogOpen} defaultRelatieId={relatie.id} />
     </div>
   );
