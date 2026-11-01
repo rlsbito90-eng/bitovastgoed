@@ -131,3 +131,44 @@ een transactie heeft een andere betekenis dan de algemene typering.
   
 Geen individueel identificeerbare relaties in de repositorydocumentatie
 opgenomen; geen SQL-wijzigingen, massale herclassificatie, merge of deploy.
+
+## A15.4 — één partijprofiel, afzonderlijke transactierollen (ontwikkelbranch)
+
+De relatiepagina heeft een zelfstandige inline-sectie **Activiteiten en
+transactierollen**. Deze sectie gebruikt het bestaande
+`relaties.commercial_roles` als **enige opslagbron voor de activiteit**,
+dus geen extra kolom, kopie of migratie. Uit de historische classificatie
+wordt niet automatisch een activiteit afgeleid.
+
+- **Partijprofiel**: wat voor partij het is (bijvoorbeeld
+  `ontwikkelaar` of `ontwikkelende_belegger`), één hoofdkeuze.
+- **Activiteiten**: wat de partij in het netwerk kan doen (zelf kopen,
+  verkopen, voor derden bemiddelen, adviseren, beheren of financieren).
+  Meerdere zijn mogelijk; `bemiddelaar` is hier een activiteit en
+  wordt niet als tweede *partijclassificatie* gevraagd.
+- **Bestaand zoeken en transacties**: concrete zoekwensen blijven in
+  Zoekprofielen, bestaande kandidaatkoppelingen in de pipeline, de
+  uiteindelijke identiteit van een economische koper bij de transactie.
+  Een algemene koperactiviteit bewijst geen bod, mandaat of eigendom.
+
+Historische waarden zoals `makelaar` en `ontwikkelaar` in
+`commercial_roles` blijven read-only zichtbaar en worden niet in de
+wijzigbare activiteitenlijst aangeboden. Bij opslaan worden uitsluitend
+wijzigbare rollen aangepast; alle overige historische waarden blijven
+ongewijzigd. Ook een wijziging van partijprofiel of strategie schrijft
+geen rollen mee. Bij een wijziging van dezelfde rollen elders krijgt de
+gebruiker een conflictmelding.
+
+Nieuwe gerichte synthetische tests dekken een partij die tegelijk
+ontwikkelt en bemiddelt, een ontwikkelende belegger die voor eigen rekening
+kan kopen, behoud van historische waarden, lege patches en conflicten.
+Het betreft nog steeds een **draft**: geen bestaande relaties zijn
+geherclassificeerd, geen nieuwe koperidentiteiten zijn definitief
+vastgesteld en het matchbeleid is niet omgezet.
+
+**Open overgangsvoorwaarde:** de oude A15-`profiel_eerst`-simulatie
+kan nog verschillen tonen in koperidentiteit en bevestigingsstatus.
+Dat is geen automatische correctie; voor release moeten die verschillen
+per bestaand kandidaatdossier beoordeeld en geaccepteerd zijn. De nieuwe
+inline-sectie maakt het vastleggen van rollen mogelijk maar rechtvaardigt
+geen onomkeerbare opschoning.
