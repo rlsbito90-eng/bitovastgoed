@@ -101,3 +101,33 @@ een markering als er een verschil wordt getoond.
 Historie `afgevallen` en `afgerond` is geen lopende pipeline. Alle
 bestaande pipeline-, zoekprofiel- en contactgegevens blijven onveranderd.
 Er is niets gemigreerd of naar productie uitgerold.
+
+## A15.3 — gecombineerde hoedanigheden en koperidentiteit (acceptatiepoort)
+
+Inhoudelijke review maakt duidelijk dat **één relatie gelijktijdig meerdere
+hoedanigheden** kan hebben: bijvoorbeeld ontwikkelaar die ook bemiddelt,
+of ontwikkelende belegger die bij specifieke objecten directe kandidaat-koper
+is. Dit zijn geen twee concurrerende partijprofielen; de hoedanigheid bij
+een transactie heeft een andere betekenis dan de algemene typering.
+
+- Eén leidend algemeen `partijprofiel` blijft mogelijk, maar **secundaire
+  activiteiten moeten afzonderlijk, vindbaar en bewerkbaar** worden
+  vastgelegd voordat de historische rolvelden kunnen worden verwijderd.
+  Er mogen geen twee bewerkbare kopieën van hetzelfde gegeven ontstaan.
+- `ontwikkelende_belegger` of `ontwikkelaar` bewijst op zichzelf geen
+  formele koperrol; een expliciete koperrol / bestaande concrete
+  kandidaatkoppeling mag daarentegen niet worden weggepoetst.
+- Een partij die ook bemiddelt mag blijven deelnemen aan matching en
+  hoeft geen aantoonbaar mandaat te hebben om proposities te ontvangen.
+  Bemiddeling is niet hetzelfde als de economische koper zijn.
+- De A15-proef toont nu via regressietests twee risico's in de
+  **nog niet goedgekeurde** nieuwe matchvariant: verlies van de bestaande
+  bevestigingsindicatie bij gecombineerde ontwikkelaar/bemiddelaar en
+  verlies van een expliciet bestaande koperverwijzing bij een
+  ontwikkelende belegger. Beide zijn **open releaseblokkades**.
+- Historische dossier- en pipelinekoppelingen blijven leidend als
+  bewijsspoor. Het aanvullen of wijzigen van echte profielen en rollen
+  gebeurt pas via een gecontroleerde relatie-voor-relatie review.
+  
+Geen individueel identificeerbare relaties in de repositorydocumentatie
+opgenomen; geen SQL-wijzigingen, massale herclassificatie, merge of deploy.
