@@ -91,6 +91,18 @@ describe('A15 matchingvergelijking zonder databasewijziging',()=>{
    expect(d.verschillen[0].soort).toBe('gewijzigd');
    expect(d.verschillen[0].redenen.join(' ')).toContain('economische koper');
  });
+ it('bewaakt een lopende pipeline afzonderlijk, ook op niet-beschikbare objecten',()=>{
+   const r=relatie({partijprofiel:null});
+   const d=vergelijkMatchBeleid([object(),object({id:'o2',status:'verkocht'})],[r],[],[
+     {objectId:'o1',relatieId:'r1',pipelineFase:'teaser_verstuurd'},
+     {objectId:'o2',relatieId:'r1',pipelineFase:'informatie_gedeeld'},
+     {objectId:'o1',relatieId:'r1',pipelineFase:'afgevallen'},
+   ]);
+   expect(d.lopendePipelineKoppelingen).toBe(2);
+   expect(d.relatiesMetLopendePipelineZonderProfiel).toBe(1);
+   expect(d.lopendePipelineBuitenVergelijking).toBe(1);
+   expect(d.lopendePipelineMetVerschil).toBe(1);
+ });
  it('meldt geen veranderingen bij twee identieke kandidaatsets',()=>{
    const r=relatie({type:'makelaar',partijprofiel:'makelaar',commercialRoles:null,propertyTypeIds:[],budgetMax:undefined});
    const d=vergelijkMatchBeleid([object()],[r],[profiel()]);
