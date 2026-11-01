@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import { PARTIJPROFIELEN,VASTGOEDSTRATEGIEEN,leesPartijprofiel,leesVastgoedStrategieen,
-  schrijfPartijprofiel,schrijfVastgoedStrategieen } from './partijprofiel';
+  schrijfPartijprofiel,schrijfVastgoedStrategieen,legacyTypeVoorNieuweRelatie } from './partijprofiel';
 
 describe('Partijprofiel — onafhankelijk van commerciële rollen',()=>{
  it('bevat ontwikkelende belegger en vastgoedondernemer',()=>{
@@ -34,4 +34,15 @@ describe('Partijprofiel — onafhankelijk van commerciële rollen',()=>{
   expect(relatie.type).toBe('belegger');
   expect(relatie.commercialRoles).toEqual(['koper']);
  });
+ it('leidt voor nieuwe relaties alleen een compatibel technisch hoofdtype af',()=>{
+  expect(legacyTypeVoorNieuweRelatie('ontwikkelende_belegger')).toBe('belegger');
+  expect(legacyTypeVoorNieuweRelatie('belegger')).toBe('belegger');
+  expect(legacyTypeVoorNieuweRelatie('ontwikkelaar')).toBe('ontwikkelaar');
+  expect(legacyTypeVoorNieuweRelatie('vastgoedeigenaar')).toBe('eigenaar');
+  expect(legacyTypeVoorNieuweRelatie('makelaar')).toBe('makelaar');
+  expect(legacyTypeVoorNieuweRelatie('bemiddelaar')).toBe('makelaar');
+  expect(legacyTypeVoorNieuweRelatie('vastgoedondernemer')).toBe('overig');
+  expect(legacyTypeVoorNieuweRelatie('overig')).toBe('overig');
+ });
+
 });
