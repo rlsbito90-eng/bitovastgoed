@@ -22,8 +22,8 @@ import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog'
 import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
-import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
-import { labelPartijprofiel, labelVastgoedStrategie } from '@/lib/relaties/partijprofiel';
+import InlinePartijprofiel from '@/components/relatie/InlinePartijprofiel';
+import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import { isGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
 import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
@@ -189,29 +189,13 @@ export default function RelatieDetailPage() {
             {subtypeLabel && ` · ${subtypeLabel}`}
             {relatie.kvkNummer && ` · KVK ${relatie.kvkNummer}`}
           </p>
-          {(relatie.vastgoedStrategieen?.length??0)>0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Vastgoedstrategieën">
-              {relatie.vastgoedStrategieen?.map(st=>(
-                <span key={st} className="text-xs rounded border border-border/60 bg-muted/30 px-2 py-1">
-                  {labelVastgoedStrategie(st)}
-                </span>
-              ))}
-            </div>
-          )}
-          {relatie.commercialRoles && relatie.commercialRoles.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2" aria-label="Commerciële rollen">
-              {relatie.commercialRoles.map(rol=>(
-                <span key={rol} className="text-xs rounded border border-border bg-muted/30 px-2 py-1">
-                  {labelCommercieleRol(rol)}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-2 space-y-4 lg:space-y-6 min-w-0">
+          <InlinePartijprofiel relatie={relatie}
+            onSave={(wijziging)=>store.updateRelatie(relatie.id,wijziging)} />
 
           {/* CONTACTPERSONEN */}
           <section className="section-card p-5 sm:p-6 space-y-4">
