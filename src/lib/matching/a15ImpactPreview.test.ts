@@ -123,6 +123,64 @@ describe('A15 matchingvergelijking zonder databasewijziging',()=>{
    expect(d.verschillen[0].oud?.besteRoute.koperRelatieId).toBe('r1');
    expect(d.verschillen[0].nieuw?.besteRoute.koperRelatieId).toBeNull();
  });
+ it('A15.5 registreert een bestaande kandidaat zelfs wanneer beide matchingmodellen die missen',()=>{
+   const r=relatie({type:'eigenaar',partijprofiel:null,propertyTypeIds:[],assetClasses:[],budgetMax:undefined});
+   const d=vergelijkMatchBeleid([object()],[r],[],[
+     {id:'pipeline-1',objectId:'o1',relatieId:'r1',pipelineFase:'indicatieve_bieding'},
+   ]);
+   expect(d.verschillen).toHaveLength(0);
+   expect(d.pipelineZonderGegenereerdeMatch).toBe(1);
+   expect(d.pipelineTeBeoordelen).toBe(1);
+   expect(d.pipelineControles[0]).toMatchObject({
+     pipelineId:'pipeline-1',status:'geen_match',pipelineFase:'indicatieve_bieding',
+     relatieId:'r1',objectId:'o1',partijprofielOntbreekt:true,
+   });
+ });
+ it('A15.5 bewaakt een bestaande route die in de simulatie wegvalt',()=>{
+   const r=relatie({partijprofiel:null});
+   const d=vergelijkMatchBeleid([object()],[r],[],[
+     {objectId:'o1',relatieId:'r1',pipelineFase:'match_gevonden'},
+   ]);
+   expect(d.pipelineWegvallendeRoutes).toBe(1);
+   expect(d.pipelineControles[0].status).toBe('valt_weg');
+   expect(d.lopendePipelineMetVerschil).toBe(1);
+ });
+ it('A15.5 markeert gewijzigde koperverwijzingen zonder feitelijk koperrecord te wijzigen',()=>{
+   const r=Object.freeze(relatie({partijprofiel:'ontwikkelende_belegger',commercialRoles:['koper']}));
+   const p=Object.freeze({id:'p1',objectId:'o1',relatieId:'r1',pipelineFase:'informatie_gedeeld' as const});
+   const before=JSON.stringify([r,p]);
+   const d=vergelijkMatchBeleid([object()],[r],[],[p]);
+   expect(d.pipelineGewijzigdeKoperverwijzingen).toBe(1);
+   expect(d.pipelineControles[0]).toMatchObject({
+     status:'koperverwijzing',huidigeKoperRelatieId:'r1',nieuweKoperRelatieId:null,
+   });
+   expect(JSON.stringify([r,p])).toBe(before);
+ });
+ it('A15.5 toont actieve kandidaat op on-hold object zonder nieuwe match aan te maken',()=>{
+   const d=vergelijkMatchBeleid([object({status:'on_hold'})],[relatie()],[],[
+     {objectId:'o1',relatieId:'r1',pipelineFase:'indicatieve_bieding'},
+   ]);
+   expect(d.beschikbareObjecten).toBe(0);
+   expect(d.lopendePipelineBuitenVergelijking).toBe(1);
+   expect(d.pipelineControles[0].status).toBe('buiten_vergelijking');
+   expect(d.huidigeKandidaatKoppelingen).toBe(0);
+ });
+ it('A15.5 registreert onbekende classificatie ook wanneer matches verder gelijk blijven',()=>{
+   const r=relatie({type:'eigenaar',partijprofiel:null,propertyTypeIds:[],budgetMax:undefined});
+   const d=vergelijkMatchBeleid([object()],[r],[profiel()],[
+     {objectId:'o1',relatieId:'r1',pipelineFase:'teaser_verstuurd'},
+   ]);
+   expect(d.verschillen).toHaveLength(0);
+   expect(d.pipelineControles[0].status).toBe('profiel_ontbreekt');
+ });
+ it('A15.5 telt afgewezen en afgeronde dossiers niet als lopende pipeline',()=>{
+   const d=vergelijkMatchBeleid([object()],[relatie()],[],[
+     {objectId:'o1',relatieId:'r1',pipelineFase:'afgevallen'},
+     {objectId:'o1',relatieId:'r1',pipelineFase:'afgerond'},
+   ]);
+   expect(d.lopendePipelineKoppelingen).toBe(0);
+   expect(d.pipelineControles).toHaveLength(0);
+ });
  it('meldt geen veranderingen bij twee identieke kandidaatsets',()=>{
    const r=relatie({type:'makelaar',partijprofiel:'makelaar',commercialRoles:null,propertyTypeIds:[],budgetMax:undefined});
    const d=vergelijkMatchBeleid([object()],[r],[profiel()]);
