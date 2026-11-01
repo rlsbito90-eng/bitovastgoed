@@ -97,6 +97,16 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getAllByText('Buiten simulatie')).toHaveLength(2);
     expect(screen.getByText(/Bestaande kandidaatkoppeling en proceshistorie blijven onaangetast/)).toBeTruthy();
   });
+  it('A15.6 toont een geblokkeerde vrijgave ondanks nul matchingverschillen',()=>{
+    const r={...old,partijprofiel:'belegger' as const};
+    render(<MemoryRouter><MatchingImpactPanel relaties={[r]}
+      objecten={[]} zoekprofielen={[]}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText(/Concept-release:/)).toBeTruthy();
+    expect(screen.getByText(/Een nulstand bij verschillen is geen automatische toestemming/)).toBeTruthy();
+    expect(screen.getAllByText('Handmatig akkoord nodig')).toHaveLength(3);
+    expect(screen.queryByRole('button',{name:/Opschoning starten/})).toBeNull();
+  });
   it('start de matchingvergelijking alleen na handmatige actie en zonder writes',()=>{
     render(<MatchingImpactPanel relaties={[old]} objecten={[object]} zoekprofielen={[] as Zoekprofiel[]}/>);
     expect(screen.queryByText('Koppelingen die wegvallen')).toBeNull();
