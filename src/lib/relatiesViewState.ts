@@ -1,44 +1,45 @@
-import type { LeadStatus, PartijType } from '@/data/mock-data';
+import type { LeadStatus } from '@/data/mock-data';
+import {
+  normaalProfielFilter,
+  type RelatieProfielFilter,
+} from '@/lib/relaties/relatieProfielFilter';
 
 export interface RelatiesViewState {
-  zoek: string;
-  statusFilter: LeadStatus | '';
-  typeFilter: PartijType | '';
+  zoek:string;
+  statusFilter:LeadStatus|'';
+  profielFilter:RelatieProfielFilter;
 }
 
-const KEY = 'crm:relaties:view-state:v1';
-const STATUSSEN = new Set(['koud', 'lauw', 'warm', 'actief']);
-const TYPES = new Set(['belegger', 'ontwikkelaar', 'eigenaar', 'makelaar', 'partner']);
+const KEY='crm:relaties:view-state:v2';
+const OUD_KEY='crm:relaties:view-state:v1';
+const STATUSSEN=new Set(['koud','lauw','warm','actief']);
 
-export const DEFAULT_RELATIES_VIEW_STATE: RelatiesViewState = {
-  zoek: '',
-  statusFilter: '',
-  typeFilter: '',
+export const DEFAULT_RELATIES_VIEW_STATE:RelatiesViewState={
+  zoek:'',statusFilter:'',profielFilter:'',
 };
 
-export function loadRelatiesViewState(): RelatiesViewState {
-  try {
-    const raw = sessionStorage.getItem(KEY);
-    if (!raw) return DEFAULT_RELATIES_VIEW_STATE;
-    const parsed = JSON.parse(raw) as Partial<RelatiesViewState>;
-    return {
-      zoek: typeof parsed.zoek === 'string' ? parsed.zoek : '',
-      statusFilter: STATUSSEN.has(parsed.statusFilter ?? '')
-        ? parsed.statusFilter as LeadStatus
-        : '',
-      typeFilter: TYPES.has(parsed.typeFilter ?? '')
-        ? parsed.typeFilter as PartijType
-        : '',
+/** v1 -> v2: een eerder gekozen oud hoofdtype blijft exact als
+ * historisch filter werken; geen onbewezen partijprofiel afleiden. */
+export function loadRelatiesViewState():RelatiesViewState{
+  try{
+    const nieuw=sessionStorage.getItem(KEY);
+    const oud=nieuw?null:sessionStorage.getItem(OUD_KEY);
+    if(!nieuw&&!oud)return DEFAULT_RELATIES_VIEW_STATE;
+    const parsed=JSON.parse(nieuw??oud??'{}') as Record<string,unknown>;
+    const profielFilter=nieuw
+      ?normaalProfielFilter(parsed.profielFilter)
+      :normaalProfielFilter(typeof parsed.typeFilter==='string'
+        ?`legacy:${parsed.typeFilter}`:'');
+    return{
+      zoek:typeof parsed.zoek==='string'?parsed.zoek:'',
+      statusFilter:STATUSSEN.has(String(parsed.statusFilter??''))
+        ? parsed.statusFilter as LeadStatus:'',
+      profielFilter,
     };
-  } catch {
-    return DEFAULT_RELATIES_VIEW_STATE;
-  }
+  }catch{return DEFAULT_RELATIES_VIEW_STATE;}
 }
 
-export function saveRelatiesViewState(state: RelatiesViewState): void {
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify(state));
-  } catch {
-    // Niet fataal: zonder sessionStorage blijft de lijst volledig bruikbaar.
-  }
+export function saveRelatiesViewState(state:RelatiesViewState):void{
+  try{sessionStorage.setItem(KEY,JSON.stringify(state));}
+  catch{ /* zonder sessionStorage blijft de lijst functioneren */ }
 }
