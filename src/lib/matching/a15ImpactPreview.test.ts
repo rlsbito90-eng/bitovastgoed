@@ -62,6 +62,42 @@ describe('A15 matchingvergelijking zonder databasewijziging',()=>{
    expect(d.veranderdeKoperidentiteiten).toBe(1);
    expect(d.verdwenenKoppelingen).toBe(0);
  });
+ it('toont per verdwenen koppeling object, relatie en concrete reden',()=>{
+   const d=vergelijkMatchBeleid([object()],[relatie({partijprofiel:null})],[]);
+   expect(d.verschillen).toHaveLength(1);
+   expect(d.verschillen[0]).toMatchObject({
+     objectId:'o1',relatieId:'r1',soort:'weggevallen',nieuw:null,
+   });
+   expect(d.verschillen[0].oud?.besteRoute.bron).toBe('relatie_basis');
+   expect(d.verschillen[0].redenen.join(' ')).toContain('Partijprofiel ontbreekt');
+ });
+ it('beschrijft nieuwe contactroute zonder mandaat of automatische koperclaim',()=>{
+   const r=relatie({type:'eigenaar',partijprofiel:'family_office'});
+   const d=vergelijkMatchBeleid([object()],[r],[]);
+   expect(d.verschillen).toHaveLength(1);
+   expect(d.verschillen[0].soort).toBe('nieuw');
+   expect(d.verschillen[0].nieuw?.besteRoute.koperRelatieId).toBeNull();
+   expect(d.verschillen[0].redenen.join(' ')).toContain('geen opdracht');
+ });
+ it('wijziging aan koperidentiteit en bevestiging is zichtbaar, ook als kandidaat blijft',()=>{
+   const r=relatie({partijprofiel:'belegger',commercialRoles:['koper']});
+   const d=vergelijkMatchBeleid([object()],[r],[]);
+   expect(d.verdwenenKoppelingen).toBe(0);
+   expect(d.nieuweKoppelingen).toBe(0);
+   expect(d.objectenMetVerschil).toBe(1);
+   expect(d.veranderdeKoperidentiteiten).toBe(1);
+   expect(d.veranderdeBevestigingen).toBe(1);
+   expect(d.verschillen).toHaveLength(1);
+   expect(d.verschillen[0].soort).toBe('gewijzigd');
+   expect(d.verschillen[0].redenen.join(' ')).toContain('economische koper');
+ });
+ it('meldt geen veranderingen bij twee identieke kandidaatsets',()=>{
+   const r=relatie({type:'makelaar',partijprofiel:'makelaar',commercialRoles:null,propertyTypeIds:[],budgetMax:undefined});
+   const d=vergelijkMatchBeleid([object()],[r],[profiel()]);
+   expect(d.verschillen).toHaveLength(0);
+   expect(d.veranderdeKoperidentiteiten).toBe(0);
+   expect(d.objectenMetVerschil).toBe(0);
+ });
  it('gearchiveerde of niet-beschikbare objecten tellen niet mee; inputs blijven onveranderd',()=>{
    const o=Object.freeze(object({status:'verkocht'}));
    const r=Object.freeze(relatie({partijprofiel:'fonds'}));
