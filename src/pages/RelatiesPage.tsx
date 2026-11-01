@@ -24,6 +24,7 @@ import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import { loadRelatiesViewState, saveRelatiesViewState } from '@/lib/relatiesViewState';
 import { PARTIJPROFIELEN } from '@/lib/relaties/partijprofiel';
 import ClassificatieReviewPanel from '@/components/relatie/ClassificatieReviewPanel';
+import MatchingImpactPanel from '@/components/relatie/MatchingImpactPanel';
 import {
   HISTORISCHE_HOOFDTYPEN, matchRelatieProfiel, normaalProfielFilter,
   relatieProfielLabel, type RelatieProfielFilter,
@@ -32,7 +33,7 @@ import {
 export default function RelatiesPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { relaties, contactMoments, taken } = useDataStore();
+  const { relaties, contactMoments, taken, objecten, zoekprofielen } = useDataStore();
   const initialView = useMemo(() => loadRelatiesViewState(), []);
   const [zoek, setZoek] = useState(() => searchParams.get('q') ?? initialView.zoek);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>(initialView.statusFilter);
@@ -108,6 +109,7 @@ export default function RelatiesPage() {
       />
 
       <ClassificatieReviewPanel relaties={relaties}/>
+      <MatchingImpactPanel objecten={objecten} relaties={relaties} zoekprofielen={zoekprofielen}/>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
