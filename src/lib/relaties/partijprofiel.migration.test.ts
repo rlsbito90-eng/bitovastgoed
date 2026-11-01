@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { PARTIJPROFIELEN, VASTGOEDSTRATEGIEEN } from './partijprofiel';
 
 const migration = readFileSync(
- resolve(process.cwd(), 'supabase/migrations/20261101100000_add_partijprofiel_en_vastgoed_strategieen_a13.sql'),
+ resolve(process.cwd(), 'supabase/migrations/20261101013600_add_partijprofiel_en_vastgoed_strategieen_a13.sql'),
  'utf8'
 );
 
