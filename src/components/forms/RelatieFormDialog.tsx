@@ -47,7 +47,7 @@ import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
-import CommercieleRollenPicker from '@/components/forms/CommercieleRollenPicker';
+import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 import { legacyTypeVoorNieuweRelatie } from '@/lib/relaties/partijprofiel';
 
@@ -495,12 +495,18 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                 />
               </Sectie>
 
-              <Sectie titel="Commerciële rollen (meerdere mogelijk)">
-                <CommercieleRollenPicker
-                  value={form.commercialRoles}
-                  onChange={rollen=>set('commercialRoles',rollen)}
-                />
-              </Sectie>
+              {isEdit && (form.commercialRoles?.length??0)>0 && (
+                <Sectie titel="Historische commerciële rolindicaties (alleen lezen)">
+                  <p className="text-sm text-muted-foreground">
+                    {form.commercialRoles?.map(labelCommercieleRol).join(', ')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Bestaande rolindicaties blijven tijdelijk bewaard voor oudere matching.
+                    De aard van de partij leg je voortaan alleen vast bij Partijprofiel;
+                    concrete zoekwensen bij Zoekprofielen en feitelijke rollen in een transactie bij de deal.
+                  </p>
+                </Sectie>
+              )>
 
               {/* === KVK & VESTIGINGSADRES === */}
               <Sectie titel="KVK & vestigingsadres">
