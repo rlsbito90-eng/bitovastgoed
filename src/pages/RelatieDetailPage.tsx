@@ -6,7 +6,6 @@ import {
   formatCurrency,
   formatDate,
   type Zoekprofiel,
-  ASSET_CLASS_LABELS,
   REGIO_OPTIES,
   INVESTEERDER_SUBTYPE_LABELS,
   KAPITAAL_SITUATIE_LABELS,
@@ -27,8 +26,8 @@ import InlinePartijprofiel from '@/components/relatie/InlinePartijprofiel';
 import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relatie/InlineRelatieSectie';
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
 import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
+import InlineVastgoedVoorkeuren from '@/components/relatie/InlineVastgoedVoorkeuren';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
-import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
@@ -259,13 +258,8 @@ export default function RelatieDetailPage() {
             velden={BEDRIJFSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <InlineRelatieSectie titel="Vestigingsgegevens" relatie={relatie}
             velden={VESTIGINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
-          <section className="section-card p-5 sm:p-6 space-y-3">
-            <h2 className="section-title">Bestaande vastgoedvoorkeuren</h2>
-            <ClassificatieRij propertyTypeIds={relatie.propertyTypeIds}
-              fallbackAssetClasses={relatie.assetClasses}
-              subtypeIds={relatie.propertySubtypeIds} dealTypeIds={relatie.dealTypeIds} mode="multi"/>
-            <p className="text-xs text-muted-foreground">Deze oudere algemene criteria blijven zichtbaar voor Matching. Nieuwe concrete zoekrichtingen horen bij Zoekprofielen.</p>
-          </section>
+          <InlineVastgoedVoorkeuren relatie={relatie}
+            onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
           <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
             velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <InlineRelatieSectie titel="Communicatie en NDA" relatie={relatie}
