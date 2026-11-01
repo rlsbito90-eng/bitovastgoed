@@ -66,15 +66,23 @@ describe('A15 — alleen read-only classificatievoorstellen',()=>{
       bron({id:'profiel',type:'belegger'}),
       bron({id:'al_ingedeeld',partijprofiel:'fonds'}),
     ];
-    const pipeline=[{id:'p1',relatieId:'pipeline',objectId:'o1'}] as PipelineKandidaat[];
+    const pipeline=[{id:'p1',relatieId:'pipeline',objectId:'o1',pipelineFase:'indicatieve_bieding'}] as PipelineKandidaat[];
     const profielen=[{id:'z1',relatieId:'profiel',status:'actief'}] as Zoekprofiel[];
     const momenten=[{id:'m1',relatieId:'pipeline'}] as ContactMoment[];
     const resultaat=prioriteerClassificatieReviews(data,profielen,pipeline,momenten);
     expect(resultaat.map(x=>x.relatieId).slice(0,2)).toEqual(['pipeline','profiel']);
-    expect(resultaat[0]).toMatchObject({pipelineKoppelingen:1,contactmomenten:1,prioriteit:'hoog',datakwaliteit:'naam_controleren'});
+    expect(resultaat[0]).toMatchObject({pipelineKoppelingen:1,lopendePipelineKoppelingen:1,contactmomenten:1,prioriteit:'hoog',datakwaliteit:'naam_controleren'});
     expect(resultaat[1]).toMatchObject({actieveZoekprofielen:1,prioriteit:'hoog'});
     expect(resultaat.find(r=>r.relatieId==='al_ingedeeld')?.huidigeProfiel).toBe('fonds');
     expect(data[1].partijprofiel).toBeNull();
+  });
+  it('afgevallen historie blijft zichtbaar maar heeft geen prioriteit als lopende match',()=>{
+    const data=[bron({id:'afgevallen',bedrijfsnaam:'Historische match',type:'ontwikkelaar'})];
+    const pipeline=[{id:'p2',relatieId:'afgevallen',objectId:'o2',pipelineFase:'afgevallen'}] as PipelineKandidaat[];
+    const result=prioriteerClassificatieReviews(data,[],pipeline,[]);
+    expect(result[0].pipelineKoppelingen).toBe(1);
+    expect(result[0].lopendePipelineKoppelingen).toBe(0);
+    expect(result[0].prioriteit).toBe('regulier');
   });
   it('genegeerde en niet-actieve zoekprofielen verhogen de prioriteit niet',()=>{
     const data=[bron({id:'a',bedrijfsnaam:'Voorbeeld'})];
