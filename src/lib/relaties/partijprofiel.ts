@@ -3,6 +3,9 @@ import type { Partijprofiel, VastgoedStrategie, PartijType } from '@/data/mock-d
 export const PARTIJPROFIELEN: readonly { value: Partijprofiel; label: string }[] = [
   {value:'belegger',label:'Belegger'},
   {value:'ontwikkelende_belegger',label:'Ontwikkelende belegger'},
+  {value:'fonds',label:'Fonds'},
+  {value:'family_office',label:'Family office'},
+  {value:'buitenlandse_belegger',label:'Buitenlandse belegger'},
   {value:'ontwikkelaar',label:'Ontwikkelaar'},
   {value:'vastgoedondernemer',label:'Vastgoedondernemer'},
   {value:'makelaar',label:'Makelaar'},
@@ -58,6 +61,9 @@ export function legacyTypeVoorNieuweRelatie(profiel: Partijprofiel): PartijType 
   switch (profiel) {
     case 'belegger':
     case 'ontwikkelende_belegger':
+    case 'fonds':
+    case 'family_office':
+    case 'buitenlandse_belegger':
       return 'belegger';
     case 'ontwikkelaar':
       return 'ontwikkelaar';
