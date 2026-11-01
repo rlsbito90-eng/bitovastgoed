@@ -26,9 +26,9 @@ import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import InlinePartijprofiel from '@/components/relatie/InlinePartijprofiel';
 import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relatie/InlineRelatieSectie';
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
+import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
-import { isGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
-import { ClassificatieRij, PropertyTypeBadges, SubtypeBadges, DealtypeBadges } from '@/components/TaxonomieBadges';
+import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import MatchUitleg from '@/components/MatchUitleg';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
@@ -365,35 +365,7 @@ export default function RelatieDetailPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    <PropertyTypeBadges
-                      ids={(zp as any).propertyTypeIds}
-                      fallbackAssetClasses={zp.typeVastgoed}
-                      max={2}
-                      variant="compact"
-                      showEmpty={false}
-                    />
-                    <SubtypeBadges ids={(zp as any).propertySubtypeIds} max={2} variant="compact" showEmpty={false} />
-                    <DealtypeBadges ids={(zp as any).dealTypeIds} max={2} variant="compact" showEmpty={false} />
-                  </div>
-                  {zp.regio.length>0 && <p className="text-xs text-muted-foreground break-words">
-                    Provincies/regio's: {zp.regio.join(', ')}
-                  </p>}
-                  {(zp.steden ?? []).some(isGemeenteToken) && <p className="text-xs text-muted-foreground break-words">
-                    Gemeenten: {(zp.steden ?? []).filter(isGemeenteToken).map(gemeenteUitToken).join(', ')}
-                  </p>}
-                  {(zp.steden ?? []).some(x=>!isGemeenteToken(x)) && <p className="text-xs text-muted-foreground break-words">
-                    Plaatsen: {(zp.steden ?? []).filter(x=>!isGemeenteToken(x)).join(', ')}
-                  </p>}
-                  {(zp.prijsMin != null || zp.prijsMax != null) && (
-                    <p className="text-xs text-muted-foreground font-mono-data">
-                      {zp.prijsMin != null && zp.prijsMax != null
-                        ? `${formatCurrency(zp.prijsMin)} – ${formatCurrency(zp.prijsMax)}`
-                        : zp.prijsMin != null
-                          ? `Vanaf ${formatCurrency(zp.prijsMin)}`
-                          : `Tot ${formatCurrency(zp.prijsMax)}`}
-                    </p>
-                  )}
+                  <ZoekprofielDetails profiel={zp}/>
                 </div>
               ))}
             </div>
