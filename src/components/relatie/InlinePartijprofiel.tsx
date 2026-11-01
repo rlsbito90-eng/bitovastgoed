@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { Partijprofiel, Relatie, VastgoedStrategie } from '@/data/mock-data';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 import { labelPartijprofiel, labelVastgoedStrategie } from '@/lib/relaties/partijprofiel';
-import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 
 /** Inline, isolated PATCH. Existing roles, types, budgets and search profiles are never rewritten. */
@@ -116,13 +115,6 @@ export default function InlinePartijprofiel({
           : 'Nog niet vastgesteld'}</p>
       </div>
     </div>}
-    {relatie.commercialRoles&&relatie.commercialRoles.length>0&&<div>
-      <p className="field-label">Bestaande rolindicaties (historisch, nog gebruikt voor matching)</p>
-      <p className="field-value mt-1.5">{relatie.commercialRoles.map(labelCommercieleRol).join(', ')}</p>
-      <p className="text-xs text-muted-foreground mt-1">
-        Deze eerdere rolregistratie staat los van het partijprofiel. Een ontwikkelaar,
-        makelaar of bemiddelaar is niet automatisch de uiteindelijke koper.
-      </p>
-    </div>}
+
   </section>;
 }
