@@ -39,6 +39,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   zoekprofiel?: Zoekprofiel | null;
   defaultRelatieId?: string;
+  /** Toon hetzelfde bestaande formulier binnen de relatiepagina, niet als modal. */
+  inline?: boolean;
 }
 
 type FormState = Omit<Zoekprofiel, 'id'>;
@@ -87,7 +89,7 @@ const leegForm: FormState = {
 
 
 export default function ZoekprofielFormDialog({
-  open, onOpenChange, zoekprofiel, defaultRelatieId,
+  open, onOpenChange, zoekprofiel, defaultRelatieId, inline = false,
 }: Props) {
   const { addZoekprofiel, updateZoekprofiel, relaties, contactpersonen } = useDataStore();
   const { forAssetClass } = useSubcategorieen();
@@ -192,13 +194,11 @@ export default function ZoekprofielFormDialog({
 
   const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
 
-  return (
-    <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+  const formulier = (<>
         <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
-          <DialogTitle>
-            {isEdit ? 'Zoekprofiel bewerken' : 'Nieuw zoekprofiel'}
-          </DialogTitle>
+          {inline
+            ? <h3 className="text-base font-semibold">{isEdit ? 'Zoekprofiel bewerken' : 'Nieuw zoekprofiel'}</h3>
+            : <DialogTitle>{isEdit ? 'Zoekprofiel bewerken' : 'Nieuw zoekprofiel'}</DialogTitle>}
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
@@ -513,15 +513,20 @@ export default function ZoekprofielFormDialog({
           </div>
 
           <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
+            <Button variant="outline" onClick={() => guardedOnOpenChange(false)}>Annuleren</Button>
             <Button onClick={handleSave} disabled={bezig}>
               {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Zoekprofiel toevoegen')}
             </Button>
           </div>
         </Tabs>
-      </DialogContent>
-    </Dialog>
-  );
+  </>);
+  return inline
+    ? <div className="rounded-md border border-border bg-background min-h-[560px] h-[75vh] max-h-[760px] flex flex-col overflow-hidden" data-testid="zoekprofiel-inline-form">{formulier}</div>
+    : <Dialog open={open} onOpenChange={guardedOnOpenChange}>
+        <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+          {formulier}
+        </DialogContent>
+      </Dialog>;
 }
 
 
