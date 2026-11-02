@@ -1,4 +1,4 @@
-import type { Partijprofiel, Relatie, Zoekprofiel, PipelineKandidaat, PipelineFase } from '@/data/mock-data';
+import type { Partijprofiel, Relatie, Zoekprofiel, PipelineKandidaat, PipelineFase, ObjectVastgoed } from '@/data/mock-data';
 import type { ContactMoment } from '@/lib/contactMoments';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 
@@ -90,6 +90,8 @@ export type LopendClassificatieDossier={
   objectId:string;
   pipelineFase:PipelineFase;
   biedingBedrag:number|undefined;
+  /** Null when no object catalogue was supplied; false needs an archive/lookup check. */
+  objectInActieveLijst:boolean|null;
 };
 
 /** Prioritering voor het menselijke reviewproces. Gebruikt alleen al geladen
@@ -101,6 +103,8 @@ export type PrioritaireClassificatieReview=ClassificatieReview &{
   pipelineKoppelingen:number;
   lopendePipelineKoppelingen:number;
   hoogstePipelineFase:PipelineFase|null;
+  hoogsteControleerbarePipelineFase:PipelineFase|null;
+  pipelineOpNietGeladenObjecten:number;
   lopendePipelineDossiers:LopendClassificatieDossier[];
   contactmomenten:number;
 };
@@ -109,7 +113,9 @@ export function prioriteerClassificatieReviews(
   zoekprofielen:readonly Zoekprofiel[],
   pipeline:readonly PipelineKandidaat[],
   contactmomenten:readonly ContactMoment[],
+  objecten?:readonly Pick<ObjectVastgoed,'id'|'softDeletedAt'>[],
 ):PrioritaireClassificatieReview[]{
+  const actieveObjectIds=objecten?new Set(objecten.filter(o=>!o.softDeletedAt).map(o=>o.id)):null;
   const profiles=new Map<string,number>();
   const koppelingen=new Map<string,number>();
   const lopende=new Map<string,number>();
@@ -124,6 +130,7 @@ export function prioriteerClassificatieReviews(
       const dossier:LopendClassificatieDossier={
         pipelineId:k.id,objectId:k.objectId,pipelineFase:k.pipelineFase,
         biedingBedrag:k.biedingBedrag,
+        objectInActieveLijst:actieveObjectIds?actieveObjectIds.has(k.objectId):null,
       };
       dossiers.set(k.relatieId,[...(dossiers.get(k.relatieId)??[]),dossier]);
     }
@@ -135,14 +142,20 @@ export function prioriteerClassificatieReviews(
     const pipelineKoppelingen=koppelingen.get(r.relatieId)??0;
     const lopendePipelineKoppelingen=lopende.get(r.relatieId)??0;
     const lopendePipelineDossiers=[...(dossiers.get(r.relatieId)??[])]
-      .sort((a,b)=>reviewFasePrioriteit(a.pipelineFase)-reviewFasePrioriteit(b.pipelineFase)
+      .sort((a,b)=>Number(a.objectInActieveLijst===false)-Number(b.objectInActieveLijst===false)
+        ||reviewFasePrioriteit(a.pipelineFase)-reviewFasePrioriteit(b.pipelineFase)
         ||a.objectId.localeCompare(b.objectId));
     const hoogstePipelineFase=lopendePipelineDossiers[0]?.pipelineFase??null;
+    const hoogsteControleerbarePipelineFase=lopendePipelineDossiers
+      .find(d=>d.objectInActieveLijst!==false)?.pipelineFase??null;
+    const pipelineOpNietGeladenObjecten=lopendePipelineDossiers
+      .filter(d=>d.objectInActieveLijst===false).length;
     const aantalContactmomenten=momenten.get(r.relatieId)??0;
     return {
       ...r,
       actieveZoekprofielen,pipelineKoppelingen,lopendePipelineKoppelingen,
-      hoogstePipelineFase,lopendePipelineDossiers,
+      hoogstePipelineFase,hoogsteControleerbarePipelineFase,
+      pipelineOpNietGeladenObjecten,lopendePipelineDossiers,
       contactmomenten:aantalContactmomenten,
       prioriteit:(lopendePipelineKoppelingen>0||actieveZoekprofielen>0)
         ?'hoog':'regulier',
@@ -151,7 +164,8 @@ export function prioriteerClassificatieReviews(
   return result.sort((a,b)=>{
     const aHoog=a.prioriteit==='hoog'?1:0, bHoog=b.prioriteit==='hoog'?1:0;
     return bHoog-aHoog
-      ||reviewFasePrioriteit(a.hoogstePipelineFase)-reviewFasePrioriteit(b.hoogstePipelineFase)
+      ||reviewFasePrioriteit(a.hoogsteControleerbarePipelineFase)-reviewFasePrioriteit(b.hoogsteControleerbarePipelineFase)
+      ||Number(a.pipelineOpNietGeladenObjecten>0)-Number(b.pipelineOpNietGeladenObjecten>0)
       ||b.lopendePipelineKoppelingen-a.lopendePipelineKoppelingen
       ||b.actieveZoekprofielen-a.actieveZoekprofielen
       ||b.pipelineKoppelingen-a.pipelineKoppelingen
