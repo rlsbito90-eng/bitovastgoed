@@ -27,7 +27,7 @@ export function suggereerPartijprofiel(r:Pick<Relatie,'type'|'partijprofiel'|'in
   if(r.investeerderSubtype==='fonds')
     return {voorstel:'fonds',bewijs:'Historische investeerderscategorie: Fonds. Controleer de juridische/operationele partij voordat je dit vastlegt.',bron:'historische_categorie',zekerheid:'gericht_nakijken'};
   if(r.type==='ontwikkelaar')
-    return {voorstel:'ontwikkelaar',bewijs:'Historisch hoofdtype: Ontwikkelaar. Kan ook een ontwikkelende belegger zijn; eerst beoordelen.',bron:'historisch_hoofdtype',zekerheid:'gericht_nakijken'};
+    return {voorstel:null,bewijs:'Historisch hoofdtype: Ontwikkelaar. Dit kan ook een bemiddelaar zijn die ontwikkelt of een ontwikkelende belegger. Bepaal eerst de primaire hoedanigheid en daarna eventuele aanvullende activiteiten.',bron:'historisch_hoofdtype',zekerheid:'onvoldoende'};
   if(r.type==='makelaar')
     return {voorstel:null,bewijs:'Historisch hoofdtype: Makelaar. Bepaal eerst of de partij makelaar of bemiddelaar is.',bron:'historisch_hoofdtype',zekerheid:'onvoldoende'};
   if(r.type==='eigenaar')
