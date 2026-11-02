@@ -31,6 +31,29 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getAllByRole('link',{name:'Relatie beoordelen'})).toHaveLength(2);
     expect(screen.queryByRole('button',{name:'Alles automatisch indelen'})).toBeNull();
   });
+  it('A15.7 toont vergevorderde kandidaatposities met object, fase en geregistreerd bod',()=>{
+    const bieder={...old,id:'bieder',bedrijfsnaam:'Voorbeeld Bieder'};
+    const eerste={...old,id:'eerste',bedrijfsnaam:'Voorbeeld Eerste Match'};
+    const opHold={...object,status:'on_hold' as const,titel:'Voorbeeld Object'};
+    const pipeline=[
+      {id:'bid',relatieId:'bieder',objectId:'o1',pipelineFase:'indicatieve_bieding',biedingBedrag:415000},
+      {id:'start',relatieId:'eerste',objectId:'o1',pipelineFase:'match_gevonden'},
+    ] as any;
+    render(<MemoryRouter><ClassificatieReviewPanel
+      relaties={[eerste,bieder]} objecten={[opHold]}
+      pipelineKandidaten={pipeline}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
+    expect(screen.getByText(/1 met een geregistreerde bieding of vervolgfase/)).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox',{name:'Filter classificatiecontrole'}),{
+      target:{value:'bod_of_verder'},
+    });
+    expect(screen.getByText('Voorbeeld Bieder')).toBeTruthy();
+    expect(screen.queryByText('Voorbeeld Eerste Match')).toBeNull();
+    expect(screen.getByRole('link',{name:'Voorbeeld Object'}).getAttribute('href')).toBe('/objecten/o1');
+    expect(screen.getByText(/Geregistreerd bod: € 415.000/)).toBeTruthy();
+    expect(screen.getByText(/Object: On hold/)).toBeTruthy();
+    expect(screen.getByText(/Bieding \/ prijsvoorstel/)).toBeTruthy();
+  });
   it('toont per weggevallen kandidaat de relatie, het object en de reden zonder gegevens te wijzigen',()=>{
     const r={...old,bedrijfsnaam:'Testpartij zonder profiel'};
     render(<MemoryRouter><MatchingImpactPanel relaties={[r]} objecten={[object]} zoekprofielen={[]}/></MemoryRouter>);
