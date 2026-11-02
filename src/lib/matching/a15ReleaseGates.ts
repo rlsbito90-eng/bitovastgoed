@@ -1,5 +1,6 @@
 import type { A15Impact } from './a15ImpactPreview';
 import type { CrmRelatieInput } from './rolMandaatAdapter';
+import type { A15ReferentieAudit } from './a15ReferentieAudit';
 
 /** A15.6 — uitsluitend read-only releasevoorbereiding, nooit een mergebesluit. */
 export type VrijgaveControle={
@@ -30,6 +31,7 @@ export function beoordeelA15Vrijgave(
     'lopendePipelineBuitenVergelijking'|'veranderdeKoperidentiteiten'|
     'verdwenenKoppelingen'>,
   relaties:readonly Pick<CrmRelatieInput,'partijprofiel'|'softDeletedAt'>[],
+  referenties?:A15ReferentieAudit,
 ):A15VrijgaveBeoordeling{
   const nogNietGeclassificeerd=relaties.filter(r=>!r.softDeletedAt&&!r.partijprofiel).length;
   const data:VrijgaveControle[]=[
@@ -70,6 +72,28 @@ export function beoordeelA15Vrijgave(
       toelichting:'Beoordeel verschillen in prospectieve matching afzonderlijk van reeds bestaande pipelineposities.',
     },
   ];
+  if(referenties){
+    data.push(
+      {
+        id:'archief_object',naam:'Lopende posities op gearchiveerde objecten',
+        aantal:referenties.positiesOpGearchiveerdeObjecten,soort:'data',
+        open:referenties.positiesOpGearchiveerdeObjecten>0,
+        toelichting:'Niet als actuele acquisitiekans meetellen; controleer eerst dossier en objectarchief. Verwijder nooit automatisch de kandidaathistorie.',
+      },
+      {
+        id:'object_ontbreekt',naam:'Kandidaatposities met een niet-geladen object',
+        aantal:referenties.positiesZonderGeladenObject,soort:'data',
+        open:referenties.positiesZonderGeladenObject>0,
+        toelichting:'Niet geladen betekent niet noodzakelijk verwijderd. Controleer de bron, archiefstatus en eventuele gedeeltelijke synchronisatie.',
+      },
+      {
+        id:'relatie_ontbreekt',naam:'Kandidaatposities met een ontbrekende of gearchiveerde relatie',
+        aantal:referenties.positiesZonderGeladenRelatie+referenties.positiesMetGearchiveerdeRelatie,
+        soort:'data',open:referenties.positiesZonderGeladenRelatie+referenties.positiesMetGearchiveerdeRelatie>0,
+        toelichting:'Controleer of de referentie nog geldig is, zonder kandidaten of kopers automatisch te verplaatsen.',
+      },
+    );
+  }
   const handmatig:VrijgaveControle[]=[
     {
       id:'schema',naam:'Databaseschema en reversibele migratie gecontroleerd',
