@@ -86,7 +86,7 @@ describe('A15.6 veilige overgang zonder stilzwijgende vrijgave',()=>{
     const fasen=beoordeelA15UitrolFasen(vrijgave);
     expect(fasen[2].status).toBe('apart_goedkeuren');
     expect(fasen[3].status).toBe('geblokkeerd');
-    expect(fasen.every(x=>x.status!=='vrijgegeven')).toBe(true);
+    expect(fasen.map(x=>x.status)).not.toContain('vrijgegeven');
   });
   it('archiveerde relaties tellen niet als te classificeren actieve relaties',()=>{
     const r=beoordeelA15Vrijgave(impact(),[
