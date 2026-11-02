@@ -394,3 +394,49 @@ tegen gelijktijdige wijzigingen in het hoofdprofiel.
 De voorbereide indeling is geen productie-update en deze sectie bevat
 bewust geen privé relatie-identifiers. De live relaties worden alleen
 relatie-voor-relatie aangepast na een gecontroleerde release.
+
+## A15.10 — één classificatieformulier, één relatie-PATCH
+
+Het eerdere concept A15.4/A15.9 toonde het partijprofiel en de
+aanvullende activiteiten in twee aparte inline editors. Dat werkt,
+maar vereist onnodig twee bewerkingen en kan een halverwege
+incomplete classificatie opleveren. Op de **relatiedetailpagina** is
+dit vervangen door één gecombineerde sectie:
+
+- **Partijprofiel:** één hoofdcategorie, bijvoorbeeld bemiddelaar.
+- **Strategieën:** afzonderlijk als investeringsaanpak; geen
+  impliciete koop- of mandaatrol.
+- **Aanvullende activiteiten:** dynamische checkboxen op basis
+  van het gekozen hoofdprofiel; een bemiddelaar kan ook ontwikkelen,
+  zonder dat zijn hoofdprofiel wordt overgenomen.
+- **Historische rollen:** alleen leesbaar wanneer ze niet
+  als bevestigde nieuwe activiteit worden beschouwd; bij de
+  opslag blijven verborgen en onbekende waarden behouden.
+
+Wanneer de gebruiker beide classificatievelden expliciet wijzigt,
+gaat er **één** `store.updateRelatie`-aanroep naar de bestaande
+`relaties`-tabel, met uitsluitend de gewijzigde velden
+(`partijprofiel`, `vastgoed_strategieen`, `commercial_roles`).
+Er wordt geen nieuw record of zoekprofiel aangemaakt.
+De oude `type_partij` en alle bestaande pipeline-, deal-,
+biedings- en contacthistorie blijven ongemoeid.
+
+Een wijziging van alleen het hoofdprofiel herschrijft ook niet
+stilzwijgend `commercial_roles`. De bewerking controleert
+alle oorspronkelijke classificatievelden opnieuw vóór het
+opslaan om onbedoeld overschrijven in de UI te voorkomen.
+Dit is **geen databasebrede compare-and-swap**; striktere
+serverconcurrency moet afzonderlijk worden ontworpen als
+gelijktijdig gebruik door meerdere gebruikers een vereiste wordt.
+
+De oude losse editors blijven voorlopig als afzonderlijke
+code/testroutines bestaan maar zijn **niet meer op de
+relatiedetailpagina gemonteerd**. Ze kunnen na bewezen
+regressievrije migratie worden verwijderd zonder verlies
+van enige data. Het nieuwe component heeft synthetische
+tests op eenmalige opslag, gecombineerde hoedanigheden,
+geen onbedoelde rol-backfill, annuleren, fouten en
+wijzigingen elders.
+
+PR #563 blijft draft. Geen productieschema-migratie, geen
+bulkgegevenswijziging en geen deploy.
