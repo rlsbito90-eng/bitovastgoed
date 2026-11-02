@@ -310,3 +310,44 @@ verwijdert zulke records niet automatisch.
 Status: PR #563 blijft draft. Geen automatische wijzigingen of
 schema-aanpassingen in productie; de migratie- en releasepoorten
 van A15.6 blijven van kracht.
+
+## A15.8 — archiefkoppelingen scheiden van echte lopende kandidaatreview
+
+**Read-only controle, 2 november 2026:** van 67 lopende
+`object_pipeline`-registraties verwijzen **5** posities naar **2**
+soft-verwijderde objecten. Van deze vijf zijn er drie verbonden aan een
+object met een expliciete testtitel; de andere twee aan een eerder
+gearchiveerde propositie. Onder die vijf komt ook een administratieve
+fase `koopovereenkomst_concept` voor. Dat vormt **geen bewijs van een
+werkelijk nog lopende koopovereenkomst** en mag de beoordeling van echte
+biedingen niet verdringen.
+
+De A15.8-review maakt nu onderscheid tussen:
+- een bestaande kandidaatpositie met een object dat in de geladen
+  **actieve** objectlijst voorkomt (ook `on_hold` blijft een bestaande
+  positie, ondanks dat nieuwe matching is uitgeschakeld);
+- een bestaande kandidaatpositie met een object dat **niet in de actieve
+  objectlijst voorkomt**. Die kan gearchiveerd, onvolledig geladen of
+  om een andere reden ontbreken. De interface toont expliciet
+  `controleer archiefstatus` en zegt niet zonder bewijs `is test`.
+
+De classificatiereview sorteert controleerbare biedingen en lopende
+dossiers op geladen objecten boven pipelineposities zonder geladen
+object. De filter `Niet-geladen objecten (archiefcontrole)`
+maakt de laatste groep apart inzichtelijk. Een mogelijk verwijderd
+object blijft dus deel van de historische audit en wordt niet als
+nieuwe acquisitiekans geteld. De status van de kandidaat of relatie,
+het bod en de bestaande zoekprofielen worden nooit automatisch aangepast.
+
+Belangrijk bij de voorbereiding van **handmatig bevestigde
+relatieclassificaties**: zorg voor het onderscheid tussen één hoofdtype
+(Partijprofiel) en aanvullende transactierollen. Een gebruiker kan bij
+een ontwikkelaar ook bemiddeling bevestigen, of bij een ontwikkelende
+belegger directe kopersactiviteit. De bestaande objectrelaties worden
+niet hercreëerd. Na een afzonderlijke productieschema-migratie moeten
+alleen zorgvuldig beoordeelde, actuele velden per relatie worden
+bijgewerkt met behoud van historie; geen productie-update of
+bulkclassificatie in dit onderdeel.
+
+Status: uitsluitend PR #563 (draft), geen productie-write,
+geen migratie en geen automatische bewerking van archiefdata.
