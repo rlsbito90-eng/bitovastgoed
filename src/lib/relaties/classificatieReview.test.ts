@@ -76,6 +76,38 @@ describe('A15 — alleen read-only classificatievoorstellen',()=>{
     expect(resultaat.find(r=>r.relatieId==='al_ingedeeld')?.huidigeProfiel).toBe('fonds');
     expect(data[1].partijprofiel).toBeNull();
   });
+  it('A15.7 zet een geregistreerde bieding boven veel recente matches',()=>{
+    const relaties=[
+      bron({id:'veel_matches',bedrijfsnaam:'Veel recente matches'}),
+      bron({id:'bieding',bedrijfsnaam:'Reële bieding'}),
+      bron({id:'actief_zoek',bedrijfsnaam:'Alleen een actief profiel'}),
+    ];
+    const pipeline=[
+      ...Array.from({length:6},(_,i)=>({
+        id:`p${i}`,relatieId:'veel_matches',objectId:`o${i}`,pipelineFase:'match_gevonden',
+      })),
+      {id:'bid',relatieId:'bieding',objectId:'ob',pipelineFase:'indicatieve_bieding',
+        biedingBedrag:415000},
+    ] as PipelineKandidaat[];
+    const profielen=[{id:'z1',relatieId:'actief_zoek',status:'actief'}] as Zoekprofiel[];
+    const before=JSON.stringify(pipeline);
+    const r=prioriteerClassificatieReviews(relaties,profielen,pipeline,[]);
+    expect(r.map(x=>x.relatieId)).toEqual(['bieding','veel_matches','actief_zoek']);
+    expect(r[0].hoogstePipelineFase).toBe('indicatieve_bieding');
+    expect(r[0].lopendePipelineDossiers[0].biedingBedrag).toBe(415000);
+    expect(r[1].lopendePipelineKoppelingen).toBe(6);
+    expect(JSON.stringify(pipeline)).toBe(before);
+  });
+  it('A15.7 toont uitsluitend lopende fases in de review; afgevallen bedragen blijven buiten de prioritering',()=>{
+    const pipeline=[
+      {id:'arch',relatieId:'r1',objectId:'arch-o',pipelineFase:'afgevallen',biedingBedrag:100000},
+      {id:'act',relatieId:'r1',objectId:'act-o',pipelineFase:'teaser_verstuurd'},
+    ] as PipelineKandidaat[];
+    const result=prioriteerClassificatieReviews([bron()],[],pipeline,[]);
+    expect(result[0].lopendePipelineDossiers).toHaveLength(1);
+    expect(result[0].hoogstePipelineFase).toBe('teaser_verstuurd');
+    expect(result[0].pipelineKoppelingen).toBe(2);
+  });
   it('afgevallen historie blijft zichtbaar maar heeft geen prioriteit als lopende match',()=>{
     const data=[bron({id:'afgevallen',bedrijfsnaam:'Historische match',type:'ontwikkelaar'})];
     const pipeline=[{id:'p2',relatieId:'afgevallen',objectId:'o2',pipelineFase:'afgevallen'}] as PipelineKandidaat[];
