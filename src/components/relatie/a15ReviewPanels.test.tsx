@@ -43,7 +43,7 @@ describe('A15 CRM read-only review UI',()=>{
       relaties={[eerste,bieder]} objecten={[opHold]}
       pipelineKandidaten={pipeline}/></MemoryRouter>);
     fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
-    expect(screen.getByText(/1 met een geregistreerde bieding of vervolgfase/)).toBeTruthy();
+    expect(screen.getByText(/1 met een bieding of vervolgfase op een geladen object/)).toBeTruthy();
     fireEvent.change(screen.getByRole('combobox',{name:'Filter classificatiecontrole'}),{
       target:{value:'bod_of_verder'},
     });
@@ -53,6 +53,26 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getByText(/Geregistreerd bod: € 415.000/)).toBeTruthy();
     expect(screen.getByText(/Object: On hold/)).toBeTruthy();
     expect(screen.getByText(/Bieding \/ prijsvoorstel/)).toBeTruthy();
+  });
+  it('A15.8 maakt oude kandidaatpositie zonder geladen object apart zichtbaar',()=>{
+    const r={...old,id:'arch',bedrijfsnaam:'Historische relatie'};
+    const pipe=[{id:'historisch',relatieId:'arch',objectId:'ontbrekend-object',
+      pipelineFase:'koopovereenkomst_concept'}] as any;
+    render(<MemoryRouter><ClassificatieReviewPanel relaties={[r]}
+      objecten={[]} pipelineKandidaten={pipe}/></MemoryRouter>);
+    expect(screen.getByText(/0 met een bieding of vervolgfase op een geladen object/)).toBeTruthy();
+    expect(screen.getByText(/1 pipelineposities op niet-geladen objecten/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
+    fireEvent.change(screen.getByRole('combobox',{name:'Filter classificatiecontrole'}),{
+      target:{value:'archief_controle'},
+    });
+    expect(screen.getByText('Historische relatie')).toBeTruthy();
+    expect(screen.getByText(/Object ontbreekt in actieve lijst/)).toBeTruthy();
+    expect(screen.getByText(/geen automatische verwijdering/)).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox',{name:'Filter classificatiecontrole'}),{
+      target:{value:'bod_of_verder'},
+    });
+    expect(screen.queryByText('Historische relatie')).toBeNull();
   });
   it('toont per weggevallen kandidaat de relatie, het object en de reden zonder gegevens te wijzigen',()=>{
     const r={...old,bedrijfsnaam:'Testpartij zonder profiel'};
