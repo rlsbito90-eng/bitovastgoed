@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {beoordeelA15Vrijgave} from './a15ReleaseGates';
+import {beoordeelA15Vrijgave,beoordeelA15UitrolFasen} from './a15ReleaseGates';
 import type {A15Impact} from './a15ImpactPreview';
 
 const impact=(overrides:Partial<A15Impact>={}):A15Impact=>({
@@ -58,6 +58,35 @@ describe('A15.6 veilige overgang zonder stilzwijgende vrijgave',()=>{
     expect(vrijgave.openDatacontroles).toBe(0);
     expect(vrijgave.openHandmatigeControles).toBe(3);
     expect(vrijgave.veiligVoorAutomatischeOpschoning).toBe(false);
+  });
+  it('A15.13 registreert expliciet gewijzigde koperverwijzingen bij bestaande kandidaten',()=>{
+    const vrijgave=beoordeelA15Vrijgave(
+      impact({pipelineGewijzigdeKoperverwijzingen:2}),
+      [{partijprofiel:'ontwikkelende_belegger'}],
+    );
+    expect(vrijgave.controles.find(c=>c.id==='pipeline_koperverwijzing'))
+      .toMatchObject({aantal:2,open:true});
+    expect(vrijgave.openDatacontroles).toBe(1);
+    expect(beoordeelA15UitrolFasen(vrijgave).find(f=>f.id==='matching')?.status)
+      .toBe('geblokkeerd');
+  });
+  it('A15.13 schema/feature uitrol blijft gescheiden van 92 te classificeren relaties',()=>{
+    const vrijgave=beoordeelA15Vrijgave(impact(),[
+      ...Array.from({length:92},()=>({partijprofiel:null})),
+      {partijprofiel:'ontwikkelaar'},
+    ]);
+    const fasen=beoordeelA15UitrolFasen(vrijgave);
+    expect(fasen.map(x=>x.status))
+      .toEqual(['apart_goedkeuren','apart_goedkeuren','geblokkeerd','geblokkeerd']);
+    expect(fasen[1].reden).toContain('bestaande matching blijft ongewijzigd');
+    expect(fasen[2].reden).toContain('gegevenscontroles');
+  });
+  it('A15.13 zelfs nul open data is geen automatische toestemming voor matching of opschoning',()=>{
+    const vrijgave=beoordeelA15Vrijgave(impact(),[{partijprofiel:'fonds'}]);
+    const fasen=beoordeelA15UitrolFasen(vrijgave);
+    expect(fasen[2].status).toBe('apart_goedkeuren');
+    expect(fasen[3].status).toBe('geblokkeerd');
+    expect(fasen.every(x=>x.status!=='vrijgegeven')).toBe(true);
   });
   it('archiveerde relaties tellen niet als te classificeren actieve relaties',()=>{
     const r=beoordeelA15Vrijgave(impact(),[

@@ -140,6 +140,18 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getAllByText('Buiten simulatie')).toHaveLength(2);
     expect(screen.getByText(/Bestaande kandidaatkoppeling en proceshistorie blijven onaangetast/)).toBeTruthy();
   });
+  it('A15.13 toont aparte uitrolstappen met alleen handmatige vrijgave en geblokkeerde matching',()=>{
+    render(<MemoryRouter><MatchingImpactPanel relaties={[old]}
+      objecten={[object]} zoekprofielen={[]}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText('Uitrol per fase — nooit automatisch')).toBeTruthy();
+    expect(screen.getByText('1. Additieve A14-database-uitbreiding')).toBeTruthy();
+    expect(screen.getByText('2. Gecombineerde classificatie-interface')).toBeTruthy();
+    expect(screen.getByText('3. Alternatief matchingbeleid')).toBeTruthy();
+    expect(screen.getByText('4. Verwijderen van oude CRM-velden')).toBeTruthy();
+    expect(screen.getAllByText('Niet vrijgeven').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Apart akkoord nodig').length).toBeGreaterThanOrEqual(2);
+  });
   it('A15.12 toont aparte releaseblokkade wanneer kandidaatobject niet is geladen',()=>{
     const p=[{id:'p-test',objectId:'ontbrekend',relatieId:'old',
       pipelineFase:'indicatieve_bieding'}] as any;

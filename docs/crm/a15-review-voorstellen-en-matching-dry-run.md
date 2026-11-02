@@ -546,3 +546,45 @@ knop die A15 automatisch laat migreren of oude kolommen opruimt.
 
 **Status:** geen schema-migratie, merge, productie-deployment of
 productie-classificatie gedaan. PR #563 blijft draft.
+
+## A15.13 — regressiecontrole en gescheiden releasebesluiten (2 november 2026)
+
+De GitHub Actions-run op de laatste A15.12-head `0f8e435c`
+heeft **success** opgeleverd (Typecheck, Tests, Production build).
+Deze uitslag is geen productie-installatie, geen restore-test en geen
+toestemming voor nieuwe matching.
+
+### Extra beveiliging
+
+De vrijgavecontrole telde al generieke gewijzigde berekende
+koperidentiteiten. A15.13 onderscheidt expliciet een **gewijzigde
+koperverwijzing binnen een bestaande kandidaatpositie**
+(`pipelineGewijzigdeKoperverwijzingen`) van een nieuw gegenereerde
+zoekroute. Dit is nu een zelfstandige open datacontrole.
+Ook als een nieuwe matchberekening geen algemene koperverandering
+meldt, mag een wijziging op een bestaande transactiekandidaat de
+vrijgave blokkeren. Een oude geregistreerde economische koper
+wordt niet automatisch veranderd.
+
+Het read-only matchingpaneel toont vier afzonderlijke besluiten:
+
+1. **Schema** — additieve A14-constraint, alleen na onafhankelijke
+   productiedatabasepreflight, herstelbare back-up en afzonderlijk akkoord.
+   Hiervoor is **niet** vereist dat 92 profielen worden ingevuld.
+2. **Interface** — pas na schema-acceptatie, CI, back-up/rollback en
+   expliciete toestemming; bestaande matching blijft de actieve regel.
+3. **Matchingwissel** — geblokkeerd zolang er open datacontroles zijn,
+   waaronder ontbrekende profielen en afwijkende/kritische pipeline.
+   Zelfs nul verschillen is geen automatische toestemming.
+4. **Legacy-opschoning** — altijd afzonderlijk geblokkeerd in deze PR.
+   Pas in een eigen release na bewijs van migratie, restore en inhoudelijke
+   dossierbeoordeling.
+
+Deze fasen zijn beoordelingsinformatie, **geen daadwerkelijke
+productiemigratie of deployknoppen**. Er worden geen goedkeuringsstaten
+persistent opgeslagen of automatisch afgeleid.
+
+A14-uitbreiding voor Fonds, Family office en Buitenlandse belegger
+staat nog niet in productie. De uitvoeringsvolgorde uit A15.12 blijft
+leidend. PR #563 blijft draft. Er is geen merge, schema-update, bulk-
+classificatie of actieve wijziging van het matchingbeleid gedaan.

@@ -94,6 +94,16 @@ export function beoordeelA15Vrijgave(
       },
     );
   }
+  // Berekende kopers uit bestaande kandidaatdossiers mogen niet worden
+  // verward met verschillen in prospectief gegenereerde matches.
+  data.push({
+    id:'pipeline_koperverwijzing',
+    naam:'Bestaande kandidaatposities met gewijzigde koperverwijzing',
+    aantal:impact.pipelineGewijzigdeKoperverwijzingen,
+    soort:'data',
+    open:impact.pipelineGewijzigdeKoperverwijzingen>0,
+    toelichting:'Controleer elke betrokken positie afzonderlijk: een matchsimulatie mag nooit de geregistreerde economische koper veranderen.',
+  });
   const handmatig:VrijgaveControle[]=[
     {
       id:'schema',naam:'Databaseschema en reversibele migratie gecontroleerd',
@@ -117,4 +127,43 @@ export function beoordeelA15Vrijgave(
     openHandmatigeControles:handmatig.filter(c=>c.open).length,
     controles:[...data,...handmatig],
   };
+}
+
+// A15.13: schemavrijgave, interface-uitrol, matchingwissel en
+// destructieve opschoning zijn vier verschillende besluiten.
+// De getoonde status is advies ter beoordeling, nooit een autorisatie.
+export type A15UitrolFase={
+  id:'schema'|'interface'|'matching'|'opschoning';
+  naam:string;
+  status:'apart_goedkeuren'|'geblokkeerd';
+  reden:string;
+};
+export function beoordeelA15UitrolFasen(
+  vrijgave:A15VrijgaveBeoordeling,
+):A15UitrolFase[]{
+  const openData=vrijgave.controles.filter(c=>c.soort==='data'&&c.open);
+  return [
+    {
+      id:'schema',naam:'1. Additieve A14-database-uitbreiding',
+      status:'apart_goedkeuren',
+      reden:'Vereist nieuwe productiepreflight, herstelbare backup, schema- en RLS-controle en afzonderlijke goedkeuring. De relatieclassificaties hoeven hiervoor niet eerst allemaal ingevuld te zijn.',
+    },
+    {
+      id:'interface',naam:'2. Gecombineerde classificatie-interface',
+      status:'apart_goedkeuren',
+      reden:'Pas na succesvolle schema-uitbreiding, CI, back-upcontrole, expliciet uitrolbesluit en smoke-test. De bestaande matching blijft ongewijzigd.',
+    },
+    {
+      id:'matching',naam:'3. Alternatief matchingbeleid',
+      status:openData.length?'geblokkeerd':'apart_goedkeuren',
+      reden:openData.length
+        ?`${openData.length} soorten open gegevenscontroles. Controleer ook opgeslagen kandidaatposities, routes en koperidentiteiten. De bestaande matching blijft leidend.`
+        :'Ook bij nul gemelde verschillen zijn dossiervergelijking en afzonderlijke inhoudelijke goedkeuring verplicht.',
+    },
+    {
+      id:'opschoning',naam:'4. Verwijderen van oude CRM-velden',
+      status:'geblokkeerd',
+      reden:'Dit is buiten scope van A15. Eerst een bewezen volledige migratie, herstelproef, gecontroleerde matching en een eigen destructief releasebesluit.',
+    },
+  ];
 }

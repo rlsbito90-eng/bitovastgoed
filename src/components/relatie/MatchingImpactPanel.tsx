@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PIPELINE_FASES, type ObjectVastgoed, type Relatie, type Zoekprofiel, type PipelineKandidaat, type RelatieContactpersoon } from '@/data/mock-data';
 import { vergelijkMatchBeleid, type A15VerschilSoort, type A15PipelineControleStatus } from '@/lib/matching/a15ImpactPreview';
-import { beoordeelA15Vrijgave } from '@/lib/matching/a15ReleaseGates';
+import { beoordeelA15Vrijgave,beoordeelA15UitrolFasen } from '@/lib/matching/a15ReleaseGates';
 import {auditA15Referenties} from '@/lib/matching/a15ReferentieAudit';
 
 const CONTROLE_LABELS:Record<A15PipelineControleStatus,string>={
@@ -40,6 +40,7 @@ export default function MatchingImpactPanel({
     [toon,objecten,relaties,pipelineKandidaten]);
   const vrijgave=useMemo(()=>preview?beoordeelA15Vrijgave(preview,relaties,referentieAudit??undefined):null,
     [preview,relaties,referentieAudit]);
+  const uitrolFasen=useMemo(()=>vrijgave?beoordeelA15UitrolFasen(vrijgave):[],[vrijgave]);
   const byRelatie=useMemo(()=>new Map(relaties.map(r=>[r.id,r])),[relaties]);
   const byObject=useMemo(()=>new Map(objecten.map(o=>[o.id,o])),[objecten]);
   const lopendePipelineKeys=useMemo(()=>new Set(pipelineKandidaten
@@ -123,6 +124,19 @@ export default function MatchingImpactPanel({
             <span className="text-xs font-semibold tabular-nums">
               {x.soort==='handmatig'?'Handmatig akkoord nodig':
                 x.open?`${x.aantal} te controleren`:'Geen open indicator'}
+            </span>
+          </div>)}
+        </div>
+        <div className="space-y-2 border-t border-border/70 pt-3" aria-label="A15.13 afzonderlijke uitrolfasen">
+          <h4 className="text-sm font-semibold">Uitrol per fase — nooit automatisch</h4>
+          {uitrolFasen.map(f=><div key={f.id}
+            className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border/70 p-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium">{f.naam}</p>
+              <p className="text-xs text-muted-foreground">{f.reden}</p>
+            </div>
+            <span className="text-xs font-semibold">
+              {f.status==='geblokkeerd'?'Niet vrijgeven':'Apart akkoord nodig'}
             </span>
           </div>)}
         </div>
