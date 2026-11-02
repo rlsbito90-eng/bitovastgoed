@@ -77,7 +77,8 @@ export default function InlineTransactierollen({
   const historisch=(relatie.commercialRoles??[])
     .filter(x=>!magAanvullendeActiviteit(x,relatie.partijprofiel)
       // Een hoofdprofiel hoeft niet als historische dubbele rol terug te komen.
-      &&x!==relatie.partijprofiel);
+      &&x!==relatie.partijprofiel
+      &&!(x==='ontwikkelaar'&&relatie.partijprofiel==='ontwikkelende_belegger'));
   return <section className="section-card p-5 sm:p-6 space-y-3" aria-label="Activiteiten en transactierollen">
     <div className="flex items-center justify-between gap-3">
       <h2 className="section-title">Activiteiten en transactierollen</h2>
