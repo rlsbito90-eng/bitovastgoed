@@ -140,6 +140,17 @@ describe('A15 CRM read-only review UI',()=>{
     expect(screen.getAllByText('Buiten simulatie')).toHaveLength(2);
     expect(screen.getByText(/Bestaande kandidaatkoppeling en proceshistorie blijven onaangetast/)).toBeTruthy();
   });
+  it('A15.12 toont aparte releaseblokkade wanneer kandidaatobject niet is geladen',()=>{
+    const p=[{id:'p-test',objectId:'ontbrekend',relatieId:'old',
+      pipelineFase:'indicatieve_bieding'}] as any;
+    render(<MemoryRouter><MatchingImpactPanel relaties={[old]}
+      objecten={[object]} zoekprofielen={[]} pipelineKandidaten={p}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText(/1 lopende kandidaatposities, waarvan 1 met een ontbrekende of gearchiveerde bronverwijzing/)).toBeTruthy();
+    expect(screen.getByText('Kandidaatposities met een niet-geladen object')).toBeTruthy();
+    expect(screen.getByText(/Niet geladen betekent niet noodzakelijk verwijderd/)).toBeTruthy();
+    expect(screen.queryByRole('button',{name:/Opschoning starten/})).toBeNull();
+  });
   it('A15.6 toont een geblokkeerde vrijgave ondanks nul matchingverschillen',()=>{
     const r={...old,partijprofiel:'belegger' as const};
     render(<MemoryRouter><MatchingImpactPanel relaties={[r]}
