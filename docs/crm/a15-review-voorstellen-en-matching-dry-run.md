@@ -461,3 +461,88 @@ gegevensmodel-helperfuncties, bestaande kolommen en
 historische commerciële rollen blijven aanwezig. Er is geen
 datamigratie, productie-update of deployment uitgevoerd. PR #563
 blijft een concept en de releasevoorwaarden van A15.6 blijven gelden.
+
+## A15.12 — releasegereedheid en uitvoeringsvolgorde (2 november 2026)
+
+De GitHub Actions-regressie voor A15.11 (commit `a6bf60d7`)
+was volledig groen. Dit geldt alleen voor de **ontwikkelbranch**,
+niet voor een production smoke-test of een datamigratie.
+
+### Read-only databasebaseline
+
+Via `docs/crm/a15-release-preflight.sql` is de actuele database
+gecontroleerd (2 november 2026; 18:58 UTC):
+
+| Controle | Uitslag |
+|---|---:|
+| Actieve relaties | 93 |
+| Actieve relaties zonder Partijprofiel | 92 |
+| Relaties met ingevuld Partijprofiel | 1 |
+| Lopende kandidaatposities | 68 |
+| Lopende posities op soft-gearchiveerde objecten | 5 |
+| Lopende posities met een geheel ontbrekend object | 0 |
+| Lopende posities met een ontbrekende of gearchiveerde relatie | 0 |
+| RLS actief op `public.relaties` | Ja |
+| A14-uitbreiding voor Fonds, Family office, Buitenlandse belegger | **Nee** |
+| A14-migratie aanwezig in productie-migratiehistorie | **Nee** |
+
+De bestaande CHECK `relaties_partijprofiel_a13_allowed` accepteert
+nog slechts acht profielen. De frontend biedt elf profielen aan. Een
+deployed frontend zonder voorafgaande additieve A14-schemauitbreiding
+kan een gebruiker daarom ten onrechte laten verwachten dat de drie
+nieuwe categorieën zijn op te slaan. **Releaseblokker.**
+
+De ontbrekende 92 classificaties maken de **alternatieve matchingregel**
+nog niet veilig als vervanger van de huidige matching. Dit is **geen**
+reden om 92 relaties automatisch of willekeurig in te delen.
+Ook een gearchiveerd object met een lopende kandidaatpositie blijft
+een informatie- en historieprobleem, niet automatisch een nieuwe
+transactiekans.
+
+### Release in afzonderlijke, toetsbare stappen
+
+1. **Preflight en herstel:** bevestig juiste Supabase-projectidentiteit,
+   onafhankelijke actuele back-up, daadwerkelijke restore-test en
+   administratieve dossierbaseline. Herhaal het read-only SQL-bestand;
+   bevestig dat de GitHub-branch/teststatus nog actueel is.
+2. **Schema (additief, apart):** beoordeel en autoriseer
+   `supabase/migrations/20261101130000_a14_extend_partijprofiel_values.sql`.
+   De constraintuitbreiding verandert geen bestaande relatie of pipeline
+   maar heeft een productiedatabase-lock nodig; voer pas uit na aparte
+   toestemming. Verifieer de drie nieuwe profielen in de CHECK,
+   RLS en migratieregistratie vóór de UI wordt uitgerold.
+3. **Interface uitrollen:** PR #563 pas na aparte review/goedkeuring
+   voor merge en deployment vrijgeven. De bestaande matching blijft
+   het actieve beleid. Controleer in de test- en productieomgeving
+   inline opslaan/annuleren, foutmeldingen, zoeken op contactpersoon,
+   de bestaande kandidaatlijsten en de A15-read-only schermen.
+4. **Relatiegewijs classificeren:** bevestigde bedrijfsprofielen en
+   aanvullende activiteiten alleen op het bestaande relatierecord
+   invullen. Bewaar oude `type_partij`, rolindicaties, zoekprofielen
+   en historische transactiedossiers. Geen bulk- of naamheuristiek.
+5. **Nieuwe matching apart beoordelen:** herhaal de volledige
+   vergelijking op de dan geldende brondata, inclusief dossiers op
+   on-hold, ingetrokken en soft-gearchiveerde objecten. Laat eventuele
+   verschillen per dossier beoordelen. Geen automatische wijzigingen
+   in de live matchingregel op basis van alleen deze PR.
+6. **Destructieve opschoning later:** oude kolommen en compatibiliteits-
+   mapping pas in een afzonderlijke release na migratiebewijs,
+   tests, restore-test en expliciete eindgoedkeuring verwijderen.
+
+### Terugval en schemaregel
+
+Een **code-rollback** mag de verruimde database-CHECK veilig laten
+staan: extra toegestane profielwaarden beschadigen geen oude
+gegevens. Een CHECK terugvernauwen is pas veilig nadat is vastgesteld
+dat geen opgeslagen relatie een van de drie extra waarden gebruikt.
+Rollback mag daarom nooit automatisch een profiel wissen,
+een bestaande kandidaatpositie terugzetten of een bod resetten.
+
+De gecombineerde classificatie-editor, audit en vrijgavepoorten
+blijven in de ontwikkelbranch. Ook als alle read-only controles
+`0` geven, vereist de release nog steeds menselijke inhoudelijke
+én technische toestemming; deze software heeft opzettelijk geen
+knop die A15 automatisch laat migreren of oude kolommen opruimt.
+
+**Status:** geen schema-migratie, merge, productie-deployment of
+productie-classificatie gedaan. PR #563 blijft draft.
