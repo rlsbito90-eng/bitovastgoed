@@ -14,7 +14,7 @@ import {
  * Existing matching, client records, pipeline and search profiles remain intact.
  */
 export default function ClassificatieReviewPanel({
-  relaties,zoekprofielen=[],pipelineKandidaten=[],contactMoments=[],contactpersonen=[],objecten=[],
+  relaties,zoekprofielen=[],pipelineKandidaten=[],contactMoments=[],contactpersonen=[],objecten,
 }:{
   relaties:readonly Relatie[];
   zoekprofielen?:readonly Zoekprofiel[];
@@ -25,23 +25,25 @@ export default function ClassificatieReviewPanel({
 }){
   const [open,setOpen]=useState(false);
   const [alles,setAlles]=useState(false);
-  const [focus,setFocus]=useState<'alle'|'bod_of_verder'|'lopende_pipeline'|'actieve_zoekprofielen'|'zonder_koppelingen'>('alle');
+  const [focus,setFocus]=useState<'alle'|'bod_of_verder'|'lopende_pipeline'|'actieve_zoekprofielen'|'archief_controle'|'zonder_koppelingen'>('alle');
   const reviews=useMemo(()=>prioriteerClassificatieReviews(
-    relaties,zoekprofielen,pipelineKandidaten,contactMoments,
-  ),[relaties,zoekprofielen,pipelineKandidaten,contactMoments]);
+    relaties,zoekprofielen,pipelineKandidaten,contactMoments,objecten,
+  ),[relaties,zoekprofielen,pipelineKandidaten,contactMoments,objecten]);
   const pending=reviews.filter(r=>r.status!=='reeds_ingevuld');
   const voorstellen=pending.filter(r=>r.status==='voorstel_controleren');
   const nader=pending.length-voorstellen.length;
   const naamControleren=pending.filter(r=>r.datakwaliteit==='naam_controleren').length;
   const urgent=pending.filter(r=>r.prioriteit==='hoog').length;
-  const metBodOfVerder=pending.filter(r=>isBodOfVerder(r.hoogstePipelineFase)).length;
+  const metBodOfVerder=pending.filter(r=>isBodOfVerder(r.hoogsteControleerbarePipelineFase)).length;
+  const ontbrekendeObjecten=pending.reduce((n,r)=>n+r.pipelineOpNietGeladenObjecten,0);
   const gefilterd=pending.filter(r=>focus==='alle'||
-    (focus==='bod_of_verder'&&isBodOfVerder(r.hoogstePipelineFase))||
+    (focus==='bod_of_verder'&&isBodOfVerder(r.hoogsteControleerbarePipelineFase))||
     (focus==='lopende_pipeline'&&r.lopendePipelineKoppelingen>0)||
     (focus==='actieve_zoekprofielen'&&r.actieveZoekprofielen>0)||
+    (focus==='archief_controle'&&r.pipelineOpNietGeladenObjecten>0)||
     (focus==='zonder_koppelingen'&&r.prioriteit==='regulier'));
   const byId=new Map(relaties.map(r=>[r.id,r]));
-  const byObject=new Map(objecten.map(o=>[o.id,o]));
+  const byObject=new Map((objecten??[]).map(o=>[o.id,o]));
   const primairPerRelatie=new Map<string,RelatieContactpersoon>();
   for(const cp of contactpersonen){
     const huidig=primairPerRelatie.get(cp.relatieId);
@@ -57,7 +59,7 @@ export default function ClassificatieReviewPanel({
           {' '}{voorstellen.length} controlevoorstellen · {nader} nader onderzoeken
         </p>
         <p className="text-xs text-muted-foreground">
-          {metBodOfVerder} met een geregistreerde bieding of vervolgfase · {urgent} met actieve zoekprofielen of lopende pipeline · {naamControleren} met onvolledige partijnaam
+          {metBodOfVerder} met een bieding of vervolgfase op een geladen object · {ontbrekendeObjecten} pipelineposities op niet-geladen objecten · {naamControleren} met onvolledige partijnaam
         </p>
       </div>
       <button type="button" onClick={()=>setOpen(v=>!v)}
@@ -69,7 +71,7 @@ export default function ClassificatieReviewPanel({
     {open&&<div id="classificatiecontrole-inhoud" className="space-y-3">
       <p className="text-xs text-muted-foreground">
         Hoogste prioriteit: kandidaten met een actief zoekprofiel of een lopende pipelinefase. Afgevallen dossiers blijven zichtbaar als historie.
-        Biedingen en vergevorderde transactiedossiers staan bovenaan. Een pipelinefase is een administratieve registratie, geen bewijs van een getekende koop.
+        Biedingen en vergevorderde transactiedossiers op geladen objecten staan bovenaan. Pipelineposities bij ontbrekende of mogelijk gearchiveerde objecten krijgen een afzonderlijke controle. Een pipelinefase is een administratieve registratie, geen bewijs van een getekende koop.
         Bij ontbrekende namen moet de partij eerst geïdentificeerd worden.
         Voorstellen zijn onbevestigd: er wordt niets automatisch geclassificeerd
         of verstuurd. Gebruik de bestaande relatiepagina voor controle.
@@ -83,6 +85,7 @@ export default function ClassificatieReviewPanel({
           <option value="bod_of_verder">Geregistreerd bod of vervolgfase</option>
           <option value="lopende_pipeline">Lopende kandidaatposities</option>
           <option value="actieve_zoekprofielen">Actieve zoekprofielen</option>
+          <option value="archief_controle">Niet-geladen objecten (archiefcontrole)</option>
           <option value="zonder_koppelingen">Geen actieve zoekprofielen of lopende pipeline</option>
         </select>
         <span className="text-muted-foreground">{gefilterd.length} relaties</span>
@@ -117,6 +120,9 @@ export default function ClassificatieReviewPanel({
                     {' '}{item.actieveZoekprofielen} actieve zoekprofielen ·
                     {' '}{item.contactmomenten} contactmomenten
                   </p>}
+                {item.pipelineOpNietGeladenObjecten>0&&<p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                  {item.pipelineOpNietGeladenObjecten} bestaande pipelinepositie(s) verwijzen naar een object dat niet in de actieve objectlijst staat. Controleer archief/testregistraties; geen automatische verwijdering.
+                </p>}
                 {item.lopendePipelineDossiers.length>0&&<div className="mt-2 space-y-1.5" aria-label="Bestaande kandidaatdossiers">
                   <p className="text-xs font-semibold">Geregistreerde kandidaatposities</p>
                   {item.lopendePipelineDossiers.slice(0,3).map(d=>{
@@ -127,7 +133,7 @@ export default function ClassificatieReviewPanel({
                         ?<Link className="text-accent hover:underline" to={`/objecten/${d.objectId}`}>
                           {object.titel||object.crmObjectnummer||'Object bekijken'}
                         </Link>
-                        :<span className="text-muted-foreground">Object niet geladen</span>}
+                        :<span className="text-amber-600 dark:text-amber-400 font-medium">Object ontbreekt in actieve lijst — controleer archiefstatus</span>}
                       <span className="text-muted-foreground">· {fase}</span>
                       {object&&object.status!=='beschikbaar'&&<span className="text-muted-foreground">
                         · Object: {OBJECT_STATUS_LABELS[object.status]}
