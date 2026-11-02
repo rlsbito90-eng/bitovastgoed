@@ -33,6 +33,32 @@ describe('A15.6 veilige overgang zonder stilzwijgende vrijgave',()=>{
     expect(r.veiligVoorAutomatischeOpschoning).toBe(false);
     expect(r.controles.find(x=>x.id==='fiat')?.open).toBe(true);
   });
+  it('A15.12 blokkeert oude pipelinekoppelingen op gearchiveerde objecten',()=>{
+    const vrijgave=beoordeelA15Vrijgave(impact(),[{partijprofiel:'belegger'}],{
+      lopendePosities:5,positiesOpGearchiveerdeObjecten:2,
+      positiesZonderGeladenObject:1,positiesZonderGeladenRelatie:0,
+      positiesMetGearchiveerdeRelatie:0,teVerifiërenPosities:3,
+    });
+    expect(vrijgave.openDatacontroles).toBe(2);
+    expect(vrijgave.controles.find(x=>x.id==='archief_object')).toMatchObject({
+      aantal:2,open:true,
+    });
+    expect(vrijgave.controles.find(x=>x.id==='object_ontbreekt')).toMatchObject({
+      aantal:1,open:true,
+    });
+    expect(vrijgave.veiligVoorAutomatischeOpschoning).toBe(false);
+    expect(vrijgave.openHandmatigeControles).toBe(3);
+  });
+  it('A15.12 nul in referentie-audit maakt vrijgave nog niet automatisch veilig',()=>{
+    const vrijgave=beoordeelA15Vrijgave(impact(),[{partijprofiel:'belegger'}],{
+      lopendePosities:0,positiesOpGearchiveerdeObjecten:0,
+      positiesZonderGeladenObject:0,positiesZonderGeladenRelatie:0,
+      positiesMetGearchiveerdeRelatie:0,teVerifiërenPosities:0,
+    });
+    expect(vrijgave.openDatacontroles).toBe(0);
+    expect(vrijgave.openHandmatigeControles).toBe(3);
+    expect(vrijgave.veiligVoorAutomatischeOpschoning).toBe(false);
+  });
   it('archiveerde relaties tellen niet als te classificeren actieve relaties',()=>{
     const r=beoordeelA15Vrijgave(impact(),[
       {partijprofiel:null,softDeletedAt:'2026-10-01'},
