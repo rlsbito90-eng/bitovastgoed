@@ -16,7 +16,7 @@ export type PartijType =
   | 'makelaar' | 'partner' | 'overig';
 
 export type Partijprofiel =
-  | 'belegger' | 'ontwikkelende_belegger' | 'ontwikkelaar'
+  | 'belegger' | 'ontwikkelende_belegger' | 'fonds' | 'family_office' | 'buitenlandse_belegger' | 'ontwikkelaar'
   | 'vastgoedondernemer' | 'makelaar' | 'bemiddelaar'
   | 'vastgoedeigenaar' | 'overig';
 

@@ -10,7 +10,10 @@ const migration = readFileSync(
 
 describe('A13 migratiecontract (statisch, zonder database-aanroep)',()=>{
  it('bevat alle door de applicatie toegestane profiel- en strategiewaarden',()=>{
-  for(const item of PARTIJPROFIELEN) expect(migration).toContain(`'${item.value}'`);
+  const a13Profielen = PARTIJPROFIELEN.filter(item =>
+   !['fonds','family_office','buitenlandse_belegger'].includes(item.value)
+  );
+  for(const item of a13Profielen) expect(migration).toContain(`'${item.value}'`);
   for(const item of VASTGOEDSTRATEGIEEN) expect(migration).toContain(`'${item.value}'`);
  });
  it('blijft additief, nullable, afbreekbaar en vrij van bestaande rijmutaties',()=>{
@@ -22,5 +25,18 @@ describe('A13 migratiecontract (statisch, zonder database-aanroep)',()=>{
   expect(migration).toMatch(/ADD COLUMN partijprofiel text NULL/);
   expect(migration).toMatch(/ADD COLUMN vastgoed_strategieen text\[\] NULL/);
   expect(migration).not.toMatch(/\b(?:UPDATE|DELETE|TRUNCATE|DROP)\s+(?:TABLE\s+)?public\.relaties\b/i);
+ });
+});
+
+const uitbreiding = readFileSync(
+ resolve(process.cwd(), 'supabase/migrations/20261101130000_a14_extend_partijprofiel_values.sql'),
+ 'utf8'
+);
+
+describe('A14 uitbreiding profielwaarden (statisch, zonder database-aanroep)',()=>{
+ it('maakt alle profielwaarden geldig zonder bestaande classificaties opnieuw te schrijven',()=>{
+  for(const item of PARTIJPROFIELEN) expect(uitbreiding).toContain(`'${item.value}'`);
+  expect(uitbreiding).toContain('relaties_partijprofiel_a13_allowed');
+  expect(uitbreiding).not.toMatch(/\b(?:UPDATE|DELETE|TRUNCATE)\s+public\.relaties\b/i);
  });
 });

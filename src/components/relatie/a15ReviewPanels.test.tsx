@@ -1,0 +1,161 @@
+// @vitest-environment jsdom
+import React from 'react';
+import { describe,it,expect } from 'vitest';
+import { fireEvent,render,screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ObjectVastgoed,Relatie,Zoekprofiel } from '@/data/mock-data';
+import ClassificatieReviewPanel from './ClassificatieReviewPanel';
+import MatchingImpactPanel from './MatchingImpactPanel';
+
+const old={
+  id:'old',bedrijfsnaam:'Voorbeeld nog onbekend',type:'belegger',partijprofiel:null,
+  propertyTypeIds:['type-wonen'],regio:[],assetClasses:[],budgetMax:650000,
+} as Relatie;
+const fonds={
+  id:'fund',bedrijfsnaam:'Voorbeeld Fonds',type:'belegger',partijprofiel:null,
+  investeerderSubtype:'fonds',regio:[],assetClasses:[],
+} as Relatie;
+const object={
+  id:'o1',status:'beschikbaar',type:'wonen',propertyTypeId:'type-wonen',
+  vraagprijs:450000,plaats:'Breda',provincie:'Noord-Brabant',
+} as ObjectVastgoed;
+
+describe('A15 CRM read-only review UI',()=>{
+  it('toont voorgestelde classificaties en onzekerheid, met link naar bronrelatie',()=>{
+    render(<MemoryRouter><ClassificatieReviewPanel relaties={[old,fonds]}/></MemoryRouter>);
+    expect(screen.getByText(/0 van 2 actieve relaties ingedeeld/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
+    expect(screen.getByText('Voorbeeld Fonds')).toBeTruthy();
+    expect(screen.getByText(/Historische investeerderscategorie: Fonds/)).toBeTruthy();
+    expect(screen.getByText('Voorbeeld nog onbekend')).toBeTruthy();
+    expect(screen.getAllByRole('link',{name:'Relatie beoordelen'})).toHaveLength(2);
+    expect(screen.queryByRole('button',{name:'Alles automatisch indelen'})).toBeNull();
+  });
+  it('A15.7 toont vergevorderde kandidaatposities met object, fase en geregistreerd bod',()=>{
+    const bieder={...old,id:'bieder',bedrijfsnaam:'Voorbeeld Bieder'};
+    const eerste={...old,id:'eerste',bedrijfsnaam:'Voorbeeld Eerste Match'};
+    const opHold={...object,status:'on_hold' as const,titel:'Voorbeeld Object'};
+    const pipeline=[
+      {id:'bid',relatieId:'bieder',objectId:'o1',pipelineFase:'indicatieve_bieding',biedingBedrag:415000},
+      {id:'start',relatieId:'eerste',objectId:'o1',pipelineFase:'match_gevonden'},
+    ] as any;
+    render(<MemoryRouter><ClassificatieReviewPanel
+      relaties={[eerste,bieder]} objecten={[opHold]}
+      pipelineKandidaten={pipeline}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
+    expect(screen.getByText(/1 met een bieding of vervolgfase op een geladen object/)).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox',{name:'Filter classificatiecontrole'}),{
+      target:{value:'bod_of_verder'},
+    });
+    expect(screen.getByText('Voorbeeld Bieder')).toBeTruthy();
+    expect(screen.queryByText('Voorbeeld Eerste Match')).toBeNull();
+    expect(screen.getByRole('link',{name:'Voorbeeld Object'}).getAttribute('href')).toBe('/objecten/o1');
+    expect(screen.getByText(/Geregistreerd bod: € 415.000/)).toBeTruthy();
+    expect(screen.getByText(/Object: On hold/)).toBeTruthy();
+    expect(screen.getByText(/Bieding \/ prijsvoorstel/)).toBeTruthy();
+  });
+  it('A15.8 maakt oude kandidaatpositie zonder geladen object apart zichtbaar',()=>{
+    const r={...old,id:'arch',bedrijfsnaam:'Historische relatie'};
+    const pipe=[{id:'historisch',relatieId:'arch',objectId:'ontbrekend-object',
+      pipelineFase:'koopovereenkomst_concept'}] as any;
+    render(<MemoryRouter><ClassificatieReviewPanel relaties={[r]}
+      objecten={[]} pipelineKandidaten={pipe}/></MemoryRouter>);
+    expect(screen.getByText(/0 met een bieding of vervolgfase op een geladen object/)).toBeTruthy();
+    expect(screen.getByText(/1 pipelineposities op niet-geladen objecten/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
+    fireEvent.change(screen.getByRole('combobox',{name:'Filter classificatiecontrole'}),{
+      target:{value:'archief_controle'},
+    });
+    expect(screen.getByText('Historische relatie')).toBeTruthy();
+    expect(screen.getByText(/Object ontbreekt in actieve lijst/)).toBeTruthy();
+    expect(screen.getByText(/geen automatische verwijdering/)).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox',{name:'Filter classificatiecontrole'}),{
+      target:{value:'bod_of_verder'},
+    });
+    expect(screen.queryByText('Historische relatie')).toBeNull();
+  });
+  it('toont per weggevallen kandidaat de relatie, het object en de reden zonder gegevens te wijzigen',()=>{
+    const r={...old,bedrijfsnaam:'Testpartij zonder profiel'};
+    render(<MemoryRouter><MatchingImpactPanel relaties={[r]} objecten={[object]} zoekprofielen={[]}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    fireEvent.click(screen.getByRole('button',{name:/Bekijk 1 verschillen per object en relatie/}));
+    expect(screen.getByText('Testpartij zonder profiel')).toBeTruthy();
+    expect(screen.getByText('Valt weg')).toBeTruthy();
+    expect(screen.getByText(/Partijprofiel ontbreekt/)).toBeTruthy();
+    expect(screen.getByRole('link',{name:'Testpartij zonder profiel'}).getAttribute('href'))
+      .toBe('/relaties/old');
+  });
+  it('toont de bestaande primaire contactpersoon wanneer er geen bedrijfsnaam is',()=>{
+    const relatie={...old,bedrijfsnaam:'',type:'ontwikkelaar' as const};
+    const contactpersonen=[{
+      id:'cp1',relatieId:'old',naam:'Voorbeeld Contact',isPrimair:true,decisionMaker:false,
+    }];
+    render(<MemoryRouter><ClassificatieReviewPanel relaties={[relatie]}
+      contactpersonen={contactpersonen}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Voorstellen bekijken'}));
+    expect(screen.getByText('Voorbeeld Contact')).toBeTruthy();
+    expect(screen.getByText(/particulier contact of een onderneming/)).toBeTruthy();
+    expect(screen.getByText('Onvoldoende informatie voor een voorstel')).toBeTruthy();
+    expect(screen.getByRole('link',{name:'Relatie beoordelen'}).getAttribute('href'))
+      .toBe('/relaties/old');
+  });
+  it('maakt bestaande lopende pipeline zichtbaar bij een matchverschil',()=>{
+    const r={...old,bedrijfsnaam:'Testpartij'};
+    const pipeline=[{id:'p1',objectId:'o1',relatieId:'old',
+      pipelineFase:'teaser_verstuurd',interesseNiveau:'hoog',
+      teaserVerstuurd:true,ndaVerstuurd:false,ndaGetekend:false,
+      informatieGedeeld:false,feeAkkoord:false}];
+    render(<MemoryRouter><MatchingImpactPanel relaties={[r]} objecten={[object]}
+      zoekprofielen={[]} pipelineKandidaten={pipeline as any}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText(/1 lopende pipelinekoppelingen/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:/Bekijk 1 verschillen per object en relatie/}));
+    expect(screen.getByText('Bestaande lopende pipeline')).toBeTruthy();
+  });
+  it('A15.5 laat ook bestaande kandidaten buiten gegenereerde matching bekijken',()=>{
+    const relatie={...old,type:'eigenaar' as const,
+      propertyTypeIds:[],assetClasses:[],budgetMax:undefined,bedrijfsnaam:''};
+    const p=[{id:'p1',objectId:'o1',relatieId:'old',pipelineFase:'indicatieve_bieding'}] as any;
+    render(<MemoryRouter><MatchingImpactPanel
+      relaties={[relatie]} objecten={[object]} zoekprofielen={[]}
+      pipelineKandidaten={p}
+      contactpersonen={[{id:'c1',relatieId:'old',naam:'Voorbeeld Koper',
+        isPrimair:true,decisionMaker:false}]}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText(/zonder match in beide modellen/).parentElement?.textContent).toContain('1');
+    fireEvent.click(screen.getByRole('button',{name:/Controleer 1 bestaande kandidaatposities/}));
+    expect(screen.getByText('Niet gevonden in beide matchberekeningen')).toBeTruthy();
+    expect(screen.getByRole('link',{name:'Voorbeeld Koper'}).getAttribute('href'))
+      .toBe('/relaties/old');
+    expect(screen.getByRole('link',{name:'Object bekijken'}).getAttribute('href'))
+      .toBe('/objecten/o1');
+  });
+  it('A15.5 bewaakt bestaande on-hold bieding in aparte review',()=>{
+    const p=[{id:'p1',objectId:'o1',relatieId:'old',pipelineFase:'indicatieve_bieding'}] as any;
+    render(<MemoryRouter><MatchingImpactPanel relaties={[old]}
+      objecten={[{...object,status:'on_hold'}]} zoekprofielen={[]}
+      pipelineKandidaten={p}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    fireEvent.click(screen.getByRole('button',{name:/Controleer 1 bestaande kandidaatposities/}));
+    expect(screen.getAllByText('Buiten simulatie')).toHaveLength(2);
+    expect(screen.getByText(/Bestaande kandidaatkoppeling en proceshistorie blijven onaangetast/)).toBeTruthy();
+  });
+  it('A15.6 toont een geblokkeerde vrijgave ondanks nul matchingverschillen',()=>{
+    const r={...old,partijprofiel:'belegger' as const};
+    render(<MemoryRouter><MatchingImpactPanel relaties={[r]}
+      objecten={[]} zoekprofielen={[]}/></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText(/Concept-release:/)).toBeTruthy();
+    expect(screen.getByText(/Een nulstand bij verschillen is geen automatische toestemming/)).toBeTruthy();
+    expect(screen.getAllByText('Handmatig akkoord nodig')).toHaveLength(3);
+    expect(screen.queryByRole('button',{name:/Opschoning starten/})).toBeNull();
+  });
+  it('start de matchingvergelijking alleen na handmatige actie en zonder writes',()=>{
+    render(<MatchingImpactPanel relaties={[old]} objecten={[object]} zoekprofielen={[] as Zoekprofiel[]}/>);
+    expect(screen.queryByText('Koppelingen die wegvallen')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Simulatie bekijken'}));
+    expect(screen.getByText('Koppelingen die wegvallen')).toBeTruthy();
+    expect(screen.getByText('Koppelingen die wegvallen').parentElement?.textContent).toContain('1');
+    expect(screen.getByText(/Er wordt niets opgeslagen of aan iemand verstuurd/)).toBeTruthy();
+  });
+});

@@ -98,25 +98,21 @@ export default function ContactpersonenPanel({ relatieId }: Props) {
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground">
-              {c.email && (
-                <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1 hover:text-foreground">
-                  <Mail className="h-3 w-3" /> {c.email}
-                </a>
-              )}
-              {c.telefoon && (
-                <a href={`tel:${c.telefoon}`} className="inline-flex items-center gap-1 hover:text-foreground">
-                  <Phone className="h-3 w-3" /> {c.telefoon}
-                </a>
-              )}
-              {c.linkedinUrl && (
-                <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-                  <Linkedin className="h-3 w-3" /> LinkedIn
-                </a>
-              )}
-              {c.voorkeurKanaal && (
-                <span>Voorkeur: {COMMUNICATIE_KANAAL_LABELS[c.voorkeurKanaal]}</span>
-              )}
+            <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 mt-2 text-xs text-muted-foreground">
+              <div><span className="font-medium">E-mail: </span>{c.email
+                ? <a href={`mailto:${c.email}`} className="hover:text-foreground break-all">{c.email}</a>:'—'}</div>
+              <div><span className="font-medium">Telefoon vast: </span>{c.telefoon
+                ? <a href={`tel:${c.telefoon}`} className="hover:text-foreground">{c.telefoon}</a>:'—'}</div>
+              <div><span className="font-medium">Mobiel: </span>{c.telefoonMobiel
+                ? <a href={`tel:${c.telefoonMobiel}`} className="hover:text-foreground">{c.telefoonMobiel}</a>:'—'}</div>
+              <div><span className="font-medium">LinkedIn: </span>{c.linkedinUrl
+                ? <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">Profiel</a>:'—'}</div>
+              <div><span className="font-medium">Voorkeur kanaal: </span>{c.voorkeurKanaal
+                ? COMMUNICATIE_KANAAL_LABELS[c.voorkeurKanaal]:'—'}</div>
+              <div><span className="font-medium">Taal: </span>{c.voorkeurTaal?.toUpperCase()??'—'}</div>
+              <div className="sm:col-span-2 whitespace-pre-wrap break-words">
+                <span className="font-medium">Notities: </span>{c.notities||'—'}
+              </div>
             </div>
           </div>
           <div className="flex gap-1 shrink-0">
@@ -236,20 +232,24 @@ function ContactpersoonInlineForm({
         </div>
         <div className="space-y-1.5">
           <Label>Functie</Label>
-          <Input value={form.functie ?? ''} onChange={e => set('functie', e.target.value || undefined)}
+          <Input value={form.functie ?? ''} onChange={e => set('functie', e.target.value)}
             placeholder="bv. Directeur, Acquisition Manager" />
         </div>
         <div className="space-y-1.5">
           <Label>E-mail</Label>
-          <Input type="email" value={form.email ?? ''} onChange={e => set('email', e.target.value || undefined)} />
+          <Input type="email" value={form.email ?? ''} onChange={e => set('email', e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label>Telefoon</Label>
-          <Input value={form.telefoon ?? ''} onChange={e => set('telefoon', e.target.value || undefined)} />
+          <Input value={form.telefoon ?? ''} onChange={e => set('telefoon', e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Mobiele telefoon</Label>
+          <Input value={form.telefoonMobiel ?? ''} onChange={e => set('telefoonMobiel', e.target.value)} />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <Label>LinkedIn URL</Label>
-          <Input value={form.linkedinUrl ?? ''} onChange={e => set('linkedinUrl', e.target.value || undefined)}
+          <Input value={form.linkedinUrl ?? ''} onChange={e => set('linkedinUrl', e.target.value)}
             placeholder="https://linkedin.com/in/..." />
         </div>
         <div className="space-y-1.5">
@@ -293,7 +293,7 @@ function ContactpersoonInlineForm({
 
       <div className="space-y-1.5">
         <Label>Notities</Label>
-        <Textarea rows={2} value={form.notities ?? ''} onChange={e => set('notities', e.target.value || undefined)} />
+        <Textarea rows={2} value={form.notities ?? ''} onChange={e => set('notities', e.target.value)} />
       </div>
 
       <div className="flex justify-end gap-2">

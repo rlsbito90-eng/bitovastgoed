@@ -11,8 +11,8 @@ interface Props {
 export default function PartijprofielVelden({partijprofiel,vastgoedStrategieen,onProfielChange,onStrategieenChange}:Props){
   return <div className="space-y-4" aria-label="Partijprofiel en vastgoedstrategieën">
     <p className="text-sm text-muted-foreground">
-      Beschrijf de partij en haar aanpak. De bestaande hoofdclassificatie en commerciële rollen
-      blijven apart bestaan. Een belegger kan ook ontwikkelen, zonder automatisch koper of verkoper te worden.
+      Leg hier één keer vast wat voor partij dit is en welke aanpak zij volgt.
+      Commerciële rollen blijven apart: dit profiel maakt niemand automatisch koper of verkoper.
     </p>
     <label className="block space-y-1 text-sm">
       <span className="font-medium">Partijprofiel (optioneel)</span>

@@ -1,11 +1,19 @@
 import {describe,it,expect} from 'vitest';
 import { PARTIJPROFIELEN,VASTGOEDSTRATEGIEEN,leesPartijprofiel,leesVastgoedStrategieen,
-  schrijfPartijprofiel,schrijfVastgoedStrategieen } from './partijprofiel';
+  schrijfPartijprofiel,schrijfVastgoedStrategieen,legacyTypeVoorNieuweRelatie } from './partijprofiel';
 
 describe('Partijprofiel — onafhankelijk van commerciële rollen',()=>{
  it('bevat ontwikkelende belegger en vastgoedondernemer',()=>{
   expect(PARTIJPROFIELEN.map(x=>x.value)).toContain('ontwikkelende_belegger');
   expect(PARTIJPROFIELEN.map(x=>x.value)).toContain('vastgoedondernemer');
+ });
+ it('biedt Fonds, Family office en Buitenlandse belegger één keer aan',()=>{
+  for(const waarde of ['fonds','family_office','buitenlandse_belegger'] as const){
+    expect(PARTIJPROFIELEN.filter(x=>x.value===waarde)).toHaveLength(1);
+    expect(leesPartijprofiel(waarde)).toBe(waarde);
+    expect(legacyTypeVoorNieuweRelatie(waarde)).toBe('belegger');
+  }
+  expect(PARTIJPROFIELEN.filter(x=>x.value==='ontwikkelende_belegger')).toHaveLength(1);
  });
  it('onderscheidt onbekend (null) en onbekende waarden (fout)',()=>{
   expect(leesPartijprofiel(null)).toBeNull();
@@ -34,4 +42,15 @@ describe('Partijprofiel — onafhankelijk van commerciële rollen',()=>{
   expect(relatie.type).toBe('belegger');
   expect(relatie.commercialRoles).toEqual(['koper']);
  });
+ it('leidt voor nieuwe relaties alleen een compatibel technisch hoofdtype af',()=>{
+  expect(legacyTypeVoorNieuweRelatie('ontwikkelende_belegger')).toBe('belegger');
+  expect(legacyTypeVoorNieuweRelatie('belegger')).toBe('belegger');
+  expect(legacyTypeVoorNieuweRelatie('ontwikkelaar')).toBe('ontwikkelaar');
+  expect(legacyTypeVoorNieuweRelatie('vastgoedeigenaar')).toBe('eigenaar');
+  expect(legacyTypeVoorNieuweRelatie('makelaar')).toBe('makelaar');
+  expect(legacyTypeVoorNieuweRelatie('bemiddelaar')).toBe('makelaar');
+  expect(legacyTypeVoorNieuweRelatie('vastgoedondernemer')).toBe('overig');
+  expect(legacyTypeVoorNieuweRelatie('overig')).toBe('overig');
+ });
+
 });

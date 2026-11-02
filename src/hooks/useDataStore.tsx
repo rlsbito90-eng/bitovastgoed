@@ -6,6 +6,7 @@
 // - Soft delete waar geconfigureerd
 
 import { leesCommercieleRollen, schrijfCommercieleRollen } from '@/lib/relaties/commercieleRollen';
+import { numeriekPatchVeld } from '@/lib/relaties/numeriekPatchVeld';
 import { leesPartijprofiel, leesVastgoedStrategieen, schrijfPartijprofiel, schrijfVastgoedStrategieen } from '@/lib/relaties/partijprofiel';
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -150,11 +151,11 @@ const relatieToDb = (r: Partial<Relatie>) => cleanPayload({
   property_type_ids: r.propertyTypeIds !== undefined ? (r.propertyTypeIds ?? []) : undefined,
   property_subtype_ids: r.propertySubtypeIds !== undefined ? (r.propertySubtypeIds ?? []) : undefined,
   deal_type_ids: r.dealTypeIds !== undefined ? (r.dealTypeIds ?? []) : undefined,
-  budget_min: r.budgetMin ?? null,
-  budget_max: r.budgetMax ?? null,
-  rendementseis: r.rendementseis ?? null,
+  budget_min: numeriekPatchVeld(r,'budgetMin'),
+  budget_max: numeriekPatchVeld(r,'budgetMax'),
+  rendementseis: numeriekPatchVeld(r,'rendementseis'),
   kapitaalsituatie: r.kapitaalsituatie,
-  eigen_vermogen_pct: r.eigenVermogenPct ?? null,
+  eigen_vermogen_pct: numeriekPatchVeld(r,'eigenVermogenPct'),
   voorkeur_dealstructuur: r.voorkeurDealstructuur,
   voorkeur_kanaal: r.voorkeurKanaal !== undefined ? (r.voorkeurKanaal || null) : undefined,
   voorkeur_taal: r.voorkeurTaal !== undefined ? (r.voorkeurTaal || 'nl') : undefined,

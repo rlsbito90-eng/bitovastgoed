@@ -1,0 +1,186 @@
+# CRM A14 — één keer classificeren, bestaande data behouden
+
+## Aanleiding en feitelijke nulmeting (1 november 2026)
+
+De CRM-relatie heeft zowel `type_partij` (oude, verplichte classificatie) als `partijprofiel` (A13, optioneel).
+Het oude hoofdtype telt 114 keer 'belegger' van de 135 relaties; dit is deels de bestaande
+standaardwaarde en is **niet** geschikt om alle relaties automatisch als belegger te herclassificeren.
+In de huidige database hebben één relatie een ingevuld partijprofiel en één relatie
+vastgoedstrategieën; één relatie heeft expliciete commerciële rollen.
+Er zijn zeven zoekprofielen verdeeld over zes relaties. 23 relaties bevatten
+bestaande vrije aankoopcriteriatekst. De tellingen zijn momentopnames; geen individuele klantdata opgenomen.
+
+## Gegevensmodel — leidende betekenis
+
+| Informatie | Leidend veld/onderdeel | Wat níet doen |
+|---|---|---|
+| Aard onderneming/partij | `relaties.partijprofiel` | Niet opnieuw als bewerkbaar `type_partij` vragen |
+| Rol bij zaken/doorgeven van aanbod | `relaties.commercial_roles` | Niet uit partijprofiel een koper of mandaat afleiden |
+| Algemene investeringsaanpak | `relaties.vastgoed_strategieen` | Niet gelijkstellen aan concrete matchcriteria |
+| Concrete koopwensen per zoekrichting | `zoekprofielen` | Niet kopiëren naar nieuwe partij- of strategievelden |
+| Historisch hoofdtype/compatibiliteit | `relaties.type_partij` | Niet voor bestaande relaties overschrijven of droppen |
+| Bestaande basis-criteria en aankooptekst | Reeds bestaande relatievelden | Niet massaal migreren/weggooien zonder match-audit |
+
+`NULL` bij partijprofiel of strategie betekent **onbekend**, niet 'belegger' of 'geen interesse'.
+
+## A14 — geïmplementeerde eerste veilige UX-fase
+
+1. De tweede bewerkbare hoofdtype-keuze verdwijnt uit het relatieformulier. Bij
+   een bestaande relatie is de historische waarde alleen via een inklapbaar,
+   **alleen-lezen** overzicht te bekijken.
+2. In het relatieoverzicht wordt het ingevulde partijprofiel de primaire
+   classificatie. Zonder partijprofiel blijft het historische hoofdtype
+   als fallback zichtbaar, zonder dat we data terugschrijven.
+3. Bij **nieuwe** relaties wordt de benodigde legacy-classificatie technisch
+   afgeleid van de *expliciet geselecteerde* partijclassificatie:
+   - belegger/ontwikkelende belegger → belegger
+   - ontwikkelaar → ontwikkelaar
+   - makelaar/bemiddelaar → makelaar
+   - vastgoedeigenaar → eigenaar
+   - vastgoedondernemer/overig → overig
+   Is geen profiel gekozen, dan blijft de bestaande standaard voor de legacy
+   databasekolom gelden (geen automatische aanvulling van het nieuwe profiel).
+4. **Bestaande** relaties behouden ongewijzigd `type_partij`, ook bij
+   het aanpassen van hun profiel. Contactpersonen, `commercial_roles`,
+   strategieën, basiscriteria, zoekprofielen en matches krijgen geen backfill.
+
+## Expliciet buiten scope: tweede harmonisatiefase
+
+De applicatie bevat nog `relaties.asset_classes`, `property_type_ids`, regio,
+budget en een vrije aankoopcriteriatekst naast `zoekprofielen`. De oudere
+R2-matchingadapter gebruikt basiscriteria als terugvalroute en kiest zo nodig
+een actieve zoekprofielroute. Deze velden nu verbergen of automatisch kopiëren
+kan reële bestaande matches veranderen. Eerst onderzoek en gecontroleerde
+vergelijking op synthetische cases, daarna pas bepalen welke invoer standaard
+naar Zoekprofielen verhuist en hoe legacy-gegevens bereikbaar blijven.
+
+Hetzelfde geldt voor 'Makelaar' als partijprofiel versus 'makelaar' als
+commerciële rol: de ene duidt de aard van de partij aan, de ander diens rol.
+Geen automatische mandaat- of koperaanname.
+
+## Releasevoorwaarden
+
+- Geen nieuwe databasekolom/migratie nodig.
+- Geen productierecords wijzigen en geen automatische migratie.
+- Nieuwe branch met Vercel-previewbuilds uitgeschakeld; geen automatische merge.
+- TypeScript, formulier- en classificatietests plus regressietests controleren.
+- Bij livegang expliciete toestemming voor `main` en productiecontrole; één
+  Vercel-build, geen aparte previews.
+
+
+## A14.2 — nieuwe profielopties en directe bewerking in het profiel
+
+- **Ontwikkelende belegger** bestond al; blijft precies één profieloptie.
+- Nieuwe profielopties: **Fonds**, **Family office**, **Buitenlandse belegger**.
+- Fonds en Family office komen ook voor in het historisch gemengde veld
+  `investeerder_subtype` (naast onder meer BV/NV/CV). Daarom wordt in het
+  relatieformulier voortaan alleen de **rechtsvorm** (BV/NV/CV) gevraagd; eerder
+  ingevulde categorieën worden zichtbaar en ongewijzigd bewaard. Op termijn
+  moet rechtsvorm los worden opgeslagen van de algemene classificatie.
+- In de relatiepagina is een eerste inline-sectie voor Partijprofiel en
+  Vastgoedstrategieën toegevoegd. Bewerk ter plekke, expliciet opslaan of
+  annuleren. De opslagpatch raakt uitsluitend gewijzigde profielvelden en
+  laat commerciële rollen, overige relatiegegevens, contactpersonen en
+  zoekprofielen ongemoeid.
+- De nieuwe profielen vragen een aparte **nog niet uitgevoerde** CHECK-uitbreiding:
+  `20261101130000_a14_extend_partijprofiel_values.sql`.
+- Bestaande relaties worden niet automatisch geclassificeerd. Latere
+  herclassificatie mag na een voorstelaudit per relatie en controle van de
+  bestaande gegevens, met log en ongedaanmaakmogelijkheid.
+
+## Profielpagina — nog te implementeren voor volledig direct bewerken
+
+De relatiepagina toont al contactpersonen, algemene contactgegevens,
+vastgoedvoorkeuren, investeerdersinformatie, vestiging, zoekprofielen,
+pipeline, deals, taken, matches en contactmomenten. Niet elk opgeslagen
+veld is zichtbaar en de meeste velden zijn nog niet op hun plaats bewerkbaar.
+
+**Gewenste eindtoestand**: alle relevante gegevens in logisch ingedeelde,
+ook op mobiel leesbare secties. Lege velden hebben duidelijke placeholders,
+niet stilzwijgend verborgen informatie. Elk veld of elke groep krijgt
+inline bewerken + opslaan/annuleren, zonder dat een grote modal nodig is.
+
+In de volgende fase: contactpersonen met functie/primair/beslisser/kanalen;
+bedrijfsgegevens en vestiging; vastgoed- en koopcriteria; investerings- en
+kapitaalgegevens; zoekprofielen en specifieke regio/bedrag/huur/wensen;
+notities, communicatie, NDA, bron, opvolging en overige CRM-informatie.
+Uit relationele modules zoals pipeline/deals/taken blijven hun eigen
+autorisatie- en businessregels leidend; direct bewerken mag die niet
+omzeilen. Matching-uitkomsten zijn berekend, dus geen handmatige veldedit.
+
+Voorwaarde bij iedere fase: **geen dubbele bron**, kleine gerichte
+wijzigingspatches, niet onbedoeld leegmaken, expliciete foutmelding,
+gebruikerscontrole en regressietests voor contactpersonen/zoekprofielen.
+
+## A14.3 — directe bewerking van aanvullende profielsecties (ontwikkelbranch)
+
+- Op Relatie-detail zijn vaste, ook bij lege waarden zichtbare secties gemaakt:
+  **Bedrijf en algemene contactgegevens**, **Vestigingsgegevens**,
+  **Bestaande vastgoedvoorkeuren**, **Investering en financiering**,
+  **Communicatie en NDA**, **Aankoop, verkoop en notities** en
+  **Activiteit en opvolging**.
+- De generieke `InlineRelatieSectie` bewerkt alleen de gebruikte velden van
+  de gekozen sectie en bouwt uitsluitend een verschilpatch. Annuleren bij
+  niet-opgeslagen wijzigingen vereist bevestiging; gelijktijdig bijgewerkte
+  velden worden niet stilzwijgend overschreven; fouten laten de invoer staan.
+- `relatieToDb` had bij gedeeltelijke updates een veiligheidsfout:
+  `budget_min`, `budget_max`, `rendementseis` en
+  `eigen_vermogen_pct` werden bij ontbrekende patchvelden NULL.
+  Dat is verholpen via `numeriekPatchVeld` en regressietests.
+- Bestaand `ContactpersonenPanel` is hergebruikt op de profielpagina:
+  geen tweede contactpersonenopslag. Inclusief mobiele nummers,
+  contactvoorkeuren en notities. Leegmaken van bewerkbare contactvelden
+  wordt expliciet opgeslagen.
+- Historische vastgoedclassificaties blijven zichtbaar, maar worden niet
+  gekopieerd naar de zelfstandige `zoekprofielen`-tabel.
+- Historische investeerderscategorie wordt op één plek als historische
+  metadata getoond, niet als tweede profielbadge in de kop.
+- Voor `Zoekprofielen`, de diepere vastgoedtaxonomie, complexe taken/pipeline
+  en andere gerelateerde modules blijft hun bestaande editroute bestaan
+  totdat zij afzonderlijk veilig inline kunnen worden geïntegreerd.
+  Deze stap omvat nog geen volledige vervanging van het oude
+  totaalformulier.
+
+**Let op**: deze code staat uitsluitend op een draft branch; de A14-migratie
+is niet toegepast en er zijn geen echte relaties bijgewerkt.
+
+## A14.4 — volledige Zoekprofiel-leesweergave en inline taxonomie (featurebranch)
+
+- De reeds bestaande Zoekprofielen worden vanaf de relatiepagina in een
+  uitklapbaar, standaard geopend volledig detailoverzicht weergegeven:
+  types/subtypes/dealtypen, regio's/gemeenten/steden, bedrag, oppervlakte,
+  bouwjaar, label, verhuurstatus, rendement, WALT, leegstand,
+  ontwikkel- en transformatiepotentie, transactietype, exclusiviteit,
+  vrije tekst, status, prioriteit en laatste wijziging.
+- De leesweergave gebruikt rechtstreeks de opgeslagen zoekprofielrij,
+  zonder veldkopie, eigen opslag, of een impliciet mandaat.
+- De algemene, historische vastgoedvoorkeuren krijgen een eigen inline editor
+  voor `property_type_ids`, `property_subtype_ids` en `deal_type_ids`.
+  Die editor bewaart historische assetklassen en onbekende historische IDs
+  en weigert (bij wijzigingen) een combinatie met subtypen waarvan
+  het hoofdtype niet langer geselecteerd is.
+- Onderliggende matchingregels en de zelfstandige zoekprofieltabel zijn
+  ongewijzigd; er vindt geen bulkherclassificatie of datamigratie plaats.
+- De code heeft gerichte synthetische tests voor volledige criteriaweergave,
+  behouden legacy gegevens en subtypeafhankelijkheden.
+
+### Technische uitfaseringsvolgorde
+
+1. Inventariseer alle **lees-/schrijfafhankelijkheden** per oud veld:
+   `type_partij`, `investeerder_subtype`, `commercial_roles`,
+   `asset_classes`, `property_type_ids`, `regio`, `budget_min/max`,
+   `aankoopcriteria` en velden in de search-profile tabel.
+2. Leg per attribuut de unieke, toekomstige bron van waarheid vast,
+   inclusief bijbehorende migratieregel voor bestaande niet-lege waarden.
+3. Bereken op een read-only snapshot voor elke relatie een voorstel
+   met bewijsveld, confidence en `onbekend` bij onvoldoende informatie.
+   Geen automatische 'belegger' uit historische default afleiden.
+4. Vergelijk vóór en ná simulatie alle bestaande matchinguitkomsten
+   voor alle actieve relaties/objecten; registreer veranderingen en
+   leg uitzonderingen ter beoordeling voor.
+5. Pas pas na review een gecontroleerde, herleidbare en
+   terug te draaien dataovergang toe. Verwijder vervolgens oude
+   UI-invoer, verwijzingen in code en pas **als laatste** de
+   overbodige databasekolommen aan via afzonderlijke migratie.
+
+De A14-draft voert **geen** van die vijf destructieve overgangsstappen uit.

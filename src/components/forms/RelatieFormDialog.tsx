@@ -39,7 +39,7 @@ import {
   REGIO_OPTIES,
 } from '@/data/mock-data';
 import type {
-  Relatie, LeadStatus, PartijType, AssetClass,
+  Relatie, LeadStatus, AssetClass,
   InvesteerderSubtype, KapitaalSituatie, CommunicatieKanaal,
   Dealstructuur,
 } from '@/data/mock-data';
@@ -47,8 +47,9 @@ import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
-import CommercieleRollenPicker from '@/components/forms/CommercieleRollenPicker';
+import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
+import { legacyTypeVoorNieuweRelatie } from '@/lib/relaties/partijprofiel';
 
 interface Props {
   open: boolean;
@@ -254,7 +255,16 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     setBezig(true);
     let relatieOpgeslagen = false;
 
-    const data = { ...form, bedrijfsnaam: form.bedrijfsnaam.trim() };
+    // Nieuwe relaties krijgen een compatibel technisch hoofdtype vanuit één invoer.
+    // Bestaande relaties behouden hun legacy type_partij, ook bij het wijzigen
+    // van hun partijprofiel. Er vindt geen retroactieve herclassificatie plaats.
+    const data = {
+      ...form,
+      bedrijfsnaam: form.bedrijfsnaam.trim(),
+      type: !isEdit && !gemaaktId && form.partijprofiel
+        ? legacyTypeVoorNieuweRelatie(form.partijprofiel)
+        : form.type,
+    };
 
     try {
       // 1. Relatie opslaan / updaten
@@ -424,32 +434,39 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                       placeholder="Bedrijfsnaam"
                     />
                   </Veld>
-                  <Veld label="Hoofdtype (bestaand)">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.type}
-                      onChange={e => set('type', e.target.value as PartijType)}
-                    >
-                      <option value="belegger">Belegger</option>
-                      <option value="ontwikkelaar">Ontwikkelaar</option>
-                      <option value="eigenaar">Eigenaar</option>
-                      <option value="makelaar">Makelaar</option>
-                      <option value="partner">Partner</option>
-                      <option value="overig">Overig</option>
-                    </select>
-                  </Veld>
-                  <Veld label="Investeerderscategorie / rechtsvorm (bestaand)">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.investeerderSubtype ?? ''}
-                      onChange={e => set('investeerderSubtype', (e.target.value || undefined) as InvesteerderSubtype | undefined)}
-                    >
-                      <option value="">— Kies subtype —</option>
-                      {Object.entries(INVESTEERDER_SUBTYPE_LABELS).map(([v, l]) => (
-                        <option key={v} value={v}>{l}</option>
-                      ))}
-                    </select>
-                  </Veld>
+                  {isEdit && (
+                    <details className="sm:col-span-2 rounded-md border border-border p-3 text-sm" data-testid="relatie-legacy-type">
+                      <summary className="cursor-pointer text-muted-foreground">Historische hoofdindeling (alleen lezen)</summary>
+                      <p className="mt-2 text-muted-foreground">
+                        De bestaande hoofdindeling is <strong>{form.type}</strong>. Dit veld blijft
+                        technisch beschikbaar voor oudere CRM-functionaliteit, maar hoeft niet
+                        opnieuw te worden ingevuld. Een gewijzigd partijprofiel herschrijft
+                        bestaande classificaties niet automatisch.
+                      </p>
+                    </details>
+                  )}
+                  {form.investeerderSubtype && !(['bv','nv','cv'] as string[]).includes(form.investeerderSubtype)
+                    ? <div className="sm:col-span-2 rounded-md border border-border p-3 text-sm" data-testid="historische-investeerderscategorie">
+                        <span className="text-muted-foreground">Historische investeerderscategorie:</span>{' '}
+                        <strong>{INVESTEERDER_SUBTYPE_LABELS[form.investeerderSubtype]}</strong>
+                        <p className="mt-1 text-muted-foreground">
+                          Deze oudere categorie blijft bewaard. Classificeer de partij voortaan via Partijprofiel,
+                          zodat bijvoorbeeld Fonds en Family office niet dubbel worden ingevoerd.
+                        </p>
+                      </div>
+                    : <Veld label="Rechtsvorm (optioneel)">
+                        <select
+                          aria-label="Rechtsvorm"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.investeerderSubtype ?? ''}
+                          onChange={e => set('investeerderSubtype', (e.target.value || undefined) as InvesteerderSubtype | undefined)}
+                        >
+                          <option value="">— Nog niet ingevuld —</option>
+                          <option value="bv">BV</option>
+                          <option value="nv">NV</option>
+                          <option value="cv">CV</option>
+                        </select>
+                      </Veld>}
                   <Veld label="Leadstatus">
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -478,12 +495,19 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                 />
               </Sectie>
 
-              <Sectie titel="Commerciële rollen (meerdere mogelijk)">
-                <CommercieleRollenPicker
-                  value={form.commercialRoles}
-                  onChange={rollen=>set('commercialRoles',rollen)}
-                />
-              </Sectie>
+              {isEdit && (form.commercialRoles?.length??0)>0 && (
+                <Sectie titel="Historische commerciële rolindicaties (alleen lezen)">
+                  <p className="text-sm text-muted-foreground">
+                    {form.commercialRoles?.map(labelCommercieleRol).join(', ')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    De aard van de partij leg je vast onder Partijprofiel. Activiteiten
+                    zoals zelf kopen of bemiddelen wijzig je rechtstreeks op de relatiepagina,
+                    bij Activiteiten en transactierollen. Concrete zoekwensen blijven bij
+                    Zoekprofielen; de uiteindelijke koper en mandaatstatus bij de deal.
+                  </p>
+                </Sectie>
+              )}
 
               {/* === KVK & VESTIGINGSADRES === */}
               <Sectie titel="KVK & vestigingsadres">
