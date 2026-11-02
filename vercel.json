@@ -9,7 +9,8 @@
   "git": {
     "deploymentEnabled": {
       "feature/crm-r2-preview": false,
-      "feature/crm-partijprofiel-a13": false
+      "feature/crm-partijprofiel-a13": false,
+      "feature/crm-relaties-eenmalige-invoer-a14": false
     }
   }
 }
