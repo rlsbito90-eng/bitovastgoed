@@ -23,6 +23,7 @@ import type { SortOption } from '@/lib/sorting/types';
 import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import { loadRelatiesViewState, saveRelatiesViewState } from '@/lib/relatiesViewState';
 import { PARTIJPROFIELEN } from '@/lib/relaties/partijprofiel';
+import {maakContactNaamIndex,matchRelatieZoekterm} from '@/lib/relaties/relatieContactZoekIndex';
 import ClassificatieReviewPanel from '@/components/relatie/ClassificatieReviewPanel';
 import MatchingImpactPanel from '@/components/relatie/MatchingImpactPanel';
 import {
@@ -72,15 +73,16 @@ export default function RelatiesPage() {
   const [sortValue, setSortValue] = useSortPreference('relaties', 'slim', sortOptions.map(o => o.value));
   const activeSort = sortOptions.find(o => o.value === sortValue) ?? sortOptions[0];
 
+  const contactNaamIndex=useMemo(()=>maakContactNaamIndex(contactpersonen),[contactpersonen]);
   const filtered = useMemo(() => {
     const list = relaties.filter(r => {
-      const matchZoek = !zoek || r.bedrijfsnaam.toLowerCase().includes(zoek.toLowerCase()) || r.contactpersoon.toLowerCase().includes(zoek.toLowerCase());
+      const matchZoek = matchRelatieZoekterm(r,zoek,contactNaamIndex);
       const matchStatus = !statusFilter || r.leadStatus === statusFilter;
       const matchProfiel = matchRelatieProfiel(r,profielFilter);
       return matchZoek && matchStatus && matchProfiel;
     });
     return [...list].sort(activeSort.compare);
-  }, [relaties, zoek, statusFilter, profielFilter, activeSort]);
+  }, [relaties, zoek, contactNaamIndex, statusFilter, profielFilter, activeSort]);
 
   useEffect(() => {
     saveListContext('relaties', filtered.map(r => r.id));
