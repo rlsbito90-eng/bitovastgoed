@@ -1,5 +1,6 @@
 -- A14: drie aanvullende partijprofielen; Ontwikkelende belegger bestaat al.
--- Alleen voorstel op featurebranch. Niet uitvoeren zonder afzonderlijke productie-goedkeuring.
+-- Op 2 november 2026 afzonderlijk als additieve migratie toegepast op productie.
+-- Versie geregistreerd in supabase_migrations.schema_migrations: 20261102213507.
 -- Geen tabel/rijen/backfill/rollen/zoekprofielen wijzigen; bestaande A13 CHECK uitbreiden.
 BEGIN;
 SET LOCAL lock_timeout = '5s';

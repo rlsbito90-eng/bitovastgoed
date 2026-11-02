@@ -83,7 +83,7 @@ Geen automatische mandaat- of koperaanname.
   laat commerciële rollen, overige relatiegegevens, contactpersonen en
   zoekprofielen ongemoeid.
 - De nieuwe profielen vragen een aparte **nog niet uitgevoerde** CHECK-uitbreiding:
-  `20261101130000_a14_extend_partijprofiel_values.sql`.
+  `20261102213507_a14_extend_partijprofiel_values.sql`.
 - Bestaande relaties worden niet automatisch geclassificeerd. Latere
   herclassificatie mag na een voorstelaudit per relatie en controle van de
   bestaande gegevens, met log en ongedaanmaakmogelijkheid.

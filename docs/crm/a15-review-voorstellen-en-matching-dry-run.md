@@ -506,7 +506,7 @@ transactiekans.
    administratieve dossierbaseline. Herhaal het read-only SQL-bestand;
    bevestig dat de GitHub-branch/teststatus nog actueel is.
 2. **Schema (additief, apart):** beoordeel en autoriseer
-   `supabase/migrations/20261101130000_a14_extend_partijprofiel_values.sql`.
+   `supabase/migrations/20261102213507_a14_extend_partijprofiel_values.sql`.
    De constraintuitbreiding verandert geen bestaande relatie of pipeline
    maar heeft een productiedatabase-lock nodig; voer pas uit na aparte
    toestemming. Verifieer de drie nieuwe profielen in de CHECK,
@@ -588,3 +588,22 @@ A14-uitbreiding voor Fonds, Family office en Buitenlandse belegger
 staat nog niet in productie. De uitvoeringsvolgorde uit A15.12 blijft
 leidend. PR #563 blijft draft. Er is geen merge, schema-update, bulk-
 classificatie of actieve wijziging van het matchingbeleid gedaan.
+
+## Releasevoorbereiding — A14-schema succesvol toegepast (2 november 2026)
+
+De gebruiker heeft de livegang geautoriseerd zodra de controles slagen.
+De lokale herstelproef van de kern-CRM-database (136 relaties, 48 objecten,
+8 zoekprofielen, 96 pipelineposities) is geslaagd; de gecodeerde back-up is
+opnieuw geopend en de gebruiker bevestigde een tweede veilige kopie.
+
+De additieve CHECK-uitbreiding is op 2 november 2026 via Supabase Migration
+succesvol uitgevoerd en in migratiehistorie geregistreerd als
+**`20261102213507_a14_extend_partijprofiel_values`**.
+De CHECK accepteert nu alle elf partijprofielen; geen UPDATE van bestaande
+relaties, dossiers of matching. De migratie in GitHub is hernoemd naar de
+**daadwerkelijk geregistreerde versie** om toekomstige schema-drift te
+voorkomen. Oude statusnotities hierboven zijn historisch.
+
+De applicatie-release (merge, Vercel productie en smoke-test) is een
+separate stap; geen wijziging naar `profiel_eerst`, bulkclassificatie,
+verwijdering van legacygegevens of automatische herindeling.

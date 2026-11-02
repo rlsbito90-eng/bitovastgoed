@@ -36,7 +36,7 @@ SELECT current_timestamp AS controledatum,
   c.definition LIKE '%family_office%' AND c.definition LIKE '%fonds%'
     AND c.definition LIKE '%buitenlandse_belegger%' AS a14_extra_profielen_toegestaan,
   (SELECT count(*)>0 FROM supabase_migrations.schema_migrations
-   WHERE version='20261101130000') AS a14_migratiegeregistreerd,
+   WHERE version='20261102213507') AS a14_migratiegeregistreerd,
   (SELECT cls.relrowsecurity FROM pg_class cls
    WHERE cls.oid='public.relaties'::regclass) AS relaties_rls_actief,
   rc.*,pc.*

@@ -29,7 +29,7 @@ describe('A13 migratiecontract (statisch, zonder database-aanroep)',()=>{
 });
 
 const uitbreiding = readFileSync(
- resolve(process.cwd(), 'supabase/migrations/20261101130000_a14_extend_partijprofiel_values.sql'),
+ resolve(process.cwd(), 'supabase/migrations/20261102213507_a14_extend_partijprofiel_values.sql'),
  'utf8'
 );
 
