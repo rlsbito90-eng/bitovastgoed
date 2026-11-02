@@ -3,7 +3,7 @@ import type { Relatie } from '@/data/mock-data';
 import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import {
   TRANSACTIEACTIVITEITEN, wijzigbareActiviteiten, voegActiviteitenSamen,
-  gelijkeRollen, type Transactieactiviteit,
+  gelijkeRollen, magAanvullendeActiviteit, type Transactieactiviteit,
 } from '@/lib/relaties/transactieactiviteiten';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 
@@ -15,30 +15,34 @@ export default function InlineTransactierollen({
   onSave:(wijziging:Partial<Relatie>)=>Promise<void>;
 }){
   const [bewerken,setBewerken]=useState(false);
-  const [rollen,setRollen]=useState<Transactieactiviteit[]>(()=>wijzigbareActiviteiten(relatie.commercialRoles));
+  const [rollen,setRollen]=useState<Transactieactiviteit[]>(()=>wijzigbareActiviteiten(relatie.commercialRoles,relatie.partijprofiel));
   const [basis,setBasis]=useState<Relatie['commercialRoles']>(relatie.commercialRoles);
+  const [basisProfiel,setBasisProfiel]=useState(relatie.partijprofiel??null);
   const [opslaan,setOpslaan]=useState(false);
   const [fout,setFout]=useState<string|null>(null);
-  const dirty=!gelijkeRollen(rollen,wijzigbareActiviteiten(basis));
+  const dirty=!gelijkeRollen(rollen,wijzigbareActiviteiten(basis,basisProfiel));
   const {confirmDiscard}=useDirtyGuard(bewerken&&dirty);
   const bronRollen=JSON.stringify(relatie.commercialRoles??null);
 
   useEffect(()=>{
     setBewerken(false);
-    setRollen(wijzigbareActiviteiten(relatie.commercialRoles));
+    setRollen(wijzigbareActiviteiten(relatie.commercialRoles,relatie.partijprofiel));
     setBasis(relatie.commercialRoles);
+    setBasisProfiel(relatie.partijprofiel??null);
     setFout(null);
   },[relatie.id]);
   useEffect(()=>{
     if(!bewerken){
-      setRollen(wijzigbareActiviteiten(relatie.commercialRoles));
+      setRollen(wijzigbareActiviteiten(relatie.commercialRoles,relatie.partijprofiel));
       setBasis(relatie.commercialRoles);
+      setBasisProfiel(relatie.partijprofiel??null);
     }
-  },[bewerken,bronRollen]);
+  },[bewerken,bronRollen,relatie.partijprofiel]);
 
   const begin=()=>{
     setBasis(relatie.commercialRoles);
-    setRollen(wijzigbareActiviteiten(relatie.commercialRoles));
+    setBasisProfiel(relatie.partijprofiel??null);
+    setRollen(wijzigbareActiviteiten(relatie.commercialRoles,relatie.partijprofiel));
     setFout(null);
     setBewerken(true);
   };
@@ -46,18 +50,19 @@ export default function InlineTransactierollen({
     if(opslaan||!confirmDiscard())return;
     setBewerken(false);
     setFout(null);
-    setRollen(wijzigbareActiviteiten(relatie.commercialRoles));
+    setRollen(wijzigbareActiviteiten(relatie.commercialRoles,relatie.partijprofiel));
   };
   const bewaar=async()=>{
     if(opslaan)return;
     if(!dirty){setBewerken(false);return;}
-    if(JSON.stringify(relatie.commercialRoles??null)!==JSON.stringify(basis??null)){
+    if(JSON.stringify(relatie.commercialRoles??null)!==JSON.stringify(basis??null)
+      ||(relatie.partijprofiel??null)!==basisProfiel){
       setFout('Deze rollen zijn elders gewijzigd. Annuleer en open de actuele gegevens opnieuw.');
       return;
     }
     setOpslaan(true);setFout(null);
     try{
-      await onSave({commercialRoles:voegActiviteitenSamen(basis,rollen)});
+      await onSave({commercialRoles:voegActiviteitenSamen(basis,rollen,basisProfiel)});
       setBewerken(false);
     }catch(err){
       setFout(err instanceof Error?err.message:'Opslaan mislukt');
@@ -66,8 +71,13 @@ export default function InlineTransactierollen({
     }
   };
 
+  const zichtbaar=TRANSACTIEACTIVITEITEN.filter(item=>
+    magAanvullendeActiviteit(item.value,relatie.partijprofiel));
+  const gekozen=wijzigbareActiviteiten(relatie.commercialRoles,relatie.partijprofiel);
   const historisch=(relatie.commercialRoles??[])
-    .filter(x=>!TRANSACTIEACTIVITEITEN.some(item=>item.value===x));
+    .filter(x=>!magAanvullendeActiviteit(x,relatie.partijprofiel)
+      // Een hoofdprofiel hoeft niet als historische dubbele rol terug te komen.
+      &&x!==relatie.partijprofiel);
   return <section className="section-card p-5 sm:p-6 space-y-3" aria-label="Activiteiten en transactierollen">
     <div className="flex items-center justify-between gap-3">
       <h2 className="section-title">Activiteiten en transactierollen</h2>
@@ -75,14 +85,14 @@ export default function InlineTransactierollen({
         className="text-sm text-accent hover:text-accent/80">Wijzig activiteiten</button>}
     </div>
     <p className="text-xs text-muted-foreground">
-      Meerdere activiteiten mogelijk. Deze beschrijven wat de relatie kan doen,
-      niet het soort onderneming, het mandaat of een bevestigde aankoop.
-      Partijprofiel leg je alleen vast in de sectie hierboven.
+      Meerdere aanvullende activiteiten zijn mogelijk. Bijvoorbeeld een bemiddelaar
+      die ook vastgoed ontwikkelt. Het hoofdprofiel vul je maar één keer in.
+      Activiteiten bevestigen geen aankoop, mandaat of economische koper.
     </p>
     {bewerken?<div className="space-y-3">
       <fieldset className="grid sm:grid-cols-2 gap-2">
         <legend className="text-sm font-medium mb-2">Activiteiten (meerdere mogelijk)</legend>
-        {TRANSACTIEACTIVITEITEN.map(item=><label key={item.value}
+        {zichtbaar.map(item=><label key={item.value}
           className="flex gap-2 rounded-md border border-border p-3 text-sm cursor-pointer">
           <input type="checkbox" checked={rollen.includes(item.value)}
             onChange={e=>setRollen(v=>e.target.checked
@@ -103,9 +113,9 @@ export default function InlineTransactierollen({
         </button>
       </div>
     </div>:<p className="field-value">
-      {wijzigbareActiviteiten(relatie.commercialRoles).length
-        ?TRANSACTIEACTIVITEITEN
-          .filter(x=>wijzigbareActiviteiten(relatie.commercialRoles).includes(x.value))
+      {gekozen.length
+        ?zichtbaar
+          .filter(x=>gekozen.includes(x.value))
           .map(x=>x.label).join(' · ')
         :'Nog geen transactierollen vastgesteld'}
     </p>}
@@ -113,8 +123,9 @@ export default function InlineTransactierollen({
       <p className="field-label">Historische rolindicaties (alleen lezen)</p>
       <p className="text-sm mt-1">{historisch.map(labelCommercieleRol).join(' · ')}</p>
       <p className="text-xs text-muted-foreground mt-1">
-        Deze oude gegevens blijven behouden totdat de matchingcontrole is afgerond.
-        Ontwikkelaar of makelaar vul je voortaan niet opnieuw als activiteit in.
+        Oude waarden blijven behouden totdat de matchingcontrole is afgerond.
+        Ontwikkelen kun je alleen als aanvullende activiteit selecteren wanneer dit
+        nog niet in het hoofdprofiel is vastgelegd.
       </p>
     </div>}
   </section>;
