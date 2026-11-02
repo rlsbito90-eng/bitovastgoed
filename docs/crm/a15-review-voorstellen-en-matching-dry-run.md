@@ -264,3 +264,49 @@ toegepast; alle live relatievelden, bestaande kandidaatposities en
 standaard matching blijven ongewijzigd. PR #563 blijft draft.
 
 **Beoordelingsvolgorde A15.6:** in de kandidaatcontrole worden lopende posities in een vergevorderde pipelinefase (koopovereenkomst, due diligence, onderhandeling, indicatieve bieding) vóór een eenvoudige nieuwe match getoond. Binnen eenzelfde fase staan koperverwijzingswijzigingen en wegvallende routes bovenaan. Dit ordent uitsluitend de reviewlijst en verandert geen pipelinefase, bod of relatie.
+
+## A15.7 — relatiegerichte review bij lopende transacties (2 november 2026)
+
+De laatste PR-controle van A15.6 was geslaagd. Een aanvullende, read-only
+databasecontrole identificeerde **acht** actieve relaties zonder bevestigd
+partijprofiel met samen **elf** lopende kandidaatposities in de fase
+`indicatieve_bieding` of verder. Het totaal aan relaties zonder
+partijprofiel met lopende pipeline was 38. Een pipelinefase is een
+CRM-registratie en is geen bewijs van een afgeronde, juridisch
+bindende transactie.
+
+In de relatie-classificatiereview wordt nu getoond:
+- hoogste lopende pipelinefase, met vergevorderde dossiers boven
+  andere actieve koppelingen, ook als een andere relatie méér vroege
+  matches heeft;
+- filter op bieding of vervolgfase, alle lopende pipelineposities,
+  actieve zoekprofielen of overige relaties;
+- de eerste drie gekoppelde objecten per relatie, inclusief de
+  opgeslagen fase, objectstatus en eventueel geregistreerd biedingsbedrag,
+  met doorklik naar de bestaande object- en relatiepagina;
+- dezelfde bestaande primaire contactpersoon als leeslabel bij
+  relaties zonder bedrijfsnaam, zonder een fictieve onderneming
+  te creëren.
+
+De relatiezoekfunctie doorzoekt ook de afzonderlijk opgeslagen
+contactpersonennamen. Een zelfstandige kandidaat zonder bedrijfsnaam
+is daardoor via diens eigen naam terug te vinden. Er worden geen
+bedrijfsnamen ingevuld en geen zoekprofielen, contactmomenten,
+koperrollen of pipelinegegevens gewijzigd.
+
+De review is een **handmatige werkvoorraad, geen automatische
+herclassificatie**. Bevestigde mondelinge gegevens moeten in de
+uiteindelijke relatiepagina afzonderlijk worden vastgelegd als
+Partijprofiel (hoofdcategorie) en als activiteiten (eigen aankoop,
+bemiddeling enz.). Het voorselectiemodel mag die niet uit een bod,
+contactpersoonnaam of oude default `belegger` afleiden.
+
+**Datakwaliteitswaarschuwing:** sommige records met een vergevorderde
+pipelinefase zijn gekoppeld aan objecten met een mogelijk testmatige
+titel. Een `koopovereenkomst_concept` bij een testobject is niet
+zonder dossiercontrole als reële transactie te tellen. De audit
+verwijdert zulke records niet automatisch.
+
+Status: PR #563 blijft draft. Geen automatische wijzigingen of
+schema-aanpassingen in productie; de migratie- en releasepoorten
+van A15.6 blijven van kracht.
