@@ -142,22 +142,29 @@ wordt niet automatisch een activiteit afgeleid.
 
 - **Partijprofiel**: wat voor partij het is (bijvoorbeeld
   `ontwikkelaar` of `ontwikkelende_belegger`), één hoofdkeuze.
-- **Activiteiten**: wat de partij in het netwerk kan doen (zelf kopen,
-  verkopen, voor derden bemiddelen, adviseren, beheren of financieren).
-  Meerdere zijn mogelijk; `bemiddelaar` is hier een activiteit en
-  wordt niet als tweede *partijclassificatie* gevraagd.
+- **Activiteiten**: wat de partij in het netwerk daarnaast kan doen
+  (zelf kopen, verkopen, bemiddelen, ontwikkelen, adviseren, beheren of
+  financieren). Meerdere zijn mogelijk, maar dezelfde hoofdcategorie
+  wordt niet nogmaals als activiteit uitgevraagd.
 - **Bestaand zoeken en transacties**: concrete zoekwensen blijven in
   Zoekprofielen, bestaande kandidaatkoppelingen in de pipeline, de
   uiteindelijke identiteit van een economische koper bij de transactie.
   Een algemene koperactiviteit bewijst geen bod, mandaat of eigendom.
 
-Historische waarden zoals `makelaar` en `ontwikkelaar` in
-`commercial_roles` blijven read-only zichtbaar en worden niet in de
-wijzigbare activiteitenlijst aangeboden. Bij opslaan worden uitsluitend
-wijzigbare rollen aangepast; alle overige historische waarden blijven
-ongewijzigd. Ook een wijziging van partijprofiel of strategie schrijft
-geen rollen mee. Bij een wijziging van dezelfde rollen elders krijgt de
-gebruiker een conflictmelding.
+Historische `makelaar`-indicaties blijven read-only en behouden.
+`ontwikkelaar` kan **wel** expliciet als aanvullende activiteit worden
+vastgelegd, maar uitsluitend bij een bevestigd ander hoofdprofiel,
+zoals `bemiddelaar`. Zonder bevestigd partijprofiel, of wanneer het
+hoofdprofiel al `ontwikkelaar`/`ontwikkelende_belegger` is, blijft
+`ontwikkelaar` een oude niet-overschrijfbare rolindicatie. Ook een
+oude dubbele `bemiddelaar`-rol wordt niet nogmaals als keuze aangeboden
+wanneer het primaire profiel al `bemiddelaar` is.
+
+Bij opslaan worden alleen de voor het huidige hoofdprofiel wijzigbare
+rollen aangepast; alle overige historische waarden blijven behouden.
+Een wijziging van het partijprofiel schrijft geen commerciële rollen
+mee. Bij wijziging van de rollen **of het hoofdprofiel** door een andere
+bewerking verschijnt een conflictmelding.
 
 Nieuwe gerichte synthetische tests dekken een partij die tegelijk
 ontwikkelt en bemiddelt, een ontwikkelende belegger die voor eigen rekening
@@ -351,3 +358,39 @@ bulkclassificatie in dit onderdeel.
 
 Status: uitsluitend PR #563 (draft), geen productie-write,
 geen migratie en geen automatische bewerking van archiefdata.
+
+## A15.9 — hoofdprofiel Bemiddelaar met aanvullende ontwikkelaarsactiviteit
+
+Een praktijkcorrectie maakt duidelijk dat het historische hoofdtype
+`ontwikkelaar` niet voldoende bewijs is voor een primair
+ontwikkelaarsprofiel. Een partij kan primair **Bemiddelaar** zijn,
+terwijl zij daarnaast zelfstandig **vastgoed ontwikkelt**. De
+relatieclassificatie is dan:
+
+- Partijprofiel: `bemiddelaar`;
+- Aanvullende activiteit (bestaande `commercial_roles`-kolom):
+  `ontwikkelaar`;
+- Geen impliciete koperrol, mandaat, of nieuwe kandidaatkoppeling.
+
+De rol `ontwikkelaar` is in de inline activiteitensectie alleen
+selecteerbaar wanneer er een ander bevestigd hoofdprofiel is.
+Bij `ontwikkelaar` of `ontwikkelende_belegger` als hoofdprofiel
+wordt deze activiteit niet opnieuw aangeboden. Bij `bemiddelaar`
+als hoofdprofiel is de dubbele activiteit `bemiddelaar` zelf
+eveneens verborgen. Eventuele historische waarden blijven technisch
+bewaard totdat de algemene matching- en migratiecontrole is voltooid.
+
+Voor de handmatige classificatiewerkvoorraad betekent dit:
+**geen automatisch voorstel `ontwikkelaar` meer uitsluitend
+op basis van `type_partij=ontwikkelaar`**. Die oude categorie levert
+alleen een onderzoeksvraag op. Anders zou de correctie in de
+review opnieuw foutief voorgesteld worden.
+
+Synthetische tests dekken nu primaire bemiddelaar met aanvullende
+ontwikkelaar, ontwikkelende belegger met koperactiviteit, behoud van
+oude rolindicaties, het voorkomen van dubbele invoer en bescherming
+tegen gelijktijdige wijzigingen in het hoofdprofiel.
+
+De voorbereide indeling is geen productie-update en deze sectie bevat
+bewust geen privé relatie-identifiers. De live relaties worden alleen
+relatie-voor-relatie aangepast na een gecontroleerde release.
