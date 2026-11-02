@@ -22,8 +22,7 @@ import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog'
 import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
-import InlinePartijprofiel from '@/components/relatie/InlinePartijprofiel';
-import InlineTransactierollen from '@/components/relatie/InlineTransactierollen';
+import InlineRelatieClassificatie from '@/components/relatie/InlineRelatieClassificatie';
 import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relatie/InlineRelatieSectie';
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
 import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
@@ -248,9 +247,7 @@ export default function RelatieDetailPage() {
             defaultRelatieId={relatie.id} zoekprofiel={zpBewerken}/>
         </div>}
         <div className="lg:col-span-2 space-y-4 lg:space-y-6 min-w-0">
-          <InlinePartijprofiel relatie={relatie}
-            onSave={(wijziging)=>store.updateRelatie(relatie.id,wijziging)} />
-          <InlineTransactierollen relatie={relatie}
+          <InlineRelatieClassificatie relatie={relatie}
             onSave={(wijziging)=>store.updateRelatie(relatie.id,wijziging)} />
 
           <section className="section-card p-5 sm:p-6 space-y-4">
