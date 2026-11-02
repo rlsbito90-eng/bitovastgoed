@@ -108,6 +108,37 @@ describe('A15 — alleen read-only classificatievoorstellen',()=>{
     expect(result[0].hoogstePipelineFase).toBe('teaser_verstuurd');
     expect(result[0].pipelineKoppelingen).toBe(2);
   });
+  it('A15.8 archiveercontrole: bieding op niet-geladen object mag reëel bod niet overvleugelen',()=>{
+    const rs=[bron({id:'archief'}),bron({id:'actief'})];
+    const p=[
+      {id:'p-oud',relatieId:'archief',objectId:'oud',pipelineFase:'koopovereenkomst_concept'},
+      {id:'p-actief',relatieId:'actief',objectId:'object-nieuw',pipelineFase:'indicatieve_bieding'},
+    ] as PipelineKandidaat[];
+    const before=JSON.stringify([rs,p]);
+    const reviews=prioriteerClassificatieReviews(rs,[],p,[],[
+      {id:'object-nieuw',softDeletedAt:undefined},
+    ]);
+    expect(reviews.map(x=>x.relatieId)).toEqual(['actief','archief']);
+    expect(reviews[0].hoogsteControleerbarePipelineFase).toBe('indicatieve_bieding');
+    expect(reviews[1].pipelineOpNietGeladenObjecten).toBe(1);
+    expect(reviews[1].hoogsteControleerbarePipelineFase).toBeNull();
+    expect(reviews[1].lopendePipelineDossiers[0].objectInActieveLijst).toBe(false);
+    expect(JSON.stringify([rs,p])).toBe(before);
+  });
+  it('A15.8 mist een soft-verwijderd object zelfs als het in de inputlijst staat',()=>{
+    const r=prioriteerClassificatieReviews([bron()],[],[
+      {id:'p1',relatieId:'r1',objectId:'test-o',pipelineFase:'indicatieve_bieding'},
+    ] as PipelineKandidaat[],[],[{id:'test-o',softDeletedAt:'2026-04-27'}]);
+    expect(r[0].pipelineOpNietGeladenObjecten).toBe(1);
+    expect(r[0].hoogsteControleerbarePipelineFase).toBeNull();
+  });
+  it('A15.8 blijft compatibel als geen objectlijst is meegegeven',()=>{
+    const r=prioriteerClassificatieReviews([bron()],[],[
+      {id:'p1',relatieId:'r1',objectId:'niet-gecheckt',pipelineFase:'indicatieve_bieding'},
+    ] as PipelineKandidaat[],[]);
+    expect(r[0].pipelineOpNietGeladenObjecten).toBe(0);
+    expect(r[0].lopendePipelineDossiers[0].objectInActieveLijst).toBeNull();
+  });
   it('afgevallen historie blijft zichtbaar maar heeft geen prioriteit als lopende match',()=>{
     const data=[bron({id:'afgevallen',bedrijfsnaam:'Historische match',type:'ontwikkelaar'})];
     const pipeline=[{id:'p2',relatieId:'afgevallen',objectId:'o2',pipelineFase:'afgevallen'}] as PipelineKandidaat[];
