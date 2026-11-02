@@ -110,7 +110,7 @@ export default function RelatiesPage() {
 
       <ClassificatieReviewPanel relaties={relaties} zoekprofielen={zoekprofielen}
         pipelineKandidaten={pipelineKandidaten} contactMoments={contactMoments}
-        contactpersonen={contactpersonen}/>
+        contactpersonen={contactpersonen} objecten={objecten}/>
       <MatchingImpactPanel objecten={objecten} relaties={relaties} zoekprofielen={zoekprofielen}
         pipelineKandidaten={pipelineKandidaten} contactpersonen={contactpersonen}/>
 
