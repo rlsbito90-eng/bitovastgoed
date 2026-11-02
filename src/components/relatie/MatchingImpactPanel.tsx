@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { PIPELINE_FASES, type ObjectVastgoed, type Relatie, type Zoekprofiel, type PipelineKandidaat, type RelatieContactpersoon } from '@/data/mock-data';
 import { vergelijkMatchBeleid, type A15VerschilSoort, type A15PipelineControleStatus } from '@/lib/matching/a15ImpactPreview';
 import { beoordeelA15Vrijgave } from '@/lib/matching/a15ReleaseGates';
+import {auditA15Referenties} from '@/lib/matching/a15ReferentieAudit';
 
 const CONTROLE_LABELS:Record<A15PipelineControleStatus,string>={
   buiten_vergelijking:'Buiten simulatie',
@@ -34,7 +35,11 @@ export default function MatchingImpactPanel({
   const preview=useMemo(()=>toon
     ?vergelijkMatchBeleid(objecten,relaties,zoekprofielen,pipelineKandidaten)
     :null,[toon,objecten,relaties,zoekprofielen,pipelineKandidaten]);
-  const vrijgave=useMemo(()=>preview?beoordeelA15Vrijgave(preview,relaties):null,[preview,relaties]);
+  const referentieAudit=useMemo(()=>toon
+    ?auditA15Referenties(objecten,relaties,pipelineKandidaten):null,
+    [toon,objecten,relaties,pipelineKandidaten]);
+  const vrijgave=useMemo(()=>preview?beoordeelA15Vrijgave(preview,relaties,referentieAudit??undefined):null,
+    [preview,relaties,referentieAudit]);
   const byRelatie=useMemo(()=>new Map(relaties.map(r=>[r.id,r])),[relaties]);
   const byObject=useMemo(()=>new Map(objecten.map(o=>[o.id,o])),[objecten]);
   const lopendePipelineKeys=useMemo(()=>new Set(pipelineKandidaten
@@ -96,12 +101,18 @@ export default function MatchingImpactPanel({
       </div>
 
       {vrijgave&&<div className="space-y-3 border-t border-border/70 pt-3" aria-label="A15.6 vrijgavevoorwaarden">
-        <h3 className="text-sm font-semibold">A15.6 — voorwaarden voor opschoning</h3>
+        <h3 className="text-sm font-semibold">A15.12 — vrijgave- en archiefcontroles</h3>
         <p className="text-xs text-muted-foreground">
           Concept-release: {vrijgave.openDatacontroles} open datacontroles en
           {' '}{vrijgave.openHandmatigeControles} handmatige vrijgavevoorwaarden.
           Er wordt geen migratie gestart. Een nulstand bij verschillen is geen automatische toestemming.
+          Ook een geslaagde technische build betekent geen akkoord op productie-uitrol.
         </p>
+        {referentieAudit&&<p className="text-xs text-muted-foreground">
+          Referentie-audit: {referentieAudit.lopendePosities} lopende kandidaatposities,
+          waarvan {referentieAudit.teVerifiërenPosities} met een ontbrekende of gearchiveerde bronverwijzing.
+          Niet-geladen objecten kunnen ook door archivering of gedeeltelijke gegevensinvoer ontbreken.
+        </p>}
         <div className="space-y-2">
           {vrijgave.controles.map(x=><div key={x.id}
             className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-border/70 p-2.5">
