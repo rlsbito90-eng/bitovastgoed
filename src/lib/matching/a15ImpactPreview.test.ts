@@ -104,6 +104,22 @@ describe('A15 matchingvergelijking zonder databasewijziging',()=>{
    expect(d.lopendePipelineMetVerschil).toBe(1);
  });
 
+ it('A15.9: primair bemiddelaar met aanvullende ontwikkelaarsrol blijft matchbaar zonder verzonnen koperidentiteit',()=>{
+   const r=relatie({
+     type:'ontwikkelaar', // ongewijzigde historische categorie
+     partijprofiel:'bemiddelaar',
+     commercialRoles:['ontwikkelaar'], // bevestigde aanvullende activiteit
+   });
+   const huidig=maakKandidaatVoorstellen(object(),[r],[]);
+   const nieuw=maakKandidaatVoorstellen(object(),[r],[],{beleid:'profiel_eerst'});
+   expect(huidig).toHaveLength(1);
+   expect(nieuw).toHaveLength(1);
+   expect(huidig[0].besteRoute.koperRelatieId).toBeNull();
+   expect(nieuw[0].besteRoute.koperRelatieId).toBeNull();
+   const impact=vergelijkMatchBeleid([object()],[r],[]);
+   expect(impact.verdwenenKoppelingen).toBe(0);
+   expect(impact.nieuweKoppelingen).toBe(0);
+ });
  it('A15.3: ontwikkelaar kan ook bemiddelaar zijn zonder automatisch economische koper te worden',()=>{
    const r=relatie({type:'ontwikkelaar',partijprofiel:'ontwikkelaar',commercialRoles:['bemiddelaar']});
    const d=vergelijkMatchBeleid([object()],[r],[]);
