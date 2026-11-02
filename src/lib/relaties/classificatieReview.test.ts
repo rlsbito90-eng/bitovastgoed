@@ -19,9 +19,11 @@ describe('A15 — alleen read-only classificatievoorstellen',()=>{
     expect(a.zekerheid).toBe('gericht_nakijken');
     expect(tekstProfielSuggestie(a)).toBe('Family office');
   });
-  it('historische ontwikkelaar blijft een controlevoorstel: kan ontwikkelende belegger zijn',()=>{
+  it('A15.9: historisch ontwikkelaar is geen bewijs voor primair ontwikkelaarsprofiel',()=>{
     const s=suggereerPartijprofiel(bron({type:'ontwikkelaar'}));
-    expect(s.voorstel).toBe('ontwikkelaar');
+    expect(s.voorstel).toBeNull();
+    expect(s.zekerheid).toBe('onvoldoende');
+    expect(s.bewijs).toContain('bemiddelaar');
     expect(s.bewijs).toContain('ontwikkelende belegger');
   });
   it('makelaar en eigenaar worden NIET automatisch fijnmazig ondergebracht',()=>{
