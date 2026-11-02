@@ -17,7 +17,7 @@ describe('A15.4 — inline rollen zonder dubbele partijclassificatie',()=>{
  it('registreert bemiddeling naast ontwikkelaar en bewaart het historische veld',async()=>{
    const save=vi.fn().mockResolvedValue(undefined);
    render(<InlineTransactierollen relatie={partij()} onSave={save}/>);
-   expect(screen.getByText('Ontwikkelaar')).toBeTruthy();
+   expect(screen.queryByText('Ontwikkelaar')).toBeNull();
    fireEvent.click(screen.getByRole('button',{name:'Wijzig activiteiten'}));
    expect(screen.queryByRole('checkbox',{name:/Ontwikkelaar/})).toBeNull();
    fireEvent.click(screen.getByRole('checkbox',{name:/Bemiddelt voor derden/}));
@@ -26,6 +26,40 @@ describe('A15.4 — inline rollen zonder dubbele partijclassificatie',()=>{
       commercialRoles:['ontwikkelaar','bemiddelaar'],
    }));
    expect(save.mock.calls[0][0]).not.toHaveProperty('partijprofiel');
+ });
+ it('A15.9 biedt bij bemiddelaar als hoofdprofiel ontwikkelen als aanvullende activiteit aan',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineTransactierollen relatie={partij({
+     partijprofiel:'bemiddelaar',commercialRoles:null,
+   })} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Wijzig activiteiten'}));
+   expect(screen.getByRole('checkbox',{name:/Ontwikkelt vastgoed/})).toBeTruthy();
+   expect(screen.queryByRole('checkbox',{name:/Bemiddelt voor derden/})).toBeNull();
+   fireEvent.click(screen.getByRole('checkbox',{name:/Ontwikkelt vastgoed/}));
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   await waitFor(()=>expect(save).toHaveBeenCalledWith({commercialRoles:['ontwikkelaar']}));
+   expect(save.mock.calls[0][0]).not.toHaveProperty('partijprofiel');
+ });
+ it('A15.9 verbergt tweede ontwikkelaarrol bij ontwikkelende belegger maar behoudt historisch gegeven',async()=>{
+   const save=vi.fn();
+   render(<InlineTransactierollen relatie={partij({
+     partijprofiel:'ontwikkelende_belegger',commercialRoles:['ontwikkelaar'],
+   })} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Wijzig activiteiten'}));
+   expect(screen.queryByRole('checkbox',{name:/Ontwikkelt vastgoed/})).toBeNull();
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   expect(save).not.toHaveBeenCalled();
+ });
+ it('A15.9 weigert wijziging na gelijktijdige wissel van partijprofiel',async()=>{
+   const save=vi.fn();
+   const base=partij({partijprofiel:'bemiddelaar',commercialRoles:null});
+   const {rerender}=render(<InlineTransactierollen relatie={base} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Wijzig activiteiten'}));
+   fireEvent.click(screen.getByRole('checkbox',{name:/Ontwikkelt vastgoed/}));
+   rerender(<InlineTransactierollen relatie={{...base,partijprofiel:'ontwikkelaar'}} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   expect((await screen.findByRole('alert')).textContent).toContain('elders gewijzigd');
+   expect(save).not.toHaveBeenCalled();
  });
  it('behoudt de koperstatus afzonderlijk bij een ontwikkelende belegger',async()=>{
    const save=vi.fn().mockResolvedValue(undefined);
