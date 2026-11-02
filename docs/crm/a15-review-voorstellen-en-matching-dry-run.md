@@ -440,3 +440,24 @@ wijzigingen elders.
 
 PR #563 blijft draft. Geen productieschema-migratie, geen
 bulkgegevenswijziging en geen deploy.
+
+## A15.11 — oude dubbele inline editors verwijderd
+
+De gecombineerde sectie uit A15.10 is door de volledige GitHub
+Verify-workflow (TypeScript, regressietests, productiebuild) gekomen.
+Omdat `RelatieDetailPage` nog uitsluitend
+`InlineRelatieClassificatie` gebruikt, zijn de niet langer
+gemonteerde editors `InlinePartijprofiel` en
+`InlineTransactierollen` met hun eigen verouderde componenttests
+uit de ontwikkelbranch verwijderd.
+
+De actuele gecombineerde componenttest blijft bestaan en controleert
+nog steeds: gezamenlijke opslag, behoud van historie, annuleren,
+conflictdetectie, geslaagde en mislukte opslaan-acties en geen
+ongewenste writes naar `type_partij`, zoekprofielen of pipeline.
+
+Dit is **alleen opschoning van broncode**. De benodigde
+gegevensmodel-helperfuncties, bestaande kolommen en
+historische commerciële rollen blijven aanwezig. Er is geen
+datamigratie, productie-update of deployment uitgevoerd. PR #563
+blijft een concept en de releasevoorwaarden van A15.6 blijven gelden.
