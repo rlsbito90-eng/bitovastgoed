@@ -1,4 +1,4 @@
-import type { Partijprofiel, Relatie, Zoekprofiel, PipelineKandidaat } from '@/data/mock-data';
+import type { Partijprofiel, Relatie, Zoekprofiel, PipelineKandidaat, PipelineFase } from '@/data/mock-data';
 import type { ContactMoment } from '@/lib/contactMoments';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 
@@ -61,6 +61,37 @@ export function tekstProfielSuggestie(s:ProfielSuggestie):string{
   return s.voorstel?labelPartijprofiel(s.voorstel):'Nog geen verantwoord voorstel';
 }
 
+/** Administratieve voortgang geeft review-urgentie, geen juridische dealstatus. */
+export const PIPELINE_REVIEW_VOLGORDE:Partial<Record<PipelineFase,number>>={
+  transport_closing:0,
+  koopovereenkomst_getekend:1,
+  koopovereenkomst_concept:2,
+  due_diligence:3,
+  loi_ontvangen:4,
+  onderhandeling:5,
+  indicatieve_bieding:6,
+  bezichtiging_geweest:7,
+  bezichtiging_gepland:8,
+  informatie_gedeeld:9,
+  nda_getekend:10,
+  nda_verstuurd:11,
+  interesse_ontvangen:12,
+  teaser_verstuurd:13,
+  match_gevonden:14,
+};
+export function reviewFasePrioriteit(fase:PipelineFase|null|undefined):number{
+  return fase?PIPELINE_REVIEW_VOLGORDE[fase]??99:99;
+}
+export function isBodOfVerder(fase:PipelineFase|null|undefined):boolean{
+  return reviewFasePrioriteit(fase)<=6;
+}
+export type LopendClassificatieDossier={
+  pipelineId:string;
+  objectId:string;
+  pipelineFase:PipelineFase;
+  biedingBedrag:number|undefined;
+};
+
 /** Prioritering voor het menselijke reviewproces. Gebruikt alleen al geladen
  * CRM-records en schrijft nooit naar de database. Elke bron blijft op eigen plek.
  */
@@ -69,6 +100,8 @@ export type PrioritaireClassificatieReview=ClassificatieReview &{
   actieveZoekprofielen:number;
   pipelineKoppelingen:number;
   lopendePipelineKoppelingen:number;
+  hoogstePipelineFase:PipelineFase|null;
+  lopendePipelineDossiers:LopendClassificatieDossier[];
   contactmomenten:number;
 };
 export function prioriteerClassificatieReviews(
@@ -80,13 +113,20 @@ export function prioriteerClassificatieReviews(
   const profiles=new Map<string,number>();
   const koppelingen=new Map<string,number>();
   const lopende=new Map<string,number>();
+  const dossiers=new Map<string,LopendClassificatieDossier[]>();
   const momenten=new Map<string,number>();
   for(const z of zoekprofielen)if(z.status==='actief')
     profiles.set(z.relatieId,(profiles.get(z.relatieId)??0)+1);
   for(const k of pipeline){
     koppelingen.set(k.relatieId,(koppelingen.get(k.relatieId)??0)+1);
-    if(k.pipelineFase!=='afgevallen' && k.pipelineFase!=='afgerond')
+    if(k.pipelineFase!=='afgevallen' && k.pipelineFase!=='afgerond'){
       lopende.set(k.relatieId,(lopende.get(k.relatieId)??0)+1);
+      const dossier:LopendClassificatieDossier={
+        pipelineId:k.id,objectId:k.objectId,pipelineFase:k.pipelineFase,
+        biedingBedrag:k.biedingBedrag,
+      };
+      dossiers.set(k.relatieId,[...(dossiers.get(k.relatieId)??[]),dossier]);
+    }
   }
   for(const m of contactmomenten)
     if(m.relatieId)momenten.set(m.relatieId,(momenten.get(m.relatieId)??0)+1);
@@ -94,10 +134,15 @@ export function prioriteerClassificatieReviews(
     const actieveZoekprofielen=profiles.get(r.relatieId)??0;
     const pipelineKoppelingen=koppelingen.get(r.relatieId)??0;
     const lopendePipelineKoppelingen=lopende.get(r.relatieId)??0;
+    const lopendePipelineDossiers=[...(dossiers.get(r.relatieId)??[])]
+      .sort((a,b)=>reviewFasePrioriteit(a.pipelineFase)-reviewFasePrioriteit(b.pipelineFase)
+        ||a.objectId.localeCompare(b.objectId));
+    const hoogstePipelineFase=lopendePipelineDossiers[0]?.pipelineFase??null;
     const aantalContactmomenten=momenten.get(r.relatieId)??0;
     return {
       ...r,
       actieveZoekprofielen,pipelineKoppelingen,lopendePipelineKoppelingen,
+      hoogstePipelineFase,lopendePipelineDossiers,
       contactmomenten:aantalContactmomenten,
       prioriteit:(lopendePipelineKoppelingen>0||actieveZoekprofielen>0)
         ?'hoog':'regulier',
@@ -106,6 +151,7 @@ export function prioriteerClassificatieReviews(
   return result.sort((a,b)=>{
     const aHoog=a.prioriteit==='hoog'?1:0, bHoog=b.prioriteit==='hoog'?1:0;
     return bHoog-aHoog
+      ||reviewFasePrioriteit(a.hoogstePipelineFase)-reviewFasePrioriteit(b.hoogstePipelineFase)
       ||b.lopendePipelineKoppelingen-a.lopendePipelineKoppelingen
       ||b.actieveZoekprofielen-a.actieveZoekprofielen
       ||b.pipelineKoppelingen-a.pipelineKoppelingen
