@@ -43,6 +43,38 @@ export function isTaskPlannedToday(
   return planning.planningBucket === 'open' && !!planning.planDatum && planning.planDatum <= today;
 }
 
+/**
+ * Doorgeschoven werk: een open taak waarvan de plandatum (een voornemen, geen harde deadline)
+ * vóór vandaag ligt en die daarom automatisch naar Vandaag is meegeschoven.
+ * Harde achterstand (deadline verstreken) en taken met een deadline vandaag vallen hier buiten.
+ */
+export function isTaskRolledOver(
+  task: Taak,
+  planning: TaskPlanningMeta,
+  now: Date,
+): boolean {
+  if (!isTaskPlannedToday(task, planning, now)) return false;
+  if (isTaakVandaag(task, now)) return false;
+  return !!planning.planDatum && planning.planDatum < localDateKey(now);
+}
+
+/**
+ * Label voor de plandatum van een taak. De notatie "1 nov → vandaag" verschijnt alleen
+ * wanneer de taak daadwerkelijk is doorgeschoven (zie isTaskRolledOver); in alle andere
+ * gevallen blijft de gewone plandatum zichtbaar.
+ */
+export function planDateLabel(value: string, today: string, rolledOver: boolean): string {
+  if (value === today) return 'Gepland vandaag';
+  const tomorrow = new Date(`${today}T12:00:00`);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (value === localDateKey(tomorrow)) return 'Gepland morgen';
+  const parsed = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return `Gepland ${value}`;
+  const kort = parsed.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+  if (rolledOver) return `${kort} → vandaag`;
+  return `Gepland ${kort}`;
+}
+
 export function isTaskInTodayView(
   task: Taak,
   planning: TaskPlanningMeta,

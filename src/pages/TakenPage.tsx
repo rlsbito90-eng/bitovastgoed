@@ -5,7 +5,7 @@ import { PrioriteitBadge, TaakStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import {
   Search, Plus, CheckCircle2, Circle, Clock, MoreHorizontal,
-  ExternalLink, ListChecks, SlidersHorizontal, Sunrise, Sun, Moon,
+  ExternalLink, ListChecks, SlidersHorizontal, Sunrise, Sun, Moon, Redo2,
   CheckSquare, Square, X, CalendarDays, Trash2,
 } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
@@ -44,8 +44,10 @@ import {
   isTaskOverdue,
   isTaskPlannedToday,
   isTaskInTodayView,
+  isTaskRolledOver,
   isTaskUpcoming,
   localDateKey,
+  planDateLabel,
   planningForTask,
   taskSourceLabel,
   taskWorkDate,
@@ -80,15 +82,6 @@ function taskHour(task: Taak): number | null {
   return Number.isFinite(hour) ? hour : null;
 }
 
-function planDateLabel(value: string, today: string): string {
-  if (value === today) return 'Gepland vandaag';
-  const tomorrow = new Date(`${today}T12:00:00`);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (value === localDateKey(tomorrow)) return 'Gepland morgen';
-  const parsed = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return `Gepland ${value}`;
-  return `Gepland ${parsed.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}`;
-}
 
 function upcomingGroupLabel(value: string, today: string): string {
   const parsed = new Date(`${value}T12:00:00`);
@@ -247,12 +240,13 @@ export default function TakenPage() {
   const vandaagSecties = useMemo(() => {
     if (tab !== 'vandaag') return null;
     const teLaat = zichtbaar.filter(t => isTaskOverdue(t, now));
-    const gepland = zichtbaar.filter(t => !isTaskOverdue(t, now));
+    const doorgeschoven = zichtbaar.filter(t => isTaskRolledOver(t, planningFor(t), now));
+    const gepland = zichtbaar.filter(t => !isTaskOverdue(t, now) && !isTaskRolledOver(t, planningFor(t), now));
     const ochtend = gepland.filter(t => { const h = taskHour(t); return h !== null && h < 12; });
     const middag = gepland.filter(t => { const h = taskHour(t); return h !== null && h >= 12 && h < 18; });
     const later = gepland.filter(t => { const h = taskHour(t); return h === null || h >= 18; });
-    return { teLaat, ochtend, middag, later };
-  }, [tab, zichtbaar, now]);
+    return { doorgeschoven, teLaat, ochtend, middag, later };
+  }, [tab, zichtbaar, planningRows, now]);
 
   const upcomingGroups = useMemo(() => {
     if (tab !== 'komend') return [] as { date: string; items: Taak[] }[];
@@ -401,7 +395,7 @@ export default function TakenPage() {
       : planning.planningBucket === 'later'
         ? 'Later'
         : planning.planDatum
-          ? planDateLabel(planning.planDatum, today)
+          ? planDateLabel(planning.planDatum, today, isTaskRolledOver(task, planning, now))
           : !task.deadline ? 'Openstaand' : null;
 
     return (
@@ -547,6 +541,7 @@ export default function TakenPage() {
         <EmptyState icon={<ListChecks />} title="Niets in deze weergave" description={tab === 'vandaag' ? 'Je hebt geen geplande of achterstallige taken in deze weergave.' : tab === 'inbox' ? 'Je Inbox is leeg. Zet losse ideeën of nog te plannen acties hier tijdelijk neer.' : tab === 'later' ? 'Hier staan taken die bewust nog geen aandacht vragen.' : 'Wissel van weergave, pas je filters aan of maak een nieuwe taak aan.'} action={<button type="button" onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>} />
       ) : tab === 'vandaag' && vandaagSecties ? (
         <div className="space-y-3">
+          {renderSection('Doorgeschoven', vandaagSecties.doorgeschoven, { icon: <Redo2 className="h-4 w-4 text-muted-foreground" /> })}
           {renderSection('Ochtend', vandaagSecties.ochtend, { icon: <Sunrise className="h-4 w-4 text-muted-foreground" /> })}
           {renderSection('Middag', vandaagSecties.middag, { icon: <Sun className="h-4 w-4 text-muted-foreground" /> })}
           {renderSection('Later vandaag', vandaagSecties.later, { icon: <Moon className="h-4 w-4 text-muted-foreground" /> })}
