@@ -64,8 +64,8 @@ describe('Dashboard D2 — werklijst met dezelfde regels als Taken', () => {
     expect(page).toContain('<TaskRow');
     expect(page).toContain('<TaakAfrondenDialog');
     expect(page).not.toContain('<VandaagStrip');
-    expect(page).not.toContain('kpi-hero');
     expect(page).not.toContain('<KPICard');
+    expect(page).toContain('aanbodvolume={actiefAanbodvolume}');
     expect(page.indexOf('<DashboardKengetallen')).toBeLessThan(page.indexOf('<DashboardWerklijst'));
     expect(page.indexOf('<DashboardWerklijst')).toBeLessThan(page.indexOf('Object Pipeline momentum'));
   });

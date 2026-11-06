@@ -102,6 +102,10 @@ export default function DashboardPage() {
   };
 
   const actieveObjecten = useMemo(() => objecten.filter(o => !o.isArchived), [objecten]);
+  const actiefAanbodvolume = useMemo(
+    () => actieveObjecten.reduce((som, object) => som + (object.vraagprijs ?? 0), 0),
+    [actieveObjecten],
+  );
   const actieveDeals    = useMemo(() => deals.filter(isDealActief), [deals]);
   const defaultPipeline = store.getDefaultObjectPipeline();
   const pipelineStages = defaultPipeline
@@ -186,6 +190,8 @@ export default function DashboardPage() {
       />
 
       <DashboardKengetallen
+        aanbodvolume={actiefAanbodvolume}
+        beschikbaar={beschikbareObjecten}
         courtage={dashboardPipelineFee}
         objectenZonderFee={objectenZonderFee}
         actieveObjecten={actieveObjecten.length}

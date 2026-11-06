@@ -35,10 +35,10 @@ describe('Unified Object / Deal lifecycle UX', () => {
   it('maakt de primaire dashboardlaag Object-first en gebruikt de canonieke feeprojectie', () => {
     const source = read('src/pages/DashboardPage.tsx');
 
-    // Sinds D2: drie kengetallen bovenaan (verwachte courtage, actieve objecten, achterstallig).
+    // Sinds D2: aanbodvolume-blok met de drie kengetallen (courtage, actieve objecten, achterstallig).
     const kengetallen = read('src/components/dashboard/DashboardKengetallen.tsx');
     expect(source).toContain('<DashboardKengetallen');
-    expect(source).not.toContain('Actief aanbodvolume');
+    expect(kengetallen).toContain('Actief aanbodvolume');
     expect(kengetallen).toContain('Actieve objecten');
     expect(source).toContain('useUnifiedFeeReporting');
     expect(kengetallen).toContain('1 economische fee per object');

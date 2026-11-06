@@ -49,12 +49,14 @@ describe('DashboardWerklijst', () => {
 
 describe('DashboardKengetallen', () => {
   const renderK = (props: Partial<React.ComponentProps<typeof DashboardKengetallen>> = {}) =>
-    render(<MemoryRouter><DashboardKengetallen courtage={51950} objectenZonderFee={0} actieveObjecten={12} achterstallig={0} {...props} /></MemoryRouter>);
+    render(<MemoryRouter><DashboardKengetallen aanbodvolume={12630000} beschikbaar={8} courtage={51950} objectenZonderFee={0} actieveObjecten={12} achterstallig={0} {...props} /></MemoryRouter>);
 
-  it('toont precies drie cijfers met hun links', () => {
+  it('toont het aanbodvolume als hoofdcijfer en daaronder drie kengetallen met hun links', () => {
     renderK();
+    expect(screen.getByText('Actief aanbodvolume')).toBeTruthy();
+    expect(screen.getByText('8 direct beschikbaar')).toBeTruthy();
     const links = screen.getAllByRole('link').map(a => a.getAttribute('href'));
-    expect(links).toEqual(['/rapportage', '/objecten', '/taken']);
+    expect(links).toEqual(['/objecten', '/rapportage', '/objecten', '/taken']);
     expect(screen.getByText('Verwachte courtage')).toBeTruthy();
     expect(screen.getByText('Actieve objecten')).toBeTruthy();
     expect(screen.getByText('Achterstallige taken')).toBeTruthy();
