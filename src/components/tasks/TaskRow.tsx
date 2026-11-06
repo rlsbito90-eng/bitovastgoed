@@ -28,8 +28,10 @@ export interface TaskRowActions {
     patch: { planDatum?: string | null; planningBucket?: TaskPlanningBucket },
     message: string,
   ) => void;
-  editTask: (task: Taak) => void;
-  requestDelete: (task: Taak) => void;
+  /** Weglaten = menu-item Bewerken niet tonen. */
+  editTask?: (task: Taak) => void;
+  /** Weglaten = menu-item Verwijderen niet tonen. */
+  requestDelete?: (task: Taak) => void;
 }
 
 export interface TaskRowProps {
@@ -108,8 +110,10 @@ export default function TaskRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56" onClick={event => event.stopPropagation()}>
               <DropdownMenuLabel>Snelle acties</DropdownMenuLabel>
-              <DropdownMenuItem onClick={event => { event.stopPropagation(); actions.editTask(task); }}><MoreHorizontal className="h-4 w-4 mr-2" /> Bewerken</DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {actions.editTask && <>
+                <DropdownMenuItem onClick={event => { event.stopPropagation(); actions.editTask?.(task); }}><MoreHorizontal className="h-4 w-4 mr-2" /> Bewerken</DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>}
               {!completed && <>
                 <DropdownMenuItem onClick={event => actions.toggleComplete(event as any, task)}><CheckCircle2 className="h-4 w-4 mr-2" /> Afronden</DropdownMenuItem>
                 {!waiting && <DropdownMenuItem onClick={event => actions.setWaiting(event as any, task)}><Clock className="h-4 w-4 mr-2" /> Op wachten zetten</DropdownMenuItem>}
@@ -126,10 +130,12 @@ export default function TaskRow({
               {rel && <DropdownMenuItem asChild><Link to={`/relaties/${rel.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open relatie</Link></DropdownMenuItem>}
               {obj && <DropdownMenuItem asChild><Link to={`/objecten/${obj.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open object</Link></DropdownMenuItem>}
               {deal && <DropdownMenuItem asChild><Link to={`/deals/${deal.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open deal</Link></DropdownMenuItem>}
-              {(rel || obj || deal) && <DropdownMenuSeparator />}
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={event => { event.stopPropagation(); actions.requestDelete(task); }}>
-                <Trash2 className="h-4 w-4 mr-2" /> Verwijderen
-              </DropdownMenuItem>
+              {actions.requestDelete && <>
+                {(rel || obj || deal) && <DropdownMenuSeparator />}
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={event => { event.stopPropagation(); actions.requestDelete?.(task); }}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Verwijderen
+                </DropdownMenuItem>
+              </>}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
