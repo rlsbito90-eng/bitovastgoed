@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const taken = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
+// Taakrij staat sinds D1 in TaskRow; Taken = pagina + rij.
+const taken = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8')
+  + readFileSync(resolve(process.cwd(), 'src/components/tasks/TaskRow.tsx'), 'utf8');
 const bag = readFileSync(resolve(process.cwd(), 'src/components/offmarket/bag/BagMatchResolver.tsx'), 'utf8');
 
 describe('mobiele CRM-layout', () => {

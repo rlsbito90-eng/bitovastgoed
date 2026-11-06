@@ -81,8 +81,8 @@ describe('Taken — label plandatum', () => {
     expect(planDateLabel('2026-11-10', today, false)).toBe('Gepland 10 nov');
   });
 
-  it('TakenPage geeft de doorschuifstatus mee aan het label', () => {
-    const page = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
+  it('de taakrij geeft de doorschuifstatus mee aan het label', () => {
+    const page = readFileSync(resolve(process.cwd(), 'src/components/tasks/TaskRow.tsx'), 'utf8');
     expect(page).toContain('planDateLabel(planning.planDatum, today, isTaskRolledOver(task, planning, now))');
     expect(page).not.toContain('if (value < today)');
   });
