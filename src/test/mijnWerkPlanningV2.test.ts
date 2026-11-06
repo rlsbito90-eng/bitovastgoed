@@ -6,7 +6,8 @@ function read(rel: string): string {
   return fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
 }
 
-const page = read('src/pages/TakenPage.tsx');
+// Taakrij staat sinds D1 in TaskRow; Taken = pagina + rij.
+const page = read('src/pages/TakenPage.tsx') + read('src/components/tasks/TaskRow.tsx');
 const viewState = read('src/lib/takenViewState.ts');
 const planning = read('src/lib/tasks/planning.ts');
 const workView = read('src/lib/tasks/workView.ts');

@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const page = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
+// Taakrij staat sinds D1 in TaskRow; Taken = pagina + rij.
+const page = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8')
+  + readFileSync(resolve(process.cwd(), 'src/components/tasks/TaskRow.tsx'), 'utf8');
 const state = readFileSync(resolve(process.cwd(), 'src/lib/takenViewState.ts'), 'utf8');
 const workView = readFileSync(resolve(process.cwd(), 'src/lib/tasks/workView.ts'), 'utf8');
 

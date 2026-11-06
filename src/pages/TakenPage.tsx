@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
-import { PrioriteitBadge, TaakStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
 import {
-  Search, Plus, CheckCircle2, Circle, Clock, MoreHorizontal,
-  ExternalLink, ListChecks, SlidersHorizontal, Sunrise, Sun, Moon, Redo2,
-  CheckSquare, Square, X, CalendarDays, Trash2,
+  Search, Plus, CheckCircle2, Clock, ListChecks, SlidersHorizontal, Sunrise, Sun, Moon, Redo2,
+  CheckSquare, X, CalendarDays, Trash2,
 } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import type { TaakPrioriteit, TaakStatus, Taak } from '@/data/mock-data';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
 import QuickTaskCapture from '@/components/tasks/QuickTaskCapture';
+import TaskRow, { type TaskRowActions } from '@/components/tasks/TaskRow';
 import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
-import { isTaakTeLaat, deadlineLabel, TAAK_TYPES } from '@/lib/taakHelpers';
+import { TAAK_TYPES } from '@/lib/taakHelpers';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuLabel,
@@ -47,7 +46,6 @@ import {
   isTaskRolledOver,
   isTaskUpcoming,
   localDateKey,
-  planDateLabel,
   planningForTask,
   taskSourceLabel,
   taskWorkDate,
@@ -376,94 +374,36 @@ export default function TakenPage() {
     }
   };
 
+  const taskRowActions: TaskRowActions = {
+    openTask: (task) => navigate(`/taken/${task.id}`, { state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst') }),
+    toggleComplete,
+    setWaiting,
+    planAfterDays,
+    updatePlanning,
+    editTask: (task) => { setEditTaak(task); setFormOpen(true); },
+    requestDelete: (task) => setVerwijderTaak(task),
+  };
+
   const renderTask = (task: Taak) => {
     const rel = task.relatieId ? getRelatieById(task.relatieId) : null;
     const deal = task.dealId ? getDealById(task.dealId) : null;
     const obj = task.objectId ? getObjectById(task.objectId) : (deal ? getObjectById(deal.objectId) : null);
-    const overdue = isTaakTeLaat(task, now);
-    const completed = task.status === 'afgerond';
-    const cancelled = task.status === 'geannuleerd';
-    const waiting = task.status === 'wacht_op_reactie';
-    const planning = planningFor(task);
-    const selected = selectedIds.has(task.id);
-    const context: string[] = [];
-    if (rel) context.push(getRelatieNaamCompact(rel, contactpersonen));
-    if (obj?.titel) context.push(obj.titel);
-
-    const planningLabel = planning.planningBucket === 'inbox'
-      ? 'Inbox'
-      : planning.planningBucket === 'later'
-        ? 'Later'
-        : planning.planDatum
-          ? planDateLabel(planning.planDatum, today, isTaskRolledOver(task, planning, now))
-          : !task.deadline ? 'Openstaand' : null;
-
     return (
-      <div
+      <TaskRow
         key={task.id}
-        data-testid="taken-lijstregel"
-        onClick={() => selectionMode ? toggleSelection(task.id) : navigate(`/taken/${task.id}`, { state: maakCrmReturnState('/taken', 'Taken', 'taken-lijst') })}
-        className={`group px-4 sm:px-5 py-3.5 grid grid-cols-[auto,minmax(0,1fr)] gap-x-3 gap-y-2 sm:flex sm:items-center transition-colors cursor-pointer ${selected ? 'bg-accent/8' : 'hover:bg-muted/30'}`}
-      >
-        <button
-          onClick={(event) => { event.stopPropagation(); selectionMode ? toggleSelection(task.id) : toggleComplete(event, task); }}
-          className="col-start-1 row-start-1 shrink-0 mt-0.5 sm:mt-0 text-muted-foreground hover:text-accent transition-colors"
-          aria-label={selectionMode ? (selected ? 'Deselecteren' : 'Selecteren') : (completed ? 'Heropenen' : 'Afronden')}
-        >
-          {selectionMode
-            ? selected ? <CheckSquare className="h-5 w-5 text-accent" /> : <Square className="h-5 w-5" />
-            : completed ? <CheckCircle2 className="h-5 w-5 text-success" /> : waiting ? <Clock className="h-5 w-5 text-warning" /> : <Circle className="h-5 w-5" />}
-        </button>
-
-        <div className="col-start-2 row-start-1 min-w-0 flex-1">
-          <p className={`text-sm font-medium break-words ${completed || cancelled ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{task.titel}</p>
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-            <span className="font-medium text-muted-foreground/80">{taskSourceLabel(task)}</span>
-            {context.map((item, index) => <span key={index} className="flex min-w-0 items-center gap-1.5"><span aria-hidden>·</span><span className="truncate max-w-[220px] sm:max-w-[320px]">{item}</span></span>)}
-            {task.type && <><span aria-hidden>·</span><span>{task.type}</span></>}
-            {planningLabel && <><span aria-hidden>·</span><span>{planningLabel}</span></>}
-            {task.deadline && <><span aria-hidden>·</span><span className={overdue ? 'text-destructive font-medium' : ''}>Deadline {deadlineLabel(task, now)}{overdue ? ' · te laat' : ''}</span></>}
-            {task.notities && <><span aria-hidden>·</span><span className="truncate max-w-[240px] opacity-80">{task.notities}</span></>}
-          </div>
-        </div>
-
-        <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-1.5 sm:ml-auto sm:shrink-0">
-          <PrioriteitBadge prioriteit={task.prioriteit} />
-          {!completed && <TaakStatusBadge status={task.status} />}
-          {!selectionMode && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={event => event.stopPropagation()}>
-                <button className="ml-auto sm:ml-0 opacity-60 hover:opacity-100 p-1 rounded-md hover:bg-muted transition" aria-label="Acties"><MoreHorizontal className="h-4 w-4" /></button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56" onClick={event => event.stopPropagation()}>
-                <DropdownMenuLabel>Snelle acties</DropdownMenuLabel>
-                <DropdownMenuItem onClick={event => { event.stopPropagation(); setEditTaak(task); setFormOpen(true); }}><MoreHorizontal className="h-4 w-4 mr-2" /> Bewerken</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {!completed && <>
-                  <DropdownMenuItem onClick={event => toggleComplete(event as any, task)}><CheckCircle2 className="h-4 w-4 mr-2" /> Afronden</DropdownMenuItem>
-                  {!waiting && <DropdownMenuItem onClick={event => setWaiting(event as any, task)}><Clock className="h-4 w-4 mr-2" /> Op wachten zetten</DropdownMenuItem>}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider">Planning</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={event => planAfterDays(event as any, task, 0)}>Vandaag</DropdownMenuItem>
-                  <DropdownMenuItem onClick={event => planAfterDays(event as any, task, 1)}>Morgen</DropdownMenuItem>
-                  <DropdownMenuItem onClick={event => planAfterDays(event as any, task, 7)}>Over een week</DropdownMenuItem>
-                  <DropdownMenuItem onClick={event => updatePlanning(event as any, task, { planningBucket: 'open', planDatum: null }, 'Verplaatst naar Openstaand')}>Openstaand</DropdownMenuItem>
-                  <DropdownMenuItem onClick={event => updatePlanning(event as any, task, { planningBucket: 'inbox', planDatum: null }, 'Verplaatst naar Inbox')}>Inbox</DropdownMenuItem>
-                  <DropdownMenuItem onClick={event => updatePlanning(event as any, task, { planningBucket: 'later', planDatum: null }, 'Verplaatst naar Later')}>Later</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>}
-                {rel && <DropdownMenuItem asChild><Link to={`/relaties/${rel.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open relatie</Link></DropdownMenuItem>}
-                {obj && <DropdownMenuItem asChild><Link to={`/objecten/${obj.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open object</Link></DropdownMenuItem>}
-                {deal && <DropdownMenuItem asChild><Link to={`/deals/${deal.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open deal</Link></DropdownMenuItem>}
-                {(rel || obj || deal) && <DropdownMenuSeparator />}
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={event => { event.stopPropagation(); setVerwijderTaak(task); }}>
-                  <Trash2 className="h-4 w-4 mr-2" /> Verwijderen
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
+        task={task}
+        planning={planningFor(task)}
+        now={now}
+        today={today}
+        relatie={rel}
+        relatieNaam={rel ? getRelatieNaamCompact(rel, contactpersonen) : null}
+        object={obj}
+        deal={deal}
+        actions={taskRowActions}
+        selectionMode={selectionMode}
+        selected={selectedIds.has(task.id)}
+        onToggleSelection={toggleSelection}
+      />
     );
   };
 
