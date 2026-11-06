@@ -65,12 +65,19 @@ describe('Dashboard D2 — werklijst met dezelfde regels als Taken', () => {
     expect(page).toContain('<TaakAfrondenDialog');
     expect(page).not.toContain('<VandaagStrip');
     expect(page).not.toContain('<KPICard');
-    expect(page).toContain('aanbodvolume={actiefAanbodvolume}');
+    expect(page).toContain('berekenAanbodvolume(actieveObjecten)');
+    expect(page).toContain('aanbodvolume={aanbodvolume}');
+    expect(page).not.toContain('kpi-hero');
     expect(page.indexOf('<DashboardKengetallen')).toBeLessThan(page.indexOf('<DashboardWerklijst'));
     expect(page.indexOf('<DashboardWerklijst')).toBeLessThan(page.indexOf('Object Pipeline momentum'));
   });
 
   it('achterstallig-kengetal komt uit dezelfde werklijst', () => {
     expect(page).toContain('achterstallig={werklijst.achterstallig.length}');
+  });
+
+  it('de vier kengetallen komen niet nog eens elders op het dashboard terug', () => {
+    expect(page).not.toContain('label="Actieve objecten"');
+    expect(page).not.toContain('Actief aanbodvolume');
   });
 });

@@ -5,6 +5,7 @@ import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
 import DashboardKengetallen from '@/components/dashboard/DashboardKengetallen';
 import DashboardWerklijst from '@/components/dashboard/DashboardWerklijst';
 import { useTaskRowActions } from '@/hooks/useTaskRowActions';
+import { berekenAanbodvolume } from '@/lib/dashboard/aanbodvolume';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
 import {
@@ -102,10 +103,7 @@ export default function DashboardPage() {
   };
 
   const actieveObjecten = useMemo(() => objecten.filter(o => !o.isArchived), [objecten]);
-  const actiefAanbodvolume = useMemo(
-    () => actieveObjecten.reduce((som, object) => som + (object.vraagprijs ?? 0), 0),
-    [actieveObjecten],
-  );
+  const aanbodvolume = useMemo(() => berekenAanbodvolume(actieveObjecten), [actieveObjecten]);
   const actieveDeals    = useMemo(() => deals.filter(isDealActief), [deals]);
   const defaultPipeline = store.getDefaultObjectPipeline();
   const pipelineStages = defaultPipeline
@@ -190,8 +188,7 @@ export default function DashboardPage() {
       />
 
       <DashboardKengetallen
-        aanbodvolume={actiefAanbodvolume}
-        beschikbaar={beschikbareObjecten}
+        aanbodvolume={aanbodvolume}
         courtage={dashboardPipelineFee}
         objectenZonderFee={objectenZonderFee}
         actieveObjecten={actieveObjecten.length}
@@ -292,7 +289,6 @@ export default function DashboardPage() {
           <header className="section-header"><h2 className="section-title">Dealflow health</h2><Link to="/rapportage" className="section-link inline-flex items-center gap-1">Rapportage <ArrowRight className="h-3 w-3" /></Link></header>
           <div className="p-5 grid grid-cols-2 gap-x-5 gap-y-4">
             <MiniStat label="Actieve kopers" value={warmeRelaties.length} hint="Warm + actief" />
-            <MiniStat label="Actieve objecten" value={actieveObjecten.length} />
             <MiniStat label="Beschikbare objecten" value={beschikbareObjecten} />
             <MiniStat label="Zonder kandidaten" value={objectenZonderKandidaten} tone={objectenZonderKandidaten > 0 ? 'warning' : 'normal'} />
             <MiniStat label="Stagnatie > 7d" value={dealsZonderActiviteit} tone={dealsZonderActiviteit > 0 ? 'warning' : 'normal'} hint="Deals zonder follow-up" />

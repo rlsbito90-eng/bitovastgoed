@@ -19,6 +19,11 @@ const renderLijst = (groups: { achterstallig: Taak[]; doorgeschoven: Taak[]; van
   render(<MemoryRouter><DashboardWerklijst groups={groups} renderTask={renderTask} /></MemoryRouter>);
 
 describe('DashboardWerklijst', () => {
+  it('heet Mijn werkzaamheden', () => {
+    renderLijst({ achterstallig: [], doorgeschoven: [], vandaag: taken('V', 1) });
+    expect(screen.getByText('Mijn werkzaamheden')).toBeTruthy();
+  });
+
   it('toont de groepen in vaste volgorde met tellers; vandaag-teller = doorgeschoven + vandaag', () => {
     renderLijst({ achterstallig: taken('A', 2), doorgeschoven: taken('D', 3), vandaag: taken('V', 1) });
     const groepen = screen.getAllByTestId(/^werklijst-groep-/).map(el => el.getAttribute('data-testid'));
@@ -49,17 +54,27 @@ describe('DashboardWerklijst', () => {
 
 describe('DashboardKengetallen', () => {
   const renderK = (props: Partial<React.ComponentProps<typeof DashboardKengetallen>> = {}) =>
-    render(<MemoryRouter><DashboardKengetallen aanbodvolume={12630000} beschikbaar={8} courtage={51950} objectenZonderFee={0} actieveObjecten={12} achterstallig={0} {...props} /></MemoryRouter>);
+    render(<MemoryRouter><DashboardKengetallen aanbodvolume={{ totaal: 12630000, zonderVraagprijs: 0 }} courtage={51950} objectenZonderFee={0} actieveObjecten={12} achterstallig={0} {...props} /></MemoryRouter>);
 
-  it('toont het aanbodvolume als hoofdcijfer en daaronder drie kengetallen met hun links', () => {
+  it('toont vier KPI-kaarten in vaste volgorde met hun links', () => {
     renderK();
-    expect(screen.getByText('Actief aanbodvolume')).toBeTruthy();
-    expect(screen.getByText('8 direct beschikbaar')).toBeTruthy();
-    const links = screen.getAllByRole('link').map(a => a.getAttribute('href'));
-    expect(links).toEqual(['/objecten', '/rapportage', '/objecten', '/taken']);
-    expect(screen.getByText('Verwachte courtage')).toBeTruthy();
-    expect(screen.getByText('Actieve objecten')).toBeTruthy();
-    expect(screen.getByText('Achterstallige taken')).toBeTruthy();
+    const labels = ['Actief aanbodvolume', 'Verwachte courtage', 'Actieve objecten', 'Achterstallige taken'];
+    for (const l of labels) expect(screen.getByText(l)).toBeTruthy();
+    const links = screen.getAllByRole('link');
+    expect(links.map(a => a.getAttribute('href'))).toEqual(['/objecten', '/rapportage', '/objecten', '/taken']);
+    expect(links.map(a => a.querySelector('p')?.textContent)).toEqual(labels);
+  });
+
+  it('2×2 op mobiel en vier naast elkaar op desktop', () => {
+    renderK();
+    const rij = screen.getByTestId('dashboard-kengetallen');
+    expect(rij.className).toContain('grid-cols-2');
+    expect(rij.className).toContain('lg:grid-cols-4');
+  });
+
+  it('meldt objecten zonder vraagprijs, zodat duidelijk is dat het totaal onvolledig kan zijn', () => {
+    renderK({ aanbodvolume: { totaal: 11868000, zonderVraagprijs: 4 } });
+    expect(screen.getByText('4 objecten zonder vraagprijs')).toBeTruthy();
   });
 
   it('toont "—" zonder courtage en het aantal objecten zonder fee', () => {

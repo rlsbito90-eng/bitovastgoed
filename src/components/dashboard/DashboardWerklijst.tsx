@@ -51,7 +51,7 @@ export default function DashboardWerklijst({ groups, renderTask }: Props) {
     <section data-testid="dashboard-werklijst" className="section-card overflow-hidden">
       <header className="section-header">
         <div className="min-w-0">
-          <h2 className="section-title flex items-center gap-2"><CalendarCheck2 className="h-4 w-4 text-accent" />Werklijst</h2>
+          <h2 className="section-title flex items-center gap-2"><CalendarCheck2 className="h-4 w-4 text-accent" />Mijn werkzaamheden</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             <span>{`${voorVandaag} voor vandaag`}</span>
             {achterstallig.length > 0 && <> · <span className="text-destructive">{`${achterstallig.length} achterstallig`}</span></>}
