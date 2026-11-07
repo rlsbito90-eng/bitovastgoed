@@ -293,7 +293,7 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
 describe('Fase 1 — volledige primaire criteria in bestaand relatieformulier',()=>{
   it('toont volledige websitekeuzes zonder verplicht apart zoekprofiel',()=>{
     render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
-    fireEvent.click(screen.getByRole('tab',{name:'Investeerder'}));
+    fireEvent.pointerDown(screen.getByRole('tab',{name:'Investeerder'}),{button:0,ctrlKey:false,pointerType:'mouse'});
     expect(screen.getByText('Aankoopcriteria (websiteformulier)')).toBeTruthy();
     expect(screen.getByRole('checkbox',{name:'Transformatiepotentie'})).toBeTruthy();
     expect(screen.getByRole('checkbox',{name:'Herontwikkelingspotentie'})).toBeTruthy();
@@ -302,7 +302,7 @@ describe('Fase 1 — volledige primaire criteria in bestaand relatieformulier',(
 
   it('kan zoekradius, financieringsstatus en situatie wijzigen zonder zoekprofiel aan te maken',async()=>{
     render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
-    fireEvent.click(screen.getByRole('tab',{name:'Investeerder'}));
+    fireEvent.pointerDown(screen.getByRole('tab',{name:'Investeerder'}),{button:0,ctrlKey:false,pointerType:'mouse'});
     fireEvent.change(screen.getByPlaceholderText('Plaatsen, straal of landelijk met focusregio'),{
       target:{value:'35 km vanaf Amersfoort'},
     });
