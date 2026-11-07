@@ -107,3 +107,43 @@ export function taskSourceLabel(task: Taak): string {
   if (task.relatieId) return 'Relatie';
   return 'Handmatig';
 }
+
+export interface TodayWorkGroups {
+  /** Harde deadline verstreken. */
+  achterstallig: Taak[];
+  /** Plandatum vóór vandaag, nog open, geen verstreken deadline (zie isTaskRolledOver). */
+  doorgeschoven: Taak[];
+  /** Voor vandaag gepland of deadline vandaag, niet doorgeschoven. */
+  vandaag: Taak[];
+}
+
+const deadlineKey = (task: Taak) => `${task.deadline ?? '9999-12-31'}T${(task.deadlineTijd ?? '23:59').slice(0, 5)}`;
+
+/**
+ * Deelt het open werk in voor de werklijst (Dashboard) met dezelfde regels als Taken.
+ * De drie groepen sluiten elkaar uit; wachtend op reactie valt erbuiten.
+ */
+export function groupTodayWork(
+  tasks: Taak[],
+  planningFor: (task: Taak) => TaskPlanningMeta,
+  now: Date,
+): TodayWorkGroups {
+  const open = tasks.filter(t => isOpenTaskStatus(t.status) && t.status !== 'wacht_op_reactie');
+  const achterstallig: Taak[] = [];
+  const doorgeschoven: Taak[] = [];
+  const vandaag: Taak[] = [];
+  for (const task of open) {
+    const planning = planningFor(task);
+    if (isTaskOverdue(task, now)) achterstallig.push(task);
+    else if (isTaskRolledOver(task, planning, now)) doorgeschoven.push(task);
+    else if (isTaskPlannedToday(task, planning, now)) vandaag.push(task);
+  }
+  achterstallig.sort((a, b) => deadlineKey(a).localeCompare(deadlineKey(b)));
+  doorgeschoven.sort((a, b) => (planningFor(a).planDatum ?? '').localeCompare(planningFor(b).planDatum ?? ''));
+  const timeKey = (task: Taak) => {
+    const t = planningFor(task).planTijd ?? task.deadlineTijd ?? null;
+    return t ? t.slice(0, 5) : '99:99';
+  };
+  vandaag.sort((a, b) => timeKey(a).localeCompare(timeKey(b)));
+  return { achterstallig, doorgeschoven, vandaag };
+}
