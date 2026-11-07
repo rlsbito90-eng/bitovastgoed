@@ -1,3 +1,5 @@
+import { alsGemeenteToken, provinciesBijGemeenten } from '@/lib/geo/gemeenten2026';
+
 // Bito Vastgoed — Types + helpers + matching engine.
 // Centraal typen-bestand. Gebruikt door alle pages, forms, hooks.
 
@@ -1408,36 +1410,47 @@ export function getMatchesForObjectFromData(
 }
 
 /** Virtuele, niet-opgeslagen zoekroute vanuit Relaties.
- * Er wordt geen afzonderlijk zoekprofiel aangemaakt of gesynchroniseerd.
- * Zonder vastgelegd vastgoedtype tonen we geen brede, ongerichte automatische matches.
+ * Ook makelaars en bemiddelaars zijn directe contactkandidaten (R2).
+ * Een contactroute is nooit bewijs dat de partij zelf de uiteindelijke koper is.
+ * Elk expliciet zoekcriterium kan volstaan; vastgoedtype is niet verplicht.
  */
 export function maakRelatieBasisZoekprofiel(relatie: Relatie): Zoekprofiel | null {
   const typeVastgoed = relatie.assetClasses ?? [];
   const propertyTypeIds = relatie.propertyTypeIds ?? [];
-  if (typeVastgoed.length === 0 && propertyTypeIds.length === 0) return null;
-  const koopprofielen: readonly (Partijprofiel | undefined | null)[] = [
+  const heeftCriteria = typeVastgoed.length>0 || propertyTypeIds.length>0 ||
+    (relatie.propertySubtypeIds?.length??0)>0 || (relatie.dealTypeIds?.length??0)>0 ||
+    (relatie.regio?.length??0)>0 || (relatie.zoekGemeenten?.length??0)>0 ||
+    (relatie.zoekPlaatsen?.length??0)>0 ||
+    relatie.budgetMin != null || relatie.budgetMax != null;
+  if (!heeftCriteria) return null;
+  const benaderbareProfielen: readonly Partijprofiel[] = [
     'belegger', 'ontwikkelende_belegger', 'fonds', 'family_office',
     'buitenlandse_belegger', 'ontwikkelaar', 'vastgoedondernemer',
+    'makelaar', 'bemiddelaar',
   ];
-  // Een expliciet partijprofiel gaat boven het historische standaard-hoofdtype.
-  // Anders kan een eigenaar/bemiddelaar door de oude default 'belegger'
-  // ten onrechte als koper verschijnen. Alleen de kooprol kan dit overrulen.
-  const actiefAlsKoper = relatie.commercialRoles != null
-    ? relatie.commercialRoles.includes('koper')
+  const benaderbareRollen = ['koper','makelaar','bemiddelaar','ontwikkelaar'];
+  // Een actueel partijprofiel voorkomt dat een oude standaardwaarde 'belegger'
+  // een expliciet geïdentificeerde eigenaar onterecht als kandidaat aanwijst.
+  const benaderbaar = relatie.commercialRoles != null
+    ? relatie.commercialRoles.some(rol => benaderbareRollen.includes(rol))
     : relatie.partijprofiel != null
-      ? koopprofielen.includes(relatie.partijprofiel)
-      : ['belegger', 'ontwikkelaar'].includes(relatie.type);
-  if (!actiefAlsKoper) return null;
+      ? benaderbareProfielen.includes(relatie.partijprofiel)
+      : ['belegger','ontwikkelaar','makelaar'].includes(relatie.type);
+  if (!benaderbaar) return null;
 
   return {
     id: `relatie:${relatie.id}`,
-    naam: 'Algemeen investeringsprofiel (Relaties)',
+    naam: 'Algemene zoekcriteria (Relaties)',
     relatieId: relatie.id,
     typeVastgoed,
     propertyTypeIds,
     propertySubtypeIds: relatie.propertySubtypeIds ?? [],
     dealTypeIds: relatie.dealTypeIds ?? [],
     regio: relatie.regio ?? [],
+    steden: [
+      ...(relatie.zoekGemeenten ?? []).map(alsGemeenteToken),
+      ...(relatie.zoekPlaatsen ?? []),
+    ],
     prijsMin: relatie.budgetMin,
     prijsMax: relatie.budgetMax,
     ontwikkelPotentie: relatie.vastgoedStrategieen?.includes('projectontwikkeling') ?? false,
@@ -1463,6 +1476,14 @@ export function getMatchesForRelatieFromData(
   const bestPerObject = new Map<string, MatchResult>();
   for (const profiel of routes) {
     for (const object of objecten.filter(o => o.status === 'beschikbaar' && !o.isArchived && !o.softDeletedAt)) {
+      // De bestuurlijke gemeente is nog niet gevalideerd in ObjectVastgoed.
+      // Daarom geen bevestigde gemeentematch. Alleen een geografisch mogelijke
+      // provincie krijgt de status 'te verifiëren' via berekenMatchScore.
+      if (profiel === basis && (relatie?.zoekGemeenten?.length ?? 0)>0) {
+        const provincies=provinciesBijGemeenten(relatie!.zoekGemeenten ?? []);
+        if(provincies.length>0 && object.provincie &&
+          !provincies.includes(object.provincie)) continue;
+      }
       // Bij alleen nieuwe taxonomie is een ontbrekend objecttype onvoldoende bewijs
       // voor een match. Anders zouden alleen prijs + regio een fout-positieve match geven.
       if (profiel === basis && (profiel.propertyTypeIds?.length ?? 0) > 0 &&
