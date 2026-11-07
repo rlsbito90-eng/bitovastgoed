@@ -4,6 +4,10 @@ import TaskRow from '@/components/tasks/TaskRow';
 import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
 import DashboardKengetallen from '@/components/dashboard/DashboardKengetallen';
 import DashboardWerklijst from '@/components/dashboard/DashboardWerklijst';
+import DashboardAandacht, { taakTitelVoor } from '@/components/dashboard/DashboardAandacht';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import { useBiedingen } from '@/hooks/useBiedingen';
+import { bepaalAandacht, type AandachtItem } from '@/lib/dashboard/aandacht';
 import { useTaskRowActions } from '@/hooks/useTaskRowActions';
 import { berekenAanbodvolume } from '@/lib/dashboard/aanbodvolume';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -119,6 +123,20 @@ export default function DashboardPage() {
   const matches = useMemo(() => getAllMatchesFromData(store.zoekprofielen, store.objecten), [store.zoekprofielen, store.objecten]);
   const sterkeMatches = useMemo(() => matches.filter(m => isStrongMatch(m.score)), [matches]);
 
+  const biedingen = useBiedingen({ all: true });
+  const [opvolgingVoor, setOpvolgingVoor] = useState<AandachtItem | null>(null);
+  const aandacht = useMemo(() => bepaalAandacht({
+    objecten,
+    kandidaten: store.pipelineKandidaten,
+    biedingen: biedingen.items,
+    contactMoments: store.contactMoments,
+    taken,
+    deals,
+    matches,
+    aantalZoekprofielen: store.zoekprofielen.filter(z => z.status === 'actief').length,
+    planDatumVoor: taak => planningById.get(taak.id)?.planDatum ?? null,
+  }, nu), [objecten, store.pipelineKandidaten, biedingen.items, store.contactMoments, taken, deals, matches, store.zoekprofielen, planningById, vandaagKey]);
+
   const commissieStats = useMemo(
     () => berekenCommissieStats(deals, (oid) => store.getObjectById(oid)?.vraagprijs, nu.getFullYear()),
     [deals, store, nu],
@@ -195,7 +213,14 @@ export default function DashboardPage() {
         achterstallig={werklijst.achterstallig.length}
       />
 
-      <DashboardWerklijst groups={werklijst} renderTask={renderWerklijstTaak} />
+      <div className="grid gap-4 lg:gap-6 lg:grid-cols-2 items-start">
+        <DashboardWerklijst groups={werklijst} renderTask={renderWerklijstTaak} />
+        <DashboardAandacht
+          overzicht={aandacht}
+          status={biedingen.loading ? 'laden' : biedingen.error ? 'fout' : 'klaar'}
+          onPlanOpvolging={setOpvolgingVoor}
+        />
+      </div>
 
       <section className="section-card">
         <header className="section-header">
@@ -306,6 +331,13 @@ export default function DashboardPage() {
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 lg:gap-6"><CommissieWidget /><ForecastWidget forecast={forecast} deals={deals} /></div>
       <AcquisitieDashboardSectie />
+      <TaakFormDialog
+        open={!!opvolgingVoor}
+        onOpenChange={value => { if (!value) setOpvolgingVoor(null); }}
+        defaultObjectId={opvolgingVoor?.objectId}
+        defaultTitel={opvolgingVoor ? taakTitelVoor(opvolgingVoor) : undefined}
+        defaultDeadline={vandaagKey}
+      />
       <TaakAfrondenDialog open={!!afrondenTaak} onOpenChange={value => { if (!value) setAfrondenTaak(null); }} taak={afrondenTaak} />
     </div>
   );

@@ -81,3 +81,28 @@ describe('Dashboard D2 — werklijst met dezelfde regels als Taken', () => {
     expect(page).not.toContain('Actief aanbodvolume');
   });
 });
+
+describe('Dashboard D3 — Aandacht nodig', () => {
+  it('staat naast Mijn werkzaamheden en gebruikt de gedeelde logica', () => {
+    expect(page).toContain('<DashboardAandacht');
+    expect(page).toContain('bepaalAandacht(');
+    expect(page).toContain('useBiedingen({ all: true })');
+    expect(page).toContain('lg:grid-cols-2');
+    expect(page.indexOf('<DashboardWerklijst')).toBeLessThan(page.indexOf('<DashboardAandacht'));
+  });
+
+  it('leest live uit de store, zodat nieuwe taken en contactmomenten direct doorwerken', () => {
+    expect(page).toContain('store.contactMoments');
+    expect(page).toContain('store.pipelineKandidaten');
+    expect(page).toContain('planningById.get(taak.id)?.planDatum');
+  });
+
+  it('plannen opent een vooraf ingevuld taakformulier voor het object', () => {
+    expect(page).toContain('<TaakFormDialog');
+    expect(page).toContain('defaultObjectId={opvolgingVoor?.objectId}');
+  });
+
+  it('bestaande onderdelen blijven tot D4 staan', () => {
+    for (const s of ['Object Pipeline momentum', 'Nieuwe kansen', '<CommissieWidget']) expect(page).toContain(s);
+  });
+});
