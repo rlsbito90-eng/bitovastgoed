@@ -31,9 +31,9 @@ function Regel({ t }: { t: LopendeTransactie }) {
   return (
     <div data-testid="lopende-transactie" className="px-4 sm:px-5 py-3">
       <div className="flex items-start justify-between gap-3">
-        <Link to={`/objecten/${t.objectId}`} className="min-w-0 group inline-flex items-center gap-1">
-          <span className="text-sm font-medium text-foreground truncate group-hover:underline">{t.objectTitel}</span>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+        <Link to={`/objecten/${t.objectId}`} className="min-w-0 group inline-flex items-start gap-1">
+          <span className="text-sm font-medium text-foreground break-words group-hover:underline">{t.objectTitel}</span>
+          <ChevronRight className="h-3.5 w-3.5 mt-0.5 text-muted-foreground/60 shrink-0" />
         </Link>
         <span data-testid="transactie-fase" className="shrink-0 rounded-md bg-accent/10 px-1.5 py-0.5 text-[11px] font-semibold text-accent">{t.faseLabel}</span>
       </div>
