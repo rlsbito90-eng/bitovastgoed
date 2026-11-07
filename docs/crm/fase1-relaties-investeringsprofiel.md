@@ -24,11 +24,10 @@ Supabase: additieve migratie `relaties_centraal_investeringsprofiel_fase1` uitge
 | uitsluitingen | text | Wat past nadrukkelijk niet? |
 | overige_toelichting | text | Overige toelichting |
 | strategie_toelichting | text | Extra strategie die nog niet in de taxonomie past |
-| portefeuille_interesse | boolean nullable | Vastgoedportefeuilles |
 
-Bestaande velden: `partijprofiel`, `vastgoed_strategieen`, `property_type_ids`, `property_subtype_ids`, `deal_type_ids`, `regio`, `budget_min`, `budget_max`, `rendementseis`, `aankoopcriteria` en `kapitaalsituatie`.
+Bestaande velden: `partijprofiel`, `vastgoed_strategieen`, `property_type_ids`, `property_subtype_ids`, `deal_type_ids`, `regio`, `budget_min`, `budget_max`, `rendementseis`, `aankoopcriteria` en `kapitaalsituatie`. Websitekeuze **Vastgoedportefeuilles** valt in de bestaande property-taxonomie onder `Vastgoedportefeuille` (`slug: portefeuille`); dit krijgt bewust geen tweede checkbox.
 
-De exacte website-labels dienen bij fase 3 expliciet en controleerbaar op de bestaande vastgoedtaxonomie te worden gemapt; `Vastgoedportefeuilles` is geen vastgoedtype. De originele inzending moet als brondocument worden bewaard; niet alle vrije tekst of meervoudige situaties kunnen veilig als harde matchfilter worden gebruikt.
+De exacte website-labels dienen bij fase 3 expliciet en controleerbaar op de bestaande vastgoedtaxonomie te worden gemapt; `Vastgoedportefeuilles` is een bestaand vastgoedtype in de huidige CRM-taxonomie. De originele inzending moet als brondocument worden bewaard; niet alle vrije tekst of meervoudige situaties kunnen veilig als harde matchfilter worden gebruikt.
 
 ## Matching
 
