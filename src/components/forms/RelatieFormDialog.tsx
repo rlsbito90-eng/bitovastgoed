@@ -503,8 +503,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                   <p className="text-xs text-muted-foreground">
                     De aard van de partij leg je vast onder Partijprofiel. Activiteiten
                     zoals zelf kopen of bemiddelen wijzig je rechtstreeks op de relatiepagina,
-                    bij Activiteiten en transactierollen. Concrete zoekwensen blijven bij
-                    Zoekprofielen; de uiteindelijke koper en mandaatstatus bij de deal.
+                    bij Activiteiten en transactierollen. Algemene aankoopcriteria blijven onder Relaties;
+                    extra zoekprofielen zijn optioneel. De uiteindelijke koper en mandaatstatus leg je bij de deal vast.
                   </p>
                 </Sectie>
               )}
