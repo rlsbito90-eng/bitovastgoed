@@ -22,7 +22,7 @@ const gelijk=(a:unknown,b:unknown):boolean=>{
 };
 const alsString=(v:unknown):string=> v==null?'':String(v);
 function leesbaar(veld:InlineRelatieVeld,waarde:unknown):string{
-  if(veld.kind==='checkbox') return waarde?'Ja':'Nee';
+  if(veld.kind==='checkbox') return waarde==null?'—':waarde?'Ja':'Nee';
   if(Array.isArray(waarde)) {
     if(waarde.length===0) return '—';
     return waarde.map(v=>veld.options?.find(o=>o.value===v)?.label??String(v)).join(', ');
