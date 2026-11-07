@@ -14,6 +14,8 @@ Supabase: additieve migratie `relaties_centraal_investeringsprofiel_fase1` uitge
 
 | Kolom | Type | Websiteveld |
 |---|---|---|
+| zoek_gemeenten | text[] | Geselecteerde bestuurlijke gemeenten (CBS-selectie 2026, bestaand GemeentePicker) |
+| zoek_plaatsen | text[] | Specifieke woonplaatsen en steden, gestructureerd |
 | zoekgebied_toelichting | text | Zoekgebied, vrije tekst en straal |
 | gewenste_objectomvang | text | Gewenste objectomvang |
 | gewenste_situatie | text[] | Gewenste situatie, meerdere keuzes |
@@ -41,7 +43,7 @@ De huidige formulieren hebben de onderstaande vragen. Dit zijn de uitgangspunten
 | Investeringsstrategie | `vastgoed_strategieen` voor veilig overeenkomende categorieën; originele keuzes en nuances letterlijk bewaren in `strategie_toelichting` |
 | Investeringsomvang per transactie | `budget_min`, `budget_max`; bronkeuze bewaren |
 | Gewenste objectomvang | `gewenste_objectomvang` |
-| Zoekgebied | `regio` waar eenduidig, complete oorspronkelijke uitdrukking in `zoekgebied_toelichting` |
+| Zoekgebied | `regio`, `zoek_gemeenten`, `zoek_plaatsen` waar eenduidig; de oorspronkelijke straal en nuances blijven in `zoekgebied_toelichting` |
 | Gewenste situatie | `gewenste_situatie` (7 mogelijke waarden) |
 | Rendementsdoelstelling | `rendementseis` alleen bij ondubbelzinnig numerieke rendementen, anders vrije criteria met originele formulering |
 | Gewenste aankooptermijn | `aankooptermijn` |
@@ -63,6 +65,39 @@ voor reconstructie en correctie.
 Een radius zoals '35 km vanaf Amersfoort' blijft handmatig toetsbaar totdat
 de daarvoor benodigde geocodering en objectlocatievalidatie beschikbaar zijn.
 
+## Aanvulling gemeente- en R2-integratie — 7 november 2026
+
+De live database heeft aanvullend twee **nullable** kolommen gekregen via
+`relaties_gestructureerde_zoekgemeenten_en_plaatsen_fase1`:
+`zoek_gemeenten text[]` en `zoek_plaatsen text[]`.
+Na migratie stonden 97 actieve relaties, 8 afzonderlijke zoekprofielen en 0
+bestaande relaties met ingevulde nieuwe kolommen. Bestaande RLS blijft actief.
+
+Deze velden hergebruiken dezelfde `GemeentePicker` en `GEMEENTEN_2026_PER_PROVINCIE`
+als de afzonderlijke Zoekprofielen; plaatsnamen blijven afzonderlijk van
+bestuurlijke gemeenten (bijv. Mijdrecht ≠ gemeente De Ronde Venen).
+In Relaties zijn provincies → gemeenten → plaatsen direct te bewerken.
+Vrije zoekradius heeft nog geen automatische afstandsmatch.
+
+**Eén operationele read-only beoordelingsbron:** de zichtbare sectie 'Mogelijke
+objecten — R2' op de relatiekaart leest `maakKandidaatVoorstellen` uit
+`rolMandaatAdapter` voor elk beschikbaar object. De objectkant gebruikt dezelfde
+R2-functie. Makelaars/bemiddelaars zijn directe contactkandidaten zonder
+automatisch als eindkoper te worden vastgelegd. Geen automatische aanbieding,
+shortlist-write of mandaatverplichting.
+
+De oudere `getMatchesForRelatieFromData` met scorepunten blijft tijdelijk
+als compatibele pure functie voor regressies aanwezig, maar is **niet** meer
+de operationele relatiekaartlijst. Het uitfaseren van die oude scoringslogica
+vereist een aparte afhankelijkheidscontrole.
+
+**Grenzen:** ObjectVastgoed heeft geen gevalideerde bestuurlijke gemeente;
+`kadastraleGemeente` of `plaats` zijn daarvoor geen betrouwbare vervangers.
+Een gemeentecriterium zonder bewijs geeft daarom `te_verifieren` /
+`onvoldoende`, geen fictief bevestigde locatiematch. Een selectie uit
+alleen gemeenten kan nog brede, handmatig te beoordelen R2-voorstellen opleveren.
+Dit is een expliciete beperking vóór een latere gevalideerde objectgemeente-koppeling.
+
 ## Matching
 
 - De objectkandidaat-adapter `maakKandidaatVoorstellen` kon algemene criteria uit Relaties al gebruiken.
@@ -70,6 +105,12 @@ de daarvoor benodigde geocodering en objectlocatievalidatie beschikbaar zijn.
 - Geen basisprofiel zonder ingevulde vastgoedtypen. Geen automatische vermenging van ontbrekende broninformatie met expliciete `nee`.
 - Objecten buiten het budget of niet beschikbaar worden niet als nieuwe match getoond. Eén object verschijnt maximaal één keer.
 - **Nog handmatig beoordelen:** vrije zoekradius, meerdere verhuursituaties, gewenste aankooptermijn, financieringsstatus, portefeuillevoorkeur en vrije strategie-/uitsluitingstekst. Deze velden worden bewaard, maar zijn geen automatische harde filters. De interface mag geen volledige geverifieerde match suggereren.
+
+### Huidige status
+PR #575 blijft draft, niet vrijgegeven voor productie. De laatste
+GitHub Verify inclusief nieuwe gemeente- en R2-regressies, Vercel-preview,
+visuele acceptatie op 375/1440 px en gecontroleerde pre-release audit
+zijn verplichte poorten. De 15 investeringsprofielen zijn niet geïmporteerd.
 
 ## Voor productiepublicatie
 
