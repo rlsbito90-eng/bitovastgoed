@@ -655,11 +655,6 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     )}
                   </div>
                 </Veld>
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <Checkbox checked={form.portefeuilleInteresse === true}
-                    onCheckedChange={checked => set('portefeuilleInteresse', !!checked)}/>
-                  Ook interesse in vastgoedportefeuilles
-                </label>
               </Sectie>
 
               <Sectie titel="Budget & rendement">
