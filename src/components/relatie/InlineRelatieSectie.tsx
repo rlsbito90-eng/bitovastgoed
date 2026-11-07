@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { Relatie } from '@/data/mock-data';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
+import GemeentePicker from '@/components/forms/GemeentePicker';
+import { parseerSteden } from '@/lib/matching/zoekprofielCriteria';
 
 export type InlineRelatieVeld = {
   key: keyof Relatie;
   label: string;
-  kind?: 'text'|'email'|'url'|'number'|'date'|'textarea'|'select'|'checkbox'|'multi'|'readonly';
+  kind?: 'text'|'email'|'url'|'number'|'date'|'textarea'|'select'|'checkbox'|'multi'|'gemeenten'|'plaatsen'|'readonly';
   options?: readonly {value:string;label:string}[];
   note?: string;
 };
@@ -22,7 +24,7 @@ const gelijk=(a:unknown,b:unknown):boolean=>{
 };
 const alsString=(v:unknown):string=> v==null?'':String(v);
 function leesbaar(veld:InlineRelatieVeld,waarde:unknown):string{
-  if(veld.kind==='checkbox') return waarde?'Ja':'Nee';
+  if(veld.kind==='checkbox') return waarde==null?'—':waarde?'Ja':'Nee';
   if(Array.isArray(waarde)) {
     if(waarde.length===0) return '—';
     return waarde.map(v=>veld.options?.find(o=>o.value===v)?.label??String(v)).join(', ');
@@ -41,6 +43,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   const [basis,setBasis]=useState<Partial<Relatie>>({});
   const [bezig,setBezig]=useState(false);
   const [fout,setFout]=useState<string|null>(null);
+  const [plaatsenInvoer,setPlaatsenInvoer]=useState('');
   const patch:Partial<Relatie>={};
   for(const veld of velden){
     const v=veld.key;
@@ -56,6 +59,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   const begin=()=>{
     const snapshot:Record<string,unknown>={};
     for(const veld of velden) snapshot[veld.key]=relatie[veld.key];
+    setPlaatsenInvoer((relatie.zoekPlaatsen ?? []).join(', '));
     setBasis(snapshot as Partial<Relatie>);
     setConcept(snapshot as Partial<Relatie>);
     setFout(null);
@@ -119,6 +123,14 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                     <option value="">— Niet ingevuld —</option>
                     {veld.options?.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}
                   </select>
+                :kind==='gemeenten'
+                  ?<GemeentePicker provincies={Array.isArray(concept.regio) ? concept.regio : relatie.regio ?? []}
+                    gekozen={Array.isArray(waarde) ? waarde : []}
+                    onChange={v=>wijzig(veld.key,v)}/>
+                :kind==='plaatsen'
+                  ?<textarea id={id} rows={2} value={plaatsenInvoer}
+                    onChange={e=>{setPlaatsenInvoer(e.target.value);wijzig(veld.key,parseerSteden(e.target.value));}}
+                    className="flex min-h-16 w-full rounded-md border border-input bg-background p-2 text-sm"/>
                 :kind==='multi'
                   ?<div className="flex flex-wrap gap-2">{veld.options?.map(o=><label key={o.value}
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-sm">

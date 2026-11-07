@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
-  getMatchesForRelatieFromData,
   formatCurrency,
   formatDate,
   type Zoekprofiel,
@@ -12,7 +11,7 @@ import {
   COMMUNICATIE_KANAAL_LABELS,
 } from '@/data/mock-data';
 import {
-  LeadStatusBadge, MatchScoreBadge, PrioriteitBadge,
+  LeadStatusBadge, PrioriteitBadge,
 } from '@/components/StatusBadges';
 import {
   ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
@@ -27,8 +26,9 @@ import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relati
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
 import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
 import InlineVastgoedVoorkeuren from '@/components/relatie/InlineVastgoedVoorkeuren';
+import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
-import MatchUitleg from '@/components/MatchUitleg';
+import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
 import {
@@ -74,15 +74,28 @@ const VESTIGINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'vestigingsland',label:'Land'},
 ];
 const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
-  {key:'regio',label:'Algemene regio’s',kind:'multi',
+  {key:'regio',label:'Regio’s en provincies',kind:'multi',
     options:REGIO_OPTIES.map(value=>({value,label:value})),
-    note:'Specifieke regio’s en gemeenten leg je vast bij Zoekprofielen.'},
+    note:'Selecteer provincies om daaronder gemeenten te kiezen.'},
+  {key:'zoekGemeenten',label:'Gemeenten',kind:'gemeenten',
+    note:'Gemeente is niet hetzelfde als woonplaats. Zonder geverifieerde objectgemeente blijft matching te controleren.'},
+  {key:'zoekPlaatsen',label:'Plaatsen en steden',kind:'plaatsen',
+    note:'Meerdere plaatsnamen scheiden met een komma.'},
+  {key:'zoekgebiedToelichting',label:'Aanvullend zoekgebied / straal',kind:'textarea',
+    note:'Bijvoorbeeld 35 km rond Amersfoort; radii worden nog handmatig getoetst.'},
+  {key:'gewensteObjectomvang',label:'Gewenste objectomvang'},
+  {key:'gewensteSituatie',label:'Gewenste situatie',kind:'multi',
+    options:GEWENSTE_SITUATIES.map(value=>({value,label:value}))},
+  {key:'aankooptermijn',label:'Gewenste aankooptermijn'},
   {key:'budgetMin',label:'Budget minimum (€)',kind:'number'},
   {key:'budgetMax',label:'Budget maximum (€)',kind:'number'},
   {key:'rendementseis',label:'Rendementseis (%)',kind:'number'},
   {key:'kapitaalsituatie',label:'Kapitaalsituatie',kind:'select',
     options:Object.entries(KAPITAAL_SITUATIE_LABELS).map(([value,label])=>({value,label}))},
   {key:'eigenVermogenPct',label:'Eigen vermogen (%)',kind:'number'},
+  {key:'financieringsstructuur',label:'Financieringsstructuur'},
+  {key:'financieringsstatus',label:'Status financiering'},
+  {key:'besluitvorming',label:'Besluitvorming'},
   {key:'voorkeurDealstructuur',label:'Dealstructuur',kind:'multi',
     options:Object.entries(DEALSTRUCTUUR_LABELS).map(([value,label])=>({value,label}))},
 ];
@@ -99,8 +112,12 @@ const COMMUNICATIEVELDEN: readonly InlineRelatieVeld[] = [
     options:Object.entries(INVESTEERDER_SUBTYPE_LABELS).map(([value,label])=>({value,label}))},
 ];
 const NOTITIEVELDEN: readonly InlineRelatieVeld[] = [
-  {key:'aankoopcriteria',label:'Bestaande algemene aankoopcriteria',kind:'textarea',
-   note:'Nieuwe concrete criteria leg je vast bij Zoekprofielen. Bestaande tekst blijft behouden.'},
+  {key:'aankoopcriteria',label:'Belangrijkste acquisitiecriteria',kind:'textarea',
+   note:'Deze basiscriteria staan op Relaties; extra zoekprofielen zijn alleen voor afwijkende zoekrichtingen.'},
+  {key:'strategieToelichting',label:'Investeringsstrategie (vrije toelichting)',kind:'textarea',
+    note:'Bewaar websitekeuzes die niet één-op-één in de CRM-taxonomie passen ook letterlijk.'},
+  {key:'uitsluitingen',label:'Wat past nadrukkelijk niet?',kind:'textarea'},
+  {key:'overigeToelichting',label:'Overige toelichting',kind:'textarea'},
   {key:'verkoopintentie',label:'Verkoopintentie',kind:'textarea'},
   {key:'volgendeActie',label:'Losse opvolgnotitie',note:'Taken met deadlines staan bij Taken.'},
   {key:'notities',label:'Interne notities',kind:'textarea'},
@@ -143,7 +160,7 @@ export default function RelatieDetailPage() {
     return isConcreteTransactionPosition(stage, preferredBidderStage);
   });
   const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
-  const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
+  const matches = maakObjectVoorstellenVoorRelatie(relatie, store.objecten, store.zoekprofielen);
   const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
   const laatsteActiviteitDatum = getLaatsteActiviteitDatum(relatie.id, store.contactMoments);
   const volgendeOpenTaak = getVolgendeOpenTaak(relatie.id, store.taken);
@@ -330,7 +347,7 @@ export default function RelatieDetailPage() {
         <div className="space-y-4 lg:space-y-6 min-w-0">
           <section className="section-card">
             <header className="section-header">
-              <h2 className="section-title">Zoekprofielen ({zoekprofielen.length})</h2>
+              <h2 className="section-title">Aanvullende zoekprofielen ({zoekprofielen.length})</h2>
               <button onClick={() => { setZpBewerken(null); setZpOpen(true); }}
                 className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80">
                 <Plus className="h-3 w-3" /> Zoekprofiel toevoegen
@@ -339,8 +356,8 @@ export default function RelatieDetailPage() {
             <div className="divide-y divide-border/70">
               {zoekprofielen.length === 0 && (
                 <p className="px-5 py-6 text-xs text-muted-foreground">
-                  Nog geen aanvullende zoekprofielen. De algemene aankoopcriteria van deze relatie blijven beschikbaar.
-                  Voeg een profiel toe voor een specifieke zoekrichting.
+                  De aankoopcriteria onder Relaties zijn de basis voor matching.
+                  Voeg alleen een extra profiel toe voor een zelfstandige zoekrichting.
                 </p>
               )}
               {zoekprofielen.map(zp => (
@@ -365,40 +382,51 @@ export default function RelatieDetailPage() {
             </div>
           </section>
 
-          {matches.length > 0 && (
-            <section className="section-card">
-              <header className="section-header"><h2 className="section-title">Matchende objecten ({matches.length})</h2></header>
-              <div className="divide-y divide-border/70">
-                {matches.slice(0, 5).map((m, i) => {
-                  const obj = store.getObjectById(m.objectId);
-                  return (
-                    <details key={i} className="group">
-                      <summary className="block px-5 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer list-none">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <Link
-                              to={`/objecten/${m.objectId}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-sm text-foreground truncate hover:text-accent block"
-                            >
-                              {obj?.titel}
-                            </Link>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {obj?.plaats} · {m.redenen.slice(0, 2).join(' · ')}
-                            </p>
-                          </div>
-                          <MatchScoreBadge score={m.score} />
-                        </div>
-                      </summary>
-                      <div className="px-5 pb-4">
-                        <MatchUitleg match={m} object={obj ?? undefined} compact />
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+          <section className="section-card">
+            <header className="section-header">
+              <h2 className="section-title">Mogelijke objecten — R2 ({matches.length})</h2>
+            </header>
+            <p className="px-5 pt-3 text-xs text-muted-foreground">
+              Dezelfde directe-contactmatching als bij Objecten. Een makelaar of bemiddelaar is een
+              contactkandidaat, niet automatisch de uiteindelijke koper. Gemeenten zonder geverifieerde
+              objectgemeente, zoekradius, rendement en aanvullende voorwaarden moet je zelf controleren.
+            </p>
+            <div className="divide-y divide-border/70">
+              {matches.length===0&&<p className="px-5 py-4 text-sm text-muted-foreground">
+                Nog geen mogelijke objecten gevonden. Controleer de beschikbare criteria in Relaties.
+              </p>}
+              {matches.slice(0,5).map(({object,voorstel})=>{
+                const route=voorstel.besteRoute;
+                const labels={passend:'Indicatief passend',te_verifieren:'Te verifiëren',onvoldoende:'Onvoldoende gegevens',afwijkend:'Afwijkend'} as const;
+                return <details key={object.id} className="group">
+                  <summary className="flex justify-between items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-muted/40">
+                    <div className="min-w-0">
+                      <Link to={`/objecten/${object.id}`} onClick={e=>e.stopPropagation()}
+                        className="text-sm font-medium hover:text-accent break-words">{object.titel}</Link>
+                      <p className="text-xs text-muted-foreground">
+                        {object.plaats} · {route.bron==='relatie_basis'?'Algemene criteria (Relaties)':'Aanvullend zoekprofiel'}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded border border-border px-2 py-1 text-xs">
+                      {labels[route.kwalificatie]}
+                    </span>
+                  </summary>
+                  <div className="px-5 pb-4 space-y-1 text-xs">
+                    {route.toelichting.matcht.map((tekst,i)=><p key={i}>✓ {tekst}</p>)}
+                    {route.toelichting.controleer.map((tekst,i)=><p key={i} className="text-muted-foreground">
+                      Te controleren: {tekst}
+                    </p>)}
+                    {route.toelichting.afwijkend.map((tekst,i)=><p key={i} className="text-destructive">
+                      Afwijking: {tekst}
+                    </p>)}
+                    <p className="pt-2 text-muted-foreground">
+                      Geen automatische aanbieding of aankoopbeslissing. Eventuele aanvullende zoekrichtingen blijven behouden.
+                    </p>
+                  </div>
+                </details>;
+              })}
+            </div>
+          </section>
 
           <Timeline relatieId={relatie.id} />
         </div>

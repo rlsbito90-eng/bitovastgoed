@@ -268,3 +268,25 @@ test('A14-baseline: actieve zoekprofielen matchen zonder ontwikkelaar-rol of oud
  assert.equal(rows[0].besteRoute.zoekprofielId,'z1');
  assert.equal(rows[0].besteRoute.koperRelatieId,null);
 });
+
+test('primaire gemeenten op Relaties volgen de bestaande R2-voorzichtigheid zonder extra zoekprofiel',()=>{
+ const r=relatie({type:'makelaar',commercialRoles:['bemiddelaar'],propertyTypeIds:[],
+   budgetMax:undefined,regio:['Utrecht'],zoekGemeenten:['De Ronde Venen']});
+ const onbekend=voorstel(object({plaats:'Mijdrecht',provincie:'Utrecht',gemeente:undefined}),[r],[]);
+ assert.equal(onbekend.length,1);
+ assert.equal(onbekend[0].besteRoute.bron,'relatie_basis');
+ assert.equal(onbekend[0].besteRoute.koperRelatieId,null);
+ assert.ok(onbekend[0].besteRoute.toelichting.controleer.some(x=>x.includes('Gemeente van object onbekend')));
+ const bevestigd=voorstel(object({plaats:'Mijdrecht',provincie:'Utrecht',gemeente:'De Ronde Venen'}),[r],[]);
+ assert.equal(bevestigd.length,1);
+ assert.ok(bevestigd[0].besteRoute.toelichting.matcht.some(x=>x.includes('Bestuurlijke gemeente')));
+ const buiten=voorstel(object({plaats:'Abcoude',provincie:'Utrecht',gemeente:'Amsterdam'}),[r],[]);
+ assert.equal(buiten.length,0);
+});
+test('primaire plaatsvoorkeur Relaties gebruikt dezelfde R2-filter als bestaand Zoekprofiel',()=>{
+ const r=relatie({type:'makelaar',commercialRoles:['bemiddelaar'],propertyTypeIds:[],
+   budgetMax:undefined,regio:['Noord-Brabant'],zoekPlaatsen:['Breda','Tilburg']});
+ assert.equal(voorstel(object({plaats:'Breda'}),[r],[]).length,1);
+ assert.equal(voorstel(object({plaats:'Rotterdam',provincie:'Zuid-Holland'}),[r],[]).length,1);
+ assert.ok(voorstel(object({plaats:'Rotterdam',provincie:'Zuid-Holland'}),[r],[])[0].besteRoute.toelichting.controleer.some(x=>x.includes('Plaats buiten')));
+});

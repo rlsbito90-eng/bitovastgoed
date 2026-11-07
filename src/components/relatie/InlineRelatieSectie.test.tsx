@@ -4,6 +4,7 @@ import { describe,it,expect,vi } from 'vitest';
 import { render,screen,fireEvent,waitFor } from '@testing-library/react';
 import type { Relatie } from '@/data/mock-data';
 import InlineRelatieSectie from './InlineRelatieSectie';
+import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 
 const relatie={
   id:'test-relatie',bedrijfsnaam:'Voorbeeld BV',type:'belegger',
@@ -64,4 +65,65 @@ describe('Direct bewerken relatiegegevens — geïsoleerde patch',()=>{
     expect(save).not.toHaveBeenCalled();
     confirm.mockRestore();
   });
+});
+
+const websiteSituaties = [
+  {key:'gewensteSituatie',label:'Gewenste situatie',kind:'multi',
+   options:GEWENSTE_SITUATIES.map(value=>({value,label:value}))},
+  {key:'zoekgebiedToelichting',label:'Zoekgebied (plaatsen, straal en toelichting)',kind:'textarea'},
+] as const;
+
+describe('Investeringsprofiel op Relaties — websitesituaties en bronbehoud',()=>{
+  it('toont alle zeven websitesituaties, inclusief ontwikkeling en transformatie',()=>{
+    render(<InlineRelatieSectie titel="Investeringsprofiel" relatie={relatie}
+      velden={websiteSituaties} onSave={vi.fn()}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Investeringsprofiel bewerken'}));
+    expect(screen.getByLabelText('Transformatiepotentie')).toBeTruthy();
+    expect(screen.getByLabelText('Herontwikkelingspotentie')).toBeTruthy();
+    expect(screen.getByLabelText('Afhankelijk van object')).toBeTruthy();
+    expect(GEWENSTE_SITUATIES).toHaveLength(7);
+  });
+  it('slaat uitsluitend de gewijzigde objectsituatie op',async()=>{
+    const save=vi.fn().mockResolvedValue(undefined);
+    render(<InlineRelatieSectie titel="Investeringsprofiel" relatie={relatie}
+      velden={websiteSituaties} onSave={save}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Investeringsprofiel bewerken'}));
+    fireEvent.click(screen.getByLabelText('Herontwikkelingspotentie'));
+    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+    await waitFor(()=>expect(save).toHaveBeenCalledWith({gewensteSituatie:['Herontwikkelingspotentie']}));
+  });
+  it('kan de vrije zoekradius opslaan zonder ongewenste overschrijving',async()=>{
+    const save=vi.fn().mockResolvedValue(undefined);
+    render(<InlineRelatieSectie titel="Investeringsprofiel" relatie={relatie}
+      velden={websiteSituaties} onSave={save}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Investeringsprofiel bewerken'}));
+    fireEvent.change(screen.getByLabelText('Zoekgebied (plaatsen, straal en toelichting)'),{
+      target:{value:'35 km vanaf Amersfoort'},
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekgebiedToelichting:'35 km vanaf Amersfoort'}));
+  });
+});
+
+describe('Fase 1 — gemeenten en plaatsen direct bij Relaties',()=>{
+ const geoVelden=[{key:'regio',label:'Regio',kind:'multi',options:[{value:'Noord-Brabant',label:'Noord-Brabant'}]},
+   {key:'zoekGemeenten',label:'Gemeenten',kind:'gemeenten'},
+   {key:'zoekPlaatsen',label:'Plaatsen',kind:'plaatsen'}] as const;
+ it('kiest een bestaande officiële gemeente zonder nieuw zoekprofiel',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineRelatieSectie titel="Geo" relatie={{...relatie,regio:['Noord-Brabant']}} velden={geoVelden} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
+   fireEvent.change(screen.getByRole('textbox',{name:'Gemeente zoeken'}),{target:{value:'Oisterwijk'}});
+   fireEvent.click(screen.getByRole('checkbox',{name:'Oisterwijk'}));
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekGemeenten:['Oisterwijk']}));
+ });
+ it('slaat meerdere plaatsen als aparte selectie op',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineRelatieSectie titel="Geo" relatie={relatie} velden={geoVelden} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
+   fireEvent.change(screen.getByLabelText('Plaatsen'),{target:{value:'Breda, Tilburg'}});
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekPlaatsen:['Breda','Tilburg']}));
+ });
 });

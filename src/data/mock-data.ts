@@ -1,3 +1,5 @@
+import { alsGemeenteToken, provinciesBijGemeenten } from '@/lib/geo/gemeenten2026';
+
 // Bito Vastgoed — Types + helpers + matching engine.
 // Centraal typen-bestand. Gebruikt door alle pages, forms, hooks.
 
@@ -245,6 +247,20 @@ export interface Relatie {
   budgetMin?: number;
   budgetMax?: number;
   rendementseis?: number;
+  /** Matchbare gebiedskeuze direct onder Relaties, los van optionele Zoekprofielen. */
+  zoekGemeenten?: string[];
+  zoekPlaatsen?: string[];
+  /** Volledige aankoopcriteria blijven op Relaties; extra zoekprofielen zijn optioneel. */
+  zoekgebiedToelichting?: string;
+  gewensteObjectomvang?: string;
+  gewensteSituatie?: string[];
+  aankooptermijn?: string;
+  financieringsstructuur?: string;
+  financieringsstatus?: string;
+  besluitvorming?: string;
+  uitsluitingen?: string;
+  overigeToelichting?: string;
+  strategieToelichting?: string;
   kapitaalsituatie?: KapitaalSituatie;
   eigenVermogenPct?: number;
   voorkeurDealstructuur?: Dealstructuur[];
@@ -858,7 +874,7 @@ export const PROVINCIES = [
   'Noord-Brabant', 'Limburg',
 ];
 
-export const REGIO_OPTIES = ['Randstad', ...PROVINCIES];
+export const REGIO_OPTIES = ['Heel Nederland', 'Randstad', ...PROVINCIES];
 
 
 // =====================================================================
@@ -1393,20 +1409,92 @@ export function getMatchesForObjectFromData(
     .sort((a, b) => b.score - a.score);
 }
 
+/** Virtuele, niet-opgeslagen zoekroute vanuit Relaties.
+ * Ook makelaars en bemiddelaars zijn directe contactkandidaten (R2).
+ * Een contactroute is nooit bewijs dat de partij zelf de uiteindelijke koper is.
+ * Elk expliciet zoekcriterium kan volstaan; vastgoedtype is niet verplicht.
+ */
+export function maakRelatieBasisZoekprofiel(relatie: Relatie): Zoekprofiel | null {
+  const typeVastgoed = relatie.assetClasses ?? [];
+  const propertyTypeIds = relatie.propertyTypeIds ?? [];
+  const heeftCriteria = typeVastgoed.length>0 || propertyTypeIds.length>0 ||
+    (relatie.propertySubtypeIds?.length??0)>0 || (relatie.dealTypeIds?.length??0)>0 ||
+    (relatie.regio?.length??0)>0 || (relatie.zoekGemeenten?.length??0)>0 ||
+    (relatie.zoekPlaatsen?.length??0)>0 ||
+    relatie.budgetMin != null || relatie.budgetMax != null;
+  if (!heeftCriteria) return null;
+  const benaderbareProfielen: readonly Partijprofiel[] = [
+    'belegger', 'ontwikkelende_belegger', 'fonds', 'family_office',
+    'buitenlandse_belegger', 'ontwikkelaar', 'vastgoedondernemer',
+    'makelaar', 'bemiddelaar',
+  ];
+  const benaderbareRollen = ['koper','makelaar','bemiddelaar','ontwikkelaar'];
+  // Een actueel partijprofiel voorkomt dat een oude standaardwaarde 'belegger'
+  // een expliciet geïdentificeerde eigenaar onterecht als kandidaat aanwijst.
+  const benaderbaar = relatie.commercialRoles != null
+    ? relatie.commercialRoles.some(rol => benaderbareRollen.includes(rol))
+    : relatie.partijprofiel != null
+      ? benaderbareProfielen.includes(relatie.partijprofiel)
+      : ['belegger','ontwikkelaar','makelaar'].includes(relatie.type);
+  if (!benaderbaar) return null;
+
+  return {
+    id: `relatie:${relatie.id}`,
+    naam: 'Algemene zoekcriteria (Relaties)',
+    relatieId: relatie.id,
+    typeVastgoed,
+    propertyTypeIds,
+    propertySubtypeIds: relatie.propertySubtypeIds ?? [],
+    dealTypeIds: relatie.dealTypeIds ?? [],
+    regio: relatie.regio ?? [],
+    steden: [
+      ...(relatie.zoekGemeenten ?? []).map(alsGemeenteToken),
+      ...(relatie.zoekPlaatsen ?? []),
+    ],
+    prijsMin: relatie.budgetMin,
+    prijsMax: relatie.budgetMax,
+    ontwikkelPotentie: relatie.vastgoedStrategieen?.includes('projectontwikkeling') ?? false,
+    transformatiePotentie: relatie.vastgoedStrategieen?.includes('transformatie') ?? false,
+    prioriteit: 3,
+    status: 'actief',
+    aanvullendeCriteria: relatie.aankoopcriteria,
+  };
+}
+
+/** Combinatie van de algemene relatiecriteria en vrijwillige extra zoekprofielen.
+ * Maximaal één resultaat per object; de hoogste match wint.
+ */
 export function getMatchesForRelatieFromData(
   relatieId: string,
   profielen: Zoekprofiel[],
   objecten: ObjectVastgoed[],
+  relatie?: Relatie,
 ): MatchResult[] {
-  const eigenProfielen = profielen.filter(z => z.relatieId === relatieId && z.status === 'actief');
-  const results: MatchResult[] = [];
-  for (const profiel of eigenProfielen) {
-    for (const object of objecten) {
+  const extra = profielen.filter(z => z.relatieId === relatieId && z.status === 'actief');
+  const basis = relatie && relatie.id === relatieId ? maakRelatieBasisZoekprofiel(relatie) : null;
+  const routes = basis ? [basis, ...extra] : extra;
+  const bestPerObject = new Map<string, MatchResult>();
+  for (const profiel of routes) {
+    for (const object of objecten.filter(o => o.status === 'beschikbaar' && !o.isArchived && !o.softDeletedAt)) {
+      // De bestuurlijke gemeente is nog niet gevalideerd in ObjectVastgoed.
+      // Daarom geen bevestigde gemeentematch. Alleen een geografisch mogelijke
+      // provincie krijgt de status 'te verifiëren' via berekenMatchScore.
+      if (profiel === basis && (relatie?.zoekGemeenten?.length ?? 0)>0) {
+        const provincies=provinciesBijGemeenten(relatie!.zoekGemeenten ?? []);
+        if(provincies.length>0 && object.provincie &&
+          !provincies.includes(object.provincie)) continue;
+      }
+      // Bij alleen nieuwe taxonomie is een ontbrekend objecttype onvoldoende bewijs
+      // voor een match. Anders zouden alleen prijs + regio een fout-positieve match geven.
+      if (profiel === basis && (profiel.propertyTypeIds?.length ?? 0) > 0 &&
+          !object.propertyTypeId && (profiel.typeVastgoed?.length ?? 0) === 0) continue;
       const match = berekenMatchScore(object, profiel);
-      if (match) results.push(match);
+      if (!match) continue;
+      const bestaand = bestPerObject.get(object.id);
+      if (!bestaand || match.score > bestaand.score) bestPerObject.set(object.id, match);
     }
   }
-  return results.sort((a, b) => b.score - a.score);
+  return [...bestPerObject.values()].sort((a, b) => b.score - a.score);
 }
 
 export function getAllMatchesFromData(
