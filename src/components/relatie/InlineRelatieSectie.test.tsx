@@ -104,3 +104,26 @@ describe('Investeringsprofiel op Relaties — websitesituaties en bronbehoud',()
     await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekgebiedToelichting:'35 km vanaf Amersfoort'}));
   });
 });
+
+describe('Fase 1 — gemeenten en plaatsen direct bij Relaties',()=>{
+ const geoVelden=[{key:'regio',label:'Regio',kind:'multi',options:[{value:'Noord-Brabant',label:'Noord-Brabant'}]},
+   {key:'zoekGemeenten',label:'Gemeenten',kind:'gemeenten'},
+   {key:'zoekPlaatsen',label:'Plaatsen',kind:'plaatsen'}] as const;
+ it('kiest een bestaande officiële gemeente zonder nieuw zoekprofiel',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineRelatieSectie titel="Geo" relatie={{...relatie,regio:['Noord-Brabant']}} velden={geoVelden} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
+   fireEvent.change(screen.getByRole('textbox',{name:'Gemeente zoeken'}),{target:{value:'Oisterwijk'}});
+   fireEvent.click(screen.getByRole('checkbox',{name:'Oisterwijk'}));
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekGemeenten:['Oisterwijk']}));
+ });
+ it('slaat meerdere plaatsen als aparte selectie op',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineRelatieSectie titel="Geo" relatie={relatie} velden={geoVelden} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
+   fireEvent.change(screen.getByLabelText('Plaatsen'),{target:{value:'Breda, Tilburg'}});
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekPlaatsen:['Breda','Tilburg']}));
+ });
+});
