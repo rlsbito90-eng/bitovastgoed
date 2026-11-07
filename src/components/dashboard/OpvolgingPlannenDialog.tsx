@@ -84,8 +84,8 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
 
   return (
     <Dialog open={!!item} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent style={{ maxWidth: 'min(28rem, calc(100vw - 1rem))' }}>
+        <DialogHeader className="pr-12">
           <DialogTitle>Opvolging plannen</DialogTitle>
           <DialogDescription>{item ? `Voor ${item.titel}. Plan wanneer je eraan werkt; een deadline alleen als er echt een uiterste datum is.` : ''}</DialogDescription>
         </DialogHeader>

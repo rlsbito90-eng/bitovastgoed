@@ -58,15 +58,18 @@ function Regel({ item, onPlanOpvolging }: { item: AandachtItem; onPlanOpvolging?
               aria-expanded={extraOpen}
               aria-label={`${item.extraSignalen} ${item.extraSignalen === 1 ? 'ander signaal' : 'andere signalen'}: ${item.overigeSignalen.join(', ')}`}
               title={`Ook: ${item.overigeSignalen.join(', ')}`}
-              className="ml-1.5 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:bg-muted/70"
-            >{`+${item.extraSignalen}`}</button>
+              className="group/extra ml-0.5 -my-3 inline-flex items-center justify-center align-middle min-w-[32px] px-1 bg-transparent"
+            >
+              {/* Ruim tikvlak (mobiel), compact label. */}
+              <span className="rounded-full bg-muted px-1.5 py-px text-[10px] font-semibold leading-4 text-muted-foreground group-hover/extra:bg-muted/70">{`+${item.extraSignalen}`}</span>
+            </button>
           )}
         </p>
         {extraOpen && item.extraSignalen > 0 && (
           <p data-testid="aandacht-extra" className="text-xs text-muted-foreground mt-0.5">{`Ook: ${item.overigeSignalen.join(', ')}`}</p>
         )}
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.toelichting}</p>
-        {bod && <p data-testid="aandacht-bod" className="text-xs text-foreground mt-0.5 font-mono-data truncate">{bod}</p>}
+        {bod && <p data-testid="aandacht-bod" className="text-xs text-foreground mt-0.5 tabular-nums break-words">{bod}</p>}
         <p className="text-xs text-foreground mt-1">
           <span className="text-muted-foreground">Volgende actie: </span>
           <span>{item.volgendeActie}</span>
