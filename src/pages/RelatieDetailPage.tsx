@@ -27,6 +27,7 @@ import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relati
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
 import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
 import InlineVastgoedVoorkeuren from '@/components/relatie/InlineVastgoedVoorkeuren';
+import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import MatchUitleg from '@/components/MatchUitleg';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
@@ -80,10 +81,8 @@ const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'zoekgebiedToelichting',label:'Zoekgebied (plaatsen, straal en toelichting)',kind:'textarea',
     note:'Vrije tekst vraagt handmatige beoordeling; alleen gestructureerde regio’s tellen automatisch mee.'},
   {key:'gewensteObjectomvang',label:'Gewenste objectomvang'},
-  {key:'gewensteSituatie',label:'Gewenste situatie',kind:'multi',options:[
-    {value:'Verhuurd',label:'Verhuurd'}, {value:'Gedeeltelijk verhuurd',label:'Gedeeltelijk verhuurd'},
-    {value:'Leegstaand',label:'Leegstaand'}, {value:'Uitpondpotentie',label:'Uitpondpotentie'},
-    {value:'Afhankelijk van object',label:'Afhankelijk van object'}]},
+  {key:'gewensteSituatie',label:'Gewenste situatie',kind:'multi',
+    options:GEWENSTE_SITUATIES.map(value=>({value,label:value}))},
   {key:'aankooptermijn',label:'Gewenste aankooptermijn'},
   {key:'budgetMin',label:'Budget minimum (€)',kind:'number'},
   {key:'budgetMax',label:'Budget maximum (€)',kind:'number'},
@@ -112,7 +111,8 @@ const COMMUNICATIEVELDEN: readonly InlineRelatieVeld[] = [
 const NOTITIEVELDEN: readonly InlineRelatieVeld[] = [
   {key:'aankoopcriteria',label:'Belangrijkste acquisitiecriteria',kind:'textarea',
    note:'Deze basiscriteria staan op Relaties; extra zoekprofielen zijn alleen voor afwijkende zoekrichtingen.'},
-  {key:'strategieToelichting',label:'Aanvullende acquisitiestrategie',kind:'textarea'},
+  {key:'strategieToelichting',label:'Investeringsstrategie (vrije toelichting)',kind:'textarea',
+    note:'Bewaar websitekeuzes die niet één-op-één in de CRM-taxonomie passen ook letterlijk.'},
   {key:'uitsluitingen',label:'Wat past nadrukkelijk niet?',kind:'textarea'},
   {key:'overigeToelichting',label:'Overige toelichting',kind:'textarea'},
   {key:'verkoopintentie',label:'Verkoopintentie',kind:'textarea'},
@@ -381,7 +381,11 @@ export default function RelatieDetailPage() {
 
           {matches.length > 0 && (
             <section className="section-card">
-              <header className="section-header"><h2 className="section-title">Matchende objecten ({matches.length})</h2></header>
+              <header className="section-header"><h2 className="section-title">Mogelijke matches ({matches.length})</h2></header>
+               <p className="px-5 pt-3 text-xs text-muted-foreground">
+                 Indicatieve voorselectie. Controleer zelf rendementseis, zoekradius, gewenste situatie, financiering
+                 en overige uitsluitingen voordat je een propositie verstuurt.
+               </p>
               <div className="divide-y divide-border/70">
                 {matches.slice(0, 5).map((m, i) => {
                   const obj = store.getObjectById(m.objectId);
