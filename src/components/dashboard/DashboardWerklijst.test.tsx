@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { Taak } from '@/data/mock-data';
-import DashboardWerklijst from './DashboardWerklijst';
+import DashboardWerklijst, { werklijstZichtbaarheid } from './DashboardWerklijst';
 import DashboardKengetallen from './DashboardKengetallen';
 
 vi.mock('@/components/tasks/QuickTaskCapture', () => ({
@@ -32,10 +32,63 @@ describe('DashboardWerklijst', () => {
     expect(screen.getByText('2 achterstallig')).toBeTruthy();
   });
 
-  it('toont maximaal 5 per groep en verwijst naar Taken voor de rest', () => {
+  // jsdom past geen CSS toe: zichtbaarheid wordt via de klassen per breakpoint getest.
+  const zichtbaarDesktop = (el: Element) => !/(^| )hidden( |$)/.test(el.className) || /lg:block/.test(el.className);
+  const zichtbaarDesktopNa = (el: Element) => zichtbaarDesktop(el) && !/lg:hidden/.test(el.className);
+  const zichtbaarMobiel = (el: Element) => !/(^| )hidden( |$)/.test(el.className);
+
+  it('desktop: maximaal 5 per groep en een link naar Taken voor de rest', () => {
     renderLijst({ achterstallig: [], doorgeschoven: taken('D', 7), vandaag: [] });
-    expect(screen.getAllByTestId('rij')).toHaveLength(5);
-    expect(screen.getByText('Bekijk alle (7) in Taken')).toBeTruthy();
+    const rijen = screen.getAllByTestId('werklijst-taak');
+    expect(rijen.filter(zichtbaarDesktopNa)).toHaveLength(5);
+    const link = screen.getByTestId('werklijst-naar-taken');
+    expect(link.textContent).toBe('Bekijk alle (7) in Taken');
+    expect(link.className).toContain('hidden lg:block');
+    expect(screen.getByTestId('werklijst-toon-meer').className).toContain('lg:hidden');
+  });
+
+  it('mobiel: standaard 3 per groep; Toon meer maakt alle taken van de groep zichtbaar', () => {
+    renderLijst({ achterstallig: [], doorgeschoven: taken('D', 7), vandaag: [] });
+    const knop = screen.getByTestId('werklijst-toon-meer');
+    expect(knop.textContent).toBe('Toon meer (4)');
+    expect(screen.getAllByTestId('werklijst-taak').filter(zichtbaarMobiel)).toHaveLength(3);
+    fireEvent.click(knop);
+    expect(knop.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getAllByTestId('werklijst-taak').filter(zichtbaarMobiel)).toHaveLength(7);
+    // desktop blijft ook uitgeklapt op 5 met de link
+    expect(screen.getAllByTestId('werklijst-taak').filter(zichtbaarDesktopNa)).toHaveLength(5);
+    fireEvent.click(knop);
+    expect(knop.textContent).toBe('Toon meer (4)');
+  });
+
+  it('alle taken staan in de lijst, in dezelfde volgorde en in de juiste groep', () => {
+    const groups = { achterstallig: taken('A', 4), doorgeschoven: taken('D', 6), vandaag: taken('V', 2) };
+    renderLijst(groups);
+    for (const [naam, lijst] of [['achterstallig', groups.achterstallig], ['doorgeschoven', groups.doorgeschoven], ['vandaag', groups.vandaag]] as const) {
+      const groep = screen.getByTestId(`werklijst-groep-${naam}`);
+      expect(within(groep).getAllByTestId('rij').map(r => r.textContent)).toEqual(lijst.map(t => t.titel));
+      expect(within(groep).getByText(String(lijst.length))).toBeTruthy();
+    }
+    expect(screen.getByText('8 voor vandaag')).toBeTruthy();
+    expect(screen.getByText('4 achterstallig')).toBeTruthy();
+  });
+
+  it('elke groep klapt los uit; groepen tot 3 taken hebben geen Toon meer', () => {
+    renderLijst({ achterstallig: taken('A', 5), doorgeschoven: taken('D', 5), vandaag: taken('V', 3) });
+    const [a, d] = screen.getAllByTestId('werklijst-toon-meer');
+    expect(screen.getAllByTestId('werklijst-toon-meer')).toHaveLength(2);
+    fireEvent.click(a);
+    expect(a.getAttribute('aria-expanded')).toBe('true');
+    expect(d.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByTestId('werklijst-naar-taken')).toBeNull();
+  });
+
+  it('zichtbaarheidsregel per positie', () => {
+    expect(werklijstZichtbaarheid(2, false)).toBe('');
+    expect(werklijstZichtbaarheid(3, false)).toBe('hidden lg:block');
+    expect(werklijstZichtbaarheid(5, false)).toBe('hidden');
+    expect(werklijstZichtbaarheid(3, true)).toBe('');
+    expect(werklijstZichtbaarheid(5, true)).toBe('lg:hidden');
   });
 
   it('laat lege groepen weg', () => {

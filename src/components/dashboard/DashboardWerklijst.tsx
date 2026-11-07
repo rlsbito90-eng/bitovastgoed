@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CalendarCheck2, Redo2 } from 'lucide-react';
@@ -5,7 +6,22 @@ import type { Taak } from '@/data/mock-data';
 import type { TodayWorkGroups } from '@/lib/tasks/workView';
 import QuickTaskCapture from '@/components/tasks/QuickTaskCapture';
 
+/** Desktop (lg en breder): zoveel taken per groep, daarna "Bekijk alle (n) in Taken". */
 export const WERKLIJST_MAX_PER_GROEP = 5;
+/** Mobiel (smaller dan lg): standaard zoveel taken per groep, daarna "Toon meer". */
+export const WERKLIJST_MAX_PER_GROEP_MOBIEL = 3;
+
+/**
+ * Zichtbaarheid van de taak op positie `index` (CSS, zodat mobiel en desktop dezelfde lijst delen):
+ * - eerste 3: altijd;
+ * - 4 en 5: desktop altijd, mobiel pas na "Toon meer";
+ * - vanaf 6: desktop nooit (daar staat de link naar Taken), mobiel na "Toon meer".
+ */
+export function werklijstZichtbaarheid(index: number, uitgeklapt: boolean): string {
+  if (index < WERKLIJST_MAX_PER_GROEP_MOBIEL) return '';
+  if (index < WERKLIJST_MAX_PER_GROEP) return uitgeklapt ? '' : 'hidden lg:block';
+  return uitgeklapt ? 'lg:hidden' : 'hidden';
+}
 
 interface Props {
   groups: TodayWorkGroups;
@@ -19,18 +35,34 @@ function Groep({ titel, icon, taken, danger, renderTask }: {
   danger?: boolean;
   renderTask: (task: Taak) => React.ReactNode;
 }) {
+  const [uitgeklapt, setUitgeklapt] = useState(false);
   if (taken.length === 0) return null;
-  const zichtbaar = taken.slice(0, WERKLIJST_MAX_PER_GROEP);
-  const rest = taken.length - zichtbaar.length;
+  const restDesktop = taken.length - WERKLIJST_MAX_PER_GROEP;
+  const restMobiel = taken.length - WERKLIJST_MAX_PER_GROEP_MOBIEL;
   return (
     <div data-testid={`werklijst-groep-${titel.toLowerCase()}`}>
       <div className={`flex items-center justify-between gap-2 px-4 sm:px-5 pt-3 pb-1.5 text-xs font-semibold ${danger ? 'text-destructive' : 'text-muted-foreground'}`}>
         <span className="inline-flex items-center gap-1.5">{icon}{titel}</span>
         <span className="tabular-nums">{taken.length}</span>
       </div>
-      <div className="divide-y divide-border/60">{zichtbaar.map(renderTask)}</div>
-      {rest > 0 && (
-        <Link to="/taken" className="block px-4 sm:px-5 py-2.5 text-xs font-medium text-accent hover:underline">
+      <div className="divide-y divide-border/60">
+        {taken.map((taak, index) => (
+          <div key={taak.id} data-testid="werklijst-taak" className={werklijstZichtbaarheid(index, uitgeklapt)}>{renderTask(taak)}</div>
+        ))}
+      </div>
+      {restMobiel > 0 && (
+        <button
+          type="button"
+          data-testid="werklijst-toon-meer"
+          aria-expanded={uitgeklapt}
+          onClick={() => setUitgeklapt(v => !v)}
+          className="lg:hidden block w-full text-left px-4 sm:px-5 py-2.5 text-xs font-medium text-accent hover:underline"
+        >
+          {uitgeklapt ? 'Toon minder' : `Toon meer (${restMobiel})`}
+        </button>
+      )}
+      {restDesktop > 0 && (
+        <Link to="/taken" data-testid="werklijst-naar-taken" className="hidden lg:block px-4 sm:px-5 py-2.5 text-xs font-medium text-accent hover:underline">
           Bekijk alle ({taken.length}) in Taken
         </Link>
       )}
