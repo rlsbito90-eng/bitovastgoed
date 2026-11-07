@@ -57,8 +57,11 @@ describe('Relaties is het primaire investeringsprofiel', () => {
     expect(getMatchesForRelatieFromData(basis.id, [], [object(1200000)], basis)).toHaveLength(0);
   });
 
-  it('vereist expliciete vastgoedvoorkeuren voor automatische basismatching', () => {
-    expect(maakRelatieBasisZoekprofiel({...basis, assetClasses: [], propertyTypeIds: []})).toBeNull();
+  it('brede zoekcriteria kunnen ook zonder vastgoedtype een contactroute vormen', () => {
+    expect(maakRelatieBasisZoekprofiel({...basis, assetClasses: [], propertyTypeIds: []})).not.toBeNull();
+    expect(maakRelatieBasisZoekprofiel({
+      ...basis,assetClasses:[],propertyTypeIds:[],regio:[],budgetMin:undefined,budgetMax:undefined,
+    })).toBeNull();
   });
 
   it('behoudt extra profielen, maar toont niet twee keer hetzelfde object', () => {
@@ -104,15 +107,35 @@ describe('Relaties is het primaire investeringsprofiel', () => {
     expect(maakRelatieBasisZoekprofiel(eigenaar)).toBeNull();
   });
 
-  it('behandelt een bemiddelaar zonder koperrol niet als eindkoper', () => {
+  it('behoudt makelaars/bemiddelaars als directe contactroute zonder hen eindkoper te noemen', () => {
     const bemiddelaar: Relatie = {...basis, partijprofiel: 'bemiddelaar', commercialRoles: null};
-    expect(maakRelatieBasisZoekprofiel(bemiddelaar)).toBeNull();
+    expect(maakRelatieBasisZoekprofiel(bemiddelaar)).not.toBeNull();
+    expect(maakRelatieBasisZoekprofiel({...bemiddelaar,commercialRoles:['bemiddelaar']})).not.toBeNull();
   });
 
   it('past geen basismatching toe zonder kooprol', () => {
     const verkoper: Relatie = {...basis, commercialRoles: ['verkoper']};
     expect(maakRelatieBasisZoekprofiel(verkoper)).toBeNull();
     expect(getMatchesForRelatieFromData(verkoper.id, [], [object()], verkoper)).toHaveLength(0);
+  });
+
+  it('bewaart gemeenten en steden als echte gestructureerde criteria', () => {
+    const r: Relatie={...basis,zoekGemeenten:['Oisterwijk'],zoekPlaatsen:['Haaren']};
+    const p=maakRelatieBasisZoekprofiel(r);
+    expect(p?.steden).toEqual(['gemeente:Oisterwijk','Haaren']);
+  });
+
+  it('wijst objecten buiten de bekende provincie van een gezochte gemeente af', () => {
+    const r: Relatie={...basis,regio:['Noord-Brabant'],zoekGemeenten:['Oisterwijk']};
+    expect(getMatchesForRelatieFromData(r.id,[],[object()],r)).toHaveLength(0);
+  });
+
+  it('neemt objecten in de juiste provincie alleen ter verificatie mee', () => {
+    const r: Relatie={...basis,regio:['Noord-Brabant'],zoekGemeenten:['Oisterwijk']};
+    const o={...object(),plaats:'Oisterwijk',provincie:'Noord-Brabant'};
+    const matches=getMatchesForRelatieFromData(r.id,[],[o],r);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].ontbrekendeData).toContain('regio');
   });
 
   it('verbergt gearchiveerde en soft-deleted objecten uit de relatiekaart', () => {
