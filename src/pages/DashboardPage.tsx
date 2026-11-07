@@ -5,6 +5,8 @@ import DashboardKengetallen from '@/components/dashboard/DashboardKengetallen';
 import DashboardWerklijst from '@/components/dashboard/DashboardWerklijst';
 import DashboardAandacht from '@/components/dashboard/DashboardAandacht';
 import OpvolgingPlannenDialog from '@/components/dashboard/OpvolgingPlannenDialog';
+import DashboardLopendeTransacties from '@/components/dashboard/DashboardLopendeTransacties';
+import { bepaalLopendeTransacties } from '@/lib/dashboard/lopendeTransacties';
 import { useBiedingen } from '@/hooks/useBiedingen';
 import { bepaalAandacht, type AandachtItem } from '@/lib/dashboard/aandacht';
 import { useTaskRowActions } from '@/hooks/useTaskRowActions';
@@ -14,6 +16,7 @@ import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
 import {
   getAllMatchesFromData,
   berekenCommissieStats,
+  VOLGENDE_ACTIE_LABELS,
 } from '@/data/mock-data';
 import type { Taak } from '@/data/mock-data';
 import PageHeader from '@/components/PageHeader';
@@ -103,6 +106,20 @@ export default function DashboardPage() {
     },
   }, nu), [store.relaties, store.contactpersonen, objecten, store.pipelineKandidaten, biedingen.items, store.contactMoments, taken, deals, matches, store.zoekprofielen, planningById, vandaagKey]);
 
+  const lopendeTransacties = useMemo(() => bepaalLopendeTransacties({
+    objecten,
+    kandidaten: store.pipelineKandidaten,
+    biedingen: biedingen.items,
+    contactMoments: store.contactMoments,
+    taken,
+    planDatumVoor: taak => planningById.get(taak.id)?.planDatum ?? null,
+    relatieNaam: id => {
+      const rel = store.getRelatieById(id);
+      return rel ? getRelatieNaamCompact(rel, store.contactpersonen) : null;
+    },
+    actieLabel: type => VOLGENDE_ACTIE_LABELS[type as keyof typeof VOLGENDE_ACTIE_LABELS] ?? null,
+  }, nu), [store.relaties, store.contactpersonen, objecten, store.pipelineKandidaten, biedingen.items, store.contactMoments, taken, planningById, vandaagKey]);
+
   const commissieStats = useMemo(
     () => berekenCommissieStats(deals, (oid) => store.getObjectById(oid)?.vraagprijs, nu.getFullYear()),
     [deals, store, nu],
@@ -135,11 +152,14 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 lg:gap-6 lg:grid-cols-2 items-start">
         <DashboardWerklijst groups={werklijst} renderTask={renderWerklijstTaak} />
-        <DashboardAandacht
-          overzicht={aandacht}
-          status={biedingen.loading ? 'laden' : biedingen.error ? 'fout' : 'klaar'}
-          onPlanOpvolging={setOpvolgingVoor}
-        />
+        <div className="space-y-4 lg:space-y-6 min-w-0">
+          <DashboardAandacht
+            overzicht={aandacht}
+            status={biedingen.loading ? 'laden' : biedingen.error ? 'fout' : 'klaar'}
+            onPlanOpvolging={setOpvolgingVoor}
+          />
+          <DashboardLopendeTransacties overzicht={lopendeTransacties} />
+        </div>
       </div>
 
       <OpvolgingPlannenDialog

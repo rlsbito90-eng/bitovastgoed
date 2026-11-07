@@ -150,3 +150,12 @@ describe('Dashboard D4 — verhuisd naar Rapportage', () => {
     expect(rapportage).not.toContain('Nieuwe kansen');
   });
 });
+
+describe('Dashboard D5 — Lopende transacties', () => {
+  it('staat onder Aandacht nodig en rekent op de kandidatenpipeline', () => {
+    expect(page).toContain('<DashboardLopendeTransacties overzicht={lopendeTransacties} />');
+    expect(page.indexOf('<DashboardAandacht')).toBeLessThan(page.indexOf('<DashboardLopendeTransacties'));
+    expect(page).toContain('bepaalLopendeTransacties({');
+    expect(page).toContain('kandidaten: store.pipelineKandidaten');
+  });
+});
