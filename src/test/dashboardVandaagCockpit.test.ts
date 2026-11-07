@@ -69,7 +69,6 @@ describe('Dashboard D2 — werklijst met dezelfde regels als Taken', () => {
     expect(page).toContain('aanbodvolume={aanbodvolume}');
     expect(page).not.toContain('kpi-hero');
     expect(page.indexOf('<DashboardKengetallen')).toBeLessThan(page.indexOf('<DashboardWerklijst'));
-    expect(page.indexOf('<DashboardWerklijst')).toBeLessThan(page.indexOf('Object Pipeline momentum'));
   });
 
   it('achterstallig-kengetal komt uit dezelfde werklijst', () => {
@@ -108,7 +107,34 @@ describe('Dashboard D3 — Aandacht nodig', () => {
     expect(page).toContain('getRelatieNaamCompact(rel, store.contactpersonen)');
   });
 
-  it('bestaande onderdelen blijven tot D4 staan', () => {
-    for (const s of ['Object Pipeline momentum', 'Nieuwe kansen', '<CommissieWidget']) expect(page).toContain(s);
+});
+
+describe('Dashboard D4 — verhuisd naar Rapportage', () => {
+  const rapportage = readFileSync(resolve(process.cwd(), 'src/pages/RapportagePage.tsx'), 'utf8');
+  const dealflow = readFileSync(resolve(process.cwd(), 'src/components/rapportage/ActueleDealflow.tsx'), 'utf8');
+  const verhuisd = ['Object Pipeline momentum', 'Concrete transacties', 'Dealflow health', '<CommissieWidget', 'Fee forecast', 'Acquisitie</h2>'];
+
+  it('het dashboard bevat alleen nog kengetallen, Mijn werkzaamheden en Aandacht nodig', () => {
+    for (const s of [...verhuisd, 'Nieuwe kansen', 'ForecastWidget', 'AcquisitieDashboardSectie', 'MiniStat']) expect(page).not.toContain(s);
+    const volgorde = ['<DashboardKengetallen', '<DashboardWerklijst', '<DashboardAandacht'].map(s => page.indexOf(s));
+    expect(volgorde.every(i => i > 0)).toBe(true);
+    expect([...volgorde].sort((a, b) => a - b)).toEqual(volgorde);
+  });
+
+  it('de zes onderdelen staan in Rapportage', () => {
+    expect(rapportage).toContain('<ActueleDealflow />');
+    for (const s of verhuisd) expect(dealflow).toContain(s);
+  });
+
+  it('concrete transacties blijven volledig: zelfde selectie, sortering en velden', () => {
+    expect(dealflow).toContain('isConcreteTransactionPosition(stageForObject(deal.objectId), preferredBidderStage)');
+    expect(dealflow).toContain('.slice(0, 6)');
+    expect(dealflow).toContain('vanaf Preferred bidder / exclusiviteit');
+    for (const s of ['to={`/deals/${deal.id}`}', 'object?.vraagprijs', 'deal.commissieBedrag', '<TrajectoryStageBadge objectId={deal.objectId} />', 'object.plaats', 'Alle deals']) expect(dealflow).toContain(s);
+  });
+
+  it('Nieuwe kansen is tijdelijk verwijderd, ook uit Rapportage', () => {
+    expect(dealflow).not.toContain('Nieuwe kansen');
+    expect(rapportage).not.toContain('Nieuwe kansen');
   });
 });

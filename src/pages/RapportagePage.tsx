@@ -9,6 +9,8 @@
 //  5. Gemiddelde doorlooptijd per fase
 //  6. Top 10 grootste afgeronde deals
 //  7. Asset class verdeling
+//  8. Actuele dealflow (verhuisd van het Dashboard, D4): pipeline momentum met fee,
+//     concrete transacties, dealflow health, commissie, fee forecast en acquisitie
 
 import { useState, useMemo } from 'react';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -30,6 +32,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
 import { getTrajectoryProbability, getTrajectoryStage } from '@/lib/lifecycle/trajectory';
+import ActueleDealflow from '@/components/rapportage/ActueleDealflow';
 
 export default function RapportagePage() {
   const store = useDataStore();
@@ -449,6 +452,8 @@ export default function RapportagePage() {
           </div>
         )}
       </div>
+
+      <ActueleDealflow />
     </div>
   );
 }

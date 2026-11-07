@@ -46,8 +46,8 @@ describe('één zichtbare commerciële trajectfase', () => {
     expect(source).not.toContain('selectLeadDeal');
   });
 
-  it('bouwt dashboardmomentum op Object Pipeline en niet op deal.fase', () => {
-    const source = read('src/pages/DashboardPage.tsx');
+  it('bouwt het pipelinemomentum (sinds D4 in Rapportage) op Object Pipeline en niet op deal.fase', () => {
+    const source = read('src/components/rapportage/ActueleDealflow.tsx');
     expect(source).toContain('Object Pipeline momentum');
     expect(source).toContain('concreteDeals');
     expect(source).toContain('pipelineStageId === stage.id');
