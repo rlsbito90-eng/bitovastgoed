@@ -1416,9 +1416,14 @@ export function maakRelatieBasisZoekprofiel(relatie: Relatie): Zoekprofiel | nul
     'belegger', 'ontwikkelende_belegger', 'fonds', 'family_office',
     'buitenlandse_belegger', 'ontwikkelaar', 'vastgoedondernemer',
   ];
-  const actiefAlsKoper = relatie.commercialRoles?.includes('koper') ||
-    (relatie.commercialRoles == null && (koopprofielen.includes(relatie.partijprofiel) ||
-      ['belegger', 'ontwikkelaar'].includes(relatie.type)));
+  // Een expliciet partijprofiel gaat boven het historische standaard-hoofdtype.
+  // Anders kan een eigenaar/bemiddelaar door de oude default 'belegger'
+  // ten onrechte als koper verschijnen. Alleen de kooprol kan dit overrulen.
+  const actiefAlsKoper = relatie.commercialRoles != null
+    ? relatie.commercialRoles.includes('koper')
+    : relatie.partijprofiel != null
+      ? koopprofielen.includes(relatie.partijprofiel)
+      : ['belegger', 'ontwikkelaar'].includes(relatie.type);
   if (!actiefAlsKoper) return null;
 
   return {
