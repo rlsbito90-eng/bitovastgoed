@@ -387,3 +387,13 @@ export function normaliseerGemeenteNaam(s:string):string{
  const value=s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
  return value==='s gravenhage' ? 'den haag' : value;
 }
+
+/** Provincie(s) bepalen uit gekozen officiële gemeentenaam; nooit uit woonplaats gokken.
+ * Naamvarianten die in de bron ontbreken worden niet stilzwijgend toegewezen.
+ */
+export function provinciesBijGemeenten(gemeenten: readonly string[]): string[] {
+  const gekozen=new Set(gemeenten.map(normaliseerGemeenteNaam));
+  return Object.entries(GEMEENTEN_2026_PER_PROVINCIE)
+    .filter(([,namen])=>namen.some(naam=>gekozen.has(normaliseerGemeenteNaam(naam))))
+    .map(([provincie])=>provincie);
+}
