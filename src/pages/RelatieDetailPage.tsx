@@ -74,15 +74,27 @@ const VESTIGINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'vestigingsland',label:'Land'},
 ];
 const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
-  {key:'regio',label:'Algemene regio’s',kind:'multi',
+  {key:'regio',label:'Regio’s',kind:'multi',
     options:REGIO_OPTIES.map(value=>({value,label:value})),
-    note:'Specifieke regio’s en gemeenten leg je vast bij Zoekprofielen.'},
+    note:'Leg specifieke plaatsen, gemeenten of een zoekstraal hieronder vast.'},
+  {key:'zoekgebiedToelichting',label:'Zoekgebied (plaatsen, straal en toelichting)',kind:'textarea',
+    note:'Vrije tekst vraagt handmatige beoordeling; alleen gestructureerde regio’s tellen automatisch mee.'},
+  {key:'gewensteObjectomvang',label:'Gewenste objectomvang'},
+  {key:'gewensteSituatie',label:'Gewenste situatie',kind:'multi',options:[
+    {value:'Verhuurd',label:'Verhuurd'}, {value:'Gedeeltelijk verhuurd',label:'Gedeeltelijk verhuurd'},
+    {value:'Leegstaand',label:'Leegstaand'}, {value:'Uitpondpotentie',label:'Uitpondpotentie'},
+    {value:'Afhankelijk van object',label:'Afhankelijk van object'}]},
+  {key:'aankooptermijn',label:'Gewenste aankooptermijn'},
+  {key:'portefeuilleInteresse',label:'Interesse in portefeuilles',kind:'checkbox'},
   {key:'budgetMin',label:'Budget minimum (€)',kind:'number'},
   {key:'budgetMax',label:'Budget maximum (€)',kind:'number'},
   {key:'rendementseis',label:'Rendementseis (%)',kind:'number'},
   {key:'kapitaalsituatie',label:'Kapitaalsituatie',kind:'select',
     options:Object.entries(KAPITAAL_SITUATIE_LABELS).map(([value,label])=>({value,label}))},
   {key:'eigenVermogenPct',label:'Eigen vermogen (%)',kind:'number'},
+  {key:'financieringsstructuur',label:'Financieringsstructuur'},
+  {key:'financieringsstatus',label:'Status financiering'},
+  {key:'besluitvorming',label:'Besluitvorming'},
   {key:'voorkeurDealstructuur',label:'Dealstructuur',kind:'multi',
     options:Object.entries(DEALSTRUCTUUR_LABELS).map(([value,label])=>({value,label}))},
 ];
@@ -99,8 +111,11 @@ const COMMUNICATIEVELDEN: readonly InlineRelatieVeld[] = [
     options:Object.entries(INVESTEERDER_SUBTYPE_LABELS).map(([value,label])=>({value,label}))},
 ];
 const NOTITIEVELDEN: readonly InlineRelatieVeld[] = [
-  {key:'aankoopcriteria',label:'Bestaande algemene aankoopcriteria',kind:'textarea',
-   note:'Nieuwe concrete criteria leg je vast bij Zoekprofielen. Bestaande tekst blijft behouden.'},
+  {key:'aankoopcriteria',label:'Belangrijkste acquisitiecriteria',kind:'textarea',
+   note:'Deze basiscriteria staan op Relaties; extra zoekprofielen zijn alleen voor afwijkende zoekrichtingen.'},
+  {key:'strategieToelichting',label:'Aanvullende acquisitiestrategie',kind:'textarea'},
+  {key:'uitsluitingen',label:'Wat past nadrukkelijk niet?',kind:'textarea'},
+  {key:'overigeToelichting',label:'Overige toelichting',kind:'textarea'},
   {key:'verkoopintentie',label:'Verkoopintentie',kind:'textarea'},
   {key:'volgendeActie',label:'Losse opvolgnotitie',note:'Taken met deadlines staan bij Taken.'},
   {key:'notities',label:'Interne notities',kind:'textarea'},
@@ -143,7 +158,7 @@ export default function RelatieDetailPage() {
     return isConcreteTransactionPosition(stage, preferredBidderStage);
   });
   const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
-  const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten);
+  const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten, relatie);
   const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
   const laatsteActiviteitDatum = getLaatsteActiviteitDatum(relatie.id, store.contactMoments);
   const volgendeOpenTaak = getVolgendeOpenTaak(relatie.id, store.taken);
@@ -330,7 +345,7 @@ export default function RelatieDetailPage() {
         <div className="space-y-4 lg:space-y-6 min-w-0">
           <section className="section-card">
             <header className="section-header">
-              <h2 className="section-title">Zoekprofielen ({zoekprofielen.length})</h2>
+              <h2 className="section-title">Aanvullende zoekprofielen ({zoekprofielen.length})</h2>
               <button onClick={() => { setZpBewerken(null); setZpOpen(true); }}
                 className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80">
                 <Plus className="h-3 w-3" /> Zoekprofiel toevoegen
@@ -339,8 +354,8 @@ export default function RelatieDetailPage() {
             <div className="divide-y divide-border/70">
               {zoekprofielen.length === 0 && (
                 <p className="px-5 py-6 text-xs text-muted-foreground">
-                  Nog geen aanvullende zoekprofielen. De algemene aankoopcriteria van deze relatie blijven beschikbaar.
-                  Voeg een profiel toe voor een specifieke zoekrichting.
+                  De aankoopcriteria onder Relaties zijn de basis voor matching.
+                  Voeg alleen een extra profiel toe voor een zelfstandige zoekrichting.
                 </p>
               )}
               {zoekprofielen.map(zp => (
