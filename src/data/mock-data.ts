@@ -256,7 +256,6 @@ export interface Relatie {
   uitsluitingen?: string;
   overigeToelichting?: string;
   strategieToelichting?: string;
-  portefeuilleInteresse?: boolean;
   kapitaalsituatie?: KapitaalSituatie;
   eigenVermogenPct?: number;
   voorkeurDealstructuur?: Dealstructuur[];
