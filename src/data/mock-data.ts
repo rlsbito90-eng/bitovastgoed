@@ -245,6 +245,9 @@ export interface Relatie {
   budgetMin?: number;
   budgetMax?: number;
   rendementseis?: number;
+  /** Matchbare gebiedskeuze direct onder Relaties, los van optionele Zoekprofielen. */
+  zoekGemeenten?: string[];
+  zoekPlaatsen?: string[];
   /** Volledige aankoopcriteria blijven op Relaties; extra zoekprofielen zijn optioneel. */
   zoekgebiedToelichting?: string;
   gewensteObjectomvang?: string;
