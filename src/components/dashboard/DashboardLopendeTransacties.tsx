@@ -27,7 +27,9 @@ const BOD_STATUS: Record<string, string> = {
 
 function Regel({ t }: { t: LopendeTransactie }) {
   const actie = t.volgendeActie;
-  const actieVerlopen = !!actie?.datum && t.mijlpaal?.soort === 'actie' && t.mijlpaal.verlopen && t.mijlpaal.datum === actie.datum;
+  const opvolging = t.objectOpvolging;
+  const datumTekst = (datum: string | null, verlopen: boolean) =>
+    datum ? <span className={verlopen ? 'text-destructive' : 'text-muted-foreground'}>{` · ${korteDatum(datum)}${verlopen ? ' (verlopen)' : ''}`}</span> : null;
   return (
     <div data-testid="lopende-transactie" className="px-4 sm:px-5 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -38,21 +40,25 @@ function Regel({ t }: { t: LopendeTransactie }) {
         <span data-testid="transactie-fase" className="shrink-0 rounded-md bg-accent/10 px-1.5 py-0.5 text-[11px] font-semibold text-accent">{t.faseLabel}</span>
       </div>
       <p className="text-xs text-muted-foreground mt-0.5">
-        {[t.koper, t.objectOnHold ? 'object on hold' : null, t.gewensteLevering ? `levering ${korteDatum(t.gewensteLevering)}` : null]
+        {[t.koper, t.gewensteLevering ? `levering ${korteDatum(t.gewensteLevering)}` : null]
           .filter(Boolean).join(' · ') || 'Koper niet gekoppeld'}
       </p>
       {t.stilDagen != null && (
         <p data-testid="transactie-stil" className="text-xs font-semibold text-warning mt-0.5">{`Stil sinds ${t.stilDagen} dagen`}</p>
       )}
       <p className="text-xs text-foreground mt-1">
-        <span className="text-muted-foreground">Volgende actie: </span>
-        {actie ? (
-          <span>
-            {actie.tekst}
-            {actie.datum && <span className={actieVerlopen ? 'text-destructive' : 'text-muted-foreground'}>{` · ${korteDatum(actie.datum)}${actieVerlopen ? ' (verlopen)' : ''}`}</span>}
-          </span>
-        ) : <span className="text-muted-foreground">niet vastgelegd</span>}
+        <span className="text-muted-foreground">Volgende actie koper: </span>
+        {actie ? <span>{actie.tekst}{datumTekst(actie.datum, actie.verlopen)}</span> : <span className="text-muted-foreground">niet vastgelegd</span>}
       </p>
+      {!actie && opvolging && (
+        <p data-testid="transactie-objectopvolging" className="text-xs text-foreground mt-0.5">
+          <span className="text-muted-foreground">Objectopvolging: </span>
+          <span>{opvolging.tekst}{datumTekst(opvolging.datum, opvolging.verlopen)}</span>
+          {opvolging.relatieNaam && (
+            <span className="text-muted-foreground">{` · ${opvolging.relatieNaam}${opvolging.rol ? ` (${opvolging.rol})` : ''}`}</span>
+          )}
+        </p>
+      )}
       {t.laatsteBod && (
         <p data-testid="transactie-bod" className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
           {`Laatste bod ${t.laatsteBod.bedrag != null ? formatCurrency(t.laatsteBod.bedrag) : 'zonder bedrag'} · ${korteDatum(t.laatsteBod.datum)}${BOD_STATUS[t.laatsteBod.status] ? ` · ${BOD_STATUS[t.laatsteBod.status]}` : ''}`}

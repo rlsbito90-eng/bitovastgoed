@@ -33,9 +33,12 @@ describe('Lopende transacties — wat is lopend', () => {
     expect(r.items).toEqual([]);
   });
 
-  it('on hold blijft zichtbaar, met vlag', () => {
-    const [t] = lijst({ objecten: [obj('H', { status: 'on_hold' })], kandidaten: [kand('H', 'indicatieve_bieding')] });
-    expect(t.objectOnHold).toBe(true);
+  it('objecten on hold tellen niet mee; ze komen terug zodra het object weer actief is (regressie)', () => {
+    const kandidaten = [kand('H', 'indicatieve_bieding'), kand('A', 'onderhandeling'), kand('B', 'indicatieve_bieding')];
+    const r = lopend({ objecten: [obj('H', { status: 'on_hold' }), obj('A'), obj('B')], kandidaten });
+    expect(r.items.map(i => i.objectId)).toEqual(['A', 'B']);
+    expect(r.totaal).toBe(2);
+    expect(lopend({ objecten: [obj('H', { status: 'beschikbaar' }), obj('A'), obj('B')], kandidaten }).items.map(i => i.objectId)).toContain('H');
   });
 
   it('kandidaat zonder bekend object telt niet', () => {
@@ -81,7 +84,27 @@ describe('Lopende transacties — rangschikking', () => {
       ],
     });
     expect(r.items.map(i => i.objectId)).toEqual(['B', 'A', 'C']);
-    expect(r.items[0].mijlpaal).toEqual({ soort: 'levering', datum: '2026-11-12', verlopen: false });
+    expect(r.items[0].mijlpaal).toEqual({ soort: 'levering', datum: '2026-11-12' });
+  });
+
+  it('een verlopen datum is geen eerstvolgende mijlpaal en gaat niet vóór een toekomstige (regressie)', () => {
+    const r = lopend({
+      objecten: ['A', 'B', 'C'].map(i => obj(i)),
+      kandidaten: [
+        kand('A', 'onderhandeling', { volgendeActieDatum: '2026-10-01', volgendeActieOmschrijving: 'Oud' }),
+        kand('B', 'onderhandeling', { volgendeActieDatum: '2026-11-15', volgendeActieOmschrijving: 'Nieuw' }),
+        kand('C', 'onderhandeling', { gewensteLevering: '2026-10-15' }),
+      ],
+    });
+    // B heeft de enige toekomstige mijlpaal; A en C hebben alleen verlopen datums en volgen daarna.
+    expect(r.items.map(i => i.objectId)).toEqual(['B', 'A', 'C']);
+    expect(r.items.find(i => i.objectId === 'A')!.mijlpaal).toBeNull();
+    expect(r.items.find(i => i.objectId === 'C')!.mijlpaal).toBeNull();
+  });
+
+  it('verlopen levering met een toekomstige actie: de actie is de mijlpaal', () => {
+    const [t] = lijst({ objecten: [obj('A')], kandidaten: [kand('A', 'onderhandeling', { gewensteLevering: '2026-11-01', volgendeActieDatum: '2026-11-20', volgendeActieOmschrijving: 'KO bespreken' })] });
+    expect(t.mijlpaal).toEqual({ soort: 'actie', datum: '2026-11-20' });
   });
 
   it('3. daarna de meest recente betekenisvolle activiteit', () => {
@@ -129,8 +152,8 @@ describe('Lopende transacties — gegevens per traject', () => {
     });
     expect(t.koper).toBe('Koper BV');
     expect(t.gewensteLevering).toBe('2027-02-01');
-    expect(t.volgendeActie).toEqual({ tekst: 'Bellen', datum: '2026-11-10' });
-    expect(t.mijlpaal).toEqual({ soort: 'actie', datum: '2026-11-10', verlopen: false });
+    expect(t.volgendeActie).toEqual({ tekst: 'Bellen', datum: '2026-11-10', verlopen: false });
+    expect(t.mijlpaal).toEqual({ soort: 'actie', datum: '2026-11-10' });
     expect(t.laatsteBod).toEqual({ bedrag: 1_200_000, datum: '2026-11-03', status: 'tegenvoorstel_gedaan' });
 
     const [leeg] = lijst({ objecten: [obj('B')], kandidaten: [kand('B', 'indicatieve_bieding')] });
@@ -138,25 +161,66 @@ describe('Lopende transacties — gegevens per traject', () => {
     expect(leeg.gewensteLevering).toBeNull();
     expect(leeg.mijlpaal).toBeNull();
     expect(leeg.volgendeActie).toBeNull();
+    expect(leeg.objectOpvolging).toBeNull();
     expect(leeg.laatsteBod).toBeNull();
   });
 
-  it('zonder actie bij de kandidaat: vroegste open taak op het object', () => {
+  it('zonder actie bij de kandidaat: vroegste open taak voor deze koper', () => {
     const [t] = lijst({
       objecten: [obj('A')],
-      kandidaten: [kand('A', 'onderhandeling')],
+      kandidaten: [kand('A', 'onderhandeling', { relatieId: 'koper' })],
       taken: [
-        { id: 't1', titel: 'Later', objectId: 'A', deadline: '2026-11-25', status: 'open' },
-        { id: 't2', titel: 'Concept KO sturen', objectId: 'A', deadline: '2026-11-12', status: 'open' },
-        { id: 't3', titel: 'Klaar', objectId: 'A', deadline: '2026-11-08', status: 'afgerond' },
+        { id: 't1', titel: 'Later', objectId: 'A', relatieId: 'koper', deadline: '2026-11-25', status: 'open' },
+        { id: 't2', titel: 'Concept KO sturen', objectId: 'A', relatieId: 'koper', deadline: '2026-11-12', status: 'open' },
+        { id: 't3', titel: 'Klaar', objectId: 'A', relatieId: 'koper', deadline: '2026-11-08', status: 'afgerond' },
+        { id: 't4', titel: 'Verkoper bellen', objectId: 'A', relatieId: 'verkoper', deadline: '2026-11-09', status: 'open' },
       ],
     });
-    expect(t.volgendeActie).toEqual({ tekst: 'Concept KO sturen', datum: '2026-11-12' });
+    expect(t.volgendeActie).toEqual({ tekst: 'Concept KO sturen', datum: '2026-11-12', verlopen: false });
+    expect(t.objectOpvolging).toBeNull();
   });
 
-  it('verstreken mijlpaal wordt als verlopen gemarkeerd', () => {
+  it('taak voor een andere relatie wordt objectopvolging, niet de actie van de koper (regressie Westervoort)', () => {
+    const [t] = lijst({
+      objecten: [obj('W')],
+      kandidaten: [kand('W', 'indicatieve_bieding', { relatieId: 'rohit' })],
+      taken: [{ id: 't', titel: 'Eerste bevindingen bespreken', objectId: 'W', relatieId: 'anders', deadline: '2026-11-09', status: 'open' }],
+      relatieNaam: id => ({ rohit: 'Rohit', anders: 'Jansen' } as Record<string, string>)[id] ?? null,
+    });
+    expect(t.koper).toBe('Rohit');
+    expect(t.volgendeActie).toBeNull();
+    expect(t.objectOpvolging).toEqual({ tekst: 'Eerste bevindingen bespreken', datum: '2026-11-09', verlopen: false, relatieId: 'anders', relatieNaam: 'Jansen', rol: null });
+    expect(t.mijlpaal).toBeNull();
+  });
+
+  it('rol verkoper alleen als de relatie de gekoppelde eigenaar/verkoper van het object is', () => {
+    const basis = {
+      kandidaten: [kand('W', 'indicatieve_bieding', { relatieId: 'rohit' })],
+      taken: [{ id: 't', titel: 'Bellen', objectId: 'W', relatieId: 'eig', deadline: null, status: 'open' }],
+    };
+    expect(lijst({ ...basis, objecten: [obj('W', { eigenaarRelatieId: 'eig' })] })[0].objectOpvolging?.rol).toBe('verkoper');
+    expect(lijst({ ...basis, objecten: [obj('W', { eigenaarRelatieId: 'iemand-anders' })] })[0].objectOpvolging?.rol).toBeNull();
+    expect(lijst({ ...basis, objecten: [obj('W')] })[0].objectOpvolging?.rol).toBeNull();
+  });
+
+  it('taak zonder relatie is algemene objectopvolging, zonder naam', () => {
+    const [t] = lijst({ objecten: [obj('A')], kandidaten: [kand('A', 'onderhandeling')], taken: [{ id: 't', titel: 'Foto\'s laten maken', objectId: 'A', deadline: '2026-11-04', status: 'open' }] });
+    expect(t.objectOpvolging).toMatchObject({ tekst: "Foto's laten maken", relatieId: null, relatieNaam: null, rol: null, verlopen: true });
+  });
+
+  it('geen objectopvolging als de koper al een actie heeft', () => {
+    const [t] = lijst({
+      objecten: [obj('A')],
+      kandidaten: [kand('A', 'onderhandeling', { volgendeActieOmschrijving: 'Bellen' })],
+      taken: [{ id: 't', titel: 'Verkoper bellen', objectId: 'A', relatieId: 'v', deadline: '2026-11-09', status: 'open' }],
+    });
+    expect(t.objectOpvolging).toBeNull();
+  });
+
+  it('verlopen volgende actie is gemarkeerd en geen mijlpaal', () => {
     const [t] = lijst({ objecten: [obj('A')], kandidaten: [kand('A', 'onderhandeling', { volgendeActieDatum: '2026-11-01', volgendeActieOmschrijving: 'Terugbellen' })] });
-    expect(t.mijlpaal).toEqual({ soort: 'actie', datum: '2026-11-01', verlopen: true });
+    expect(t.volgendeActie).toEqual({ tekst: 'Terugbellen', datum: '2026-11-01', verlopen: true });
+    expect(t.mijlpaal).toBeNull();
   });
 
   it('geen kanspercentage in de uitvoer', () => {

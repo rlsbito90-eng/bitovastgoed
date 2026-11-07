@@ -6,8 +6,8 @@ import type { LopendeTransactie } from '@/lib/dashboard/lopendeTransacties';
 import DashboardLopendeTransacties from './DashboardLopendeTransacties';
 
 const t = (id: string, over: Partial<LopendeTransactie> = {}): LopendeTransactie => ({
-  objectId: id, objectTitel: `Object ${id}`, objectOnHold: false, kandidaatId: `k${id}`, relatieId: 'r', koper: 'Koper BV',
-  fase: 'onderhandeling', faseLabel: 'Onderhandeling', gewensteLevering: null, mijlpaal: null, volgendeActie: null,
+  objectId: id, objectTitel: `Object ${id}`, kandidaatId: `k${id}`, relatieId: 'r', koper: 'Koper BV',
+  fase: 'onderhandeling', faseLabel: 'Onderhandeling', gewensteLevering: null, mijlpaal: null, volgendeActie: null, objectOpvolging: null,
   laatsteActiviteit: '2026-11-05', stilDagen: null, laatsteBod: null, ...over,
 });
 const renderL = (items: LopendeTransactie[], totaal = items.length) =>
@@ -15,7 +15,7 @@ const renderL = (items: LopendeTransactie[], totaal = items.length) =>
 
 describe('DashboardLopendeTransacties', () => {
   it('toont object (link naar dossier), fase, koper en volgende actie', () => {
-    renderL([t('A', { volgendeActie: { tekst: 'Bellen', datum: null } })]);
+    renderL([t('A', { volgendeActie: { tekst: 'Bellen', datum: null, verlopen: false } })]);
     expect(screen.getByText('Lopende transacties')).toBeTruthy();
     expect(screen.getByText('Object A').closest('a')?.getAttribute('href')).toBe('/objecten/A');
     expect(screen.getByTestId('transactie-fase').textContent).toBe('Onderhandeling');
@@ -46,8 +46,27 @@ describe('DashboardLopendeTransacties', () => {
   });
 
   it('verlopen volgende actie is gemarkeerd', () => {
-    renderL([t('A', { volgendeActie: { tekst: 'Terugbellen', datum: '2026-11-01' }, mijlpaal: { soort: 'actie', datum: '2026-11-01', verlopen: true } })]);
+    renderL([t('A', { volgendeActie: { tekst: 'Terugbellen', datum: '2026-11-01', verlopen: true } })]);
     expect(screen.getByText(/1 nov \(verlopen\)/)).toBeTruthy();
+  });
+
+  it('objectopvolging staat apart en niet als actie van de koper', () => {
+    renderL([t('A', { koper: 'Rohit', objectOpvolging: { tekst: 'Eerste bevindingen bespreken', datum: '2026-11-09', verlopen: false, relatieId: 'v', relatieNaam: 'Jansen', rol: null } })]);
+    expect(screen.getByText('Volgende actie koper:', { exact: false })).toBeTruthy();
+    expect(screen.getByText('niet vastgelegd')).toBeTruthy();
+    const regel = screen.getByTestId('transactie-objectopvolging').textContent ?? '';
+    expect(regel).toBe('Objectopvolging: Eerste bevindingen bespreken · 9 nov · Jansen');
+    expect(regel).not.toContain('verkoper');
+  });
+
+  it('rol verkoper alleen als die in het CRM bekend is', () => {
+    renderL([t('A', { objectOpvolging: { tekst: 'Bellen', datum: null, verlopen: false, relatieId: 'v', relatieNaam: 'Jansen', rol: 'verkoper' } })]);
+    expect(screen.getByTestId('transactie-objectopvolging').textContent).toBe('Objectopvolging: Bellen · Jansen (verkoper)');
+  });
+
+  it('geen objectopvolging als er een kopergebonden actie is', () => {
+    renderL([t('A', { volgendeActie: { tekst: 'Bellen', datum: null, verlopen: false }, objectOpvolging: { tekst: 'X', datum: null, verlopen: false, relatieId: null, relatieNaam: null, rol: null } })]);
+    expect(screen.queryByTestId('transactie-objectopvolging')).toBeNull();
   });
 
   it('meer dan drie: "3 van n"; leeg: geen resultaat gesuggereerd', () => {

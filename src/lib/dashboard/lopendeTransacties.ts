@@ -12,7 +12,13 @@ import { dagSleutel } from '@/lib/dashboard/aandacht';
  *  2. eerstvolgende concrete mijlpaal (gewenste levering of volgende actie met datum), vroegste eerst;
  *  3. meest recente betekenisvolle activiteit.
  * Maximaal drie; minder trajecten worden niet aangevuld. Stilgevallen trajecten blijven op hun fase staan
- * met een label. Geen kanspercentages.
+ * met een label. Geen kanspercentages. Objecten on hold tellen niet mee (gepauzeerd).
+ *
+ * Volgende actie = kopergebonden: de volgende actie van de kandidaat, of een open taak gekoppeld aan
+ * deze koper. Is die er niet, dan wordt een open taak op het object zonder koper of voor een andere
+ * relatie apart getoond als "objectopvolging" — nooit als actie van de koper. Alleen kopergebonden
+ * acties en de gewenste levering zijn mijlpaal; voor de rangschikking telt alleen een mijlpaal vandaag
+ * of later (een verlopen datum is geen eerstvolgende mijlpaal).
  */
 
 export const MAX_LOPENDE_TRANSACTIES = 3;
@@ -22,7 +28,7 @@ const FASE_INDEX = new Map(PIPELINE_FASES.map((f, i) => [f.key as string, i]));
 const FASE_LABEL = new Map(PIPELINE_FASES.map(f => [f.key as string, f.label]));
 const EERSTE_LOPENDE = FASE_INDEX.get('indicatieve_bieding')!;
 const LAATSTE_LOPENDE = FASE_INDEX.get('transport_closing')!;
-const AFGESLOTEN_OBJECTSTATUSSEN = new Set(['verkocht', 'ingetrokken', 'afgevallen']);
+const UITGESLOTEN_OBJECTSTATUSSEN = new Set(['verkocht', 'ingetrokken', 'afgevallen', 'on_hold']);
 const AFGESLOTEN_TAAKSTATUSSEN = new Set(['afgerond', 'geannuleerd']);
 
 export function isLopendeFase(fase: string): boolean {
@@ -36,6 +42,8 @@ export interface TransactieObject {
   status: string;
   isArchived?: boolean;
   softDeletedAt?: string | null;
+  /** Gekoppelde eigenaar/verkoper (relaties.id), indien bekend. */
+  eigenaarRelatieId?: string | null;
 }
 
 export interface TransactieKandidaat {
@@ -91,16 +99,28 @@ export interface TransactieInvoer {
   actieLabel?: (type: string) => string | null | undefined;
 }
 
+/** Eerstvolgende concrete mijlpaal, vandaag of later. */
 export interface Mijlpaal {
   soort: 'levering' | 'actie';
   datum: string;
+}
+
+export interface VolgendeStap {
+  tekst: string;
+  datum: string | null;
   verlopen: boolean;
+}
+
+export interface ObjectOpvolging extends VolgendeStap {
+  relatieId: string | null;
+  relatieNaam: string | null;
+  /** Alleen 'verkoper' als de relatie de gekoppelde eigenaar/verkoper van het object is. */
+  rol: 'verkoper' | null;
 }
 
 export interface LopendeTransactie {
   objectId: string;
   objectTitel: string;
-  objectOnHold: boolean;
   kandidaatId: string;
   relatieId: string;
   koper: string | null;
@@ -108,10 +128,12 @@ export interface LopendeTransactie {
   faseLabel: string;
   /** Gewenste levering, alleen als bekend. */
   gewensteLevering: string | null;
-  /** Eerstvolgende concrete mijlpaal (levering of volgende actie met datum). */
+  /** Eerstvolgende concrete mijlpaal vandaag of later (levering of kopergebonden actie met datum). */
   mijlpaal: Mijlpaal | null;
-  /** Volgende actie, of null als er niets is vastgelegd. */
-  volgendeActie: { tekst: string; datum: string | null } | null;
+  /** Kopergebonden volgende actie, of null als er niets is vastgelegd. */
+  volgendeActie: VolgendeStap | null;
+  /** Algemene objectopvolging, alleen als er geen kopergebonden actie is. */
+  objectOpvolging: ObjectOpvolging | null;
   laatsteActiviteit: string | null;
   /** Dagen zonder betekenisvolle activiteit, alleen boven de drempel. */
   stilDagen: number | null;
@@ -153,46 +175,66 @@ export function bepaalLopendeTransacties(invoer: TransactieInvoer, now: Date): L
     ], vandaag);
     const stil = laatsteActiviteit ? dagenTussen(laatsteActiviteit, vandaag) : null;
 
-    // Volgende actie: die van de kandidaat; anders de vroegste open taak op dit object.
-    let volgendeActie: LopendeTransactie['volgendeActie'] = null;
+    // Open taken op dit object, met hun effectieve datum (verstreken deadline gaat voor op plandatum).
+    const openTaken = (invoer.taken ?? [])
+      .filter(t => t.objectId === k.objectId && !t.softDeletedAt && !AFGESLOTEN_TAAKSTATUSSEN.has(t.status))
+      .map(t => {
+        const deadline = dagSleutel(t.deadline);
+        const plan = dagSleutel(planDatum(t));
+        const datum = deadline && deadline < vandaag ? deadline : (plan ?? deadline);
+        return { taak: t, datum };
+      })
+      .sort((a, b) => (a.datum ?? '9999').localeCompare(b.datum ?? '9999'));
+    const stap = (tekst: string, datum: string | null): VolgendeStap => ({ tekst, datum, verlopen: !!datum && datum < vandaag });
+
+    // Kopergebonden volgende actie: die van de kandidaat, anders een open taak voor deze koper.
+    let volgendeActie: VolgendeStap | null = null;
     const actieDatum = dagSleutel(k.volgendeActieDatum);
     const actieTekst = k.volgendeActieOmschrijving?.trim()
       || (k.volgendeActie ? (invoer.actieLabel?.(k.volgendeActie) ?? k.volgendeActie) : null);
     if (actieTekst || actieDatum) {
-      volgendeActie = { tekst: actieTekst ?? 'Volgende actie', datum: actieDatum };
+      volgendeActie = stap(actieTekst ?? 'Volgende actie', actieDatum);
     } else {
-      const taken = (invoer.taken ?? [])
-        .filter(t => t.objectId === k.objectId && !t.softDeletedAt && !AFGESLOTEN_TAAKSTATUSSEN.has(t.status)
-          && (!t.relatieId || t.relatieId === k.relatieId))
-        .map(t => {
-          const deadline = dagSleutel(t.deadline);
-          const plan = dagSleutel(planDatum(t));
-          const datum = deadline && deadline < vandaag ? deadline : (plan ?? deadline);
-          return { tekst: t.titel, datum };
-        })
-        .sort((a, b) => (a.datum ?? '9999').localeCompare(b.datum ?? '9999'));
-      if (taken[0]) volgendeActie = taken[0];
+      const voorKoper = openTaken.find(x => x.taak.relatieId === k.relatieId);
+      if (voorKoper) volgendeActie = stap(voorKoper.taak.titel, voorKoper.datum);
     }
 
+    // Algemene objectopvolging: taak zonder koper of voor een andere relatie; alleen als er geen
+    // kopergebonden actie is, en apart gepresenteerd.
+    let objectOpvolging: ObjectOpvolging | null = null;
+    if (!volgendeActie) {
+      const algemeen = openTaken.find(x => x.taak.relatieId !== k.relatieId);
+      if (algemeen) {
+        const relatieId = algemeen.taak.relatieId || null;
+        objectOpvolging = {
+          ...stap(algemeen.taak.titel, algemeen.datum),
+          relatieId,
+          relatieNaam: relatieId ? (invoer.relatieNaam?.(relatieId) || null) : null,
+          rol: relatieId && object.eigenaarRelatieId && relatieId === object.eigenaarRelatieId ? 'verkoper' : null,
+        };
+      }
+    }
+
+    // Mijlpaal voor de rangschikking: alleen vandaag of later; verlopen datums tellen niet.
     const gewensteLevering = dagSleutel(k.gewensteLevering);
-    const kandidaten: Mijlpaal[] = [];
-    if (gewensteLevering) kandidaten.push({ soort: 'levering', datum: gewensteLevering, verlopen: gewensteLevering < vandaag });
-    if (volgendeActie?.datum) kandidaten.push({ soort: 'actie', datum: volgendeActie.datum, verlopen: volgendeActie.datum < vandaag });
-    kandidaten.sort((a, b) => a.datum.localeCompare(b.datum));
+    const mijlpalen: Mijlpaal[] = [];
+    if (gewensteLevering && gewensteLevering >= vandaag) mijlpalen.push({ soort: 'levering', datum: gewensteLevering });
+    if (volgendeActie?.datum && volgendeActie.datum >= vandaag) mijlpalen.push({ soort: 'actie', datum: volgendeActie.datum });
+    mijlpalen.sort((a, b) => a.datum.localeCompare(b.datum));
 
     const bod = biedingen[0];
     return {
       objectId: object.id,
       objectTitel: object.titel,
-      objectOnHold: object.status === 'on_hold',
       kandidaatId: k.id,
       relatieId: k.relatieId,
       koper: invoer.relatieNaam?.(k.relatieId) || null,
       fase: k.pipelineFase,
       faseLabel: FASE_LABEL.get(k.pipelineFase) ?? k.pipelineFase,
       gewensteLevering,
-      mijlpaal: kandidaten[0] ?? null,
+      mijlpaal: mijlpalen[0] ?? null,
       volgendeActie,
+      objectOpvolging,
       laatsteActiviteit,
       stilDagen: stil != null && stil > DREMPEL_STIL_DAGEN ? stil : null,
       laatsteBod: bod
@@ -212,7 +254,7 @@ export function bepaalLopendeTransacties(invoer: TransactieInvoer, now: Date): L
   for (const k of invoer.kandidaten) {
     if (!isLopendeFase(k.pipelineFase)) continue;
     const object = objecten.get(k.objectId);
-    if (!object || object.isArchived || object.softDeletedAt || AFGESLOTEN_OBJECTSTATUSSEN.has(object.status)) continue;
+    if (!object || object.isArchived || object.softDeletedAt || UITGESLOTEN_OBJECTSTATUSSEN.has(object.status)) continue;
     const regel = kandidaatRegel(k, object);
     const huidig = perObject.get(object.id);
     if (!huidig || vergelijk(regel, huidig) < 0) perObject.set(object.id, regel);
