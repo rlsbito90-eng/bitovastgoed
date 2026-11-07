@@ -869,7 +869,7 @@ export const PROVINCIES = [
   'Noord-Brabant', 'Limburg',
 ];
 
-export const REGIO_OPTIES = ['Randstad', ...PROVINCIES];
+export const REGIO_OPTIES = ['Heel Nederland', 'Randstad', ...PROVINCIES];
 
 
 // =====================================================================
