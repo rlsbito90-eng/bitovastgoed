@@ -6,7 +6,7 @@
  * All optional fields are FUTURE (not yet present in production database).
  */
 
-import { isGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
+import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
 
 import type { CommercieleRol, Partijprofiel } from '../../data/mock-data';
 /** A15 proposal may be simulated; the existing policy remains the default. */
@@ -28,6 +28,9 @@ export interface CrmRelatieInput {
   propertySubtypeIds?: readonly string[] | null;
   dealTypeIds?: readonly string[] | null;
   regio?: readonly string[] | null;
+  /** Primaire zoekgemeenten/plaatsen uit Relaties; geen apart Zoekprofiel vereist. */
+  zoekGemeenten?: readonly string[] | null;
+  zoekPlaatsen?: readonly string[] | null;
   budgetMin?: number | null;
   budgetMax?: number | null;
   aankoopcriteria?: string | null;
@@ -107,7 +110,7 @@ export function isAanbiedbaar(o: CrmObjectInput): boolean {
 function heeftBasisCriteria(r: CrmRelatieInput): boolean {
   return !!(gevuld(r.propertyTypeIds) || gevuld(r.assetClasses) ||
     gevuld(r.propertySubtypeIds) || gevuld(r.dealTypeIds) ||
-    gevuld(r.regio) || r.budgetMin != null || r.budgetMax != null);
+    gevuld(r.regio) || gevuld(r.zoekGemeenten) || gevuld(r.zoekPlaatsen) || r.budgetMin != null || r.budgetMax != null);
 }
 
 function heeftProfielCriteria(p: CrmMandaatInput): boolean {
@@ -153,7 +156,10 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   const subtypes = p ? p.propertySubtypeIds : r.propertySubtypeIds;
   const dealTypes = p ? p.dealTypeIds : r.dealTypeIds;
   const rawRegion = p ? p.regio : r.regio;
-  const rawCities = p?.steden;
+  const rawCities = p?.steden ?? [
+    ...(r.zoekGemeenten ?? []).map(alsGemeenteToken),
+    ...(r.zoekPlaatsen ?? []),
+  ];
   const min = p ? p.prijsMin : r.budgetMin;
   const max = p ? p.prijsMax : r.budgetMax;
   let geverifieerd=0,controleNodig=false;
