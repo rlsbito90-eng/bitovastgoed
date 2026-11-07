@@ -1,0 +1,137 @@
+-- Fase 0 — Beveiliging: EXECUTE intrekken op trigger-functies
+-- VOORSTEL TER REVIEW — nog niet uitgevoerd. Niet op productie draaien zonder akkoord.
+--
+-- Aanleiding: Supabase security-advisor (3 nov 2026) meldt dat deze SECURITY DEFINER-functies
+-- via /rest/v1/rpc/... aanroepbaar zijn voor anon en authenticated, en dat
+-- bito_loss_reason_code geen vast search_path heeft.
+--
+-- ---------------------------------------------------------------------------------------
+-- UITGANGSSITUATIE (vastgelegd met alleen-lezen queries op pg_proc en pg_event_trigger,
+-- 6 nov 2026, project vyjocdlwfxrblusfngfq)
+-- ---------------------------------------------------------------------------------------
+-- Functie                                   owner     secdef  proconfig              proacl
+-- bito_loss_reason_code(text)               postgres  false   (geen)                 {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+-- handle_new_user()                         postgres  true    {search_path=public}   {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+-- off_market_guard_plaats_import_noise()    postgres  true    {search_path=public}   {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+-- rls_auto_enable()                         postgres  true    {search_path=pg_catalog} {=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+--
+-- "=X/postgres" is EXECUTE voor PUBLIC. Daarom wordt hieronder ook van PUBLIC ingetrokken;
+-- alleen intrekken bij anon zou niet volstaan.
+--
+-- Gebruik van de functies:
+--   handle_new_user()                      → trigger auth.users.on_auth_user_created
+--   off_market_guard_plaats_import_noise() → trigger off_market_signalen.trg_off_market_guard_plaats_import_noise
+--   rls_auto_enable()                      → event trigger ensure_rls
+--                                            (ddl_command_end; CREATE TABLE, CREATE TABLE AS, SELECT INTO;
+--                                             enabled 'O'; owner postgres)
+--   bito_loss_reason_code(text)            → aangeroepen door sync_object_archived_reason_code(),
+--                                            sync_deal_archived_reason_code(), sync_pipeline_lost_reason_code();
+--                                            niet gebruikt in indexen, views of kolomdefaults.
+--
+-- Effect op triggers: geen. Postgres controleert EXECUTE op een (event-)triggerfunctie alleen bij
+-- CREATE (EVENT) TRIGGER, niet wanneer de trigger afgaat. postgres (owner) en service_role
+-- behouden hun EXECUTE.
+--
+-- bito_loss_reason_code gebruikt alleen ingebouwde functies (lower, btrim, LIKE) uit pg_catalog;
+-- gecontroleerd via pg_get_functiondef. search_path = pg_catalog verandert het gedrag niet.
+-- De aanroepende sync-functies worden niet geraakt: een search_path op een functie geldt alleen
+-- binnen die functie.
+
+begin;
+
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.off_market_guard_plaats_import_noise() from public, anon, authenticated;
+revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+
+alter function public.bito_loss_reason_code(text) set search_path = pg_catalog;
+
+commit;
+
+-- ---------------------------------------------------------------------------------------
+-- CONTROLE NA UITVOEREN
+-- ---------------------------------------------------------------------------------------
+-- 1. Rechten en configuratie — vergelijking op effectieve rechten, niet op de tekst van proacl
+--    (Postgres kan de volgorde van ACL-vermeldingen wijzigen). aclexplode zet de ACL om naar
+--    regels (functie, grantee, privilege); except in beide richtingen toont alleen verschillen.
+--    Verwacht resultaat: 0 rijen. (Vóór de migratie geeft deze query precies 9 rijen 'extra':
+--    PUBLIC, anon en authenticated op de drie trigger-functies — op 6 nov 2026 zo gecontroleerd.)
+--
+--   with verwacht(functie, grantee, privilege) as (
+--     -- trigger-functies: alleen owner en service_role
+--     select f, g, 'EXECUTE'
+--     from unnest(array['handle_new_user()','off_market_guard_plaats_import_noise()','rls_auto_enable()']) f
+--     cross join unnest(array['postgres','service_role']) g
+--     union all
+--     -- bito_loss_reason_code: rechten ongewijzigd
+--     select 'bito_loss_reason_code(text)', g, 'EXECUTE'
+--     from unnest(array['PUBLIC','postgres','anon','authenticated','service_role']) g
+--   ),
+--   huidig as (
+--     select p.oid::regprocedure::text functie,
+--            case when a.grantee = 0 then 'PUBLIC' else pg_get_userbyid(a.grantee) end grantee,
+--            a.privilege_type privilege
+--     from pg_proc p
+--     join pg_namespace n on n.oid = p.pronamespace
+--     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+--     where n.nspname = 'public'
+--       and p.proname in ('handle_new_user','rls_auto_enable',
+--                         'off_market_guard_plaats_import_noise','bito_loss_reason_code')
+--   )
+--   select 'ontbreekt' verschil, * from (select * from verwacht except select * from huidig) x
+--   union all
+--   select 'extra', * from (select * from huidig except select * from verwacht) y
+--   order by 2, 3;
+--
+--    Configuratie (verwacht: handle_new_user en off_market_guard_plaats_import_noise
+--    {search_path=public}, rls_auto_enable {search_path=pg_catalog},
+--    bito_loss_reason_code {search_path=pg_catalog}):
+--
+--   select p.oid::regprocedure, p.proconfig
+--   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--   where n.nspname = 'public'
+--     and p.proname in ('handle_new_user','rls_auto_enable',
+--                       'off_market_guard_plaats_import_noise','bito_loss_reason_code')
+--   order by 1;
+--
+-- 2. Security-advisor opnieuw draaien: de drie anon-meldingen en de search_path-melding
+--    moeten weg zijn.
+--
+-- 3. Werking van de drie triggers (eerst op een testbranch/-omgeving):
+--    a. RLS-eventtrigger (ensure_rls) — maakt een tijdelijke tabel en draait terug:
+--         begin;
+--         create table public._rls_check_fase0 (id int);
+--         select relrowsecurity from pg_class where oid = 'public._rls_check_fase0'::regclass;
+--         -- verwacht: true
+--         rollback;
+--    b. Gebruikersregistratie (handle_new_user): een testgebruiker aanmaken en controleren dat
+--       het bijbehorende profiel in public.profiles is aangemaakt.
+--    c. Radar (off_market_guard_plaats_import_noise): één Radar-import laten draaien en
+--       controleren dat signalen zonder fouten in off_market_signalen landen.
+--
+-- ---------------------------------------------------------------------------------------
+-- ROLLBACK — herstelt exact de uitgangssituatie hierboven
+-- ---------------------------------------------------------------------------------------
+--   begin;
+--   grant execute on function public.handle_new_user() to public, anon, authenticated;
+--   grant execute on function public.off_market_guard_plaats_import_noise() to public, anon, authenticated;
+--   grant execute on function public.rls_auto_enable() to public, anon, authenticated;
+--   alter function public.bito_loss_reason_code(text) reset search_path;
+--   commit;
+--
+-- Controle na rollback: draai controlequery 1 met deze verwachting in plaats van de bovenstaande.
+-- Alle vier functies hebben dan weer EXECUTE voor PUBLIC, postgres, anon, authenticated en
+-- service_role (de uitgangssituatie). Verwacht resultaat: 0 rijen.
+--
+--   with verwacht(functie, grantee, privilege) as (
+--     select f, g, 'EXECUTE'
+--     from unnest(array['bito_loss_reason_code(text)','handle_new_user()',
+--                       'off_market_guard_plaats_import_noise()','rls_auto_enable()']) f
+--     cross join unnest(array['PUBLIC','postgres','anon','authenticated','service_role']) g
+--   ),
+--   huidig as ( ...zelfde als in controlequery 1... )
+--   select ... ;
+--
+-- Deze variant is op 6 nov 2026 tegen de ongewijzigde database gedraaid en gaf 0 rijen:
+-- de vergelijking beschrijft de uitgangssituatie dus correct.
+-- Configuratie na rollback: bito_loss_reason_code proconfig leeg (null); de overige drie
+-- ongewijzigd.
