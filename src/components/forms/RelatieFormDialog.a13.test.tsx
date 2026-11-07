@@ -289,3 +289,34 @@ describe('A13 bestaand RelatieFormDialog — synthetisch, geen echte database',(
  });
 
 });
+
+describe('Fase 1 — volledige primaire criteria in bestaand relatieformulier',()=>{
+  it('toont volledige websitekeuzes zonder verplicht apart zoekprofiel',()=>{
+    render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+    fireEvent.click(screen.getByRole('tab',{name:'Investeerder'}));
+    expect(screen.getByText('Aankoopcriteria (websiteformulier)')).toBeTruthy();
+    expect(screen.getByRole('checkbox',{name:'Transformatiepotentie'})).toBeTruthy();
+    expect(screen.getByRole('checkbox',{name:'Herontwikkelingspotentie'})).toBeTruthy();
+    expect(screen.getByText(/Afzonderlijke zoekprofielen zijn optioneel/)).toBeTruthy();
+  });
+
+  it('kan zoekradius, financieringsstatus en situatie wijzigen zonder zoekprofiel aan te maken',async()=>{
+    render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+    fireEvent.click(screen.getByRole('tab',{name:'Investeerder'}));
+    fireEvent.change(screen.getByPlaceholderText('Plaatsen, straal of landelijk met focusregio'),{
+      target:{value:'35 km vanaf Amersfoort'},
+    });
+    fireEvent.change(screen.getByPlaceholderText('Bijv. direct, 1–3 maanden, doorlopend'),{
+      target:{value:'Direct / binnen 1 maand'},
+    });
+    fireEvent.click(screen.getByRole('checkbox',{name:'Herontwikkelingspotentie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+    await waitFor(()=>expect(mocks.updateRelatie).toHaveBeenCalledTimes(1));
+    const wijziging=mocks.updateRelatie.mock.calls[0][1];
+    expect(wijziging.zoekgebiedToelichting).toBe('35 km vanaf Amersfoort');
+    expect(wijziging.aankooptermijn).toBe('Direct / binnen 1 maand');
+    expect(wijziging.gewensteSituatie).toEqual(['Herontwikkelingspotentie']);
+    expect(wijziging.notities).toBe('Bestaande relatie-informatie');
+    expect(mocks.addRelatie).not.toHaveBeenCalled();
+  });
+});
