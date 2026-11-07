@@ -245,6 +245,18 @@ export interface Relatie {
   budgetMin?: number;
   budgetMax?: number;
   rendementseis?: number;
+  /** Volledige aankoopcriteria blijven op Relaties; extra zoekprofielen zijn optioneel. */
+  zoekgebiedToelichting?: string;
+  gewensteObjectomvang?: string;
+  gewensteSituatie?: string[];
+  aankooptermijn?: string;
+  financieringsstructuur?: string;
+  financieringsstatus?: string;
+  besluitvorming?: string;
+  uitsluitingen?: string;
+  overigeToelichting?: string;
+  strategieToelichting?: string;
+  portefeuilleInteresse?: boolean;
   kapitaalsituatie?: KapitaalSituatie;
   eigenVermogenPct?: number;
   voorkeurDealstructuur?: Dealstructuur[];
