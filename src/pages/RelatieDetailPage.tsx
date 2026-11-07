@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import {
-  getMatchesForRelatieFromData,
   formatCurrency,
   formatDate,
   type Zoekprofiel,
@@ -12,7 +11,7 @@ import {
   COMMUNICATIE_KANAAL_LABELS,
 } from '@/data/mock-data';
 import {
-  LeadStatusBadge, MatchScoreBadge, PrioriteitBadge,
+  LeadStatusBadge, PrioriteitBadge,
 } from '@/components/StatusBadges';
 import {
   ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
@@ -29,7 +28,7 @@ import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
 import InlineVastgoedVoorkeuren from '@/components/relatie/InlineVastgoedVoorkeuren';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
-import MatchUitleg from '@/components/MatchUitleg';
+import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
 import {
@@ -161,7 +160,7 @@ export default function RelatieDetailPage() {
     return isConcreteTransactionPosition(stage, preferredBidderStage);
   });
   const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
-  const matches = getMatchesForRelatieFromData(relatie.id, store.zoekprofielen, store.objecten, relatie);
+  const matches = maakObjectVoorstellenVoorRelatie(relatie, store.objecten, store.zoekprofielen);
   const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
   const laatsteActiviteitDatum = getLaatsteActiviteitDatum(relatie.id, store.contactMoments);
   const volgendeOpenTaak = getVolgendeOpenTaak(relatie.id, store.taken);
@@ -383,44 +382,51 @@ export default function RelatieDetailPage() {
             </div>
           </section>
 
-          {matches.length > 0 && (
-            <section className="section-card">
-              <header className="section-header"><h2 className="section-title">Mogelijke matches ({matches.length})</h2></header>
-               <p className="px-5 pt-3 text-xs text-muted-foreground">
-                 Indicatieve voorselectie. Controleer zelf rendementseis, zoekradius, gewenste situatie, financiering
-                 en overige uitsluitingen voordat je een propositie verstuurt.
-               </p>
-              <div className="divide-y divide-border/70">
-                {matches.slice(0, 5).map((m, i) => {
-                  const obj = store.getObjectById(m.objectId);
-                  return (
-                    <details key={i} className="group">
-                      <summary className="block px-5 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer list-none">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <Link
-                              to={`/objecten/${m.objectId}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-sm text-foreground truncate hover:text-accent block"
-                            >
-                              {obj?.titel}
-                            </Link>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {obj?.plaats} · {m.redenen.slice(0, 2).join(' · ')}
-                            </p>
-                          </div>
-                          <MatchScoreBadge score={m.score} />
-                        </div>
-                      </summary>
-                      <div className="px-5 pb-4">
-                        <MatchUitleg match={m} object={obj ?? undefined} compact />
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+          <section className="section-card">
+            <header className="section-header">
+              <h2 className="section-title">Mogelijke objecten — R2 ({matches.length})</h2>
+            </header>
+            <p className="px-5 pt-3 text-xs text-muted-foreground">
+              Dezelfde directe-contactmatching als bij Objecten. Een makelaar of bemiddelaar is een
+              contactkandidaat, niet automatisch de uiteindelijke koper. Gemeenten zonder geverifieerde
+              objectgemeente, zoekradius, rendement en aanvullende voorwaarden moet je zelf controleren.
+            </p>
+            <div className="divide-y divide-border/70">
+              {matches.length===0&&<p className="px-5 py-4 text-sm text-muted-foreground">
+                Nog geen mogelijke objecten gevonden. Controleer de beschikbare criteria in Relaties.
+              </p>}
+              {matches.slice(0,5).map(({object,voorstel})=>{
+                const route=voorstel.besteRoute;
+                const labels={passend:'Indicatief passend',te_verifieren:'Te verifiëren',onvoldoende:'Onvoldoende gegevens',afwijkend:'Afwijkend'} as const;
+                return <details key={object.id} className="group">
+                  <summary className="flex justify-between items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-muted/40">
+                    <div className="min-w-0">
+                      <Link to={`/objecten/${object.id}`} onClick={e=>e.stopPropagation()}
+                        className="text-sm font-medium hover:text-accent break-words">{object.titel}</Link>
+                      <p className="text-xs text-muted-foreground">
+                        {object.plaats} · {route.bron==='relatie_basis'?'Algemene criteria (Relaties)':'Aanvullend zoekprofiel'}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded border border-border px-2 py-1 text-xs">
+                      {labels[route.kwalificatie]}
+                    </span>
+                  </summary>
+                  <div className="px-5 pb-4 space-y-1 text-xs">
+                    {route.toelichting.matcht.map((tekst,i)=><p key={i}>✓ {tekst}</p>)}
+                    {route.toelichting.controleer.map((tekst,i)=><p key={i} className="text-muted-foreground">
+                      Te controleren: {tekst}
+                    </p>)}
+                    {route.toelichting.afwijkend.map((tekst,i)=><p key={i} className="text-destructive">
+                      Afwijking: {tekst}
+                    </p>)}
+                    <p className="pt-2 text-muted-foreground">
+                      Geen automatische aanbieding of aankoopbeslissing. Eventuele aanvullende zoekrichtingen blijven behouden.
+                    </p>
+                  </div>
+                </details>;
+              })}
+            </div>
+          </section>
 
           <Timeline relatieId={relatie.id} />
         </div>
