@@ -66,7 +66,9 @@ describe('één zichtbare commerciële trajectfase', () => {
     expect(source).not.toContain('DEAL_FASE_LABELS');
     expect(source).not.toContain('conversiePct');
     expect(source).not.toContain('leads →');
-    expect(source).toContain('Huidige verdeling van actieve objecten');
+    // Sinds D4: één momentumoverzicht (ActueleDealflow); de funnel voedt nog de KPI.
+    expect(source).not.toContain('Huidige verdeling van actieve objecten');
+    expect(source).toContain('value={`${funnel.length} actieve fases`}');
   });
 
   it('filtert Relatie-detail naar concrete of terminale Deals', () => {

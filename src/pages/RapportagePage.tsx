@@ -4,7 +4,7 @@
 // Secties:
 //  1. KPI rij (gerealiseerd, pipeline, deals, gem. dealgrootte)
 //  2. Commissie per maand (lijngrafiek, dit jaar vs vorig jaar)
-//  3. Object Pipeline momentum (deals per fase, met drop-off %)
+//  3. Object Pipeline momentum: zie Actuele dealflow (8); de eenvoudige versie is in D4 vervallen
 //  4. Top bronnen (welke relaties leveren meeste afgeronde deals)
 //  5. Gemiddelde doorlooptijd per fase
 //  6. Top 10 grootste afgeronde deals
@@ -86,7 +86,7 @@ export default function RapportagePage() {
     });
   }, [maandData, jaarDoel]);
 
-  // Huidige Object Pipeline — de enige commerciële trajectfase.
+  // Huidige Object Pipeline — de enige commerciële trajectfase. Voedt de KPI "Object Pipeline".
   const funnel = useMemo(() => {
     const actieveObjecten = store.objecten.filter(object => !object.isArchived);
     return pipelineStages
@@ -306,44 +306,6 @@ export default function RapportagePage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* Huidige Object Pipeline-verdeling — géén historische conversiefunnel. */}
-      <div className="section-card p-5 sm:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="section-title">Object Pipeline momentum</h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Huidige verdeling van actieve objecten over de commerciële trajectfase.
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {store.objecten.filter(object => !object.isArchived).length} actieve objecten · {funnel.length} bezette fases
-          </span>
-        </div>
-        {funnel.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">Geen actieve objecten in de Object Pipeline.</p>
-        ) : (
-          <div className="space-y-2">
-            {funnel.map((rij) => {
-              const max = Math.max(1, ...funnel.map(item => item.aantal));
-              const pct = (rij.aantal / max) * 100;
-              return (
-                <div key={rij.fase} className="flex items-center gap-3">
-                  <div className="w-32 sm:w-44 text-xs text-muted-foreground shrink-0 truncate" title={rij.fase}>{rij.fase}</div>
-                  <div className="flex-1 h-7 bg-muted/40 rounded-md overflow-hidden">
-                    <div
-                      className="h-full flex items-center px-2 text-xs font-medium font-mono-data bg-accent/70 text-accent-foreground transition-all"
-                      style={{ width: `${Math.max(pct, 4)}%` }}
-                    >
-                      {rij.aantal}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

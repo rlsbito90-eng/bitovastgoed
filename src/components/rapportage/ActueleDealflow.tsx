@@ -199,7 +199,7 @@ export default function ActueleDealflow() {
       </section>
     </div>
 
-    <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 lg:gap-6"><CommissieWidget /><ForecastWidget forecast={forecast} deals={deals} /></div>
+    <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 lg:gap-6"><CommissieWidget toonRapportageLink={false} /><ForecastWidget forecast={forecast} deals={deals} /></div>
     <AcquisitieDashboardSectie />
     </div>
   );

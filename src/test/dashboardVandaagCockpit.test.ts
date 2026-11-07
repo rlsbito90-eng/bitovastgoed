@@ -133,6 +133,18 @@ describe('Dashboard D4 — verhuisd naar Rapportage', () => {
     for (const s of ['to={`/deals/${deal.id}`}', 'object?.vraagprijs', 'deal.commissieBedrag', '<TrajectoryStageBadge objectId={deal.objectId} />', 'object.plaats', 'Alle deals']) expect(dealflow).toContain(s);
   });
 
+  it('Rapportage heeft één Object Pipeline momentum; de KPI Object Pipeline blijft', () => {
+    expect(rapportage.split('Object Pipeline momentum').length - 1).toBe(1); // alleen in de kopcommentaar
+    expect(rapportage).not.toContain('<h2 className="section-title">Object Pipeline momentum</h2>');
+    expect(rapportage).toContain('const funnel = useMemo');
+    expect(rapportage).toContain('label="Object Pipeline"');
+    expect(dealflow.split('Object Pipeline momentum</h2>').length - 1).toBe(1);
+  });
+
+  it('Commissie-widget toont binnen Rapportage geen link naar zichzelf', () => {
+    expect(dealflow).toContain('<CommissieWidget toonRapportageLink={false} />');
+  });
+
   it('Nieuwe kansen is tijdelijk verwijderd, ook uit Rapportage', () => {
     expect(dealflow).not.toContain('Nieuwe kansen');
     expect(rapportage).not.toContain('Nieuwe kansen');
