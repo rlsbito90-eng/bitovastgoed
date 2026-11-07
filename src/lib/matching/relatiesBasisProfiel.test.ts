@@ -73,6 +73,32 @@ describe('Relaties is het primaire investeringsprofiel', () => {
     expect(resultaten).toHaveLength(1);
   });
 
+  it('vereist het objecttype bij relaties die alleen nieuwe vastgoedtypen hebben ingevuld', () => {
+    const relatie: Relatie = {...basis, assetClasses: [], propertyTypeIds: ['type-wonen']};
+    // Alleen een match op regio en budget is onvoldoende wanneer het object geen taxonomietype heeft.
+    expect(getMatchesForRelatieFromData(relatie.id, [], [object()], relatie)).toHaveLength(0);
+  });
+
+  it('matcht het juiste nieuwe vastgoedtype wel als beide kanten dat expliciet kennen', () => {
+    const relatie: Relatie = {...basis, assetClasses: [], propertyTypeIds: ['type-wonen']};
+    const vastgoed: ObjectVastgoed = {...object(), propertyTypeId: 'type-wonen'};
+    const resultaten = getMatchesForRelatieFromData(relatie.id, [], [vastgoed], relatie);
+    expect(resultaten).toHaveLength(1);
+    expect(resultaten[0].zoekprofielId).toBe('relatie:koper-1');
+  });
+
+  it('wijst een afwijkend nieuw vastgoedtype af', () => {
+    const relatie: Relatie = {...basis, assetClasses: [], propertyTypeIds: ['type-wonen']};
+    const vastgoed: ObjectVastgoed = {...object(), propertyTypeId: 'type-kantoren'};
+    expect(getMatchesForRelatieFromData(relatie.id, [], [vastgoed], relatie)).toHaveLength(0);
+  });
+
+  it('past geen basismatching toe zonder kooprol', () => {
+    const verkoper: Relatie = {...basis, commercialRoles: ['verkoper']};
+    expect(maakRelatieBasisZoekprofiel(verkoper)).toBeNull();
+    expect(getMatchesForRelatieFromData(verkoper.id, [], [object()], verkoper)).toHaveLength(0);
+  });
+
   it('biedt geen objecten aan die niet beschikbaar zijn', () => {
     expect(getMatchesForRelatieFromData(basis.id, [], [object(500000, 'verkocht')], basis)).toHaveLength(0);
   });
