@@ -1405,20 +1405,64 @@ export function getMatchesForObjectFromData(
     .sort((a, b) => b.score - a.score);
 }
 
+/** Virtuele, niet-opgeslagen zoekroute vanuit Relaties.
+ * Er wordt geen afzonderlijk zoekprofiel aangemaakt of gesynchroniseerd.
+ * Zonder vastgelegd vastgoedtype tonen we geen brede, ongerichte automatische matches.
+ */
+export function maakRelatieBasisZoekprofiel(relatie: Relatie): Zoekprofiel | null {
+  const typeVastgoed = relatie.assetClasses ?? [];
+  const propertyTypeIds = relatie.propertyTypeIds ?? [];
+  if (typeVastgoed.length === 0 && propertyTypeIds.length === 0) return null;
+  const koopprofielen: readonly (Partijprofiel | undefined | null)[] = [
+    'belegger', 'ontwikkelende_belegger', 'fonds', 'family_office',
+    'buitenlandse_belegger', 'ontwikkelaar', 'vastgoedondernemer',
+  ];
+  const actiefAlsKoper = relatie.commercialRoles?.includes('koper') ||
+    (relatie.commercialRoles == null && (koopprofielen.includes(relatie.partijprofiel) ||
+      ['belegger', 'ontwikkelaar'].includes(relatie.type)));
+  if (!actiefAlsKoper) return null;
+
+  return {
+    id: `relatie:${relatie.id}`,
+    naam: 'Algemeen investeringsprofiel (Relaties)',
+    relatieId: relatie.id,
+    typeVastgoed,
+    propertyTypeIds,
+    propertySubtypeIds: relatie.propertySubtypeIds ?? [],
+    dealTypeIds: relatie.dealTypeIds ?? [],
+    regio: relatie.regio ?? [],
+    prijsMin: relatie.budgetMin,
+    prijsMax: relatie.budgetMax,
+    ontwikkelPotentie: relatie.vastgoedStrategieen?.includes('projectontwikkeling') ?? false,
+    transformatiePotentie: relatie.vastgoedStrategieen?.includes('transformatie') ?? false,
+    prioriteit: 3,
+    status: 'actief',
+    aanvullendeCriteria: relatie.aankoopcriteria,
+  };
+}
+
+/** Combinatie van de algemene relatiecriteria en vrijwillige extra zoekprofielen.
+ * Maximaal één resultaat per object; de hoogste match wint.
+ */
 export function getMatchesForRelatieFromData(
   relatieId: string,
   profielen: Zoekprofiel[],
   objecten: ObjectVastgoed[],
+  relatie?: Relatie,
 ): MatchResult[] {
-  const eigenProfielen = profielen.filter(z => z.relatieId === relatieId && z.status === 'actief');
-  const results: MatchResult[] = [];
-  for (const profiel of eigenProfielen) {
-    for (const object of objecten) {
+  const extra = profielen.filter(z => z.relatieId === relatieId && z.status === 'actief');
+  const basis = relatie && relatie.id === relatieId ? maakRelatieBasisZoekprofiel(relatie) : null;
+  const routes = basis ? [basis, ...extra] : extra;
+  const bestPerObject = new Map<string, MatchResult>();
+  for (const profiel of routes) {
+    for (const object of objecten.filter(o => o.status === 'beschikbaar')) {
       const match = berekenMatchScore(object, profiel);
-      if (match) results.push(match);
+      if (!match) continue;
+      const bestaand = bestPerObject.get(object.id);
+      if (!bestaand || match.score > bestaand.score) bestPerObject.set(object.id, match);
     }
   }
-  return results.sort((a, b) => b.score - a.score);
+  return [...bestPerObject.values()].sort((a, b) => b.score - a.score);
 }
 
 export function getAllMatchesFromData(
