@@ -81,3 +81,34 @@ describe('Dashboard D2 — werklijst met dezelfde regels als Taken', () => {
     expect(page).not.toContain('Actief aanbodvolume');
   });
 });
+
+describe('Dashboard D3 — Aandacht nodig', () => {
+  it('staat naast Mijn werkzaamheden en gebruikt de gedeelde logica', () => {
+    expect(page).toContain('<DashboardAandacht');
+    expect(page).toContain('bepaalAandacht(');
+    expect(page).toContain('useBiedingen({ all: true })');
+    expect(page).toContain('lg:grid-cols-2');
+    expect(page.indexOf('<DashboardWerklijst')).toBeLessThan(page.indexOf('<DashboardAandacht'));
+  });
+
+  it('leest live uit de store, zodat nieuwe taken en contactmomenten direct doorwerken', () => {
+    expect(page).toContain('store.contactMoments');
+    expect(page).toContain('store.pipelineKandidaten');
+    expect(page).toContain('planningById.get(taak.id)?.planDatum');
+  });
+
+  it('plannen legt een plandatum vast (geen harde deadline) en werkt de planning direct bij', () => {
+    expect(page).toContain('<OpvolgingPlannenDialog');
+    expect(page).not.toContain('defaultDeadline={vandaagKey}');
+    expect(page).toContain("{ id, planDatum, planTijd: null, planningBucket: 'open' }");
+  });
+
+  it('geeft de partij van een bieding door via de bestaande relatienaam', () => {
+    expect(page).toContain('relatieNaam: id =>');
+    expect(page).toContain('getRelatieNaamCompact(rel, store.contactpersonen)');
+  });
+
+  it('bestaande onderdelen blijven tot D4 staan', () => {
+    for (const s of ['Object Pipeline momentum', 'Nieuwe kansen', '<CommissieWidget']) expect(page).toContain(s);
+  });
+});

@@ -18,10 +18,11 @@ import { OfferStatusBadge, OfferTypeBadge, OfferDirectionBadge } from './OfferBa
 import OfferFormDialog from './OfferFormDialog';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
 import type { Bieding, BiedingStatus } from '@/lib/biedingen/types';
+import { ACTIEVE_BIEDING_STATUSSEN } from '@/lib/biedingen/status';
 import { getNegotiationPositions, nextCounterDirection } from '@/lib/biedingen/progression';
 
 type Scope = { objectId: string } | { dealId: string } | { relatieId: string };
-const ACTIEF: BiedingStatus[] = ['concept', 'ontvangen', 'in_behandeling', 'tegenvoorstel_gedaan', 'aangepast_bod_gevraagd'];
+const ACTIEF: BiedingStatus[] = ACTIEVE_BIEDING_STATUSSEN;
 
 interface Props {
   scope: Scope;
