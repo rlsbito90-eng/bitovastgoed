@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useDataStore } from '@/hooks/useDataStore';
 import { createManualTaskWithReminder } from '@/lib/tasks/reminders';
-import { updateTaskPlanning } from '@/lib/tasks/planning';
 import { localDateKey } from '@/lib/tasks/workView';
 import type { AandachtItem } from '@/lib/dashboard/aandacht';
 import { taakTitelVoor } from '@/components/dashboard/DashboardAandacht';
@@ -35,8 +34,11 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
   const [metDeadline, setMetDeadline] = useState(false);
   const [deadline, setDeadline] = useState('');
   const [bezig, setBezig] = useState(false);
+  /** Al aangemaakte taak voor dit venster: een nieuwe poging maakt dan geen tweede taak aan. */
+  const aangemaakt = useRef<{ taakId: string; planDatum: string } | null>(null);
 
   useEffect(() => {
+    aangemaakt.current = null;
     if (!item) return;
     setTitel(taakTitelVoor(item));
     setPlanDatum(plusDagen(0));
@@ -50,22 +52,27 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
     if (!item || !naam || !planDatum || bezig) return;
     setBezig(true);
     try {
-      const taakId = await createManualTaskWithReminder({
-        titel: naam,
-        objectId: item.objectId,
-        type: 'Algemeen',
-        deadline: metDeadline && deadline ? deadline : undefined,
-        prioriteit: 'normaal',
-        status: 'open',
-        reminderSelection: 'default',
-      });
-      await updateTaskPlanning(taakId, { planDatum, planTijd: null, planningBucket: 'open' });
-      onGepland?.(taakId, planDatum);
+      if (!aangemaakt.current) {
+        // Taak en plandatum in één insert: er blijft nooit een taak zonder planning achter.
+        const taakId = await createManualTaskWithReminder({
+          titel: naam,
+          objectId: item.objectId,
+          type: 'Algemeen',
+          deadline: metDeadline && deadline ? deadline : undefined,
+          prioriteit: 'normaal',
+          status: 'open',
+          reminderSelection: 'default',
+        }, { planDatum, planTijd: null, planningBucket: 'open' });
+        aangemaakt.current = { taakId, planDatum };
+        onGepland?.(taakId, planDatum);
+      }
       await refresh();
       toast.success('Opvolging gepland');
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(`Plannen mislukt: ${error?.message ?? 'onbekende fout'}`);
+      toast.error(aangemaakt.current
+        ? `Taak is opgeslagen, maar vernieuwen mislukte: ${error?.message ?? 'onbekende fout'}. Probeer opnieuw; er wordt geen tweede taak aangemaakt.`
+        : `Plannen mislukt, er is niets opgeslagen: ${error?.message ?? 'onbekende fout'}`);
     } finally {
       setBezig(false);
     }
@@ -85,7 +92,7 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
         <form onSubmit={opslaan} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="opvolging-titel">Taak</Label>
-            <Input id="opvolging-titel" value={titel} onChange={e => setTitel(e.target.value)} />
+            <Input id="opvolging-titel" value={titel} disabled={!!aangemaakt.current} onChange={e => setTitel(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="opvolging-plandatum">Plandatum</Label>

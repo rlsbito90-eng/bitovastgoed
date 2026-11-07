@@ -53,6 +53,13 @@ export interface ManualTaskInput {
   reminderSelection: TaskReminderSelection;
 }
 
+/** Werkplanning die bij het aanmaken in dezelfde insert wordt opgeslagen. */
+export interface ManualTaskPlanning {
+  planDatum: string | null;
+  planTijd?: string | null;
+  planningBucket: 'open' | 'inbox' | 'later';
+}
+
 function taskPayload(input: ManualTaskInput) {
   return {
     titel: input.titel.trim() || 'Naamloze taak',
@@ -72,8 +79,20 @@ function taskPayload(input: ManualTaskInput) {
 
 const db = supabase as any;
 
-export async function createManualTaskWithReminder(input: ManualTaskInput): Promise<string> {
-  const { data, error } = await db.from('taken').insert(taskPayload(input)).select('id').single();
+/**
+ * Maakt een handmatige taak aan. Met `planning` worden plandatum en werkbak in dezelfde insert
+ * opgeslagen, zodat er geen taak zonder planning achterblijft als een tweede opslag zou mislukken.
+ */
+export async function createManualTaskWithReminder(input: ManualTaskInput, planning?: ManualTaskPlanning): Promise<string> {
+  const payload = planning
+    ? {
+        ...taskPayload(input),
+        plan_datum: planning.planDatum,
+        plan_tijd: planning.planDatum ? (planning.planTijd ?? null) : null,
+        planning_bucket: planning.planningBucket,
+      }
+    : taskPayload(input);
+  const { data, error } = await db.from('taken').insert(payload).select('id').single();
   if (error) throw error;
   return data.id as string;
 }
