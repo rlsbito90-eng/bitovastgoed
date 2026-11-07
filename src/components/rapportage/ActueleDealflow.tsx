@@ -1,0 +1,288 @@
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  TrendingUp,
+  Flame,
+  ArrowRight,
+  ChevronRight,
+  Activity,
+} from 'lucide-react';
+import { useDataStore } from '@/hooks/useDataStore';
+import { useUnifiedFeeReporting } from '@/hooks/useUnifiedFeeReporting';
+import {
+  formatCurrency,
+  formatCurrencyCompact,
+  getAllMatchesFromData,
+  isDealActief,
+  isDealGerealiseerd,
+  getDealRealisatieDatum,
+} from '@/data/mock-data';
+import { isStrongMatch } from '@/lib/derivations';
+import { LeadStatusBadge } from '@/components/StatusBadges';
+import TrajectoryStageBadge from '@/components/pipeline/TrajectoryStageBadge';
+import { getPreferredBidderStage, getTrajectoryProbability, getTrajectoryStage, isConcreteTransactionPosition } from '@/lib/lifecycle/trajectory';
+import CommissieWidget from '@/components/dashboard/CommissieWidget';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
+import { isVerlopen as datumVerlopen } from '@/components/GeenActieBadge';
+import { useAcquisitie } from '@/hooks/useAcquisitie';
+import { targetIsActief } from '@/lib/acquisitie';
+
+/**
+ * Actuele dealflow (D4): de onderdelen die eerder op het Dashboard stonden, ongewijzigd verhuisd naar
+ * Rapportage — Object Pipeline momentum, Concrete transacties, Dealflow health, Commissie, Fee forecast
+ * en Acquisitie. Live stand van vandaag, los van het gekozen rapportagejaar.
+ */
+export default function ActueleDealflow() {
+  const store = useDataStore();
+  const { relaties, objecten, deals } = store;
+  const nu = new Date();
+  const unifiedFees = useUnifiedFeeReporting(nu.getFullYear());
+
+  const actieveObjecten = useMemo(() => objecten.filter(o => !o.isArchived), [objecten]);
+  const actieveDeals    = useMemo(() => deals.filter(isDealActief), [deals]);
+  const defaultPipeline = store.getDefaultObjectPipeline();
+  const pipelineStages = defaultPipeline
+    ? store.getStagesVoorPipeline(defaultPipeline.id).filter(stage => stage.isActive && !stage.isLost)
+    : [];
+  const preferredBidderStage = getPreferredBidderStage(pipelineStages);
+  const stageForObject = (objectId: string) => getTrajectoryStage(store.getObjectById(objectId), pipelineStages);
+  const concreteDeals = actieveDeals.filter(deal =>
+    isConcreteTransactionPosition(stageForObject(deal.objectId), preferredBidderStage)
+  );
+  const warmeRelaties = useMemo(() => relaties.filter(r => r.leadStatus === 'warm' || r.leadStatus === 'actief'), [relaties]);
+
+  const matches = useMemo(() => getAllMatchesFromData(store.zoekprofielen, store.objecten), [store.zoekprofielen, store.objecten]);
+  const sterkeMatches = useMemo(() => matches.filter(m => isStrongMatch(m.score)), [matches]);
+
+  const feeByObject = new Map(unifiedFees.rows.map(row => [row.objectId, row.pipelineFee]));
+  const pipelinePerFase = pipelineStages
+    .map(stage => {
+      const faseObjecten = actieveObjecten.filter(object => object.pipelineStageId === stage.id);
+      const waarde = faseObjecten.reduce((som, object) => som + (object.vraagprijs ?? 0), 0);
+      const fee = faseObjecten.reduce((som, object) => som + (feeByObject.get(object.id) ?? 0), 0);
+      const gewogen = fee * getTrajectoryProbability(stage);
+      return { stage, aantal: faseObjecten.length, waarde, fee, gewogen };
+    })
+    .filter(item => item.aantal > 0);
+  const totaalActieveObjecten = pipelinePerFase.reduce((som, item) => som + item.aantal, 0) || 1;
+  const maxAantal = Math.max(1, ...pipelinePerFase.map(item => item.aantal));
+  const maxGewogen = Math.max(0, ...pipelinePerFase.map(item => item.gewogen));
+
+  const forecast = useMemo(() => {
+    const buckets = [30, 60, 90].map(d => ({ days: d, bedrag: 0, count: 0 }));
+    const today = nu.getTime();
+    for (const d of concreteDeals) {
+      if (!d.verwachteClosingdatum || !d.commissieBedrag) continue;
+      const dt = new Date(d.verwachteClosingdatum).getTime();
+      const diff = (dt - today) / (1000 * 60 * 60 * 24);
+      if (diff < 0 || diff > 90) continue;
+      const gewogen = d.commissieBedrag * getTrajectoryProbability(stageForObject(d.objectId));
+      for (const b of buckets) {
+        if (diff <= b.days) { b.bedrag += gewogen; b.count += 1; }
+      }
+    }
+    return buckets;
+  }, [concreteDeals, nu, objecten]);
+
+  const topDeals = [...concreteDeals]
+    .sort((a, b) => (stageForObject(b.objectId)?.sortOrder ?? 0) - (stageForObject(a.objectId)?.sortOrder ?? 0))
+    .slice(0, 6);
+
+  const beschikbareObjecten = actieveObjecten.filter(o => o.status === 'beschikbaar').length;
+  const objectenZonderKandidaten = actieveObjecten.filter(object => !store.pipelineKandidaten.some(kandidaat => kandidaat.objectId === object.id)).length;
+  const dealsZonderActiviteit = concreteDeals.filter(d => {
+    if (!d.datumFollowUp) return true;
+    const last = new Date(d.datumFollowUp).getTime();
+    return (nu.getTime() - last) / (1000 * 60 * 60 * 24) > 7;
+  }).length;
+
+  return (
+    <div data-testid="rapportage-actuele-dealflow" className="space-y-4 lg:space-y-6">
+      <div className="pt-2">
+        <h2 className="text-lg font-semibold text-foreground tracking-tight">Actuele dealflow</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Stand van vandaag, los van het gekozen jaar. Voorheen op het Dashboard.</p>
+      </div>
+
+    <section className="section-card">
+      <header className="section-header">
+        <div className="min-w-0">
+          <h2 className="section-title flex items-center gap-2"><Activity className="h-4 w-4 text-accent" />Object Pipeline momentum</h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5 tracking-wide">Live overzicht van de enige commerciële trajectfase — klik voor Pipeline</p>
+        </div>
+        <Link to="/pipeline" className="section-link inline-flex items-center gap-1 group">Naar Pipeline <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" /></Link>
+      </header>
+      <div className="p-5 lg:p-6">
+        <div className="hidden md:flex items-stretch gap-1.5 mb-2">
+          {pipelinePerFase.map(({ stage, aantal, waarde, gewogen }, idx) => {
+            const isFirst = idx === 0;
+            const isLast = idx === pipelinePerFase.length - 1;
+            const intensity = 0.06 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.26;
+            const heightPct = (aantal / maxAantal) * 100;
+            const pct = Math.round((aantal / totaalActieveObjecten) * 100);
+            const isHotspot = gewogen > 0 && gewogen === maxGewogen;
+            return (
+              <Link key={stage.id} to="/pipeline" className={`pipeline-stage rounded-sm ${isFirst ? 'chevron-step-first' : isLast ? 'chevron-step-last' : 'chevron-step'} ${isHotspot ? 'pipeline-stage--active' : ''}`} style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }} title={`${stage.name}: ${aantal} · ${formatCurrencyCompact(waarde)} · fee ${formatCurrencyCompact(gewogen)}`}>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-foreground/70 truncate">{stage.name}</p>
+                  {isHotspot && <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_0_3px_hsl(var(--accent)/0.18)]" aria-hidden />}
+                </div>
+                <div className="flex items-baseline gap-1.5 mt-1.5"><span className="text-[22px] font-semibold font-mono-data text-foreground leading-none tracking-tight">{aantal}</span><span className="text-[10px] font-mono-data text-muted-foreground">{pct}%</span></div>
+                <p className="text-[10px] font-mono-data text-muted-foreground mt-0.5 truncate">{formatCurrencyCompact(waarde)}</p>
+                <div className="mt-2 h-1 bg-foreground/5 rounded-full overflow-hidden"><div className="h-full bg-accent rounded-full bar-fill" style={{ width: `${Math.max(4, heightPct)}%` }} /></div>
+                <p className="text-[9px] text-muted-foreground mt-1.5 truncate" title="Weighted fee">fee gew. ~ <span className="font-mono-data text-foreground/80 font-medium">{formatCurrencyCompact(gewogen)}</span></p>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="md:hidden grid grid-cols-2 gap-2">
+          {pipelinePerFase.map(({ stage, aantal, waarde }, idx) => {
+            const pct = Math.round((aantal / totaalActieveObjecten) * 100);
+            const intensity = 0.04 + (idx / Math.max(1, pipelinePerFase.length - 1)) * 0.14;
+            return (
+              <Link key={stage.id} to="/pipeline" className="relative overflow-hidden rounded-xl border border-border/70 px-3 py-2.5 active:scale-[0.98] transition-all min-w-0" style={{ backgroundColor: `hsl(var(--accent) / ${intensity})` }}>
+                <p className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground truncate">{stage.name}</p>
+                <p className="font-mono-data text-[15px] font-semibold text-foreground mt-1.5 leading-none truncate">{formatCurrencyCompact(waarde)}</p>
+                <div className="flex items-baseline gap-1.5 mt-1.5"><span className="text-[12px] font-mono-data font-semibold text-foreground/80">{aantal}</span><span className="text-[10px] text-muted-foreground">objecten · {pct}%</span></div>
+                <div className="mt-2 h-0.5 bg-foreground/5 rounded-full overflow-hidden"><div className="h-full bg-accent rounded-full bar-fill" style={{ width: `${Math.max(6, (aantal / maxAantal) * 100)}%` }} /></div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+
+    {/* Concrete transacties en Dealflow health naast elkaar (desktop). */}
+    <div className="grid lg:grid-cols-2 gap-4 lg:gap-6 items-start">
+    <section className="section-card flex flex-col">
+      <header className="section-header">
+        <div className="min-w-0"><h2 className="section-title">Concrete transacties</h2><p className="text-[11px] text-muted-foreground mt-0.5">{topDeals.length} van {concreteDeals.length} — vanaf Preferred bidder / exclusiviteit</p></div>
+        <Link to="/deals" className="section-link inline-flex items-center gap-1">Alle deals <ArrowRight className="h-3 w-3" /></Link>
+      </header>
+      <div className="divide-y divide-border/60">
+        {topDeals.map(deal => {
+          const relatie = store.getRelatieById(deal.relatieId);
+          const object  = store.getObjectById(deal.objectId);
+          return (
+            <Link key={deal.id} to={`/deals/${deal.id}`} className="row-hover block px-5 py-3.5 group">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0"><p className="text-[14px] font-semibold text-foreground truncate tracking-tight">{object?.titel ?? '—'}</p><ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-accent" /></div>
+                  <p className="text-[11.5px] text-muted-foreground truncate mt-0.5">{relatie ? getRelatieNaamCompact(relatie, store.contactpersonen) : '—'}{object?.plaats ? <span className="text-muted-foreground/60"> · {object.plaats}</span> : null}</p>
+                  <div className="flex items-center gap-2 mt-2">{object?.vraagprijs != null && <span className="text-[11px] font-mono-data text-muted-foreground">{formatCurrencyCompact(object.vraagprijs)}</span>}{deal.commissieBedrag != null && <span className="text-[11px] font-mono-data font-semibold text-accent bg-accent/8 ring-1 ring-accent/15 px-1.5 py-0.5 rounded-md">fee {formatCurrencyCompact(deal.commissieBedrag)}</span>}</div>
+                </div>
+                <TrajectoryStageBadge objectId={deal.objectId} />
+              </div>
+            </Link>
+          );
+        })}
+        {topDeals.length === 0 && <p className="px-5 py-6 text-sm text-muted-foreground">Geen concrete transacties. Kandidaten vóór Preferred bidder staan op het Object.</p>}
+      </div>
+    </section>
+
+      <section className="section-card flex flex-col">
+        <header className="section-header"><h2 className="section-title">Dealflow health</h2></header>
+        <div className="p-5 grid grid-cols-2 gap-x-5 gap-y-4">
+          <MiniStat label="Actieve kopers" value={warmeRelaties.length} hint="Warm + actief" />
+          <MiniStat label="Beschikbare objecten" value={beschikbareObjecten} />
+          <MiniStat label="Zonder kandidaten" value={objectenZonderKandidaten} tone={objectenZonderKandidaten > 0 ? 'warning' : 'normal'} />
+          <MiniStat label="Stagnatie > 7d" value={dealsZonderActiviteit} tone={dealsZonderActiviteit > 0 ? 'warning' : 'normal'} hint="Deals zonder follow-up" />
+          <MiniStat label="Sterke kansen" value={sterkeMatches.length} hint="Score ≥ 70" />
+        </div>
+        <div className="px-5 pb-5 pt-1 border-t border-border/60">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Top actieve kopers</p>
+          <div className="space-y-1.5">
+            {warmeRelaties.slice(0, 3).map(rel => <Link key={rel.id} to={`/relaties/${rel.id}`} className="flex items-center justify-between gap-3 py-1.5 px-2 -mx-2 rounded-md hover:bg-muted/40 transition-colors"><p className="text-sm text-foreground truncate min-w-0">{getRelatieNaamCompact(rel, store.contactpersonen)}</p><LeadStatusBadge status={rel.leadStatus} /></Link>)}
+            {warmeRelaties.length === 0 && <p className="text-xs text-muted-foreground">Geen actieve kopers.</p>}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 lg:gap-6"><CommissieWidget toonRapportageLink={false} /><ForecastWidget forecast={forecast} deals={deals} /></div>
+    <AcquisitieDashboardSectie />
+    </div>
+  );
+}
+
+
+function ForecastWidget({ forecast, deals }: { forecast: { days: number; bedrag: number; count: number }[]; deals: ReturnType<typeof useDataStore>['deals'] }) {
+  const maanden = useMemo(() => {
+    const arr: { label: string; bedrag: number; count: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const eind = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const bucket = deals.filter(deal => {
+        if (!isDealGerealiseerd(deal)) return false;
+        const dt = getDealRealisatieDatum(deal);
+        if (!dt) return false;
+        const t = new Date(dt).getTime();
+        return t >= d.getTime() && t < eind.getTime();
+      });
+      arr.push({ label: d.toLocaleDateString('nl-NL', { month: 'short' }), bedrag: bucket.reduce((s, x) => s + (x.commissieBedrag ?? 0), 0), count: bucket.length });
+    }
+    return arr;
+  }, [deals]);
+  const maxMaand = Math.max(1, ...maanden.map(m => m.bedrag));
+  const maxForecast = Math.max(1, ...forecast.map(b => b.bedrag));
+
+  return (
+    <section className="section-card flex flex-col">
+      <header className="section-header"><h2 className="section-title flex items-center gap-2"><TrendingUp className="h-4 w-4 text-accent" />Fee forecast</h2></header>
+      <div className="p-5 space-y-5">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Verwachte fee (gewogen)</p>
+          <div className="grid grid-cols-3 gap-3">
+            {forecast.map(b => <div key={b.days} className="space-y-1.5"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">≤ {b.days} dagen</p><p className="text-lg font-semibold font-mono-data text-foreground leading-tight">{formatCurrencyCompact(b.bedrag)}</p><p className="text-[10px] text-muted-foreground">{b.count} deal{b.count === 1 ? '' : 's'}</p><div className="h-1 bg-muted rounded-full overflow-hidden"><div className="h-full bg-accent rounded-full transition-all duration-700" style={{ width: `${Math.max(4, (b.bedrag / maxForecast) * 100)}%` }} /></div></div>)}
+          </div>
+        </div>
+        <div className="pt-4 border-t border-border/60">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Gerealiseerde fee · laatste 6 maanden</p>
+          <div className="flex items-end gap-2 h-24">
+            {maanden.map(m => { const pct = (m.bedrag / maxMaand) * 100; return <div key={m.label} className="flex-1 flex flex-col items-center gap-1.5 min-w-0"><div className="w-full flex-1 flex items-end"><div className="w-full bg-gradient-to-t from-accent/80 to-accent/40 rounded-sm transition-all duration-700" style={{ height: `${Math.max(4, pct)}%` }} title={`${m.label}: ${formatCurrency(m.bedrag)}`} /></div><p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate w-full text-center">{m.label}</p></div>; })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AcquisitieDashboardSectie() {
+  const { targets, campagnes } = useAcquisitie();
+  const nu = new Date();
+  const startMaand = new Date(nu.getFullYear(), nu.getMonth(), 1);
+  const actief = targets.filter(targetIsActief);
+  const verlopen = actief.filter(t => datumVerlopen(t.volgendeActieDatum));
+  const reactiesMaand = targets.filter(t => t.status === 'reactie_ontvangen' && new Date(t.updatedAt) >= startMaand);
+  const warm = targets.filter(t => t.status === 'verkoopbereidheid_peilen' || t.status === 'potentiele_verkooppositie');
+  const objectenUit = targets.filter(t => t.status === 'object_aangemaakt');
+  const reactiesPerCampagne = new Map<string, number>();
+  targets.filter(t => t.status === 'reactie_ontvangen' && t.campagneId).forEach(t => reactiesPerCampagne.set(t.campagneId!, (reactiesPerCampagne.get(t.campagneId!) ?? 0) + 1));
+  let besteCampagne: { naam: string; aantal: number } | null = null;
+  for (const [cid, n] of reactiesPerCampagne) {
+    if (!besteCampagne || n > besteCampagne.aantal) {
+      const c = campagnes.find(x => x.id === cid);
+      if (c) besteCampagne = { naam: c.naam, aantal: n };
+    }
+  }
+
+  return (
+    <section className="section-card">
+      <header className="section-header"><h2 className="section-title flex items-center gap-2"><Flame className="h-4 w-4 text-accent" />Acquisitie</h2><Link to="/acquisitie" className="section-link inline-flex items-center gap-1">Naar acquisitie <ArrowRight className="h-3 w-3" /></Link></header>
+      <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
+        <MiniStat label="Actieve targets" value={actief.length} />
+        <MiniStat label="Verlopen acties" value={verlopen.length} tone={verlopen.length > 0 ? 'destructive' : 'normal'} />
+        <MiniStat label="Reacties / mnd" value={reactiesMaand.length} />
+        <MiniStat label="Actieve kopers" value={warm.length} />
+        <MiniStat label="Objecten uit acq." value={objectenUit.length} />
+        <div className="min-w-0"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Beste campagne</p><p className="text-sm font-medium text-foreground truncate mt-1">{besteCampagne?.naam ?? '—'}</p>{besteCampagne && <p className="text-[11px] text-muted-foreground">{besteCampagne.aantal} reacties</p>}</div>
+      </div>
+    </section>
+  );
+}
+
+function MiniStat({ label, value, tone = 'normal', hint }: { label: string; value: number | string; tone?: 'normal' | 'warning' | 'destructive'; hint?: string }) {
+  const cls = tone === 'destructive' ? 'text-destructive' : tone === 'warning' ? 'text-warning' : 'text-foreground';
+  return <div className="min-w-0"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p><p className={`text-2xl font-semibold font-mono-data mt-1 leading-none ${cls}`}>{value}</p>{hint && <p className="text-[10px] text-muted-foreground mt-1 truncate">{hint}</p>}</div>;
+}

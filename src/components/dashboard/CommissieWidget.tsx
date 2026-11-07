@@ -21,7 +21,12 @@ import {
   CircleCheck, PauseCircle, KeyRound, Users,
 } from 'lucide-react';
 
-export default function CommissieWidget() {
+interface Props {
+  /** Toon de link "Volledige rapportage"; uit wanneer de widget al binnen Rapportage staat. */
+  toonRapportageLink?: boolean;
+}
+
+export default function CommissieWidget({ toonRapportageLink = true }: Props = {}) {
   const store = useDataStore();
   const huidigJaar = new Date().getFullYear();
   const jaarDoel = store.getJaarDoel(huidigJaar);
@@ -148,9 +153,11 @@ export default function CommissieWidget() {
               <Trophy className="h-3.5 w-3.5 text-accent" />
               Successen & commissie {huidigJaar}
             </p>
-            <Link to="/rapportage" className="text-xs text-accent hover:underline">
-              Volledige rapportage
-            </Link>
+            {toonRapportageLink && (
+              <Link to="/rapportage" className="text-xs text-accent hover:underline">
+                Volledige rapportage
+              </Link>
+            )}
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
