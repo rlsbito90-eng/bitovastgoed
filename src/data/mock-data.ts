@@ -1459,7 +1459,7 @@ export function getMatchesForRelatieFromData(
   const routes = basis ? [basis, ...extra] : extra;
   const bestPerObject = new Map<string, MatchResult>();
   for (const profiel of routes) {
-    for (const object of objecten.filter(o => o.status === 'beschikbaar')) {
+    for (const object of objecten.filter(o => o.status === 'beschikbaar' && !o.isArchived && !o.softDeletedAt)) {
       // Bij alleen nieuwe taxonomie is een ontbrekend objecttype onvoldoende bewijs
       // voor een match. Anders zouden alleen prijs + regio een fout-positieve match geven.
       if (profiel === basis && (profiel.propertyTypeIds?.length ?? 0) > 0 &&
