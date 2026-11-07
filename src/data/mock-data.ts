@@ -1455,6 +1455,10 @@ export function getMatchesForRelatieFromData(
   const bestPerObject = new Map<string, MatchResult>();
   for (const profiel of routes) {
     for (const object of objecten.filter(o => o.status === 'beschikbaar')) {
+      // Bij alleen nieuwe taxonomie is een ontbrekend objecttype onvoldoende bewijs
+      // voor een match. Anders zouden alleen prijs + regio een fout-positieve match geven.
+      if (profiel === basis && (profiel.propertyTypeIds?.length ?? 0) > 0 &&
+          !object.propertyTypeId && (profiel.typeVastgoed?.length ?? 0) === 0) continue;
       const match = berekenMatchScore(object, profiel);
       if (!match) continue;
       const bestaand = bestPerObject.get(object.id);
