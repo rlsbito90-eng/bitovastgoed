@@ -303,7 +303,7 @@ describe('Fase 1 — volledige primaire criteria in bestaand relatieformulier',(
   it('kan zoekradius, financieringsstatus en situatie wijzigen zonder zoekprofiel aan te maken',async()=>{
     render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
     fireEvent.pointerDown(screen.getByRole('tab',{name:'Investeerder'}),{button:0,ctrlKey:false,pointerType:'mouse'});
-    fireEvent.change(screen.getByPlaceholderText('Plaatsen, straal of landelijk met focusregio'),{
+    fireEvent.change(screen.getByPlaceholderText('Bijv. maximaal 35 km rond Amersfoort; radius handmatig controleren'),{
       target:{value:'35 km vanaf Amersfoort'},
     });
     fireEvent.change(screen.getByPlaceholderText('Bijv. direct, 1–3 maanden, doorlopend'),{
