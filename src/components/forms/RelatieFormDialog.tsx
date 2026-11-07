@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
+import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 import { legacyTypeVoorNieuweRelatie } from '@/lib/relaties/partijprofiel';
@@ -644,7 +645,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                 </div>
                 <Veld label="Gewenste verhuur- en objectsituatie">
                   <div className="grid sm:grid-cols-2 gap-2">
-                    {['Verhuurd','Gedeeltelijk verhuurd','Leegstaand','Uitpondpotentie','Afhankelijk van object'].map(waarde =>
+                    {GEWENSTE_SITUATIES.map(waarde =>
                       <label key={waarde} className="inline-flex items-center gap-2 text-sm">
                         <Checkbox checked={(form.gewensteSituatie ?? []).includes(waarde)}
                           onCheckedChange={checked => set('gewensteSituatie', checked
@@ -782,7 +783,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     onChange={e => set('aankoopcriteria', e.target.value || undefined)}
                     placeholder="Wat zoekt deze partij concreet?" />
                 </Veld>
-                <Veld label="Overige acquisitiestrategie">
+                <Veld label="Investeringsstrategie (vrije toelichting)">
                   <Textarea rows={2} value={form.strategieToelichting ?? ''}
                     onChange={e => set('strategieToelichting', e.target.value || undefined)}
                     placeholder="Bijv. portefeuille-uitbreiding of specifieke value-addstrategie" />
