@@ -93,6 +93,16 @@ describe('Relaties is het primaire investeringsprofiel', () => {
     expect(getMatchesForRelatieFromData(relatie.id, [], [vastgoed], relatie)).toHaveLength(0);
   });
 
+  it('behandelt een expliciet vastgoedeigenaarprofiel niet als koper ondanks oud standaardtype belegger', () => {
+    const eigenaar: Relatie = {...basis, partijprofiel: 'vastgoedeigenaar', commercialRoles: null};
+    expect(maakRelatieBasisZoekprofiel(eigenaar)).toBeNull();
+  });
+
+  it('behandelt een bemiddelaar zonder koperrol niet als eindkoper', () => {
+    const bemiddelaar: Relatie = {...basis, partijprofiel: 'bemiddelaar', commercialRoles: null};
+    expect(maakRelatieBasisZoekprofiel(bemiddelaar)).toBeNull();
+  });
+
   it('past geen basismatching toe zonder kooprol', () => {
     const verkoper: Relatie = {...basis, commercialRoles: ['verkoper']};
     expect(maakRelatieBasisZoekprofiel(verkoper)).toBeNull();
