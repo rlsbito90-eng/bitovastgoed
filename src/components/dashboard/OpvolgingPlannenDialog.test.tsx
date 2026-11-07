@@ -71,11 +71,36 @@ describe('OpvolgingPlannenDialog', () => {
     plannen();
     await waitFor(() => expect(toastError).toHaveBeenCalledWith(expect.stringContaining('geen tweede taak')));
     expect(onOpenChange).not.toHaveBeenCalled();
-    plannen();
+    fireEvent.click(screen.getByRole('button', { name: 'Opnieuw laden' }));
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(create).toHaveBeenCalledTimes(1);
     expect(onGepland).toHaveBeenCalledTimes(1);
     expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('na opslaan met mislukt vernieuwen zijn alle invoervelden vergrendeld en heet de knop Opnieuw laden', async () => {
+    refresh.mockRejectedValueOnce(new Error('time-out'));
+    const onOpenChange = vi.fn();
+    render(<OpvolgingPlannenDialog item={item} onOpenChange={onOpenChange} />);
+    fireEvent.click(screen.getByText('Harde deadline toevoegen'));
+    fireEvent.change(screen.getByLabelText('Harde deadline'), { target: { value: '2026-12-01' } });
+    plannen();
+    const opnieuw = await screen.findByRole('button', { name: 'Opnieuw laden' });
+    expect(screen.queryByRole('button', { name: 'Plannen' })).toBeNull();
+    expect(screen.getByTestId('opvolging-opgeslagen')).toBeTruthy();
+    for (const veld of ['Taak', 'Plandatum', 'Harde deadline']) expect((screen.getByLabelText(veld) as HTMLInputElement).disabled).toBe(true);
+    for (const knop of ['Vandaag', 'Morgen', 'Verwijderen']) expect((screen.getByRole('button', { name: knop }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(opnieuw);
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('zonder deadline verdwijnt Harde deadline toevoegen na opslaan', async () => {
+    refresh.mockRejectedValueOnce(new Error('time-out'));
+    render(<OpvolgingPlannenDialog item={item} onOpenChange={vi.fn()} />);
+    plannen();
+    await screen.findByRole('button', { name: 'Opnieuw laden' });
+    expect(screen.queryByText('Harde deadline toevoegen')).toBeNull();
   });
 
   it('een nieuw object in het venster begint weer schoon', async () => {
@@ -84,6 +109,7 @@ describe('OpvolgingPlannenDialog', () => {
     plannen();
     await waitFor(() => expect(toastError).toHaveBeenCalled());
     rerender(<OpvolgingPlannenDialog item={{ ...item, objectId: 'obj-2', titel: 'Object B' }} onOpenChange={vi.fn()} />);
+    expect((screen.getByLabelText('Taak') as HTMLInputElement).disabled).toBe(false);
     plannen();
     await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
     expect(create).toHaveBeenLastCalledWith(expect.objectContaining({ objectId: 'obj-2' }), expect.anything());

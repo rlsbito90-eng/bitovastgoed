@@ -36,9 +36,12 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
   const [bezig, setBezig] = useState(false);
   /** Al aangemaakte taak voor dit venster: een nieuwe poging maakt dan geen tweede taak aan. */
   const aangemaakt = useRef<{ taakId: string; planDatum: string } | null>(null);
+  /** Taak staat al opgeslagen: invoer vergrendeld, alleen nog opnieuw laden. */
+  const [opgeslagen, setOpgeslagen] = useState(false);
 
   useEffect(() => {
     aangemaakt.current = null;
+    setOpgeslagen(false);
     if (!item) return;
     setTitel(taakTitelVoor(item));
     setPlanDatum(plusDagen(0));
@@ -64,6 +67,7 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
           reminderSelection: 'default',
         }, { planDatum, planTijd: null, planningBucket: 'open' });
         aangemaakt.current = { taakId, planDatum };
+        setOpgeslagen(true);
         onGepland?.(taakId, planDatum);
       }
       await refresh();
@@ -71,7 +75,7 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
       onOpenChange(false);
     } catch (error: any) {
       toast.error(aangemaakt.current
-        ? `Taak is opgeslagen, maar vernieuwen mislukte: ${error?.message ?? 'onbekende fout'}. Probeer opnieuw; er wordt geen tweede taak aangemaakt.`
+        ? `Taak is opgeslagen, maar vernieuwen mislukte: ${error?.message ?? 'onbekende fout'}. Kies Opnieuw laden; er wordt geen tweede taak aangemaakt.`
         : `Plannen mislukt, er is niets opgeslagen: ${error?.message ?? 'onbekende fout'}`);
     } finally {
       setBezig(false);
@@ -79,7 +83,7 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
   };
 
   const keuze = (label: string, waarde: string) => (
-    <Button type="button" size="sm" variant={planDatum === waarde ? 'default' : 'outline'} onClick={() => setPlanDatum(waarde)}>{label}</Button>
+    <Button type="button" size="sm" disabled={opgeslagen} variant={planDatum === waarde ? 'default' : 'outline'} onClick={() => setPlanDatum(waarde)}>{label}</Button>
   );
 
   return (
@@ -92,32 +96,37 @@ export default function OpvolgingPlannenDialog({ item, onOpenChange, onGepland }
         <form onSubmit={opslaan} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="opvolging-titel">Taak</Label>
-            <Input id="opvolging-titel" value={titel} disabled={!!aangemaakt.current} onChange={e => setTitel(e.target.value)} />
+            <Input id="opvolging-titel" value={titel} disabled={opgeslagen} onChange={e => setTitel(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="opvolging-plandatum">Plandatum</Label>
             <div className="flex flex-wrap items-center gap-2">
               {keuze('Vandaag', plusDagen(0))}
               {keuze('Morgen', plusDagen(1))}
-              <Input id="opvolging-plandatum" type="date" className="w-auto" value={planDatum} onChange={e => setPlanDatum(e.target.value)} />
+              <Input id="opvolging-plandatum" type="date" className="w-auto" value={planDatum} disabled={opgeslagen} onChange={e => setPlanDatum(e.target.value)} />
             </div>
           </div>
           {metDeadline ? (
             <div className="space-y-1.5">
               <Label htmlFor="opvolging-deadline">Harde deadline</Label>
               <div className="flex items-center gap-2">
-                <Input id="opvolging-deadline" type="date" className="w-auto" value={deadline} onChange={e => setDeadline(e.target.value)} />
-                <Button type="button" size="sm" variant="ghost" onClick={() => { setMetDeadline(false); setDeadline(''); }}>Verwijderen</Button>
+                <Input id="opvolging-deadline" type="date" className="w-auto" value={deadline} disabled={opgeslagen} onChange={e => setDeadline(e.target.value)} />
+                <Button type="button" size="sm" variant="ghost" disabled={opgeslagen} onClick={() => { setMetDeadline(false); setDeadline(''); }}>Verwijderen</Button>
               </div>
             </div>
-          ) : (
+          ) : !opgeslagen && (
             <button type="button" className="text-xs font-medium text-accent hover:underline" onClick={() => setMetDeadline(true)}>
               Harde deadline toevoegen
             </button>
           )}
+          {opgeslagen && (
+            <p data-testid="opvolging-opgeslagen" className="text-xs text-muted-foreground">
+              De taak is opgeslagen. Het dashboard kon niet worden bijgewerkt; laad opnieuw.
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-            <Button type="submit" disabled={bezig || !titel.trim() || !planDatum}>{bezig ? 'Opslaan…' : 'Plannen'}</Button>
+            <Button type="submit" disabled={bezig || !titel.trim() || !planDatum}>{bezig ? (opgeslagen ? 'Laden…' : 'Opslaan…') : opgeslagen ? 'Opnieuw laden' : 'Plannen'}</Button>
           </div>
         </form>
       </DialogContent>
