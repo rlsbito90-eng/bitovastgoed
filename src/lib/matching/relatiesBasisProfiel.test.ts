@@ -87,6 +87,12 @@ describe('Relaties is het primaire investeringsprofiel', () => {
     expect(resultaten[0].zoekprofielId).toBe('relatie:koper-1');
   });
 
+  it('matcht landelijk zoekgebied ook buiten bestaande provinciale zoekfilters', () => {
+    const landelijk: Relatie = {...basis, regio: ['Heel Nederland']};
+    const friesland: ObjectVastgoed = {...object(), provincie: 'Friesland', plaats: 'Leeuwarden'};
+    expect(getMatchesForRelatieFromData(landelijk.id, [], [friesland], landelijk)).toHaveLength(1);
+  });
+
   it('wijst een afwijkend nieuw vastgoedtype af', () => {
     const relatie: Relatie = {...basis, assetClasses: [], propertyTypeIds: ['type-wonen']};
     const vastgoed: ObjectVastgoed = {...object(), propertyTypeId: 'type-kantoren'};
