@@ -85,7 +85,6 @@ const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
     {value:'Leegstaand',label:'Leegstaand'}, {value:'Uitpondpotentie',label:'Uitpondpotentie'},
     {value:'Afhankelijk van object',label:'Afhankelijk van object'}]},
   {key:'aankooptermijn',label:'Gewenste aankooptermijn'},
-  {key:'portefeuilleInteresse',label:'Interesse in portefeuilles',kind:'checkbox'},
   {key:'budgetMin',label:'Budget minimum (€)',kind:'number'},
   {key:'budgetMax',label:'Budget maximum (€)',kind:'number'},
   {key:'rendementseis',label:'Rendementseis (%)',kind:'number'},
