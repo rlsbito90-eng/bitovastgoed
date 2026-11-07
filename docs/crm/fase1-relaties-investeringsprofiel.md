@@ -29,6 +29,40 @@ Bestaande velden: `partijprofiel`, `vastgoed_strategieen`, `property_type_ids`, 
 
 De exacte website-labels dienen bij fase 3 expliciet en controleerbaar op de bestaande vastgoedtaxonomie te worden gemapt; `Vastgoedportefeuilles` is een bestaand vastgoedtype in de huidige CRM-taxonomie. De originele inzending moet als brondocument worden bewaard; niet alle vrije tekst of meervoudige situaties kunnen veilig als harde matchfilter worden gebruikt.
 
+## Controle met ontvangen websiteformulieren (7 november 2026)
+
+De huidige formulieren hebben de onderstaande vragen. Dit zijn de uitgangspunten voor een verliesvrije fase-2/3-import:
+
+| Vraag op website | CRM-veld en verwerking |
+|---|---|
+| Naam, bedrijf, e-mail, telefoon | Contactpersonen + Relaties; eerst deduplicatie |
+| Type partij | `partijprofiel`; niet automatisch belegger bij keuze 'Anders' |
+| Vastgoedsegmenten | `property_type_ids` en waar mogelijk `property_subtype_ids`; labelmapping controleren |
+| Investeringsstrategie | `vastgoed_strategieen` voor veilig overeenkomende categorieën; originele keuzes en nuances letterlijk bewaren in `strategie_toelichting` |
+| Investeringsomvang per transactie | `budget_min`, `budget_max`; bronkeuze bewaren |
+| Gewenste objectomvang | `gewenste_objectomvang` |
+| Zoekgebied | `regio` waar eenduidig, complete oorspronkelijke uitdrukking in `zoekgebied_toelichting` |
+| Gewenste situatie | `gewenste_situatie` (7 mogelijke waarden) |
+| Rendementsdoelstelling | `rendementseis` alleen bij ondubbelzinnig numerieke rendementen, anders vrije criteria met originele formulering |
+| Gewenste aankooptermijn | `aankooptermijn` |
+| Belangrijkste acquisitiecriteria | `aankoopcriteria` |
+| Financieringsstructuur | `financieringsstructuur` en indien eenduidig `kapitaalsituatie` |
+| Status financiering | `financieringsstatus` (zelfopgave, geen verificatie) |
+| Besluitvorming | `besluitvorming` |
+| Wat past nadrukkelijk niet? | `uitsluitingen` |
+| Overige toelichting | `overige_toelichting` |
+
+**Brongetrouw bewaren:** de website ondersteunt bij gewenste situatie ook
+`Transformatiepotentie`, `Herontwikkelingspotentie` en `Afhankelijk van object`.
+Investeringsstrategie kent onder andere `Portefeuille-uitbreiding`, `Renovatie`,
+`Herontwikkeling` en `Eigen gebruik` die niet blind mogen worden samengevoegd
+met bestaande canonicale strategieën. De oorspronkelijke inzending blijft belangrijk
+voor reconstructie en correctie.
+
+**Matching-voorwaarde:** `Heel Nederland` is een afzonderlijke selecteerbare zoekregio.
+Een radius zoals '35 km vanaf Amersfoort' blijft handmatig toetsbaar totdat
+de daarvoor benodigde geocodering en objectlocatievalidatie beschikbaar zijn.
+
 ## Matching
 
 - De objectkandidaat-adapter `maakKandidaatVoorstellen` kon algemene criteria uit Relaties al gebruiken.
