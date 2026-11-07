@@ -115,6 +115,11 @@ describe('Relaties is het primaire investeringsprofiel', () => {
     expect(getMatchesForRelatieFromData(verkoper.id, [], [object()], verkoper)).toHaveLength(0);
   });
 
+  it('verbergt gearchiveerde en soft-deleted objecten uit de relatiekaart', () => {
+    expect(getMatchesForRelatieFromData(basis.id, [], [{...object(), isArchived:true}], basis)).toHaveLength(0);
+    expect(getMatchesForRelatieFromData(basis.id, [], [{...object(), softDeletedAt:'2026-11-07T10:00:00Z'}], basis)).toHaveLength(0);
+  });
+
   it('biedt geen objecten aan die niet beschikbaar zijn', () => {
     expect(getMatchesForRelatieFromData(basis.id, [], [object(500000, 'verkocht')], basis)).toHaveLength(0);
   });
