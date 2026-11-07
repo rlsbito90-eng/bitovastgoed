@@ -102,8 +102,8 @@ export default function InlineVastgoedVoorkeuren({relatie,onSave}:Props){
       Historische vastgoedklassen: {relatie.assetClasses.map(x=>ASSET_CLASS_LABELS[x]||x).join(', ')}
     </p>}
     <p className="text-xs text-muted-foreground">
-      Dit zijn de bestaande algemene voorkeuren voor oudere matching. Concrete zoekrichtingen leg je vast bij Zoekprofielen.
-      Er worden geen gegevens automatisch gekopieerd of verwijderd.
+      De algemene vastgoedvoorkeuren onder Relaties zijn leidend voor matching.
+      Een extra zoekprofiel is alleen nodig voor een afzonderlijke zoekrichting; er wordt niets automatisch gekopieerd.
     </p>
     {editing&&<div className="space-y-4">
       {([

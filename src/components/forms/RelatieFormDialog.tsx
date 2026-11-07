@@ -503,8 +503,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                   <p className="text-xs text-muted-foreground">
                     De aard van de partij leg je vast onder Partijprofiel. Activiteiten
                     zoals zelf kopen of bemiddelen wijzig je rechtstreeks op de relatiepagina,
-                    bij Activiteiten en transactierollen. Concrete zoekwensen blijven bij
-                    Zoekprofielen; de uiteindelijke koper en mandaatstatus bij de deal.
+                    bij Activiteiten en transactierollen. Algemene aankoopcriteria blijven onder Relaties;
+                    extra zoekprofielen zijn optioneel. De uiteindelijke koper en mandaatstatus leg je bij de deal vast.
                   </p>
                 </Sectie>
               )}
@@ -621,6 +621,42 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                 />
               </Sectie>
 
+              <Sectie titel="Aankoopcriteria (websiteformulier)">
+                <p className="text-xs text-muted-foreground">
+                  Dit is het centrale investeringsprofiel van de relatie. Afzonderlijke zoekprofielen zijn optioneel.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Specifiek zoekgebied" span={2}>
+                    <Textarea rows={2} value={form.zoekgebiedToelichting ?? ''}
+                      onChange={e => set('zoekgebiedToelichting', e.target.value || undefined)}
+                      placeholder="Plaatsen, straal of landelijk met focusregio" />
+                  </Veld>
+                  <Veld label="Gewenste objectomvang">
+                    <Input value={form.gewensteObjectomvang ?? ''}
+                      onChange={e => set('gewensteObjectomvang', e.target.value || undefined)}
+                      placeholder="Bijv. aantal units of m²" />
+                  </Veld>
+                  <Veld label="Aankooptermijn">
+                    <Input value={form.aankooptermijn ?? ''}
+                      onChange={e => set('aankooptermijn', e.target.value || undefined)}
+                      placeholder="Bijv. direct, 1–3 maanden, doorlopend" />
+                  </Veld>
+                </div>
+                <Veld label="Gewenste verhuur- en objectsituatie">
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {['Verhuurd','Gedeeltelijk verhuurd','Leegstaand','Uitpondpotentie','Afhankelijk van object'].map(waarde =>
+                      <label key={waarde} className="inline-flex items-center gap-2 text-sm">
+                        <Checkbox checked={(form.gewensteSituatie ?? []).includes(waarde)}
+                          onCheckedChange={checked => set('gewensteSituatie', checked
+                            ? [...new Set([...(form.gewensteSituatie ?? []),waarde])]
+                            : (form.gewensteSituatie ?? []).filter(v => v !== waarde))}/>
+                        {waarde}
+                      </label>
+                    )}
+                  </div>
+                </Veld>
+              </Sectie>
+
               <Sectie titel="Budget & rendement">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Budget minimum (€)">
@@ -656,6 +692,26 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     <NumberField integer min={0} max={100} value={form.eigenVermogenPct}
                       onChange={v => set('eigenVermogenPct', v)}
                       placeholder="bv. 30" />
+                  </Veld>
+                </div>
+              </Sectie>
+
+              <Sectie titel="Financieringsstructuur en besluitvorming">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Veld label="Financieringsstructuur">
+                    <Input value={form.financieringsstructuur ?? ''}
+                      onChange={e => set('financieringsstructuur', e.target.value || undefined)}
+                      placeholder="Eigen middelen + financiering" />
+                  </Veld>
+                  <Veld label="Status financiering">
+                    <Input value={form.financieringsstatus ?? ''}
+                      onChange={e => set('financieringsstatus', e.target.value || undefined)}
+                      placeholder="Bijv. direct beschikbaar / reeds ingericht" />
+                  </Veld>
+                  <Veld label="Besluitvorming" span={2}>
+                    <Input value={form.besluitvorming ?? ''}
+                      onChange={e => set('besluitvorming', e.target.value || undefined)}
+                      placeholder="Zelfstandig, met partners of via commissie" />
                   </Veld>
                 </div>
               </Sectie>
@@ -725,6 +781,19 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                   <Textarea rows={3} value={form.aankoopcriteria ?? ''}
                     onChange={e => set('aankoopcriteria', e.target.value || undefined)}
                     placeholder="Wat zoekt deze partij concreet?" />
+                </Veld>
+                <Veld label="Overige acquisitiestrategie">
+                  <Textarea rows={2} value={form.strategieToelichting ?? ''}
+                    onChange={e => set('strategieToelichting', e.target.value || undefined)}
+                    placeholder="Bijv. portefeuille-uitbreiding of specifieke value-addstrategie" />
+                </Veld>
+                <Veld label="Wat past nadrukkelijk niet?">
+                  <Textarea rows={2} value={form.uitsluitingen ?? ''}
+                    onChange={e => set('uitsluitingen', e.target.value || undefined)} />
+                </Veld>
+                <Veld label="Overige toelichting">
+                  <Textarea rows={2} value={form.overigeToelichting ?? ''}
+                    onChange={e => set('overigeToelichting', e.target.value || undefined)} />
                 </Veld>
                 <Veld label="Verkoopintentie">
                   <Textarea rows={2} value={form.verkoopintentie ?? ''}
