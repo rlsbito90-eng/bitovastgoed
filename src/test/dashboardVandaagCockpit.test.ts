@@ -97,9 +97,15 @@ describe('Dashboard D3 — Aandacht nodig', () => {
     expect(page).toContain('planningById.get(taak.id)?.planDatum');
   });
 
-  it('plannen opent een vooraf ingevuld taakformulier voor het object', () => {
-    expect(page).toContain('<TaakFormDialog');
-    expect(page).toContain('defaultObjectId={opvolgingVoor?.objectId}');
+  it('plannen legt een plandatum vast (geen harde deadline) en werkt de planning direct bij', () => {
+    expect(page).toContain('<OpvolgingPlannenDialog');
+    expect(page).not.toContain('defaultDeadline={vandaagKey}');
+    expect(page).toContain("{ id, planDatum, planTijd: null, planningBucket: 'open' }");
+  });
+
+  it('geeft de partij van een bieding door via de bestaande relatienaam', () => {
+    expect(page).toContain('relatieNaam: id =>');
+    expect(page).toContain('getRelatieNaamCompact(rel, store.contactpersonen)');
   });
 
   it('bestaande onderdelen blijven tot D4 staan', () => {

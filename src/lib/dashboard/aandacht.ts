@@ -10,8 +10,9 @@ import { localDateKey } from '@/lib/tasks/workView';
  *  1. open bieding (ontvangen, in behandeling, tegenvoorstel gedaan, aangepast bod gevraagd; geen concept);
  *  2. geen betekenisvolle activiteit: > 14 dagen, of > 7 dagen bij een object met een open bieding;
  *  3. geen kandidaat gekoppeld (alleen beschikbaar / onder optie).
- * Staat er al opvolging gepland (taak of volgende actie bij een kandidaat, vandaag of later), dan valt
- * het object weg — behalve bij een open bieding; dan wordt de geplande stap de vervolgstap.
+ * Staat er al opvolging gepland (taak of volgende actie bij een kandidaat, vandaag of later) en is er
+ * niets achterstallig, dan valt het object weg — behalve bij een open bieding. De vroegste stap wordt de
+ * vervolgstap; een verstreken harde deadline gaat voor op een latere plandatum.
  * Objecten die on hold staan, komen in een aparte lijst.
  */
 
@@ -69,7 +70,7 @@ export interface AandachtMatch {
 export interface AandachtInvoer {
   objecten: AandachtObject[];
   kandidaten: AandachtKandidaat[];
-  biedingen: Pick<Bieding, 'id' | 'objectId' | 'bedrag' | 'bieddatum' | 'status' | 'richting' | 'geldigTot' | 'createdAt' | 'updatedAt'>[];
+  biedingen: Pick<Bieding, 'id' | 'objectId' | 'relatieId' | 'bedrag' | 'bieddatum' | 'status' | 'richting' | 'geldigTot' | 'createdAt' | 'updatedAt'>[];
   contactMoments: AandachtContactMoment[];
   taken: AandachtTaak[];
   deals?: AandachtDeal[];
@@ -79,6 +80,17 @@ export interface AandachtInvoer {
   aantalZoekprofielen: number;
   /** Plandatum van een taak (Taken-module); valt anders terug op de deadline. */
   planDatumVoor?: (taak: AandachtTaak) => string | null | undefined;
+  /** Naam van de partij achter een bieding; null als onbekend. */
+  relatieNaam?: (relatieId: string) => string | null | undefined;
+}
+
+/** Bekende gegevens van de getoonde open bieding; ontbrekende velden blijven null. */
+export interface AandachtBod {
+  bedrag: number | null;
+  relatieId: string | null;
+  partij: string | null;
+  bieddatum: string | null;
+  geldigTot: string | null;
 }
 
 export interface AandachtItem {
@@ -97,6 +109,8 @@ export interface AandachtItem {
   overigeSignalen: string[];
   /** Dagen sinds de laatste betekenisvolle activiteit (null = geen datum bekend). */
   dagenStil: number | null;
+  /** Alleen bij signaal open_bieding. */
+  bod?: AandachtBod;
 }
 
 export interface AandachtOverzicht {
@@ -160,7 +174,7 @@ function biedingSignaal(b: AandachtInvoer['biedingen'][number]): { label: string
   }
 }
 
-interface Opvolging { titel: string; datum: string }
+interface Opvolging { titel: string; datum: string; soort: 'plan' | 'deadline' }
 
 /**
  * Bepaalt de signalen voor Aandacht nodig. Puur en deterministisch: `now` bepaalt "vandaag".
@@ -213,21 +227,31 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
 
     // Geplande opvolging: vroegste open taak of volgende actie bij een kandidaat.
     const opvolgingen: Opvolging[] = [];
+    // Een verstreken harde deadline gaat voor op een latere plandatum van dezelfde taak.
     for (const t of takenPer.get(object.id) ?? []) {
-      const datum = dagSleutel(planDatum(t) ?? t.deadline);
-      if (datum) opvolgingen.push({ titel: t.titel, datum });
+      const deadline = dagSleutel(t.deadline);
+      const plan = dagSleutel(planDatum(t));
+      if (deadline && deadline < vandaag) opvolgingen.push({ titel: t.titel, datum: deadline, soort: 'deadline' });
+      else if (plan) opvolgingen.push({ titel: t.titel, datum: plan, soort: 'plan' });
+      else if (deadline) opvolgingen.push({ titel: t.titel, datum: deadline, soort: 'deadline' });
     }
     for (const k of actieveKandidaten) {
       const datum = dagSleutel(k.volgendeActieDatum);
-      if (datum) opvolgingen.push({ titel: k.volgendeActieOmschrijving?.trim() || 'volgende actie bij kandidaat', datum });
+      if (datum) opvolgingen.push({ titel: k.volgendeActieOmschrijving?.trim() || 'volgende actie bij kandidaat', datum, soort: 'plan' });
     }
-    opvolgingen.sort((a, b) => a.datum.localeCompare(b.datum));
+    // Vroegste datum eerst; bij gelijke datum gaat een harde deadline voor.
+    opvolgingen.sort((a, b) => a.datum.localeCompare(b.datum) || (a.soort === b.soort ? 0 : a.soort === 'deadline' ? -1 : 1));
     const gepland = opvolgingen.find(o => o.datum >= vandaag) ?? null;
     const achterstallig = opvolgingen.find(o => o.datum < vandaag) ?? null;
-    // Eerdere datums gaan voor: een achterstallige stap komt vóór een latere geplande stap.
+    // Een toekomstige afspraak dekt het object alleen af als er niets achterstallig is.
+    const opgevolgd = !!gepland && !achterstallig;
     const eersteStap = achterstallig ?? gepland;
-    const stapTekst = (o: Opvolging) =>
-      o.datum < vandaag ? `${o.titel} (achterstallig sinds ${korteDatum(o.datum)})` : `${o.titel} (gepland ${o.datum === vandaag ? 'vandaag' : korteDatum(o.datum)})`;
+    const stapTekst = (o: Opvolging) => {
+      if (o.datum >= vandaag) return `${o.titel} (gepland ${o.datum === vandaag ? 'vandaag' : korteDatum(o.datum)})`;
+      return o.soort === 'deadline'
+        ? `${o.titel} (deadline verstreken op ${korteDatum(o.datum)})`
+        : `${o.titel} (achterstallig sinds ${korteDatum(o.datum)})`;
+    };
 
     const activiteitTekst = laatste
       ? `Laatste activiteit ${korteDatum(laatste)}`
@@ -254,11 +278,11 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
     const heeftOpenBod = openBiedingen.length > 0;
 
     const drempel = heeftOpenBod ? DREMPEL_GEEN_ACTIVITEIT_MET_BOD_DAGEN : DREMPEL_GEEN_ACTIVITEIT_DAGEN;
-    const stil = dagenStil != null && dagenStil > drempel && !gepland;
+    const stil = dagenStil != null && dagenStil > drempel && !opgevolgd;
     const geenKandidaat = KANDIDAAT_ZOEKEN_STATUSSEN.has(object.status)
       && actieveKandidaten.length === 0
       && (dealsPer.get(object.id) ?? []).length === 0
-      && !gepland;
+      && !opgevolgd;
 
     const signalen: AandachtItem[] = [];
 
@@ -278,6 +302,13 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
         extraSignalen: 0,
         overigeSignalen: [],
         dagenStil,
+        bod: {
+          bedrag: typeof bod.bedrag === 'number' && bod.bedrag > 0 ? bod.bedrag : null,
+          relatieId: bod.relatieId || null,
+          partij: (bod.relatieId && invoer.relatieNaam?.(bod.relatieId)) || null,
+          bieddatum: dagSleutel(bod.bieddatum),
+          geldigTot: dagSleutel(bod.geldigTot),
+        },
       });
     }
 

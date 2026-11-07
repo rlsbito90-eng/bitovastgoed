@@ -9,7 +9,7 @@ const obj = (id: string, over: Partial<AandachtInvoer['objecten'][number]> = {})
 const kandidaat = (objectId: string, over: Partial<AandachtInvoer['kandidaten'][number]> = {}) =>
   ({ objectId, relatieId: 'r1', pipelineFase: 'teaser_verstuurd', createdAt: '2026-11-05T09:00:00Z', ...over });
 const bod = (objectId: string, over: Partial<Bod> = {}): Bod =>
-  ({ id: `b-${objectId}`, objectId, bedrag: 1_000_000, bieddatum: '2026-11-05', status: 'ontvangen', richting: 'van_koper', geldigTot: null, createdAt: '2026-11-05T09:00:00Z', updatedAt: '2026-11-05T09:00:00Z', ...over });
+  ({ id: `b-${objectId}`, objectId, relatieId: 'r1', bedrag: 1_000_000, bieddatum: '2026-11-05', status: 'ontvangen', richting: 'van_koper', geldigTot: null, createdAt: '2026-11-05T09:00:00Z', updatedAt: '2026-11-05T09:00:00Z', ...over });
 
 const invoer = (over: Partial<AandachtInvoer>): AandachtInvoer => ({
   objecten: [], kandidaten: [], biedingen: [], contactMoments: [], taken: [], deals: [], matches: [], aantalZoekprofielen: 3, ...over,
@@ -162,5 +162,82 @@ describe('Aandacht nodig — één regel per object, volgorde en on hold', () =>
     expect(o.items).toEqual([]);
     expect(o.onHold).toHaveLength(1);
     expect(o.onHold[0].volgendeActie).toBe('beoordelen of het object weer actief kan');
+  });
+});
+
+describe('Aandacht nodig — achterstallige opvolging blijft zichtbaar (regressie)', () => {
+  const stilObject = { objecten: [obj('B')], kandidaten: [kandidaat('B', { createdAt: '2026-10-01T09:00:00Z' })] };
+  const taak = (id: string, over: Partial<AandachtInvoer['taken'][number]>) =>
+    ({ id, titel: id, objectId: 'B', deadline: null, status: 'open', ...over });
+
+  it('een toekomstige afspraak laat een achterstallige taak niet verdwijnen', () => {
+    const [item] = items({ ...stilObject, taken: [taak('Oud', { deadline: '2026-11-02' }), taak('Nieuw', { deadline: '2026-11-12' })] });
+    expect(item?.signaal).toBe('geen_activiteit');
+    expect(item.volgendeActie).toMatch(/^Oud \(deadline verstreken op /);
+  });
+
+  it('ook niet bij een achterstallige volgende actie van een kandidaat', () => {
+    const r = items({
+      objecten: [obj('B')],
+      kandidaten: [kandidaat('B', { createdAt: '2026-10-01T09:00:00Z', volgendeActieDatum: '2026-11-01', volgendeActieOmschrijving: 'Terugbellen' })],
+      taken: [taak('Nieuw', { deadline: '2026-11-12' })],
+    });
+    expect(r[0]?.volgendeActie).toMatch(/^Terugbellen \(achterstallig sinds /);
+  });
+
+  it('een verstreken harde deadline gaat voor op een latere plandatum van dezelfde taak', () => {
+    const [item] = items({ ...stilObject, taken: [taak('Contract', { deadline: '2026-11-04' })], planDatumVoor: () => '2026-11-10' });
+    expect(item?.signaal).toBe('geen_activiteit');
+    expect(item.volgendeActie).toMatch(/^Contract \(deadline verstreken op /);
+  });
+
+  it('de vroegste achterstallige stap komt eerst, ook als dat een plandatum is', () => {
+    const plannen: Record<string, string> = { Plan: '2026-11-02' };
+    const [item] = items({
+      ...stilObject,
+      taken: [taak('Plan', {}), taak('Deadline', { deadline: '2026-11-05' })],
+      planDatumVoor: t => plannen[t.id] ?? null,
+    });
+    expect(item.volgendeActie).toMatch(/^Plan \(achterstallig sinds /);
+  });
+
+  it('bij dezelfde datum gaat de harde deadline voor', () => {
+    const plannen: Record<string, string> = { Plan: '2026-11-04' };
+    const [item] = items({
+      ...stilObject,
+      taken: [taak('Plan', {}), taak('Deadline', { deadline: '2026-11-04' })],
+      planDatumVoor: t => plannen[t.id] ?? null,
+    });
+    expect(item.volgendeActie).toMatch(/^Deadline \(deadline verstreken op /);
+  });
+
+  it('alleen een toekomstige afspraak, zonder achterstand, haalt het object weg', () => {
+    expect(items({ ...stilObject, taken: [taak('Nieuw', { deadline: '2026-11-12' })] })).toEqual([]);
+  });
+
+  it('geen kandidaat blijft ook staan bij een achterstallige stap', () => {
+    const r = items({ objecten: [obj('C', { datumToegevoegd: '2026-11-01' })], taken: [taak('Oud', { objectId: 'C', deadline: '2026-11-03' }), taak('Nieuw', { objectId: 'C', deadline: '2026-11-20' })] });
+    expect(r[0]?.signaal).toBe('geen_kandidaat');
+  });
+});
+
+describe('Aandacht nodig — gegevens bij open bieding', () => {
+  it('geeft bedrag, partij, bieddatum en geldigheid door', () => {
+    const [item] = items({
+      objecten: [obj('A')], kandidaten: [kandidaat('A')],
+      biedingen: [bod('A', { relatieId: 'r9', bedrag: 1_250_000, geldigTot: '2026-11-14' })],
+      relatieNaam: id => (id === 'r9' ? 'Beleggings BV' : null),
+    });
+    expect(item.bod).toEqual({ bedrag: 1_250_000, relatieId: 'r9', partij: 'Beleggings BV', bieddatum: '2026-11-05', geldigTot: '2026-11-14' });
+  });
+
+  it('verzint niets: onbekende partij, bedrag en geldigheid blijven leeg', () => {
+    const [item] = items({ objecten: [obj('A')], kandidaten: [kandidaat('A')], biedingen: [bod('A', { relatieId: 'onbekend', bedrag: null })], relatieNaam: () => null });
+    expect(item.bod).toEqual({ bedrag: null, relatieId: 'onbekend', partij: null, bieddatum: '2026-11-05', geldigTot: null });
+  });
+
+  it('andere signalen hebben geen bodgegevens', () => {
+    const [item] = items({ objecten: [obj('C', { datumToegevoegd: '2026-11-01' })] });
+    expect(item.bod).toBeUndefined();
   });
 });

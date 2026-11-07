@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { AandachtItem } from '@/lib/dashboard/aandacht';
-import DashboardAandacht, { taakTitelVoor } from './DashboardAandacht';
+import DashboardAandacht, { bodRegel, taakTitelVoor } from './DashboardAandacht';
 
 const item = (id: string, over: Partial<AandachtItem> = {}): AandachtItem => ({
   objectId: id, titel: `Object ${id}`, signaal: 'geen_activiteit', label: '16 dagen geen activiteit',
@@ -26,9 +26,24 @@ describe('DashboardAandacht', () => {
     expect(screen.getByText('Object A').closest('a')?.getAttribute('href')).toBe('/objecten/A');
   });
 
-  it('toont extra signalen als +n met uitleg', () => {
+  it('extra signalen achter +n zijn ook zonder hover (mobiel) te openen', () => {
     renderA({ overzicht: { items: [item('A', { extraSignalen: 1, overigeSignalen: ['Geen kandidaat'] })], onHold: [] } });
-    expect(screen.getByText('+1').getAttribute('title')).toBe('Ook: Geen kandidaat');
+    const knop = screen.getByRole('button', { name: '1 ander signaal: Geen kandidaat' });
+    expect(knop.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByTestId('aandacht-extra')).toBeNull();
+    fireEvent.click(knop);
+    expect(knop.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByTestId('aandacht-extra').textContent).toBe('Ook: Geen kandidaat');
+  });
+
+  it('toont bekende bodgegevens en laat onbekende weg', () => {
+    renderA({ overzicht: { items: [item('A', { signaal: 'open_bieding', label: 'Open bieding', bod: { bedrag: 1250000, relatieId: 'r', partij: 'Beleggings BV', bieddatum: '2026-11-05', geldigTot: null } })], onHold: [] } });
+    const regel = screen.getByTestId('aandacht-bod').textContent ?? '';
+    expect(regel).toContain('1.250.000');
+    expect(regel).toContain('Beleggings BV');
+    expect(regel).toContain('bod 5 nov');
+    expect(regel).not.toContain('geldig tot');
+    expect(bodRegel({ bedrag: null, relatieId: null, partij: null, bieddatum: null, geldigTot: null })).toBeNull();
   });
 
   it('toont er maximaal 5 en kan de rest uitklappen', () => {
@@ -67,5 +82,6 @@ describe('DashboardAandacht', () => {
   it('taaktitel: vervolgstap met hoofdletter, zonder planningstoevoeging', () => {
     expect(taakTitelVoor(item('A'))).toBe('Kandidaat benaderen');
     expect(taakTitelVoor(item('A', { volgendeActie: 'Bellen (achterstallig sinds 3 nov)' }))).toBe('Bellen');
+    expect(taakTitelVoor(item('A', { volgendeActie: 'Contract (deadline verstreken op 4 nov)' }))).toBe('Contract');
   });
 });

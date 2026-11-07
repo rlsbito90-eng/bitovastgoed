@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BellRing, CalendarPlus, ChevronDown, ChevronRight, PauseCircle } from 'lucide-react';
-import type { AandachtItem, AandachtOverzicht, AandachtSignaal } from '@/lib/dashboard/aandacht';
+import type { AandachtBod, AandachtItem, AandachtOverzicht, AandachtSignaal } from '@/lib/dashboard/aandacht';
+import { formatCurrency } from '@/data/mock-data';
 
 export const AANDACHT_MAX_ZICHTBAAR = 5;
 
 interface Props {
   overzicht: AandachtOverzicht;
-  /** Opent een nieuwe taak voor dit object, vooraf ingevuld met de vervolgstap. */
+  /** Opent het plannen van een opvolging (plandatum) voor dit object, vooraf ingevuld met de vervolgstap. */
   onPlanOpvolging?: (item: AandachtItem) => void;
   /** Laadstatus van de biedingen; zonder biedingen is het overzicht nog niet betrouwbaar. */
   status?: 'laden' | 'fout' | 'klaar';
@@ -20,32 +21,57 @@ const SIGNAAL_KLEUR: Record<AandachtSignaal, string> = {
   on_hold: 'text-muted-foreground',
 };
 
-/** Vervolgstap zonder de toevoeging "(gepland …)" of "(achterstallig …)", met hoofdletter. */
+/** Vervolgstap zonder de toevoeging "(gepland …)", "(achterstallig …)" of "(deadline verstreken …)", met hoofdletter. */
 export function taakTitelVoor(item: AandachtItem): string {
-  const kaal = item.volgendeActie.replace(/ \((gepland|achterstallig)[^)]*\)$/, '');
+  const kaal = item.volgendeActie.replace(/ \((gepland|achterstallig|deadline verstreken)[^)]*\)$/, '');
   return kaal.charAt(0).toUpperCase() + kaal.slice(1);
 }
 
+const korteDatum = (sleutel: string) => {
+  const [y, m, d] = sleutel.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+};
+
+/** Bekende gegevens van het bod op één regel; onbekende velden worden weggelaten. */
+export function bodRegel(bod: AandachtBod): string | null {
+  const delen: string[] = [];
+  if (bod.bedrag != null) delen.push(formatCurrency(bod.bedrag));
+  if (bod.partij) delen.push(bod.partij);
+  if (bod.bieddatum) delen.push(`bod ${korteDatum(bod.bieddatum)}`);
+  if (bod.geldigTot) delen.push(`geldig tot ${korteDatum(bod.geldigTot)}`);
+  return delen.length > 0 ? delen.join(' · ') : null;
+}
+
 function Regel({ item, onPlanOpvolging }: { item: AandachtItem; onPlanOpvolging?: Props['onPlanOpvolging'] }) {
+  const [extraOpen, setExtraOpen] = useState(false);
+  const bod = item.bod ? bodRegel(item.bod) : null;
   return (
     <div data-testid="aandacht-regel" className="flex items-start gap-3 px-4 sm:px-5 py-3">
-      <Link to={`/objecten/${item.objectId}`} className="min-w-0 flex-1 group">
-        <p className="text-sm font-medium text-foreground truncate group-hover:underline">{item.titel}</p>
+      <div className="min-w-0 flex-1">
+        <Link to={`/objecten/${item.objectId}`} className="block text-sm font-medium text-foreground truncate hover:underline">{item.titel}</Link>
         <p className={`text-xs font-semibold mt-0.5 ${SIGNAAL_KLEUR[item.signaal]}`}>
           <span>{item.label}</span>
           {item.extraSignalen > 0 && (
-            <span
-              className="ml-1.5 inline-flex items-center rounded-full bg-muted px-1.5 py-px text-[10px] font-semibold text-muted-foreground"
+            <button
+              type="button"
+              onClick={() => setExtraOpen(v => !v)}
+              aria-expanded={extraOpen}
+              aria-label={`${item.extraSignalen} ${item.extraSignalen === 1 ? 'ander signaal' : 'andere signalen'}: ${item.overigeSignalen.join(', ')}`}
               title={`Ook: ${item.overigeSignalen.join(', ')}`}
-            >{`+${item.extraSignalen}`}</span>
+              className="ml-1.5 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:bg-muted/70"
+            >{`+${item.extraSignalen}`}</button>
           )}
         </p>
+        {extraOpen && item.extraSignalen > 0 && (
+          <p data-testid="aandacht-extra" className="text-xs text-muted-foreground mt-0.5">{`Ook: ${item.overigeSignalen.join(', ')}`}</p>
+        )}
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.toelichting}</p>
+        {bod && <p data-testid="aandacht-bod" className="text-xs text-foreground mt-0.5 font-mono-data truncate">{bod}</p>}
         <p className="text-xs text-foreground mt-1">
           <span className="text-muted-foreground">Volgende actie: </span>
           <span>{item.volgendeActie}</span>
         </p>
-      </Link>
+      </div>
       {onPlanOpvolging && (
         <button
           type="button"
