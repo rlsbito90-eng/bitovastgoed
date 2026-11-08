@@ -116,7 +116,9 @@ const leegForm: FormState = {
   dealTypeIds: [],
   budgetMin: undefined,
   budgetMax: undefined,
+  budgetVoorkeurToelichting: undefined,
   rendementseis: undefined,
+  rendementsdoelToelichting: undefined,
   kapitaalsituatie: 'onbekend',
   eigenVermogenPct: undefined,
   voorkeurDealstructuur: [],
@@ -683,10 +685,20 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     <NumberField value={form.budgetMax}
                       onChange={v => set('budgetMax', v)} />
                   </Veld>
-                  <Veld label="Rendementseis (%)">
+                  <Veld label="Harde rendementseis (%)">
                     <NumberField decimals={2} value={form.rendementseis}
                       onChange={v => set('rendementseis', v)}
-                      placeholder="bv. 6,5" />
+                      placeholder="bv. 6,5; alleen bij expliciete ondergrens" />
+                  </Veld>
+                  <Veld label="Budgetkeuze(n) volgens formulier" span={2}>
+                    <Textarea rows={2} value={form.budgetVoorkeurToelichting ?? ''}
+                      onChange={e => set('budgetVoorkeurToelichting',e.target.value || undefined)}
+                      placeholder="Bijv. €500.000 – €1.000.000; meerdere banden letterlijk overnemen" />
+                  </Veld>
+                  <Veld label="Rendementsdoel / BAR volgens formulier" span={2}>
+                    <Textarea rows={2} value={form.rendementsdoelToelichting ?? ''}
+                      onChange={e => set('rendementsdoelToelichting',e.target.value || undefined)}
+                      placeholder="Bijv. 6–8%; geen harde minimumrendementseis" />
                   </Veld>
                 </div>
               </Sectie>
