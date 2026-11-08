@@ -246,7 +246,11 @@ export interface Relatie {
   dealTypeIds?: string[];            // nieuwe taxonomie
   budgetMin?: number;
   budgetMax?: number;
+  /** Letterlijke budgetband(en) uit het investeringsformulier; geen automatisch matchfilter. */
+  budgetVoorkeurToelichting?: string;
   rendementseis?: number;
+  /** Letterlijk rendementsdoel (inclusief bandbreedtes); geen harde rendementsdrempel. */
+  rendementsdoelToelichting?: string;
   /** Matchbare gebiedskeuze direct onder Relaties, los van optionele Zoekprofielen. */
   zoekGemeenten?: string[];
   zoekPlaatsen?: string[];
