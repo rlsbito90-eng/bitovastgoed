@@ -119,7 +119,8 @@ export function isAanbiedbaar(o: CrmObjectInput): boolean {
 function heeftBasisCriteria(r: CrmRelatieInput): boolean {
   return !!(gevuld(r.propertyTypeIds) || gevuld(r.assetClasses) ||
     gevuld(r.propertySubtypeIds) || gevuld(r.dealTypeIds) ||
-    gevuld(r.regio) || gevuld(r.zoekGemeenten) || gevuld(r.zoekPlaatsen) || r.budgetMin != null || r.budgetMax != null);
+    gevuld(r.regio) || gevuld(r.zoekGemeenten) || gevuld(r.zoekPlaatsen) || r.budgetMin != null || r.budgetMax != null ||
+    (r.zoekRadiusEenheid != null && r.zoekRadiusWaarde != null && r.zoekRadiusWaarde>0 && !!r.zoekRadiusCentrum?.trim()));
 }
 
 function heeftProfielCriteria(p: CrmMandaatInput): boolean {
@@ -265,7 +266,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
     p.principalRelatieId!==r.id && relaties.some(x=>x.id===p.principalRelatieId&&!x.softDeletedAt))
     koperRelatieId=p.principalRelatieId;
   const kwalificatie:MatchKwalificatie=afwijkend.length?'afwijkend':
-    geverifieerd===0?'onvoldoende':controleNodig?'te_verifieren':'passend';
+    geverifieerd===0?(radius?'te_verifieren':'onvoldoende'):controleNodig?'te_verifieren':'passend';
   if(!koperRelatieId)controleer.push('Uiteindelijke koper eventueel later in het traject vaststellen');
   const routeConfirmed=beleid==='bestaand'&&(has(getRoles(r),'koper')||has(getRoles(r),'bemiddelaar'));
 
