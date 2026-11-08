@@ -73,7 +73,7 @@ export default function WebsiteInvesteringsprofielenInbox() {
       ? 'Heb je de inzending met de relatie vergeleken en eventuele wijzigingen zelf verwerkt?'
       : 'Weet je zeker dat deze website-inzending niet verder opgevolgd hoeft te worden?')) return;
     setReviewing(item.id);
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('website_investor_intakes' as any)
       .update({
         status, reviewed_at: new Date().toISOString(),
@@ -82,9 +82,10 @@ export default function WebsiteInvesteringsprofielenInbox() {
           ? { processed_relatie_id: item.suggested_relatie_id } : {}),
       } as any)
       .eq('id',item.id)
-      .in('status',['bestaande_relatie','dubbelzinnig','nieuw_te_controleren']);
+      .in('status',['bestaande_relatie','dubbelzinnig','nieuw_te_controleren'])
+      .select('id');
     setReviewing(null);
-    if (updateError) {
+    if (updateError || !updated?.length) {
       setError('Inzending kon niet worden afgehandeld. Probeer opnieuw.');
       return;
     }
