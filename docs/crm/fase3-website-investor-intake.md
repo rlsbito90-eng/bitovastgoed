@@ -9,7 +9,7 @@ De inzendingen op bitovastgoed.nl blijven voorlopig ongewijzigd; de WordPress-br
 - Formulier: Contact Form 7 (titel **Investeringsprofiel vastgoed**), op de WordPress pagina `/investeringsprofiel/` via shortcode `[contact-form-7 id="d556c06" title="Investeringsprofiel vastgoed"]`.
 - Flamingo is actief voor het bewaren van inzendingen.
 - Bito CRM: Vite/React met Supabase; **Relaties** is het primaire investeringsprofiel, extra Zoekprofielen zijn optioneel.
-- De specifieke, interne CF7 **veldkeys** zijn nog niet via de WordPress-connector uit te lezen. Ze moeten onder **Contact → Formulieren → Investeringsprofiel vastgoed** worden gecontroleerd, bij voorkeur met een veilige proefinzending.
+- De gebruiker heeft op 8 november 2026 de interne CF7-veldkeys via screenshots bevestigd: **naam `your-name`**, **e-mail `your-email`**, **telefoon `telephone`**, **bedrijf `company`**. De overige keuzevelden zijn nog niet allemaal geverifieerd; die worden bij een veilige proefinzending op brongetrouwheid gecontroleerd.
 
 ## Ontwerp
 
@@ -25,16 +25,16 @@ De inzendingen op bitovastgoed.nl blijven voorlopig ongewijzigd; de WordPress-br
 
 - De nieuwe tabellen + RLS zijn toegepast in live Supabase-project `vyjocdlwfxrblusfngfq` (migratie `20261108093225`).
 - De Edge Function `website-investor-intake` is afzonderlijk naar dat project gedeployed, `verify_jwt=false` **maar met eigen verplichte authenticatie**.
-- De rij in `website_intake_credentials` is **`enabled=false`**. Daardoor is de koppeling afgesloten, ook wanneer iemand de ontvang-URL kent.
-- WordPress plug-in Bito CRM — Investeringsprofiel v0.1.0 is **inactief** geïnstalleerd. De plug-in is een lokaal gegenereerde, niet-openbaar gehoste ZIP; SHA-256 `977590b3dcf11e4f0ee9792a8a2e0fbb687470c1fe0de074740989c29d4d4627`.
+- Op 8 november 2026 is de servercredential **`enabled=true`** gezet, nadat de hex-sleutel uit het privébestand overeenkwam met de SHA-256-hash in Supabase. De ontvangstfunctie verwerkt alleen geldige serververzoeken en schrijft uitsluitend naar de intake-inbox, niet naar Relaties. WordPress-uitgaande verzending vereist **afzonderlijk** inschakelen in de plug-ininstellingen.
+- WordPress plug-in Bito CRM — Investeringsprofiel v0.1.0 is door de gebruiker **geactiveerd** (status bevestigd via WordPress-connector). Het selectievakje voor uitgaande verzending staat standaard uit tot de gebruiker dit inschakelt in **Instellingen → Bito CRM-koppeling**. De plug-in is een lokaal gegenereerde, niet-openbaar gehoste ZIP; SHA-256 `977590b3dcf11e4f0ee9792a8a2e0fbb687470c1fe0de074740989c29d4d4627`.
 - Losse geheime koppelsleutel wordt nooit in Git, de app-frontend of in dit document opgeslagen. De gebruiker krijgt hiervoor een afzonderlijk privébestand.
 
 ## Vrijgaveprocedure
 
-1. Controleer de exacte interne CF7-veldnamen van naam, e-mail en telefoon.
-2. Activeer de reeds geïnstalleerde plug-in onder WordPress → Plugins; met `enabled=0` doet deze niets.
-3. WordPress → Instellingen → Bito CRM-koppeling: voer veldnamen en privé-webhooksleutel in. Laat "Ingeschakeld" uit totdat de databasecredential wordt vrijgegeven.
-4. Activeer de backend-credential `website_intake_credentials.enabled=true` uitsluitend na controle. Vervolgens het vinkje in de WordPress-plug-in inschakelen.
+1. CF7-veldnamen gecontroleerd via screenshots: `your-name`, `your-email`, `telephone`; organisatie `company` wordt als bronveld bewaard.
+2. WordPress-plug-in is actief, servercredential staat aan; de uitgaande WordPress-schakelaar staat standaard uit.
+3. WordPress → Instellingen → Bito CRM-koppeling: voer `your-name`, `your-email`, `telephone` en de privé-webhooksleutel in. Opslaan. Schakel vervolgens "Ingeschakeld" in voor de expliciet gecontroleerde proefinzending.
+4. Controleer onder WordPress de status "Ingeschakeld" en verzend een door de gebruiker beheerde testidentiteit (geen echte belegger).
 5. Doe één proefinzending met een fictieve naam en test-e-mail onder eigen beheer. Verifieer registratie in `website_investor_intakes`, de juiste velden en status in Relaties, de Flamingo-ontvangst en geen extra echte relatie of Zoekprofiel.
 6. Controleer of een replay met identiek `event_id` slechts één rij maakt. Herhaal met bestaand CRM-mailadres zonder dat oude aankoopcriteria overschreven worden.
 7. Pas na deze acceptatie de exacte formuliervelden omzetten naar centrale CRM-velden en de gecontroleerde route bouwen voor **automatisch nieuwe relaties**. Bestaande contacten blijven beoordeelbaar. Hierna integratietests en aparte vrijgave.
