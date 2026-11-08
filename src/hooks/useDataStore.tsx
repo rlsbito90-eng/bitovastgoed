@@ -1168,7 +1168,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const bulkInsertRelaties = useCallback(async (rows: Partial<Relatie>[]) => {
     if (rows.length === 0) return { ok: 0, fout: 0 };
     const payload = rows.map(r => relatieToDb({
-      leadStatus: 'lauw', type: 'belegger', regio: [], assetClasses: [], ndaGetekend: false, ...r,
+      leadStatus: 'actief', type: 'belegger', regio: [], assetClasses: [], ndaGetekend: false, ...r,
     }) as any);
     const { data, error } = await supabase.from('relaties').insert(payload).select();
     if (error) {
