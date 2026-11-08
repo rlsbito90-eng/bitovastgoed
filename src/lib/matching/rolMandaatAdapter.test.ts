@@ -324,3 +324,12 @@ test('een radius overschrijft de richting van een optioneel afzonderlijk zoekpro
  const extra=rows[0].alleRoutes.find(x=>x.zoekprofielId==='z1');
  assert.equal(extra?.kwalificatie,'passend');
 });
+
+test('radius als enige aankoopcriterium levert een voorstel ter verificatie',()=>{
+ const r=relatie({propertyTypeIds:[],assetClasses:[],budgetMax:undefined,budgetMin:undefined,
+   zoekRadiusCentrum:'Ede',zoekRadiusWaarde:60,zoekRadiusEenheid:'minuten_reistijd'});
+ const rows=voorstel(object(),[r]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
+ assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('routeplanner')));
+});
