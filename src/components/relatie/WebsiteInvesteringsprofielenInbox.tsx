@@ -11,6 +11,7 @@ type WebsiteIntake = {
   created_at: string;
   status: 'ontvangen' | 'nieuw_te_controleren' | 'bestaande_relatie' | 'dubbelzinnig' | 'verwerkt' | 'afgewezen';
   suggested_relatie_id: string | null;
+  processed_relatie_id: string | null;
   raw_payload: {
     fields?: Record<string, string | string[]>;
   };
@@ -26,22 +27,24 @@ const labels: Record<WebsiteIntake['status'], string> = {
 };
 
 /** Compacte, alleen-lezen beoordelingswachtrij.
- * Wijzigingen in Relaties en het aanmaken van een contact blijven bewust handmatig
- * totdat het exacte CF7 veldschema met een proefinzending is vastgesteld.
+ * Eenduidige nieuwe profielen kunnen server-side automatisch worden aangemaakt.
+ * Bestaande profielen worden nooit automatisch overschreven.
  */
 export default function WebsiteInvesteringsprofielenInbox() {
   const [expanded, setExpanded] = useState(false);
+  const [showProcessed, setShowProcessed] = useState(false);
   const [items, setItems] = useState<WebsiteIntake[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     setLoading(true);
-    const { data, error: queryError } = await supabase
+    let query = supabase
       .from('website_investor_intakes' as any)
-      .select('id,applicant_name,applicant_email,applicant_phone,status,suggested_relatie_id,raw_payload,created_at')
-      .not('status', 'in', '("verwerkt","afgewezen")')
+      .select('id,applicant_name,applicant_email,applicant_phone,status,suggested_relatie_id,processed_relatie_id,raw_payload,created_at')
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(50);
+    if (!showProcessed) query = query.not('status', 'in', '("verwerkt","afgewezen")');
+    const { data, error: queryError } = await query;
     setLoading(false);
     if (queryError) {
       setError('Website-inzendingen konden niet worden opgehaald.');
@@ -49,7 +52,7 @@ export default function WebsiteInvesteringsprofielenInbox() {
     }
     setError(null);
     setItems((data ?? []) as unknown as WebsiteIntake[]);
-  }, []);
+  }, [showProcessed]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -65,18 +68,27 @@ export default function WebsiteInvesteringsprofielenInbox() {
           </span>
           {expanded ? <ChevronUp className="h-4 w-4"/> : <ChevronDown className="h-4 w-4"/>}
         </button>
-        <button type="button" onClick={() => void refresh()}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs"
-          aria-label="Website-inzendingen verversen" disabled={loading}>
-          <RefreshCw className="h-3.5 w-3.5"/> Verversen
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <input type="checkbox" checked={showProcessed}
+              onChange={e => setShowProcessed(e.target.checked)}
+              aria-label="Toon ook verwerkte websiteprofielen" />
+            Ook verwerkt tonen
+          </label>
+          <button type="button" onClick={() => void refresh()}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs"
+            aria-label="Website-inzendingen verversen" disabled={loading}>
+            <RefreshCw className="h-3.5 w-3.5"/> Verversen
+          </button>
+        </div>
       </div>
       {expanded && (
         <div className="border-t border-border px-4 py-3">
           <p className="mb-3 text-xs text-muted-foreground">
             Inzendingen worden bewaard met de originele formulierantwoorden.
             Bestaande aankoopcriteria worden niet automatisch overschreven.
-            Nieuwe profielen worden pas na controle in Relaties verwerkt.
+            Alleen eenduidige nieuwe profielen worden automatisch aan Relaties toegevoegd.
+            Bestaande contacten en onduidelijke zoekcriteria blijven ter beoordeling staan.
           </p>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           {!loading && !error && items.length === 0 && (
@@ -107,6 +119,12 @@ export default function WebsiteInvesteringsprofielenInbox() {
                     <Link to={`/relaties/${item.suggested_relatie_id}`}
                       className="inline-block text-sm font-medium underline underline-offset-2">
                       Open mogelijke bestaande relatie
+                    </Link>
+                  )}
+                  {item.processed_relatie_id && (
+                    <Link to={`/relaties/${item.processed_relatie_id}`}
+                      className="block text-sm font-medium underline underline-offset-2">
+                      Open automatisch aangemaakte relatie
                     </Link>
                   )}
                   <p className="text-xs font-medium">Ingevulde formuliergegevens</p>
