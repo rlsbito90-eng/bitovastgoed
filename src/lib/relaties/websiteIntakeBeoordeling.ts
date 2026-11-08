@@ -70,7 +70,7 @@ export function voorstelNieuweRelatie(i:ReviewIntake, propertyTypes:PropertyType
     type:profiel==='ontwikkelaar'?'ontwikkelaar':profiel==='vastgoedondernemer'?'overig':'belegger',
     partijprofiel:profiel,
     commercialRoles:profiel?['koper']:null,
-    leadStatus:'lauw',
+    leadStatus:'actief',
     bronRelatie:'Investeringsprofiel website (handmatig beoordeeld)',
     assetClasses,propertyTypeIds:propertyTypes.filter(t=>slugs.has(t.slug)).map(t=>t.id),
     regio:geldigeProvincies(gebied),
