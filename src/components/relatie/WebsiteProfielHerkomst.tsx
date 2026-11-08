@@ -23,6 +23,10 @@ export default function WebsiteProfielHerkomst({ relatieId }: {relatieId:string}
   const [error,setError] = useState(false);
   useEffect(()=>{
     let active=true;
+    // Niet tijdelijk de broninzending van een vorige relatie blijven tonen
+    // wanneer de gebruiker via de relatienavigatie naar een ander contact gaat.
+    setInzendingen([]);
+    setError(false);
     void (async ()=>{
       const {data,error:queryError} = await supabase
         .from('website_investor_intakes' as any)
