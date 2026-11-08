@@ -256,6 +256,12 @@ export interface Relatie {
   zoekPlaatsen?: string[];
   /** Volledige aankoopcriteria blijven op Relaties; extra zoekprofielen zijn optioneel. */
   zoekgebiedToelichting?: string;
+  zoekRadiusCentrum?: string;
+  zoekRadiusWaarde?: number;
+  zoekRadiusEenheid?: 'km_hemelsbreed'|'minuten_reistijd';
+  /** Zonder geverifieerde WGS84-coördinaten blijft R2 te verifiëren. */
+  zoekRadiusLat?: number;
+  zoekRadiusLon?: number;
   gewensteObjectomvang?: string;
   gewensteSituatie?: string[];
   aankooptermijn?: string;
@@ -320,6 +326,10 @@ export interface ObjectVastgoed {
   postcode?: string;
   plaats: string;
   provincie: string;
+  /** Gecontroleerde objectcoördinaten, niet afleiden uit de plaatsnaam. */
+  geoLat?: number;
+  geoLon?: number;
+  geoBron?: string;
 
   // Classificatie (legacy)
   type: AssetClass;
