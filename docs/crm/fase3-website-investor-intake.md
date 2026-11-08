@@ -47,3 +47,42 @@ De inzendingen op bitovastgoed.nl blijven voorlopig ongewijzigd; de WordPress-br
 - CF7/Flamingo blijven de primaire back-up bij eventuele afleverschade; automatische aflever-retries staan nog op de later te implementeren betrouwbaarheidstaken.
 - Privacyverklaring en bewaartermijnen controleren vóór inschakeling.
 
+
+## Geslaagde end-to-end proef — 8 november 2026, 21:40 CET
+
+De gebruiker heeft de plug-in en Contact Form 7 op de live WordPress-site succesvol ingesteld en één fictieve inzending gedaan. Deze is zowel via de bestaande CF7-e-mail als in de beveiligde Supabase-wachtrij aangekomen:
+- `form_id=34718`, `form_title=Investeringsprofiel vastgoed`
+- `status=nieuw_te_controleren`, geen bijbehorende bestaande relatie
+- Exact **één** intake-record, **nul** nieuwe `relaties`, bestaande **acht** `zoekprofielen` onveranderd
+- GitHub Verify #2355 op branch is geslaagd
+
+**Echt ontvangen CF7-bronveld → beoogd Relaties-veld (na aparte mapping-/validatierelease)**
+
+| CF7-naam | Betekenis | CRM-bestemming |
+|---|---|---|
+| `your-name` | Naam | `contactpersoon` (en primair contact) |
+| `company` | Organisatie | `bedrijfsnaam`; fallback naam |
+| `your-email` | E-mail | `email` en exact-mail-deduplicatie |
+| `telephone` | Telefoon | `telefoon` |
+| `party-type` | Type partij (array) | `partijprofiel` met taxonomiecontrole |
+| `asset-types` | Vastgoedtypen (array) | `property_type_ids`; onbekende keuzes bewaren |
+| `strategy` | Strategie (array) | `vastgoed_strategieen`, oorspronkelijke waarden ook behouden |
+| `investment-size` | Investeringsbedrag (array) | alleen eenduidig bedrag als `budget_min/max` |
+| `search-area` | Zoekgebied (vrij) | `zoekgebied_toelichting`; provincies/gemeenten niet gokken |
+| `object-size` | Gewenste omvang | `gewenste_objectomvang` |
+| `situation` | Verhuursituatie en potentie (array) | `gewenste_situatie` |
+| `return-target` | Rendementsdoelstelling | `rendementseis` alleen indien eenduidig, anders bron |
+| `purchase-term` | Aankooptermijn (array) | `aankooptermijn` |
+| `financing` | Financieringsvorm (array) | `financieringsstructuur` |
+| `financing-status` | Financieringsstatus (array) | `financieringsstatus` (zelfopgave) |
+| `decision-speed` | Besluitvorming (array) | `besluitvorming` |
+| `hard-criteria` | Aankoopvoorwaarden | `aankoopcriteria` |
+| `dealbreakers` | Wat past niet? | `uitsluitingen` |
+| `notes` | Extra toelichting | `overige_toelichting` |
+| `privacy` | Privacyvinkje (array) | uitsluitend verificatie/bron, geen marketing-toestemming |
+| `mc4wp_checkbox` | Nieuwsbriefkeuze | los van CRM-leadregistratie; nooit zonder expliciet opt-in abonneren |
+| `bito_herkomst_*` | Attributie/landingspagina | bronmetadata, niet in matching |
+
+In deze proef waren `situation`, `return-target`, `hard-criteria`, `dealbreakers`, `object-size` en `notes` leeg. Lege antwoorden mogen niet automatisch 'nee' of een harde uitsluiting betekenen.
+
+**Nog te controleren vóór automatische Relaties-insert:** tweede test met een bestaand contact, multi-select veldvarianten, dubbele verzending, grensgevallen voor budget en rendement, en de definitieve reviewed/processed-statusafhandeling.
