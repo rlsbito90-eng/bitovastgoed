@@ -127,3 +127,26 @@ describe('Fase 1 — gemeenten en plaatsen direct bij Relaties',()=>{
    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekPlaatsen:['Breda','Tilburg']}));
  });
 });
+
+
+describe('Fase 3C — letterlijke budget- en rendementskeuzes',()=>{
+ const bronVelden=[
+   {key:'budgetVoorkeurToelichting',label:'Budgetkeuze(n) volgens formulier',kind:'textarea'},
+   {key:'rendementsdoelToelichting',label:'Rendementsdoel volgens formulier',kind:'textarea'},
+ ] as const;
+ it('bewaart een meervoudige rendementsband zonder hard minimum aan te passen',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineRelatieSectie titel="Websitebudget" relatie={relatie}
+     velden={bronVelden} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Websitebudget bewerken'}));
+   fireEvent.change(screen.getByLabelText('Rendementsdoel volgens formulier'),{
+     target:{value:'4–6%; 6–8%; 8–10%; >10%'},
+   });
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   await waitFor(()=>expect(save).toHaveBeenCalledWith({
+     rendementsdoelToelichting:'4–6%; 6–8%; 8–10%; >10%',
+   }));
+   expect(save.mock.calls[0][0]).not.toHaveProperty('rendementseis');
+   expect(save.mock.calls[0][0]).not.toHaveProperty('budgetMin');
+ });
+});

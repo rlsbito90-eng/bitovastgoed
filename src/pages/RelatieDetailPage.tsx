@@ -26,6 +26,7 @@ import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relati
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
 import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
 import InlineVastgoedVoorkeuren from '@/components/relatie/InlineVastgoedVoorkeuren';
+import WebsiteProfielHerkomst from '@/components/relatie/WebsiteProfielHerkomst';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
@@ -89,7 +90,11 @@ const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'aankooptermijn',label:'Gewenste aankooptermijn'},
   {key:'budgetMin',label:'Budget minimum (€)',kind:'number'},
   {key:'budgetMax',label:'Budget maximum (€)',kind:'number'},
-  {key:'rendementseis',label:'Rendementseis (%)',kind:'number'},
+  {key:'budgetVoorkeurToelichting',label:'Budgetkeuze(n) volgens formulier',kind:'textarea',
+    note:'Letterlijke budgetbanden, ook bij meerdere keuzes. Minimum en maximum worden afzonderlijk voor matching gebruikt.'},
+  {key:'rendementseis',label:'Harde rendementseis (%)',kind:'number'},
+  {key:'rendementsdoelToelichting',label:'Rendementsdoel / BAR volgens formulier',kind:'textarea',
+    note:'Een bandbreedte zoals 6–8% of meerdere keuzes is geen harde minimumrendementseis.'},
   {key:'kapitaalsituatie',label:'Kapitaalsituatie',kind:'select',
     options:Object.entries(KAPITAAL_SITUATIE_LABELS).map(([value,label])=>({value,label}))},
   {key:'eigenVermogenPct',label:'Eigen vermogen (%)',kind:'number'},
@@ -279,6 +284,7 @@ export default function RelatieDetailPage() {
             onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
           <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
             velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <WebsiteProfielHerkomst relatieId={relatie.id}/>
           <InlineRelatieSectie titel="Communicatie en NDA" relatie={relatie}
             velden={COMMUNICATIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <InlineRelatieSectie titel="Aankoop, verkoop en notities" relatie={relatie}
