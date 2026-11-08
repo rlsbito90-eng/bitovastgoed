@@ -121,6 +121,9 @@ const leegForm: FormState = {
   budgetVoorkeurToelichting: undefined,
   rendementseis: undefined,
   rendementsdoelToelichting: undefined,
+  zoekRadiusCentrum: undefined,
+  zoekRadiusWaarde: undefined,
+  zoekRadiusEenheid: undefined,
   kapitaalsituatie: 'onbekend',
   eigenVermogenPct: undefined,
   voorkeurDealstructuur: [],
@@ -646,11 +649,32 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                   Dit is het centrale investeringsprofiel van de relatie. Afzonderlijke zoekprofielen zijn optioneel.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Specifiek zoekgebied" span={2}>
+                  <Veld label="Zoekgebied — letterlijke toelichting" span={2}>
                     <Textarea rows={2} value={form.zoekgebiedToelichting ?? ''}
                       onChange={e => set('zoekgebiedToelichting', e.target.value || undefined)}
-                      placeholder="Bijv. maximaal 35 km rond Amersfoort; radius handmatig controleren" />
+                      placeholder="Bijv. maximaal 35 km rond Amersfoort" />
                   </Veld>
+                  <Veld label="Zoekradius vanaf plaats">
+                    <Input value={form.zoekRadiusCentrum ?? ''}
+                      onChange={e => set('zoekRadiusCentrum',e.target.value||undefined)} placeholder="Bijv. Amersfoort" />
+                  </Veld>
+                  <Veld label="Radius: afstand of reistijd">
+                    <select value={form.zoekRadiusEenheid??''}
+                      onChange={e => set('zoekRadiusEenheid',(e.target.value||undefined) as Relatie['zoekRadiusEenheid'])}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                      <option value="">— Niet ingesteld —</option>
+                      <option value="km_hemelsbreed">Kilometers hemelsbreed</option>
+                      <option value="minuten_reistijd">Minuten reistijd</option>
+                    </select>
+                  </Veld>
+                  <Veld label="Maximale afstand (km) of reistijd (minuten)">
+                    <NumberField integer min={1} value={form.zoekRadiusWaarde}
+                      onChange={v => set('zoekRadiusWaarde',v)} placeholder="Bijv. 35" />
+                  </Veld>
+                  <p className="text-xs text-muted-foreground sm:col-span-2">
+                    De radius is gestructureerd opgeslagen. Automatische afstandscontrole vereist een verifieerbare objectlocatie.
+                    Reistijd wordt niet geschat op basis van hemelsbrede kilometers.
+                  </p>
                   <Veld label="Gewenste objectomvang">
                     <Input value={form.gewensteObjectomvang ?? ''}
                       onChange={e => set('gewensteObjectomvang', e.target.value || undefined)}
