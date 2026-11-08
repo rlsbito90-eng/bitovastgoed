@@ -26,6 +26,7 @@ import { PARTIJPROFIELEN } from '@/lib/relaties/partijprofiel';
 import {maakContactNaamIndex,matchRelatieZoekterm} from '@/lib/relaties/relatieContactZoekIndex';
 import ClassificatieReviewPanel from '@/components/relatie/ClassificatieReviewPanel';
 import MatchingImpactPanel from '@/components/relatie/MatchingImpactPanel';
+import WebsiteInvesteringsprofielenInbox from '@/components/relatie/WebsiteInvesteringsprofielenInbox';
 import {
   HISTORISCHE_HOOFDTYPEN, matchRelatieProfiel, normaalProfielFilter,
   relatieProfielLabel, type RelatieProfielFilter,
@@ -109,6 +110,8 @@ export default function RelatiesPage() {
           </div>
         }
       />
+
+      <WebsiteInvesteringsprofielenInbox />
 
       <ClassificatieReviewPanel relaties={relaties} zoekprofielen={zoekprofielen}
         pipelineKandidaten={pipelineKandidaten} contactMoments={contactMoments}
