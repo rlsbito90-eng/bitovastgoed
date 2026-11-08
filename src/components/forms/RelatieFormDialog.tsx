@@ -64,6 +64,8 @@ interface Props {
   initialValues?: Partial<FormState>;
   /** Optionele prefill voor de primaire contactpersoon-input (genegeerd bij edit). */
   initialPrimaireContactpersoon?: Partial<PrimaireContactpersoonInput>;
+  /** Begin direct op tab Investeerder bij beoordeling websiteformulier. */
+  initialTab?: 'algemeen' | 'vastgoed' | 'investeerder' | 'notities';
 }
 
 type FormState = Omit<Relatie, 'id' | 'laatsteContact' | 'softDeletedAt' | 'contactpersoon'>;
@@ -135,7 +137,7 @@ const leegForm: FormState = {
 };
 
 
-export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreated, initialValues, initialPrimaireContactpersoon }: Props) {
+export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreated, initialValues, initialPrimaireContactpersoon, initialTab='algemeen' }: Props) {
   const store = useDataStore();
   const { addRelatie, updateRelatie } = store;
   const { propertyTypes, dealTypes, subtypesForTypes } = usePropertyTaxonomie();
@@ -210,7 +212,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     setOpenerSnapshot(JSON.stringify({ form: beginForm, contactpersoonInput: beginContactpersoon }));
     setGedeeltelijkOpgeslagen(false);
     nieuwAangemaaktIdRef.current = undefined;
-    setTab('algemeen');
+    setTab(initialTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relatie?.id, open]);
 
