@@ -131,7 +131,7 @@ const leegForm: FormState = {
   ndaGetekend: false,
   ndaDatum: undefined,
   bronRelatie: undefined,
-  leadStatus: 'lauw',
+  leadStatus: 'actief',
   volgendeActie: undefined,
   notities: undefined,
 };
