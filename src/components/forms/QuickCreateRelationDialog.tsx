@@ -198,7 +198,7 @@ export function QuickCreateRelationDialog({
         regio: [],
         assetClasses: [],
         ndaGetekend: false,
-        leadStatus: 'lauw',
+        leadStatus: 'actief',
         laatsteContact: '',
       });
 
