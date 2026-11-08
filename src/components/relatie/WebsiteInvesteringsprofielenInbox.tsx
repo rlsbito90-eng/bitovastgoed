@@ -17,6 +17,19 @@ type WebsiteIntake = {
   };
 };
 
+const fieldLabels: Record<string,string> = {
+  'your-name':'Naam', company:'Bedrijf / organisatie', 'your-email':'E-mailadres',
+  telephone:'Telefoon', 'party-type':'Type partij', 'asset-types':'Vastgoedsegmenten',
+  strategy:'Investeringsstrategie', 'investment-size':'Budget per transactie',
+  'search-area':'Zoekgebied', 'object-size':'Gewenste objectomvang',
+  situation:'Gewenste situatie', 'return-target':'Rendement / BAR',
+  'purchase-term':'Aankooptermijn', financing:'Financieringsstructuur',
+  'financing-status':'Status financiering', 'decision-speed':'Besluitvorming',
+  'hard-criteria':'Belangrijkste acquisitiecriteria', dealbreakers:'Uitsluitingen',
+  notes:'Overige toelichting', privacy:'Privacytoestemming',
+  mc4wp_checkbox:'Nieuwsbriefkeuze',
+};
+
 const labels: Record<WebsiteIntake['status'], string> = {
   ontvangen: 'Te beoordelen',
   nieuw_te_controleren: 'Mogelijk nieuwe relatie',
@@ -36,6 +49,7 @@ export default function WebsiteInvesteringsprofielenInbox() {
   const [items, setItems] = useState<WebsiteIntake[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     setLoading(true);
     let query = supabase
@@ -53,6 +67,29 @@ export default function WebsiteInvesteringsprofielenInbox() {
     setError(null);
     setItems((data ?? []) as unknown as WebsiteIntake[]);
   }, [showProcessed]);
+
+  const markReviewed = async (item: WebsiteIntake, status: 'verwerkt' | 'afgewezen') => {
+    if (!window.confirm(status === 'verwerkt'
+      ? 'Heb je de inzending met de relatie vergeleken en eventuele wijzigingen zelf verwerkt?'
+      : 'Weet je zeker dat deze website-inzending niet verder opgevolgd hoeft te worden?')) return;
+    setReviewing(item.id);
+    const { error: updateError } = await supabase
+      .from('website_investor_intakes' as any)
+      .update({
+        status, reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...(status === 'verwerkt' && item.suggested_relatie_id
+          ? { processed_relatie_id: item.suggested_relatie_id } : {}),
+      } as any)
+      .eq('id',item.id)
+      .in('status',['bestaande_relatie','dubbelzinnig','nieuw_te_controleren']);
+    setReviewing(null);
+    if (updateError) {
+      setError('Inzending kon niet worden afgehandeld. Probeer opnieuw.');
+      return;
+    }
+    await refresh();
+  };
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -127,11 +164,31 @@ export default function WebsiteInvesteringsprofielenInbox() {
                       Open automatisch aangemaakte relatie
                     </Link>
                   )}
+                  {item.status === 'bestaande_relatie' && item.suggested_relatie_id && (
+                    <div className="rounded-md border border-border p-3">
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        Vergelijk de nieuwe aankoopcriteria met de bestaande relatie.
+                        Bestaande gegevens worden niet automatisch aangepast.
+                      </p>
+                      <button type="button" disabled={reviewing===item.id}
+                        onClick={() => void markReviewed(item,'verwerkt')}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium">
+                        Als beoordeeld markeren
+                      </button>
+                    </div>
+                  )}
+                  {item.status !== 'verwerkt' && item.status !== 'afgewezen' && (
+                    <button type="button" disabled={reviewing===item.id}
+                      onClick={() => void markReviewed(item,'afgewezen')}
+                      className="rounded-md px-2 py-1.5 text-xs text-muted-foreground underline underline-offset-2">
+                      Inzending negeren
+                    </button>
+                  )}
                   <p className="text-xs font-medium">Ingevulde formuliergegevens</p>
                   <dl className="grid grid-cols-1 gap-1.5 text-xs sm:grid-cols-2">
                     {Object.entries(item.raw_payload?.fields ?? {}).map(([key, value]) => (
                       <div key={key} className="rounded-md bg-muted/40 p-2">
-                        <dt className="font-medium break-all">{key}</dt>
+                        <dt className="font-medium break-all">{fieldLabels[key] ?? key}</dt>
                         <dd className="break-words text-muted-foreground">
                           {Array.isArray(value) ? value.join(', ') : String(value)}
                         </dd>
