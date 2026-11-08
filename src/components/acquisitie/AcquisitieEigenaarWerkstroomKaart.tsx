@@ -249,7 +249,7 @@ export default function AcquisitieEigenaarWerkstroomKaart({
           type: 'eigenaar',
           vestigingsplaats: model.dossier.plaats ?? undefined,
           bronRelatie: 'Vastgoedkans',
-          leadStatus: 'lauw',
+          leadStatus: 'actief',
         }}
         onCreated={(relatieId) => {
           setNieuwRelatieId(relatieId);
