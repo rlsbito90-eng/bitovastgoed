@@ -10,6 +10,7 @@ import { queryClient } from '@/lib/queryClient';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
+const PasskeyAccessPage = lazy(() => import('@/pages/PasskeyAccessPage'));
 const OAuthConsentPage = lazy(() => import('@/pages/OAuthConsentPage'));
 const CrmProtectedApp = lazy(() => import('@/CrmProtectedApp'));
 
@@ -31,7 +32,8 @@ const App = () => (
         <AuthProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/auth" element={<PasskeyAccessPage />} />
+              <Route path="/auth/herstel" element={<AuthPage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
               <Route
                 path="*"

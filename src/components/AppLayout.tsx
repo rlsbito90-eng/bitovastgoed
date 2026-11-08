@@ -25,6 +25,7 @@ import {
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { useSwipeMenu } from "@/hooks/useSwipeMenu";
 import { useAuth } from "@/hooks/useAuth";
+import PasskeySetupMenuItem from "@/components/auth/PasskeySetupMenuItem";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -161,6 +162,7 @@ function GebruikerMenu({ collapsed = false, onNavigate }: { collapsed?: boolean;
             </Link>
           </DropdownMenuItem>
         )}
+        {isAdmin && <PasskeySetupMenuItem />}
         <DropdownMenuItem onClick={() => { onNavigate?.(); signOut(); }}>
           <LogOut className="mr-2 h-4 w-4" /> Uitloggen
         </DropdownMenuItem>
