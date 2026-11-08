@@ -64,14 +64,14 @@ export default function WebsiteProfielHerkomst({ relatieId }: {relatieId:string}
           <p className="text-xs text-muted-foreground break-words">
             Ingezonden door {item.applicant_email}. De waarden hieronder zijn alleen-lezen.
           </p>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <dl className="grid gap-2 sm:grid-cols-2">
             {criteria.map(([key,value])=><div key={key} className="rounded-md bg-muted/40 p-2">
               <dt className="text-xs font-medium">{websiteVeldLabel(key)}</dt>
               <dd className="mt-1 text-xs break-words text-muted-foreground">
                 {websiteVeldWaarde(value)}
               </dd>
             </div>)}
-          </div>
+          </dl>
           {metadata.length>0 && <details className="rounded-md border border-border p-2">
             <summary className="cursor-pointer text-xs font-medium">
               Formuliertoestemming, nieuwsbriefkeuze en herkomst
