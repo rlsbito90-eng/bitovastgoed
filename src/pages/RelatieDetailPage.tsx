@@ -26,6 +26,7 @@ import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relati
 import ContactpersonenPanel from '@/components/relatie/ContactpersonenPanel';
 import ZoekprofielDetails from '@/components/relatie/ZoekprofielDetails';
 import InlineVastgoedVoorkeuren from '@/components/relatie/InlineVastgoedVoorkeuren';
+import WebsiteProfielHerkomst from '@/components/relatie/WebsiteProfielHerkomst';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
@@ -283,6 +284,7 @@ export default function RelatieDetailPage() {
             onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
           <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
             velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <WebsiteProfielHerkomst relatieId={relatie.id}/>
           <InlineRelatieSectie titel="Communicatie en NDA" relatie={relatie}
             velden={COMMUNICATIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <InlineRelatieSectie titel="Aankoop, verkoop en notities" relatie={relatie}
