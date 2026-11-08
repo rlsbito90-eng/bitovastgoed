@@ -42,6 +42,20 @@ export const geldigeProvincies=(raw:string):string[]=>{
   const parts=raw.split(',').map(x=>x.trim()).filter(Boolean);
   return parts.length>0 && parts.every(x=>provincies.has(x)) ? parts : [];
 };
+/** Alleen letterlijke, eenduidige radiusteksten vooraf invullen.
+ * Alle overige regio-omschrijvingen blijven vrije tekst en vragen handmatige controle.
+ */
+export function zoekRadiusVoorstel(tekst:string):Pick<Relatie,'zoekRadiusCentrum'|'zoekRadiusWaarde'|'zoekRadiusEenheid'> {
+  const raw=tekst.trim();
+  const km=raw.match(/^(\d{1,3})\s*(?:km|kilometer)\s*(?:vanaf|rond|om)\s+([A-Za-zÀ-ÿ .'-]{2,80})$/i);
+  if(km) return {zoekRadiusCentrum:km[2].trim(),zoekRadiusWaarde:Number(km[1]),zoekRadiusEenheid:'km_hemelsbreed'};
+  const reversed=raw.match(/^([A-Za-zÀ-ÿ .'-]{2,80}),?\s*max(?:imaal)?\.?\s*(\d{1,3})\s*(?:km|kilometer)$/i);
+  if(reversed)return {zoekRadiusCentrum:reversed[1].trim(),zoekRadiusWaarde:Number(reversed[2]),zoekRadiusEenheid:'km_hemelsbreed'};
+  const minutes=raw.match(/^maximale\s+reistijd\s+van\s+(\d{1,3})\s+minuten\s+vanaf\s+([A-Za-zÀ-ÿ .'-]{2,80})$/i);
+  if(minutes)return {zoekRadiusCentrum:minutes[2].trim(),zoekRadiusWaarde:Number(minutes[1]),zoekRadiusEenheid:'minuten_reistijd'};
+  return {};
+}
+
 const budgetRange=(items:string[]):{budgetMin?:number,budgetMax?:number}=>{
   if(items.length!==1)return {};
   const m=items[0].match(/(?:€\s*)?([\d.]+)\s*[-–]\s*(?:€\s*)?([\d.]+)/);
@@ -75,6 +89,7 @@ export function voorstelNieuweRelatie(i:ReviewIntake, propertyTypes:PropertyType
     assetClasses,propertyTypeIds:propertyTypes.filter(t=>slugs.has(t.slug)).map(t=>t.id),
     regio:geldigeProvincies(gebied),
     zoekgebiedToelichting:gebied||undefined,
+    ...zoekRadiusVoorstel(gebied),
     vastgoedStrategieen:strategieen,
     strategieToelichting:waardeTekst(f,'strategy')||undefined,
     budgetVoorkeurToelichting:budget.join('; ')||undefined,
