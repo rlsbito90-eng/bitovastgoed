@@ -102,7 +102,7 @@ export default function RelatiesPage() {
               Foutieve import herstellen
             </button>
             <button onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors">
-              <Upload className="h-4 w-4" /> Bulk importeren
+              <Upload className="h-4 w-4" /> Meerdere toevoegen
             </button>
             <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
               <Plus className="h-4 w-4" /> Nieuwe relatie
