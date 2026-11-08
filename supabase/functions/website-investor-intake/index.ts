@@ -125,7 +125,7 @@ Deno.serve(async (req: Request) => {
     : matchedIds.size === 1 ? 'bestaande_relatie'
     : 'nieuw_te_controleren';
 
-  const { error } = await client.from('website_investor_intakes').insert({
+  const { data: stored, error } = await client.from('website_investor_intakes').insert({
     source, source_event_id: eventId,
     form_id: typeof payload.form_id === 'string' ? payload.form_id.slice(0,100) : null,
     form_title: 'Investeringsprofiel vastgoed',
@@ -133,8 +133,22 @@ Deno.serve(async (req: Request) => {
     applicant_phone: telefoon || null,
     raw_payload: payload,
     status, suggested_relatie_id: suggested,
-  });
+  }).select('id').single();
   if (error?.code === '23505') return response(202, 'already_received');
   if (error) return response(503, 'storage_failed');
+
+  // Optioneel en centraal uitschakelbaar. De DB-functie is transactioneel,
+  // idempotent en mag uitsluitend eenduidig nieuwe profielen aanmaken.
+  // Bij een conflict of onduidelijke criteria blijft de originele intake
+  // bewaard voor menselijke beoordeling. Bestaande Relaties nooit overschrijven.
+  if (status === 'nieuw_te_controleren' && stored?.id) {
+    const { error: automationError } = await client.rpc('process_website_investor_intake', {
+      p_intake_id: stored.id,
+    });
+    if (automationError) {
+      // Geen persoonsgegevens of secrets naar logs; de intake is veilig opgeslagen.
+      return response(202, 'received_review_pending');
+    }
+  }
   return response(202, 'received');
 });
