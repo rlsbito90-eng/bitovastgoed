@@ -23,6 +23,9 @@ export function maakObjectVoorstellenVoorRelatie(
       vraagprijs: object.vraagprijs,
       plaats: object.plaats,
       provincie: object.provincie,
+      geoLat: object.geoLat,
+      geoLon: object.geoLon,
+      geoBron: object.geoBron,
       // gemeente is pas beschikbaar na bestuurlijke validatie.
     };
     const voorstel=maakKandidaatVoorstellen(input,[relatie],zoekprofielen)

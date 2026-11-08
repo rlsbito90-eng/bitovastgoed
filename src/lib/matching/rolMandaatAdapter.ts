@@ -7,6 +7,7 @@
  */
 
 import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
+import { afstandHemelsbreedKm } from '../geo/afstandHemelsbreed';
 
 import type { CommercieleRol, Partijprofiel } from '../../data/mock-data';
 /** A15 proposal may be simulated; the existing policy remains the default. */
@@ -31,6 +32,11 @@ export interface CrmRelatieInput {
   /** Primaire zoekgemeenten/plaatsen uit Relaties; geen apart Zoekprofiel vereist. */
   zoekGemeenten?: readonly string[] | null;
   zoekPlaatsen?: readonly string[] | null;
+  zoekRadiusCentrum?: string | null;
+  zoekRadiusEenheid?: 'km_hemelsbreed'|'minuten_reistijd' | null;
+  zoekRadiusWaarde?: number | null;
+  zoekRadiusLat?: number | null;
+  zoekRadiusLon?: number | null;
   budgetMin?: number | null;
   budgetMax?: number | null;
   aankoopcriteria?: string | null;
@@ -65,6 +71,9 @@ export interface CrmObjectInput {
   vraagprijs?: number | null;
   plaats?: string | null;
   provincie?: string | null;
+  geoLat?: number | null;
+  geoLon?: number | null;
+  geoBron?: string | null;
   /** Optioneel: alleen als gemeente geverifieerd is, niet uit plaatsnaam afleiden. */
   gemeente?: string | null;
 }
@@ -110,7 +119,8 @@ export function isAanbiedbaar(o: CrmObjectInput): boolean {
 function heeftBasisCriteria(r: CrmRelatieInput): boolean {
   return !!(gevuld(r.propertyTypeIds) || gevuld(r.assetClasses) ||
     gevuld(r.propertySubtypeIds) || gevuld(r.dealTypeIds) ||
-    gevuld(r.regio) || gevuld(r.zoekGemeenten) || gevuld(r.zoekPlaatsen) || r.budgetMin != null || r.budgetMax != null);
+    gevuld(r.regio) || gevuld(r.zoekGemeenten) || gevuld(r.zoekPlaatsen) || r.budgetMin != null || r.budgetMax != null ||
+    (r.zoekRadiusEenheid != null && r.zoekRadiusWaarde != null && r.zoekRadiusWaarde>0 && !!r.zoekRadiusCentrum?.trim()));
 }
 
 function heeftProfielCriteria(p: CrmMandaatInput): boolean {
@@ -190,6 +200,10 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   const gekozenGemeenten=(rawCities??[]).filter(isGemeenteToken).map(gemeenteUitToken);
   const gekozenPlaatsen=(rawCities??[]).filter(x=>!isGemeenteToken(x));
   const objectLocaties=[o.plaats,o.provincie].filter(Boolean).map(x=>normaliseerRegio(x!));
+  // Radius behoort alleen tot de algemene Relaties-zoekroute, niet tot een
+  // zelfstandig optioneel zoekprofiel dat afwijkende criteria kan hebben.
+  const radius=!p&&r.zoekRadiusEenheid&&r.zoekRadiusWaarde!=null&&r.zoekRadiusWaarde>0&&
+    r.zoekRadiusCentrum?.trim() ? r : null;
   // Specifieke gemeente of plaats beperkt de provincieselectie; provincies zijn anders brede scope.
   if(gekozenGemeenten.length){
     if(o.gemeente){
@@ -209,12 +223,34 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       controleer.push('Plaats buiten gekozen locatie of handmatige controle nodig');
       controleNodig=true;
     }
-  }else if(gevuld(rawRegion)){
+  }else if(gevuld(rawRegion)&&!radius){
     if(rawRegion!.some(x=>{
       const r=normaliseerRegio(x);
       return LANDELIJK.has(r)||objectLocaties.includes(r);
     })){matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++}
     else{controleer.push('Zoekregio is niet automatisch te verifiëren');controleNodig=true}
+  }
+  if(radius){
+    const waarde=radius.zoekRadiusWaarde!;
+    const centrum=radius.zoekRadiusCentrum!.trim();
+    if(radius.zoekRadiusEenheid==='minuten_reistijd'){
+      controleer.push(`Reistijd maximaal ${waarde} minuten vanaf ${centrum}; controle via routeplanner noodzakelijk`);
+      controleNodig=true;
+    }else if(
+      radius.zoekRadiusLat==null||radius.zoekRadiusLon==null||
+      o.geoLat==null||o.geoLon==null||!o.geoBron?.trim()
+    ){
+      controleer.push(`Hemelsbrede radius ${waarde} km vanaf ${centrum}: geverifieerde locatie ontbreekt`);
+      controleNodig=true;
+    }else{
+      const km=afstandHemelsbreedKm(
+        {lat:radius.zoekRadiusLat,lon:radius.zoekRadiusLon},
+        {lat:o.geoLat,lon:o.geoLon},
+      );
+      if(km==null){controleer.push('Radiuslocatie bevat ongeldige coördinaten');controleNodig=true;}
+      else if(km<=waarde){matcht.push(`Radius komt overeen: ${km.toFixed(1)} km hemelsbreed vanaf ${centrum}`);geverifieerd++;}
+      else afwijkend.push(`Buiten radius: ${km.toFixed(1)} km hemelsbreed, maximaal ${waarde} km vanaf ${centrum}`);
+    }
   }
   if(min!=null||max!=null){
     if(typeof o.vraagprijs==='number'&&Number.isFinite(o.vraagprijs)){
@@ -230,7 +266,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
     p.principalRelatieId!==r.id && relaties.some(x=>x.id===p.principalRelatieId&&!x.softDeletedAt))
     koperRelatieId=p.principalRelatieId;
   const kwalificatie:MatchKwalificatie=afwijkend.length?'afwijkend':
-    geverifieerd===0?'onvoldoende':controleNodig?'te_verifieren':'passend';
+    geverifieerd===0?(radius?'te_verifieren':'onvoldoende'):controleNodig?'te_verifieren':'passend';
   if(!koperRelatieId)controleer.push('Uiteindelijke koper eventueel later in het traject vaststellen');
   const routeConfirmed=beleid==='bestaand'&&(has(getRoles(r),'koper')||has(getRoles(r),'bemiddelaar'));
 

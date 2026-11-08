@@ -290,3 +290,46 @@ test('primaire plaatsvoorkeur Relaties gebruikt dezelfde R2-filter als bestaand 
  assert.equal(voorstel(object({plaats:'Rotterdam',provincie:'Zuid-Holland'}),[r],[]).length,1);
  assert.ok(voorstel(object({plaats:'Rotterdam',provincie:'Zuid-Holland'}),[r],[])[0].besteRoute.toelichting.controleer.some(x=>x.includes('Plaats buiten')));
 });
+
+
+test('zoekradius zonder geverifieerde coördinaten krijgt geen bevestigde match',()=>{
+ const r=relatie({zoekRadiusCentrum:'Amersfoort',zoekRadiusWaarde:35,zoekRadiusEenheid:'km_hemelsbreed'});
+ const rows=voorstel(object({plaats:'Amersfoort'}),[r]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
+ assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('geverifieerde locatie ontbreekt')));
+});
+test('radius hemelsbreed telt exact bij geverifieerde punten',()=>{
+ const r=relatie({zoekRadiusCentrum:'Centrum',zoekRadiusWaarde:20,zoekRadiusEenheid:'km_hemelsbreed',
+   zoekRadiusLat:52.0,zoekRadiusLon:5.0});
+ const dichtbij=voorstel(object({geoLat:52.01,geoLon:5.01,geoBron:'controle_BAG'}),[r]);
+ assert.equal(dichtbij[0].besteRoute.kwalificatie,'passend');
+ assert.ok(dichtbij[0].besteRoute.toelichting.matcht.some(x=>x.includes('Radius komt overeen')));
+ const ver=voorstel(object({geoLat:53.0,geoLon:5.0,geoBron:'controle_BAG'}),[r]);
+ assert.equal(ver.length,0);
+ const extra=maakKandidaatVoorstellen(object({geoLat:53.0,geoLon:5.0,geoBron:'controle_BAG'}),[r],[],{toonAfwijkende:true});
+ assert.ok(extra[0].besteRoute.toelichting.afwijkend.some(x=>x.includes('Buiten radius')));
+});
+test('reistijd kan niet met hemelsbrede meters worden goedgekeurd',()=>{
+ const r=relatie({zoekRadiusCentrum:'Ede',zoekRadiusWaarde:60,zoekRadiusEenheid:'minuten_reistijd',
+   zoekRadiusLat:52,zoekRadiusLon:5});
+ const rows=voorstel(object({geoLat:52.01,geoLon:5.01,geoBron:'controle_BAG'}),[r]);
+ assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
+ assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('routeplanner')));
+});
+test('een radius overschrijft de richting van een optioneel afzonderlijk zoekprofiel niet',()=>{
+ const r=relatie({zoekRadiusCentrum:'Ede',zoekRadiusWaarde:2,zoekRadiusEenheid:'km_hemelsbreed',zoekRadiusLat:52,zoekRadiusLon:5});
+ const rows=voorstel(object(),[r],[profiel({regio:['Noord-Brabant']})]);
+ assert.equal(rows[0].alleRoutes.length,2);
+ const extra=rows[0].alleRoutes.find(x=>x.zoekprofielId==='z1');
+ assert.equal(extra?.kwalificatie,'passend');
+});
+
+test('radius als enige aankoopcriterium levert een voorstel ter verificatie',()=>{
+ const r=relatie({propertyTypeIds:[],assetClasses:[],budgetMax:undefined,budgetMin:undefined,
+   zoekRadiusCentrum:'Ede',zoekRadiusWaarde:60,zoekRadiusEenheid:'minuten_reistijd'});
+ const rows=voorstel(object(),[r]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
+ assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('routeplanner')));
+});

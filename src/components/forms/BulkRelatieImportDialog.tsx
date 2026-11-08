@@ -110,10 +110,10 @@ const STATUS_MAP: Record<string, LeadStatus> = {
 };
 
 function mapStatus(raw: string): { status: LeadStatus; waarschuwing?: string } {
-  if (!raw) return { status: 'lauw' };
+  if (!raw) return { status: 'actief' };
   const k = raw.toLowerCase().trim();
   if (STATUS_MAP[k]) return { status: STATUS_MAP[k] };
-  return { status: 'lauw', waarschuwing: `Onbekende status "${raw}", gebruikt Lauw` };
+  return { status: 'actief', waarschuwing: `Onbekende status "${raw}", gebruikt Actief` };
 }
 
 // type_relatie -> PartijType (database). koper => belegger, verkoper => eigenaar, etc.

@@ -116,6 +116,11 @@ const relatieFromDb = (r: any): Relatie => ({
   zoekGemeenten: r.zoek_gemeenten ?? [],
   zoekPlaatsen: r.zoek_plaatsen ?? [],
   zoekgebiedToelichting: r.zoekgebied_toelichting ?? undefined,
+  zoekRadiusCentrum: r.zoek_radius_centrum ?? undefined,
+  zoekRadiusWaarde: r.zoek_radius_waarde != null ? Number(r.zoek_radius_waarde) : undefined,
+  zoekRadiusEenheid: r.zoek_radius_eenheid ?? undefined,
+  zoekRadiusLat: r.zoek_radius_lat != null ? Number(r.zoek_radius_lat) : undefined,
+  zoekRadiusLon: r.zoek_radius_lon != null ? Number(r.zoek_radius_lon) : undefined,
   gewensteObjectomvang: r.gewenste_objectomvang ?? undefined,
   gewensteSituatie: r.gewenste_situatie ?? [],
   aankooptermijn: r.aankooptermijn ?? undefined,
@@ -173,6 +178,11 @@ const relatieToDb = (r: Partial<Relatie>) => cleanPayload({
   zoek_gemeenten: r.zoekGemeenten !== undefined ? r.zoekGemeenten : undefined,
   zoek_plaatsen: r.zoekPlaatsen !== undefined ? r.zoekPlaatsen : undefined,
   zoekgebied_toelichting: r.zoekgebiedToelichting !== undefined ? (r.zoekgebiedToelichting || null) : undefined,
+  zoek_radius_centrum: r.zoekRadiusCentrum !== undefined ? (r.zoekRadiusCentrum || null) : undefined,
+  zoek_radius_waarde: numeriekPatchVeld(r,'zoekRadiusWaarde'),
+  zoek_radius_eenheid: r.zoekRadiusEenheid !== undefined ? (r.zoekRadiusEenheid || null) : undefined,
+  zoek_radius_lat: numeriekPatchVeld(r,'zoekRadiusLat'),
+  zoek_radius_lon: numeriekPatchVeld(r,'zoekRadiusLon'),
   gewenste_objectomvang: r.gewensteObjectomvang !== undefined ? (r.gewensteObjectomvang || null) : undefined,
   gewenste_situatie: r.gewensteSituatie,
   aankooptermijn: r.aankooptermijn !== undefined ? (r.aankooptermijn || null) : undefined,
@@ -271,6 +281,9 @@ const objectFromDb = (o: any): ObjectVastgoed => ({
   postcode: o.postcode ?? undefined,
   plaats: o.plaats ?? '',
   provincie: o.provincie ?? '',
+  geoLat: o.geo_lat != null ? Number(o.geo_lat) : undefined,
+  geoLon: o.geo_lon != null ? Number(o.geo_lon) : undefined,
+  geoBron: o.geo_bron ?? undefined,
   type: o.type_vastgoed,
   subcategorie: o.subcategorie ?? undefined,
   subcategorieId: o.subcategorie_id ?? undefined,
@@ -1168,7 +1181,7 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
   const bulkInsertRelaties = useCallback(async (rows: Partial<Relatie>[]) => {
     if (rows.length === 0) return { ok: 0, fout: 0 };
     const payload = rows.map(r => relatieToDb({
-      leadStatus: 'lauw', type: 'belegger', regio: [], assetClasses: [], ndaGetekend: false, ...r,
+      leadStatus: 'actief', type: 'belegger', regio: [], assetClasses: [], ndaGetekend: false, ...r,
     }) as any);
     const { data, error } = await supabase.from('relaties').insert(payload).select();
     if (error) {

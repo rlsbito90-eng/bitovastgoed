@@ -79,6 +79,7 @@ describe('QuickCreateRelationDialog', () => {
     const arg = addRelatieMock.mock.calls[0][0];
     expect(arg.contactpersoon).toBe('Jan de Vries');
     expect(arg.type).toBe('belegger'); // default voor kandidaat
+    expect(arg.leadStatus).toBe('actief'); // nieuwe relaties starten standaard Actief
     expect(addContactpersoonMock).toHaveBeenCalledWith(
       expect.objectContaining({ naam: 'Jan de Vries', isPrimair: true }),
     );
