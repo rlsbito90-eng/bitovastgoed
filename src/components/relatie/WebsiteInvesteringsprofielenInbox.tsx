@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RefreshCw, ChevronDown, ChevronUp, Inbox } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { websiteVeldLabel,websiteVeldWaarde } from '@/lib/relaties/websiteInvesteerdersvelden';
 
 type WebsiteIntake = {
   id: string;
@@ -15,19 +16,6 @@ type WebsiteIntake = {
   raw_payload: {
     fields?: Record<string, string | string[]>;
   };
-};
-
-const fieldLabels: Record<string,string> = {
-  'your-name':'Naam', company:'Bedrijf / organisatie', 'your-email':'E-mailadres',
-  telephone:'Telefoon', 'party-type':'Type partij', 'asset-types':'Vastgoedsegmenten',
-  strategy:'Investeringsstrategie', 'investment-size':'Budget per transactie',
-  'search-area':'Zoekgebied', 'object-size':'Gewenste objectomvang',
-  situation:'Gewenste situatie', 'return-target':'Rendement / BAR',
-  'purchase-term':'Aankooptermijn', financing:'Financieringsstructuur',
-  'financing-status':'Status financiering', 'decision-speed':'Besluitvorming',
-  'hard-criteria':'Belangrijkste acquisitiecriteria', dealbreakers:'Uitsluitingen',
-  notes:'Overige toelichting', privacy:'Privacytoestemming',
-  mc4wp_checkbox:'Nieuwsbriefkeuze',
 };
 
 const labels: Record<WebsiteIntake['status'], string> = {
@@ -189,9 +177,9 @@ export default function WebsiteInvesteringsprofielenInbox() {
                   <dl className="grid grid-cols-1 gap-1.5 text-xs sm:grid-cols-2">
                     {Object.entries(item.raw_payload?.fields ?? {}).map(([key, value]) => (
                       <div key={key} className="rounded-md bg-muted/40 p-2">
-                        <dt className="font-medium break-all">{fieldLabels[key] ?? key}</dt>
+                        <dt className="font-medium break-all">{websiteVeldLabel(key)}</dt>
                         <dd className="break-words text-muted-foreground">
-                          {Array.isArray(value) ? value.join(', ') : String(value)}
+                          {websiteVeldWaarde(value)}
                         </dd>
                       </div>
                     ))}
