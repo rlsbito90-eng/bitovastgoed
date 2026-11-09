@@ -394,7 +394,7 @@ export function QuickCreateRelationDialog({
         </p>}
         <DialogFooter className="flex-wrap gap-2 sm:gap-2">
           <Button type="button" variant="outline" onClick={handleCancel} disabled={bezig}>
-            Sluiten
+            {showSaveNext ? 'Sluiten' : 'Annuleren'}
           </Button>
           {showSaveNext&&<Button type="button" variant="outline"
             onClick={()=>void handleSave(true)} disabled={bezig||duplicates.length>0}>
