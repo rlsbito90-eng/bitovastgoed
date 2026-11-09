@@ -37,6 +37,7 @@ export interface CrmRelatieInput {
   zoekRadiusWaarde?: number | null;
   zoekRadiusLat?: number | null;
   zoekRadiusLon?: number | null;
+  zoekRadiusBron?: string | null;
   budgetMin?: number | null;
   budgetMax?: number | null;
   aankoopcriteria?: string | null;
@@ -238,7 +239,8 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       controleNodig=true;
     }else if(
       radius.zoekRadiusLat==null||radius.zoekRadiusLon==null||
-      o.geoLat==null||o.geoLon==null||!o.geoBron?.trim()
+      !radius.zoekRadiusBron?.startsWith('PDOK-WOONPLAATS:')||
+      o.geoLat==null||o.geoLon==null||!o.geoBron?.startsWith('PDOK-BAG:')
     ){
       controleer.push(`Hemelsbrede radius ${waarde} km vanaf ${centrum}: geverifieerde locatie ontbreekt`);
       controleNodig=true;
