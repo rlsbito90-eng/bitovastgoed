@@ -22,14 +22,14 @@ Romy,Voorbeeld,https://linkedin.com/in/romy-voorbeeld/,,Invest BV,Acquisitie,21 
   expect(parsed.rijen[0].data.notities).toContain('Directeur');
  });
  it('leest gewone CSV met expliciete kopersclassificatie ongewijzigd',()=>{
-  const parsed=parseTekst('Bedrijfsnaam,Contactpersoon,Type relatie,E-mail,Status\\nBelegger BV,Jan,Koper,jan@invest.nl,Warm');
+  const parsed=parseTekst('Bedrijfsnaam,Contactpersoon,Type relatie,E-mail,Status\nBelegger BV,Jan,Koper,jan@invest.nl,Warm');
   expect(parsed.isLinkedIn).toBe(false);
   expect(parsed.rijen[0].data).toMatchObject({
     bedrijfsnaam:'Belegger BV',type:'belegger',leadStatus:'warm',
   });
  });
  it('behoudt gewone Excel-plaktabellen',()=>{
-  const parsed=parseTekst('Bedrijf\\tNaam\\tEmail\\nVoorbeeld BV\\tJan\\tjan@example.nl');
+  const parsed=parseTekst('Bedrijf\tNaam\tEmail\nVoorbeeld BV\tJan\tjan@example.nl');
   expect(parsed.rijen[0].data).toMatchObject({
     bedrijfsnaam:'Voorbeeld BV',contactpersoon:'Jan',email:'jan@example.nl',leadStatus:'actief',
   });
