@@ -65,6 +65,7 @@ export interface CrmObjectInput {
   status: string;
   softDeletedAt?: string | null;
   isArchived?: boolean | null;
+  isPortefeuille?: boolean | null;
   type?: string;
   propertyTypeId?: string | null;
   propertySubtypeIds?: readonly string[] | null;
@@ -234,7 +235,10 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   if(radius){
     const waarde=radius.zoekRadiusWaarde!;
     const centrum=radius.zoekRadiusCentrum!.trim();
-    if(radius.zoekRadiusEenheid==='minuten_reistijd'){
+    if(o.isPortefeuille){
+      controleer.push('Portefeuille: één BAG-referentiepunt is niet representatief voor alle adressen; individuele locaties controleren');
+      controleNodig=true;
+    }else if(radius.zoekRadiusEenheid==='minuten_reistijd'){
       controleer.push(`Reistijd maximaal ${waarde} minuten vanaf ${centrum}; controle via routeplanner noodzakelijk`);
       controleNodig=true;
     }else if(
