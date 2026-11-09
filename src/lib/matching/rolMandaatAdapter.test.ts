@@ -333,3 +333,15 @@ test('radius als enige aankoopcriterium levert een voorstel ter verificatie',()=
  assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
  assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('routeplanner')));
 });
+
+test('portefeuilleadres is slechts referentiepunt, geen harde afwijzing op radius',()=>{
+ const r=relatie({zoekRadiusCentrum:'Amersfoort',zoekRadiusWaarde:5,
+   zoekRadiusEenheid:'km_hemelsbreed',zoekRadiusLat:52.15,zoekRadiusLon:5.38,
+   zoekRadiusBron:'PDOK-WOONPLAATS:wpl-amersfoort'});
+ const rows=voorstel(object({isPortefeuille:true,geoLat:51,geoLon:5,
+   geoBron:'PDOK-BAG:adr-buiten-radius'}),[r]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
+ assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('Portefeuille')));
+ assert.ok(!rows[0].besteRoute.toelichting.afwijkend.some(x=>x.includes('Buiten radius')));
+});
