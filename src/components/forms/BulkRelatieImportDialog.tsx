@@ -379,9 +379,10 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
       const nieuweDubbel=teImporteren.filter(r=>
         vindMogelijkeRelaties(r.data,actuele,contactkaart).length>0);
       if(nieuweDubbel.length>0)throw new Error(`${nieuweDubbel.length} gekozen rij(en) komen intussen al in het CRM voor. Ververs de import en controleer de dubbelen.`);
-      const { ok, fout } = await bulkInsertRelaties(teImporteren.map(r => r.data));
+      const { ok, fout, contactenFout } = await bulkInsertRelaties(teImporteren.map(r => r.data));
       if (ok > 0) toast.success(`${ok} relatie(s) geïmporteerd`);
       if (fout > 0) toast.error(`${fout} rij(en) niet opgeslagen`);
+      if (contactenFout > 0) toast.error(`${contactenFout} primaire contactpersoon/-personen niet opgeslagen; relaties bestaan al. Niet opnieuw importeren.`);
       if (ok > 0) {
         setTekst(''); setPreview(false);setGeselecteerd([]); onOpenChange(false);
       }
