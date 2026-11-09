@@ -22,10 +22,10 @@ export interface BagAdresResultaat {
   /** BAG verblijfsobject-id indien aanwezig. */
   adresseerbaar_object_id: string | null;
   /** WGS84: breedtegraad uit PDOK centroide_ll. */
-  latitude: number | null;
+  latitude?: number | null;
   /** WGS84: lengtegraad uit PDOK centroide_ll. */
-  longitude: number | null;
-  type: 'adres' | 'woonplaats' | null;
+  longitude?: number | null;
+  type?: 'adres' | 'woonplaats' | null;
 }
 
 export interface BagZoekInput {
