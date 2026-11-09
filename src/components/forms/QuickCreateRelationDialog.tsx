@@ -11,7 +11,7 @@
 //   - "Onbekend"/"-"/"–"/"naamloos" tellen als leeg en worden nooit opgeslagen.
 //   - Minimaal één van naam, bedrijfsnaam, e-mail of telefoon vereist.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AlertCircle } from 'lucide-react';
 
@@ -37,6 +37,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
+import { vindMogelijkeRelaties,isGeldigeLinkedinProfielUrl } from '@/lib/relaties/relatieInvoerDubbelen';
 import type { PartijType, Relatie } from '@/data/mock-data';
 
 // =====================================================================
@@ -57,6 +58,7 @@ export interface QuickCreateDefaults {
   bedrijfsnaam?: string;
   email?: string;
   telefoon?: string;
+  linkedinUrl?: string;
   type?: PartijType;
 }
 
@@ -66,6 +68,9 @@ export interface QuickCreateRelationDialogProps {
   context?: QuickCreateContext;
   defaultValues?: QuickCreateDefaults;
   onCreated: (relatie: Relatie) => void;
+  /** Blijf na toevoegen in het formulier voor het volgende contact. */
+  showSaveNext?: boolean;
+  onSavedNext?: (relatie: Relatie) => void;
   onCancel?: () => void;
 }
 
@@ -122,9 +127,11 @@ export function QuickCreateRelationDialog({
   context = 'algemeen',
   defaultValues,
   onCreated,
+  showSaveNext=false,
+  onSavedNext,
   onCancel,
 }: QuickCreateRelationDialogProps) {
-  const { addRelatie, addContactpersoon, relaties } = useDataStore();
+  const { addRelatie, addContactpersoon, relaties, contactpersonen } = useDataStore();
 
   const defaultType = defaultValues?.type ?? CONTEXT_DEFAULT_TYPE[context];
 
@@ -132,6 +139,9 @@ export function QuickCreateRelationDialog({
   const [bedrijfsnaam, setBedrijfsnaam] = useState(defaultValues?.bedrijfsnaam ?? '');
   const [email, setEmail] = useState(defaultValues?.email ?? '');
   const [telefoon, setTelefoon] = useState(defaultValues?.telefoon ?? '');
+  const [linkedinUrl,setLinkedinUrl] = useState(defaultValues?.linkedinUrl ?? '');
+  const [aantalToegevoegd,setAantalToegevoegd] = useState(0);
+  const naamRef = useRef<HTMLInputElement>(null);
   const [type, setType] = useState<PartijType>(defaultType);
   const [error, setError] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
@@ -143,6 +153,8 @@ export function QuickCreateRelationDialog({
       setBedrijfsnaam(defaultValues?.bedrijfsnaam ?? '');
       setEmail(defaultValues?.email ?? '');
       setTelefoon(defaultValues?.telefoon ?? '');
+      setLinkedinUrl(defaultValues?.linkedinUrl ?? '');
+      setAantalToegevoegd(0);
       setType(defaultValues?.type ?? CONTEXT_DEFAULT_TYPE[context]);
       setError(null);
       setBezig(false);
@@ -150,20 +162,13 @@ export function QuickCreateRelationDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Duplicate hint — strict op e-mail (case-insensitive) en telefoon (cijfers)
-  const duplicates = useMemo<Relatie[]>(() => {
-    const e = cleanField(email).toLowerCase();
-    const t = onlyDigits(cleanField(telefoon));
-    if (!e && !t) return [];
-    const hits: Relatie[] = [];
-    for (const r of relaties) {
-      const matchEmail = !!e && (r.email ?? '').trim().toLowerCase() === e;
-      const matchTel = !!t && onlyDigits(r.telefoon ?? '') === t;
-      if (matchEmail || matchTel) hits.push(r);
-      if (hits.length >= 3) break;
-    }
-    return hits;
-  }, [email, telefoon, relaties]);
+  // Eenduidige matches blokkeren dubbele aanmaak. Vergelijk ook primaire en
+  // secundaire contactpersonen, niet uitsluitend de legacy Relaties-velden.
+  const duplicates = useMemo(() => vindMogelijkeRelaties({
+    bedrijfsnaam, contactpersoon:naam, email,telefoon,linkedinUrl,
+  },relaties,contactpersonen ?? []).slice(0,5),[
+    bedrijfsnaam,naam,email,telefoon,linkedinUrl,relaties,contactpersonen,
+  ]);
 
   const handleKiesBestaand = (r: Relatie) => {
     onCreated(r);
@@ -175,17 +180,26 @@ export function QuickCreateRelationDialog({
     onOpenChange(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (volgende=false) => {
     const naamC = cleanField(naam);
     const bedrijfC = cleanField(bedrijfsnaam);
     const emailC = cleanField(email);
     const telC = cleanField(telefoon);
+    const linkedinC = cleanField(linkedinUrl);
 
     if (!naamC && !bedrijfC && !emailC && !telC) {
       setError('Vul minimaal een naam, bedrijfsnaam, e-mail of telefoonnummer in.');
       return;
     }
 
+    if(!isGeldigeLinkedinProfielUrl(linkedinC)){
+      setError('Vul een geldige LinkedIn-profiel-URL in, of laat het veld leeg.');
+      return;
+    }
+    if(duplicates.length>0){
+      setError('Deze contactgegevens komen mogelijk al voor in Relaties. Open de bestaande relatie in plaats van een tweede aan te maken.');
+      return;
+    }
     setError(null);
     setBezig(true);
     try {
@@ -195,6 +209,8 @@ export function QuickCreateRelationDialog({
         type,
         telefoon: telC,
         email: emailC,
+        linkedinUrl:linkedinC || undefined,
+        bronRelatie:'Handmatig toegevoegd',
         regio: [],
         assetClasses: [],
         ndaGetekend: false,
@@ -214,6 +230,7 @@ export function QuickCreateRelationDialog({
             naam: naamC,
             email: emailC || undefined,
             telefoon: telC || undefined,
+            linkedinUrl: linkedinC || undefined,
             isPrimair: true,
             decisionMaker: false,
             voorkeurTaal: 'nl',
@@ -225,8 +242,16 @@ export function QuickCreateRelationDialog({
       }
 
       toast.success('Relatie aangemaakt.');
-      onCreated(nieuw);
-      onOpenChange(false);
+      if(volgende){
+        onSavedNext?.(nieuw);
+        setNaam('');setBedrijfsnaam('');setEmail('');setTelefoon('');setLinkedinUrl('');
+        setType(defaultValues?.type ?? CONTEXT_DEFAULT_TYPE[context]);
+        setAantalToegevoegd(n=>n+1);
+        naamRef.current?.focus();
+      }else{
+        onCreated(nieuw);
+        onOpenChange(false);
+      }
     } catch (e) {
       console.error(e);
       const msg = e instanceof Error ? e.message : 'Onbekende fout';
@@ -252,6 +277,7 @@ export function QuickCreateRelationDialog({
             <Label htmlFor="qcr-naam">Naam / contactpersoon</Label>
             <Input
               id="qcr-naam"
+              ref={naamRef}
               value={naam}
               onChange={(e) => setNaam(e.target.value)}
               placeholder="Bijv. Jan de Vries"
@@ -301,6 +327,20 @@ export function QuickCreateRelationDialog({
           </div>
 
           <div className="grid gap-1.5">
+            <Label htmlFor="qcr-linkedin">LinkedIn-profiel (optioneel)</Label>
+            <Input
+              id="qcr-linkedin"
+              type="url"
+              value={linkedinUrl}
+              onChange={e=>setLinkedinUrl(e.target.value)}
+              placeholder="https://www.linkedin.com/in/..."
+              autoCapitalize="none"
+              autoCorrect="off"
+              disabled={bezig}
+            />
+          </div>
+
+          <div className="grid gap-1.5">
             <Label htmlFor="qcr-type">Partijtype</Label>
             <Select value={type} onValueChange={(v) => setType(v as PartijType)} disabled={bezig}>
               <SelectTrigger id="qcr-type">
@@ -322,9 +362,9 @@ export function QuickCreateRelationDialog({
               <AlertDescription>
                 <div className="font-medium mb-1">Mogelijk bestaat deze relatie al.</div>
                 <ul className="space-y-1">
-                  {duplicates.map((r) => (
+                  {duplicates.map(({relatie:r,redenen}) => (
                     <li key={r.id} className="flex items-center justify-between gap-2">
-                      <span className="text-sm truncate">{getRelatieDropdownLabel(r)}</span>
+                      <span className="min-w-0 text-sm truncate">{getRelatieDropdownLabel(r)} <span className="text-xs text-muted-foreground">({redenen.join(', ')})</span></span>
                       <Button
                         type="button"
                         size="sm"
@@ -349,11 +389,18 @@ export function QuickCreateRelationDialog({
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        {aantalToegevoegd>0 && <p className="text-xs text-muted-foreground">
+          {aantalToegevoegd} relatie(s) toegevoegd in deze invoersessie.
+        </p>}
+        <DialogFooter className="flex-wrap gap-2 sm:gap-2">
           <Button type="button" variant="outline" onClick={handleCancel} disabled={bezig}>
-            Annuleren
+            {showSaveNext ? 'Sluiten' : 'Annuleren'}
           </Button>
-          <Button type="button" onClick={handleSave} disabled={bezig}>
+          {showSaveNext&&<Button type="button" variant="outline"
+            onClick={()=>void handleSave(true)} disabled={bezig||duplicates.length>0}>
+            Opslaan en volgende
+          </Button>}
+          <Button type="button" onClick={()=>void handleSave(false)} disabled={bezig||duplicates.length>0}>
             {bezig ? 'Bezig…' : 'Relatie aanmaken'}
           </Button>
         </DialogFooter>

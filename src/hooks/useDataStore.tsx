@@ -1190,7 +1190,28 @@ export function DataStoreProvider({ children }: { children: React.ReactNode }) {
     }
     const nieuwe = (data ?? []).map(relatieFromDb);
     setRelaties(prev => [...nieuwe, ...prev]);
-    return { ok: nieuwe.length, fout: rows.length - nieuwe.length };
+
+    // Maak bij een ingevulde naam ook één primaire contactpersoon aan.
+    // Mocht dit mislukken, dan blijven de reeds opgeslagen Relaties bestaan;
+    // het antwoord meldt dit expliciet, zodat niemand blind opnieuw importeert.
+    const personen = nieuwe.filter(r => !!r.contactpersoon?.trim()).map(r =>
+      contactpersoonToDb({
+        relatieId:r.id,naam:r.contactpersoon.trim(),email:r.email||undefined,
+        telefoon:r.telefoon||undefined,linkedinUrl:r.linkedinUrl,
+        isPrimair:true,decisionMaker:false,voorkeurTaal:'nl',
+      }) as any);
+    let contactenFout=0;
+    if(personen.length>0){
+      const {data:created,error:contactsError}=await supabase
+        .from('relatie_contactpersonen' as any).insert(personen).select();
+      if(contactsError){
+        contactenFout=personen.length;
+        console.error('Contactpersonen bij bulkimport konden niet worden opgeslagen',contactsError.code);
+      }else{
+        setContactpersonen(prev=>[...(created??[]).map(contactpersoonFromDb),...prev]);
+      }
+    }
+    return { ok: nieuwe.length, fout: rows.length - nieuwe.length, contactenFout };
   }, []);
 
   // -------- CONTACTPERSONEN --------

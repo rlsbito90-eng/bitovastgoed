@@ -193,3 +193,50 @@ describe('QuickCreateRelationDialog', () => {
     expect(screen.queryByText(/Mogelijk bestaat deze relatie al/i)).not.toBeInTheDocument();
   });
 });
+
+
+describe('Snel toevoegen vanuit Relaties',()=>{
+  it('laat meerdere contacten na elkaar toevoegen zonder het formulier te sluiten',async()=>{
+    const user=userEvent.setup();
+    const next=vi.fn();
+    const {onCreated,onOpenChange}=renderDialog({
+      context:'algemeen',showSaveNext:true,onSavedNext:next,
+    });
+    await user.type(screen.getByLabelText(/Naam \/ contactpersoon/i),'Jan Voorbeeld');
+    await user.type(screen.getByLabelText(/LinkedIn-profiel/i),'https://www.linkedin.com/in/jan-voorbeeld/');
+    await user.click(screen.getByRole('button',{name:/Opslaan en volgende/i}));
+    await waitFor(()=>expect(next).toHaveBeenCalledTimes(1));
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(screen.getByLabelText(/Naam \/ contactpersoon/i)).toHaveValue('');
+    expect(screen.getByLabelText(/LinkedIn-profiel/i)).toHaveValue('');
+    expect(addRelatieMock.mock.calls[0][0]).toMatchObject({
+      leadStatus:'actief',linkedinUrl:'https://www.linkedin.com/in/jan-voorbeeld/',
+    });
+    expect(addContactpersoonMock).toHaveBeenCalledWith(
+      expect.objectContaining({linkedinUrl:'https://www.linkedin.com/in/jan-voorbeeld/'}),
+    );
+  });
+  it('blokkeert de dubbele aanmaak op identiek LinkedIn-profiel',async()=>{
+    relatiesMock=[{
+      id:'bestaand',bedrijfsnaam:'Voorbeeld BV',contactpersoon:'Jan',
+      email:'',telefoon:'',linkedinUrl:'https://www.linkedin.com/in/jan-voorbeeld/',
+    } as Relatie];
+    const user=userEvent.setup();
+    renderDialog({context:'algemeen',showSaveNext:true});
+    await user.type(screen.getByLabelText(/LinkedIn-profiel/i),
+      'https://nl.linkedin.com/in/jan-voorbeeld/?trk=connect');
+    expect(screen.getByText(/Mogelijk bestaat deze relatie al/i)).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:/Relatie aanmaken/i})).toBeDisabled();
+    expect(screen.getByRole('button',{name:/Opslaan en volgende/i})).toBeDisabled();
+  });
+  it('weigerde LinkedIn lookalike-webadressen',async()=>{
+    const user=userEvent.setup();
+    renderDialog({context:'algemeen'});
+    await user.type(screen.getByLabelText(/Naam \/ contactpersoon/i),'Piet');
+    await user.type(screen.getByLabelText(/LinkedIn-profiel/i),'https://fake-linkedin.com/in/piet');
+    await user.click(screen.getByRole('button',{name:/Relatie aanmaken/i}));
+    expect(await screen.findByText(/geldige LinkedIn-profiel-URL/i)).toBeInTheDocument();
+    expect(addRelatieMock).not.toHaveBeenCalled();
+  });
+});
