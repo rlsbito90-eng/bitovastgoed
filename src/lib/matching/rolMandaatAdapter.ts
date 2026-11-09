@@ -37,6 +37,7 @@ export interface CrmRelatieInput {
   zoekRadiusWaarde?: number | null;
   zoekRadiusLat?: number | null;
   zoekRadiusLon?: number | null;
+  zoekRadiusBron?: string | null;
   budgetMin?: number | null;
   budgetMax?: number | null;
   aankoopcriteria?: string | null;
@@ -64,6 +65,7 @@ export interface CrmObjectInput {
   status: string;
   softDeletedAt?: string | null;
   isArchived?: boolean | null;
+  isPortefeuille?: boolean | null;
   type?: string;
   propertyTypeId?: string | null;
   propertySubtypeIds?: readonly string[] | null;
@@ -233,12 +235,16 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   if(radius){
     const waarde=radius.zoekRadiusWaarde!;
     const centrum=radius.zoekRadiusCentrum!.trim();
-    if(radius.zoekRadiusEenheid==='minuten_reistijd'){
+    if(o.isPortefeuille){
+      controleer.push('Portefeuille: één BAG-referentiepunt is niet representatief voor alle adressen; individuele locaties controleren');
+      controleNodig=true;
+    }else if(radius.zoekRadiusEenheid==='minuten_reistijd'){
       controleer.push(`Reistijd maximaal ${waarde} minuten vanaf ${centrum}; controle via routeplanner noodzakelijk`);
       controleNodig=true;
     }else if(
       radius.zoekRadiusLat==null||radius.zoekRadiusLon==null||
-      o.geoLat==null||o.geoLon==null||!o.geoBron?.trim()
+      !radius.zoekRadiusBron?.startsWith('PDOK-WOONPLAATS:')||
+      o.geoLat==null||o.geoLon==null||!o.geoBron?.startsWith('PDOK-BAG:')
     ){
       controleer.push(`Hemelsbrede radius ${waarde} km vanaf ${centrum}: geverifieerde locatie ontbreekt`);
       controleNodig=true;

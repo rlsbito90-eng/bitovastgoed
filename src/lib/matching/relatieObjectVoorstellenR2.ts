@@ -16,6 +16,7 @@ export function maakObjectVoorstellenVoorRelatie(
       status: object.status,
       isArchived: object.isArchived,
       softDeletedAt: object.softDeletedAt,
+      isPortefeuille: object.isPortefeuille,
       type: object.type,
       propertyTypeId: object.propertyTypeId,
       propertySubtypeIds: object.propertySubtypeIds,

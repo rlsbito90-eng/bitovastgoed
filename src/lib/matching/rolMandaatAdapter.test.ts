@@ -301,24 +301,24 @@ test('zoekradius zonder geverifieerde coördinaten krijgt geen bevestigde match'
 });
 test('radius hemelsbreed telt exact bij geverifieerde punten',()=>{
  const r=relatie({zoekRadiusCentrum:'Centrum',zoekRadiusWaarde:20,zoekRadiusEenheid:'km_hemelsbreed',
-   zoekRadiusLat:52.0,zoekRadiusLon:5.0});
- const dichtbij=voorstel(object({geoLat:52.01,geoLon:5.01,geoBron:'controle_BAG'}),[r]);
+   zoekRadiusLat:52.0,zoekRadiusLon:5.0,zoekRadiusBron:'PDOK-WOONPLAATS:wpl-test'});
+ const dichtbij=voorstel(object({geoLat:52.01,geoLon:5.01,geoBron:'PDOK-BAG:adr-test'}),[r]);
  assert.equal(dichtbij[0].besteRoute.kwalificatie,'passend');
  assert.ok(dichtbij[0].besteRoute.toelichting.matcht.some(x=>x.includes('Radius komt overeen')));
- const ver=voorstel(object({geoLat:53.0,geoLon:5.0,geoBron:'controle_BAG'}),[r]);
+ const ver=voorstel(object({geoLat:53.0,geoLon:5.0,geoBron:'PDOK-BAG:adr-test'}),[r]);
  assert.equal(ver.length,0);
- const extra=maakKandidaatVoorstellen(object({geoLat:53.0,geoLon:5.0,geoBron:'controle_BAG'}),[r],[],{toonAfwijkende:true});
+ const extra=maakKandidaatVoorstellen(object({geoLat:53.0,geoLon:5.0,geoBron:'PDOK-BAG:adr-test'}),[r],[],{toonAfwijkende:true});
  assert.ok(extra[0].besteRoute.toelichting.afwijkend.some(x=>x.includes('Buiten radius')));
 });
 test('reistijd kan niet met hemelsbrede meters worden goedgekeurd',()=>{
  const r=relatie({zoekRadiusCentrum:'Ede',zoekRadiusWaarde:60,zoekRadiusEenheid:'minuten_reistijd',
-   zoekRadiusLat:52,zoekRadiusLon:5});
- const rows=voorstel(object({geoLat:52.01,geoLon:5.01,geoBron:'controle_BAG'}),[r]);
+   zoekRadiusLat:52,zoekRadiusLon:5,zoekRadiusBron:'PDOK-WOONPLAATS:wpl-test'});
+ const rows=voorstel(object({geoLat:52.01,geoLon:5.01,geoBron:'PDOK-BAG:adr-test'}),[r]);
  assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
  assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('routeplanner')));
 });
 test('een radius overschrijft de richting van een optioneel afzonderlijk zoekprofiel niet',()=>{
- const r=relatie({zoekRadiusCentrum:'Ede',zoekRadiusWaarde:2,zoekRadiusEenheid:'km_hemelsbreed',zoekRadiusLat:52,zoekRadiusLon:5});
+ const r=relatie({zoekRadiusCentrum:'Ede',zoekRadiusWaarde:2,zoekRadiusEenheid:'km_hemelsbreed',zoekRadiusLat:52,zoekRadiusLon:5,zoekRadiusBron:'PDOK-WOONPLAATS:wpl-test'});
  const rows=voorstel(object(),[r],[profiel({regio:['Noord-Brabant']})]);
  assert.equal(rows[0].alleRoutes.length,2);
  const extra=rows[0].alleRoutes.find(x=>x.zoekprofielId==='z1');
@@ -332,4 +332,16 @@ test('radius als enige aankoopcriterium levert een voorstel ter verificatie',()=
  assert.equal(rows.length,1);
  assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
  assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('routeplanner')));
+});
+
+test('portefeuilleadres is slechts referentiepunt, geen harde afwijzing op radius',()=>{
+ const r=relatie({zoekRadiusCentrum:'Amersfoort',zoekRadiusWaarde:5,
+   zoekRadiusEenheid:'km_hemelsbreed',zoekRadiusLat:52.15,zoekRadiusLon:5.38,
+   zoekRadiusBron:'PDOK-WOONPLAATS:wpl-amersfoort'});
+ const rows=voorstel(object({isPortefeuille:true,geoLat:51,geoLon:5,
+   geoBron:'PDOK-BAG:adr-buiten-radius'}),[r]);
+ assert.equal(rows.length,1);
+ assert.equal(rows[0].besteRoute.kwalificatie,'te_verifieren');
+ assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('Portefeuille')));
+ assert.ok(!rows[0].besteRoute.toelichting.afwijkend.some(x=>x.includes('Buiten radius')));
 });
