@@ -25,6 +25,11 @@ type Props={
 const normaliseer=(s:string)=>
   s.toLocaleLowerCase('nl-NL').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/[^a-z0-9]+/g,' ').trim();
+const normaliseerWoonplaats=(s:string)=>{
+  const plaats=normaliseer(s);
+  return plaats==='s gravenhage'?'den haag'
+    :plaats==='den bosch'?'s hertogenbosch':plaats;
+};
 const simpleAdres=(adres:string)=>{
   // Een samengesteld object omvat meerdere BAG-adressen. Daarvoor moet de
   // gebruiker zelf één representatief adrespunt selecteren.
@@ -40,7 +45,7 @@ export function pdokKeuzeControle(
     return 'PDOK heeft geen geldige locatie en bronidentificatie geleverd.';
   if(params.mode==='woonplaats'){
     if(doc.type!=='woonplaats')return 'Het gekozen resultaat is geen officiële woonplaats.';
-    if(normaliseer(doc.woonplaats??doc.weergavenaam)!==normaliseer(params.centrum??''))
+    if(normaliseerWoonplaats(doc.woonplaats??doc.weergavenaam)!==normaliseerWoonplaats(params.centrum??''))
       return 'De geselecteerde woonplaats wijkt af van de ingestelde startplaats. Wijzig eerst het zoekcentrum.';
     return null;
   }
@@ -49,7 +54,7 @@ export function pdokKeuzeControle(
   const pc=normaliseerPostcodeStrikt(params.postcode);
   if(pc && pc!==doc.postcode)
     return 'Postcode wijkt af van het CRM-object. Corrigeer eerst het geregistreerde adres.';
-  if(params.plaats?.trim()&&normaliseer(params.plaats)!==normaliseer(doc.woonplaats??''))
+  if(params.plaats?.trim()&&normaliseerWoonplaats(params.plaats)!==normaliseerWoonplaats(doc.woonplaats??''))
     return 'De woonplaats wijkt af van het CRM-object. Corrigeer eerst de locatiegegevens.';
   const expected=simpleAdres(params.adres??'');
   if(expected && (
@@ -75,9 +80,9 @@ export default function PdokLocatieVerifier({
   const [fout,setFout]=useState<string|null>(null);
   useEffect(()=>{
     setQuery(begin);setResultaten([]);setGekozen(null);setFout(null);
-    // Nieuwe entiteit: reset de vorige keuze; geen automatische PDOK-oproep.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[recordId,mode]);
+    // Bij object- of centrumadreswijziging opnieuw expliciet laten zoeken.
+    // Nooit onbedoeld op PDOK zoeken tijdens een render.
+  },[recordId,mode,begin]);
   const keuzeFout=useMemo(()=>gekozen?pdokKeuzeControle(gekozen,{
     mode,adres,postcode,plaats,centrum,
   }):null,[gekozen,mode,adres,postcode,plaats,centrum]);
