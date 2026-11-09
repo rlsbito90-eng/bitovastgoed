@@ -25,7 +25,7 @@ export function linkedinSleutel(url?:string|null):string {
     const link=new URL(value);
     const host=link.hostname.replace(/^www\./,'').toLowerCase();
     const path=decodeURIComponent(link.pathname).replace(/\/+$/,'').toLowerCase();
-    if(!['linkedin.com','nl.linkedin.com','uk.linkedin.com'].includes(host)||
+    if(!(host==='linkedin.com'||host.endsWith('.linkedin.com'))||
       !/^\/(in|pub)\/[^/]+/.test(path))return '';
     return path.replace(/^\/pub\//,'/in/');
   }catch{return ''}
