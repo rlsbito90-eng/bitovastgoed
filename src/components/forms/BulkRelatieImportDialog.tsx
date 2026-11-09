@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import type { Relatie, LeadStatus, PartijType, AssetClass } from '@/data/mock-da
 import { toast } from 'sonner';
 import { Upload, Eye, AlertCircle } from 'lucide-react';
 import { vindMogelijkeRelaties, zijnDezelfdeInvoer, isGeldigeLinkedinProfielUrl } from '@/lib/relaties/relatieInvoerDubbelen';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   open: boolean;
@@ -301,16 +302,46 @@ export function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeade
 // ----------------- Component -----------------
 
 export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
-  const { bulkInsertRelaties } = useDataStore();
+  const { bulkInsertRelaties, relaties, contactpersonen } = useDataStore();
   const [tekst, setTekst] = useState('');
   const [bezig, setBezig] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [geselecteerd,setGeselecteerd] = useState<number[]>([]);
 
-  const parseResult = useMemo(() => (preview ? parseTekst(tekst) : { rijen: [], ontbrekendeHeaders: [], herkendeHeaders: [] }), [tekst, preview]);
-  const { rijen, ontbrekendeHeaders, herkendeHeaders } = parseResult;
-  const teImporteren = rijen.filter(r => !r.overslaan && r.fouten.length === 0);
-  const overgeslagen = rijen.filter(r => r.overslaan).length;
-  const metFouten = rijen.filter(r => !r.overslaan && r.fouten.length > 0).length;
+  const parseResult = useMemo(() => preview ? parseTekst(tekst) :
+    { rijen: [] as ParsedRow[], ontbrekendeHeaders: [] as string[],
+      herkendeHeaders: [] as {raw:string;veld:CanonicalField|null}[],isLinkedIn:false },
+    [tekst,preview]);
+  const { rijen, ontbrekendeHeaders, herkendeHeaders,isLinkedIn } = parseResult;
+  const dubbelRedenen=useMemo(()=>{
+    const result=new Map<number,string>();
+    const eerder:ParsedRow[]=[];
+    for(const rij of rijen){
+      if(rij.overslaan){eerder.push(rij);continue;}
+      const bestaande=vindMogelijkeRelaties(rij.data,relaties,contactpersonen??[]);
+      if(bestaande.length>0){
+        result.set(rij.rijIndex,`Bestaande relatie: ${bestaande.map(x=>x.relatie.bedrijfsnaam).slice(0,2).join(', ')} (${bestaande[0].redenen.join(', ')})`);
+      }
+      const vorige=eerder.find(x=>!x.overslaan&&zijnDezelfdeInvoer(x.data,rij.data));
+      if(vorige)result.set(rij.rijIndex,`Dubbel binnen import: rij ${vorige.rijIndex}`);
+      eerder.push(rij);
+    }
+    return result;
+  },[rijen,relaties,contactpersonen]);
+  const veilig=(r:ParsedRow)=> !r.overslaan&&r.fouten.length===0&&!dubbelRedenen.has(r.rijIndex);
+  // LinkedIn-connecties zijn geen gekwalificeerde prospects; aanvankelijk
+  // dus niemand geselecteerd. Bij gewone CSV mogen veilige rijen standaard mee.
+  useEffect(()=>{
+    if(!preview){setGeselecteerd([]);return;}
+    setGeselecteerd(isLinkedIn?[]:rijen.filter(veilig).map(r=>r.rijIndex));
+    // De selectie reset alleen wanneer een nieuwe inhoud/preview geladen wordt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[preview,tekst]);
+  const teImporteren = rijen.filter(r=>veilig(r)&&geselecteerd.includes(r.rijIndex));
+  const beschikbaar=rijen.filter(veilig);
+  const overgeslagen = rijen.filter(r=>r.overslaan).length;
+  const metFouten = rijen.filter(r=>!r.overslaan&&r.fouten.length>0).length;
+  const dubbeled = dubbelRedenen.size;
 
   const handleFile = (file: File) => {
     const reader = new FileReader();
@@ -328,11 +359,31 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
     }
     setBezig(true);
     try {
+      // Hercontrole rechtstreeks in Supabase. Zo wordt geen verouderde
+      // voorvertoning opgeslagen nadat elders een contact is toegevoegd.
+      const [liveRelaties,liveContacten]=await Promise.all([
+        supabase.from('relaties').select('id,bedrijfsnaam,contactpersoon,email,telefoon,linkedin_url,soft_deleted_at')
+          .is('soft_deleted_at',null),
+        supabase.from('relatie_contactpersonen').select('relatie_id,naam,email,telefoon,telefoon_mobiel,linkedin_url'),
+      ]);
+      if(liveRelaties.error||liveContacten.error)throw new Error('Bestaande relaties konden niet opnieuw gecontroleerd worden.');
+      const actuele=(liveRelaties.data??[]).map(r=>({
+        id:r.id,bedrijfsnaam:r.bedrijfsnaam??'',contactpersoon:r.contactpersoon??'',
+        email:r.email??'',telefoon:r.telefoon??'',linkedinUrl:r.linkedin_url??'',
+      })) as Relatie[];
+      const contactkaart=(liveContacten.data??[]).map(c=>({
+        relatieId:c.relatie_id,naam:c.naam??'',email:c.email??'',
+        telefoon:c.telefoon??'',telefoonMobiel:c.telefoon_mobiel??'',
+        linkedinUrl:c.linkedin_url??'',
+      })) as import('@/data/mock-data').RelatieContactpersoon[];
+      const nieuweDubbel=teImporteren.filter(r=>
+        vindMogelijkeRelaties(r.data,actuele,contactkaart).length>0);
+      if(nieuweDubbel.length>0)throw new Error(`${nieuweDubbel.length} gekozen rij(en) komen intussen al in het CRM voor. Ververs de import en controleer de dubbelen.`);
       const { ok, fout } = await bulkInsertRelaties(teImporteren.map(r => r.data));
       if (ok > 0) toast.success(`${ok} relatie(s) geïmporteerd`);
       if (fout > 0) toast.error(`${fout} rij(en) niet opgeslagen`);
       if (ok > 0) {
-        setTekst(''); setPreview(false); onOpenChange(false);
+        setTekst(''); setPreview(false);setGeselecteerd([]); onOpenChange(false);
       }
     } catch (err: any) {
       toast.error(`Import mislukt: ${err.message ?? 'onbekende fout'}`);
@@ -341,23 +392,24 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
     }
   };
 
-  const reset = () => { setTekst(''); setPreview(false); };
+  const reset = () => { setTekst(''); setPreview(false);setGeselecteerd([]); };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Relaties bulk importeren</DialogTitle>
+          <DialogTitle>Meerdere relaties toevoegen</DialogTitle>
         </DialogHeader>
 
         {!preview ? (
           <div className="space-y-4">
             <div className="rounded-md bg-muted/40 border border-border p-3 text-xs text-muted-foreground space-y-2">
               <p className="font-medium text-foreground">Header-gebaseerde import</p>
-              <p>De eerste rij wordt gelezen als header. Kolomvolgorde maakt niet uit. Ondersteunde scheidingstekens: komma, puntkomma of tab (Excel-paste).</p>
+              <p>CSV en rechtstreeks plakken uit Excel worden ondersteund. Ook een uitgepakte LinkedIn-<code>Connections.csv</code> kan hier worden ingelezen. Kies daarna zelf welke connecties je als relatie wilt vastleggen.</p>
+              <p>Bij een LinkedIn-export wordt niemand automatisch geselecteerd en wordt het partijtype niet als belegger verondersteld.</p>
               <p>Herkende kolomnamen (varianten en accenten worden automatisch herkend):</p>
               <p className="font-mono text-[11px] leading-relaxed break-words">
-                Bedrijfsnaam · Contactpersoon · Type relatie · Type koper · E-mail · Telefoonnummer · Regio · Assetclasses · Budget Min · Budget Max · Budget · Status
+                Bedrijfsnaam · Contactpersoon · Voornaam · Achternaam · Type relatie · Type koper · E-mail · Telefoon · LinkedIn-URL · Functie · Regio · Assetclasses · Budget · Status
               </p>
             </div>
 
@@ -374,7 +426,7 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
 
             <div className="flex items-center gap-3">
               <label className="inline-flex items-center gap-2 px-3.5 py-2 text-sm border border-border rounded-md hover:bg-muted cursor-pointer">
-                <Upload className="h-4 w-4" /> CSV uploaden
+                <Upload className="h-4 w-4" /> CSV of LinkedIn-export uploaden
                 <input
                   type="file"
                   accept=".csv,text/csv,text/plain"
@@ -391,7 +443,13 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
           <div className="space-y-4">
             {/* Header herkenning */}
             <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
-              <p className="font-medium text-foreground mb-1.5">Herkende kolommen</p>
+              <p className="font-medium text-foreground mb-1.5">
+                {isLinkedIn?'LinkedIn-connectie-export herkend':'Herkende kolommen'}
+              </p>
+              {isLinkedIn&&<p className="mb-2 text-muted-foreground">
+                Je selecteert handmatig wie relevant is. Alle contacten krijgen eerst type
+                ‘Nog te classificeren’ en standaard leadstatus ‘Actief’.
+              </p>}
               <div className="flex flex-wrap gap-1.5">
                 {herkendeHeaders.map((h, i) => (
                   <span key={i} className={`px-2 py-0.5 rounded border ${h.veld ? 'border-success/40 bg-success/10 text-success' : 'border-muted-foreground/20 text-muted-foreground'}`}>
@@ -407,22 +465,34 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-foreground font-medium">{rijen.length} rij(en) gedetecteerd</span>
               <span className="text-muted-foreground space-x-3">
-                <span className="text-success">{teImporteren.length} importeerbaar</span>
+                <span className="text-success">{teImporteren.length} geselecteerd</span>
+                <span>{beschikbaar.length} zonder gevonden dubbel</span>
+                {dubbeled>0&&<span className="text-amber-600">{dubbeled} mogelijk dubbel</span>}
                 {metFouten > 0 && <span className="text-destructive">{metFouten} met fouten</span>}
                 {overgeslagen > 0 && <span>{overgeslagen} overgeslagen (leeg)</span>}
               </span>
             </div>
 
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Button size="sm" type="button" variant="outline"
+                onClick={()=>setGeselecteerd(beschikbaar.map(r=>r.rijIndex))}
+                disabled={beschikbaar.length===0}>Selecteer veilige rijen</Button>
+              <Button size="sm" type="button" variant="ghost"
+                onClick={()=>setGeselecteerd([])}>Selectie wissen</Button>
+              <span className="text-muted-foreground">Mogelijke dubbelen en rijen met fouten zijn niet selecteerbaar.</span>
+            </div>
             <div className="border border-border rounded-md overflow-x-auto max-h-[420px]">
               <table className="w-full text-xs">
                 <thead className="bg-muted/40 sticky top-0">
                   <tr>
+                    <th className="text-left px-2 py-2">Kies</th>
                     <th className="text-left px-2 py-2">#</th>
                     <th className="text-left px-2 py-2">Bedrijf</th>
                     <th className="text-left px-2 py-2">Contactpersoon</th>
                     <th className="text-left px-2 py-2">Type relatie</th>
                     <th className="text-left px-2 py-2">Type koper</th>
                     <th className="text-left px-2 py-2">E-mail</th>
+                    <th className="text-left px-2 py-2">LinkedIn</th>
                     <th className="text-left px-2 py-2">Telefoon</th>
                     <th className="text-left px-2 py-2">Budget min</th>
                     <th className="text-left px-2 py-2">Budget max</th>
@@ -432,18 +502,27 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {rijen.map((r) => {
+                    const conflict=dubbelRedenen.get(r.rijIndex);
                     const klasse = r.overslaan
                       ? 'bg-muted/30 text-muted-foreground'
                       : r.fouten.length > 0 ? 'bg-destructive/5'
                       : r.waarschuwingen.length > 0 ? 'bg-warning/5' : '';
                     return (
                       <tr key={r.rijIndex} className={klasse}>
+                        <td className="px-2 py-2">
+                          <input type="checkbox" aria-label={`Selecteer ${r.preview.contactpersoon||r.preview.bedrijf}`}
+                            checked={geselecteerd.includes(r.rijIndex)&&veilig(r)}
+                            disabled={!veilig(r)||bezig}
+                            onChange={e=>setGeselecteerd(current=>e.target.checked?
+                              [...current,r.rijIndex]:current.filter(x=>x!==r.rijIndex))}/>
+                        </td>
                         <td className="px-2 py-2 tabular-nums">{r.rijIndex}</td>
                         <td className="px-2 py-2 font-medium">{r.preview.bedrijf}</td>
                         <td className="px-2 py-2">{r.preview.contactpersoon || '—'}</td>
                         <td className="px-2 py-2">{r.preview.typeRelatieLabel}</td>
                         <td className="px-2 py-2">{r.preview.typeKoperLabel}</td>
                         <td className="px-2 py-2">{r.preview.email || '—'}</td>
+                        <td className="px-2 py-2 max-w-[190px] truncate">{r.preview.linkedin || '—'}</td>
                         <td className="px-2 py-2">{r.preview.telefoon || '—'}</td>
                         <td className="px-2 py-2 tabular-nums">{r.preview.budgetMin?.toLocaleString('nl-NL') ?? '—'}</td>
                         <td className="px-2 py-2 tabular-nums">{r.preview.budgetMax?.toLocaleString('nl-NL') ?? '—'}</td>
@@ -451,6 +530,8 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
                         <td className="px-2 py-2">
                           {r.overslaan ? (
                             <span className="text-muted-foreground">Overgeslagen — bedrijf én contactpersoon leeg</span>
+                          ) : conflict ? (
+                            <span className="text-amber-600">{conflict}</span>
                           ) : r.fouten.length > 0 ? (
                             <span className="inline-flex items-center gap-1 text-destructive">
                               <AlertCircle className="h-3 w-3" /> {r.fouten.join(', ')}
@@ -471,7 +552,7 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
             <div className="flex justify-between gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setPreview(false)}>Terug</Button>
               <Button type="button" onClick={handleImport} disabled={bezig || teImporteren.length === 0 || ontbrekendeHeaders.length > 0}>
-                {bezig ? 'Bezig…' : `Importeer ${teImporteren.length} relatie(s)`}
+                {bezig ? 'Bezig…' : `Importeer ${teImporteren.length} geselecteerde relatie(s)`}
               </Button>
             </div>
           </div>
