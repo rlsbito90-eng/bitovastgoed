@@ -28,7 +28,14 @@ Romy,Voorbeeld,https://linkedin.com/in/romy-voorbeeld/,,Invest BV,Acquisitie,21 
     bedrijfsnaam:'Belegger BV',type:'belegger',leadStatus:'warm',
   });
  });
- it('behoudt gewone Excel-plaktabellen',()=>{
+ it('kent aan ongetypeerde contacten nooit vanzelf koper toe',()=>{
+  const parsed=parseTekst('Voornaam,Achternaam,Email\nPiet,Voorbeeld,piet@example.nl');
+  expect(parsed.isLinkedIn).toBe(false);
+  expect(parsed.rijen[0].data).toMatchObject({
+    contactpersoon:'Piet Voorbeeld',type:'overig',leadStatus:'actief',
+  });
+ });
+  it('behoudt gewone Excel-plaktabellen',()=>{
   const parsed=parseTekst('Bedrijf\tNaam\tEmail\nVoorbeeld BV\tJan\tjan@example.nl');
   expect(parsed.rijen[0].data).toMatchObject({
     bedrijfsnaam:'Voorbeeld BV',contactpersoon:'Jan',email:'jan@example.nl',leadStatus:'actief',
