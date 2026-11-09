@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import {
   formatCurrency,
   formatDate,
@@ -291,6 +292,21 @@ export default function RelatieDetailPage() {
             onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
           <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
             velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          {relatie.zoekRadiusCentrum?.trim()&&relatie.zoekRadiusWaarde!=null&&
+            <section className="section-card p-5 sm:p-6">
+              <PdokLocatieVerifier mode="woonplaats" recordId={relatie.id}
+                centrum={relatie.zoekRadiusCentrum}
+                latitude={relatie.zoekRadiusLat} longitude={relatie.zoekRadiusLon}
+                bron={relatie.zoekRadiusBron}
+                onSave={async point=>{
+                  await store.updateRelatie(relatie.id,{
+                    zoekRadiusLat:point.latitude,zoekRadiusLon:point.longitude,
+                    zoekRadiusBron:point.bron,
+                    zoekRadiusGeverifieerdOp:point.geverifieerdOp,
+                  });
+                  toast.success('Zoekcentrum bevestigd voor hemelsbrede matching');
+                }}/>
+            </section>}
           <WebsiteProfielHerkomst relatieId={relatie.id}/>
           <InlineRelatieSectie titel="Communicatie en NDA" relatie={relatie}
             velden={COMMUNICATIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
