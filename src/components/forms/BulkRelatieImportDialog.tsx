@@ -7,6 +7,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import type { Relatie, LeadStatus, PartijType, AssetClass } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { Upload, Eye, AlertCircle } from 'lucide-react';
+import { vindMogelijkeRelaties, zijnDezelfdeInvoer, isGeldigeLinkedinProfielUrl } from '@/lib/relaties/relatieInvoerDubbelen';
 
 interface Props {
   open: boolean;
@@ -18,7 +19,8 @@ interface Props {
 type CanonicalField =
   | 'bedrijfsnaam' | 'contactpersoon' | 'type_relatie' | 'type_koper'
   | 'email' | 'telefoonnummer' | 'regio' | 'assetclasses'
-  | 'budget_min' | 'budget_max' | 'budget' | 'status';
+  | 'budget_min' | 'budget_max' | 'budget' | 'status'
+  | 'first_name' | 'last_name' | 'linkedin' | 'functie' | 'connected_on';
 
 function normaliseerHeader(raw: string): string {
   return raw
@@ -46,6 +48,12 @@ registreer('budget_min', ['Budget Min', 'Budget minimum', 'Min budget', 'Budget 
 registreer('budget_max', ['Budget Max', 'Budget maximum', 'Max budget', 'Budget tot']);
 registreer('budget', ['Budget']);
 registreer('status', ['Status', 'Leadstatus', 'Lead status', 'LeadSatus']);
+registreer('first_name',['First Name','Voornaam']);
+registreer('last_name',['Last Name','Achternaam']);
+registreer('linkedin',['URL','LinkedIn','LinkedIn URL','LinkedIn-profiel','Profile URL']);
+registreer('functie',['Position','Functie','Job title']);
+registreer('connected_on',['Connected On','Verbinding sinds','Connected']); 
+registreer('email',['Email Address']);
 
 // ----------------- Splitsing -----------------
 
@@ -160,18 +168,24 @@ interface ParsedRow {
     budgetMin?: number;
     budgetMax?: number;
     statusLabel: string;
+    linkedin: string;
   };
   waarschuwingen: string[];
   fouten: string[];
   overslaan: boolean;
 }
 
-function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: string[]; herkendeHeaders: { raw: string; veld: CanonicalField | null }[] } {
-  const regels = text.split(/\r?\n/).filter(r => r.trim().length > 0);
-  if (regels.length === 0) return { rijen: [], ontbrekendeHeaders: [], herkendeHeaders: [] };
-
-  const sep = detecteerScheider(regels[0]);
-  const headerRaw = splitsCsvRegel(regels[0], sep);
+export function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: string[]; herkendeHeaders: { raw: string; veld: CanonicalField | null }[]; isLinkedIn: boolean } {
+  // LinkedIn plaatst soms uitlegregels vóór de echte CSV-header. Zoek deze
+  // in de eerste 25 regels; een CSV met gewone headers blijft ongewijzigd.
+  const regels = text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(r => r.trim().length > 0);
+  if (regels.length === 0) return { rijen: [], ontbrekendeHeaders: [], herkendeHeaders: [], isLinkedIn:false };
+  const headerIndex=regels.findIndex((line,i)=>i<25 && 
+    /\bFirst Name\b/i.test(line)&&/\bLast Name\b/i.test(line)&&/\bURL\b/i.test(line));
+  const vanaf=headerIndex>=0?headerIndex:0;
+  const sep = detecteerScheider(regels[vanaf]);
+  const headerRaw = splitsCsvRegel(regels[vanaf], sep);
+  const isLinkedIn=headerIndex>=0;
   const herkendeHeaders = headerRaw.map(h => ({ raw: h, veld: HEADER_MAP[normaliseerHeader(h)] ?? null }));
 
   // Index per canonical field
@@ -179,21 +193,26 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
   herkendeHeaders.forEach((h, i) => { if (h.veld && idx[h.veld] === undefined) idx[h.veld] = i; });
 
   const ontbrekend: string[] = [];
-  if (idx.bedrijfsnaam === undefined && idx.contactpersoon === undefined) {
-    ontbrekend.push('Bedrijfsnaam of Contactpersoon');
+  if (idx.bedrijfsnaam === undefined && idx.contactpersoon === undefined &&
+      (idx.first_name === undefined || idx.last_name === undefined)) {
+    ontbrekend.push('Bedrijfsnaam, Contactpersoon of Voornaam/Achternaam');
   }
 
   const rijen: ParsedRow[] = [];
-  for (let r = 1; r < regels.length; r++) {
+  for (let r = vanaf+1; r < regels.length; r++) {
     const velden = splitsCsvRegel(regels[r], sep);
     const get = (v?: number) => (v === undefined ? '' : (velden[v] ?? '').trim());
 
     const bedrijf = get(idx.bedrijfsnaam);
-    const contact = get(idx.contactpersoon);
+    const contact = get(idx.contactpersoon)||
+      [get(idx.first_name),get(idx.last_name)].filter(Boolean).join(' ').trim();
     const typeRelatieRaw = get(idx.type_relatie);
     const typeKoperRaw = get(idx.type_koper);
     const emailRaw = get(idx.email);
     const telefoon = get(idx.telefoonnummer);
+    const linkedin=get(idx.linkedin);
+    const functie=get(idx.functie);
+    const verbondenSinds=get(idx.connected_on);
     const regio = splitsLijst(get(idx.regio));
     const assets = splitsLijst(get(idx.assetclasses)) as AssetClass[];
     const statusRaw = get(idx.status);
@@ -204,6 +223,8 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
     // Email
     const email = emailRaw.toLowerCase();
     if (email && !geldigEmail(email)) fouten.push('Ongeldig e-mailadres');
+    if(linkedin&&!isGeldigeLinkedinProfielUrl(linkedin))
+      fouten.push('Ongeldige LinkedIn-profiel-URL');
 
     // Budget
     let budgetMin = parseBudget(get(idx.budget_min));
@@ -216,7 +237,10 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
       waarschuwingen.push('Budget min > max');
     }
 
-    const tr = mapTypeRelatie(typeRelatieRaw);
+    // Export bevat een netwerk, niet per definitie kopers of beleggers.
+    const tr = isLinkedIn&&!typeRelatieRaw ?
+      {type:'overig' as PartijType,label:'Nog te classificeren'} :
+      mapTypeRelatie(typeRelatieRaw);
     if (tr.waarschuwing) waarschuwingen.push(tr.waarschuwing);
     const tk = mapTypeKoper(typeKoperRaw);
     if (tk.waarschuwing) waarschuwingen.push(tk.waarschuwing);
@@ -226,6 +250,12 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
     const overslaan = !bedrijf && !contact;
 
     const displayBedrijf = bedrijf || contact || '—';
+    const metadata = [
+      isLinkedIn?'LinkedIn-connectie (niet automatisch gekwalificeerd)':null,
+      functie?`Functie (bij export): ${functie}`:null,
+      verbondenSinds?`Connectie sinds: ${verbondenSinds}`:null,
+      typeKoperRaw?`Type koper: ${tk.label}`:null,
+    ].filter(Boolean).join('\n');
 
     const data: Partial<Relatie> = {
       bedrijfsnaam: bedrijf || contact || '',
@@ -233,17 +263,19 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
       type: tr.type,
       telefoon,
       email,
+      linkedinUrl:linkedin||undefined,
+      bronRelatie:isLinkedIn?'LinkedIn-connectie-export (handmatig geselecteerd)':'Handmatige lijstimport',
       regio,
       assetClasses: assets,
       budgetMin,
       budgetMax,
       leadStatus: st.status,
       // type_koper info bewaren in notities (geen apart DB-veld voor dit label)
-      notities: typeKoperRaw ? `Type koper: ${tk.label}` : undefined,
+      notities:metadata||undefined,
     };
 
     rijen.push({
-      rijIndex: r,
+      rijIndex: r-vanaf,
       data,
       preview: {
         bedrijf: displayBedrijf,
@@ -255,6 +287,7 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
         budgetMin,
         budgetMax,
         statusLabel: st.status.charAt(0).toUpperCase() + st.status.slice(1),
+        linkedin,
       },
       waarschuwingen,
       fouten,
@@ -262,7 +295,7 @@ function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeaders: str
     });
   }
 
-  return { rijen, ontbrekendeHeaders: ontbrekend, herkendeHeaders };
+  return { rijen, ontbrekendeHeaders: ontbrekend, herkendeHeaders,isLinkedIn };
 }
 
 // ----------------- Component -----------------
