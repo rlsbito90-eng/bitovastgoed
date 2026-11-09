@@ -51,7 +51,7 @@ registreer('budget', ['Budget']);
 registreer('status', ['Status', 'Leadstatus', 'Lead status', 'LeadSatus']);
 registreer('first_name',['First Name','Voornaam']);
 registreer('last_name',['Last Name','Achternaam']);
-registreer('linkedin',['URL','LinkedIn','LinkedIn URL','LinkedIn-profiel','Profile URL']);
+registreer('linkedin',['LinkedIn','LinkedIn URL','LinkedIn-profiel','Profile URL']);
 registreer('functie',['Position','Functie','Job title']);
 registreer('connected_on',['Connected On','Verbinding sinds','Connected']); 
 registreer('email',['Email Address']);
@@ -128,7 +128,7 @@ function mapStatus(raw: string): { status: LeadStatus; waarschuwing?: string } {
 // type_relatie -> PartijType (database). koper => belegger, verkoper => eigenaar, etc.
 function mapTypeRelatie(raw: string): { type: PartijType; label: string; waarschuwing?: string } {
   const k = raw.toLowerCase().trim();
-  if (!k) return { type: 'belegger', label: 'Koper' };
+  if (!k) return { type: 'overig', label: 'Nog te classificeren' };
   if (['koper', 'kopers'].includes(k)) return { type: 'belegger', label: 'Koper' };
   if (['verkoper', 'verkopers'].includes(k)) return { type: 'eigenaar', label: 'Verkoper' };
   if (k === 'partner') return { type: 'partner', label: 'Partner' };
@@ -136,7 +136,7 @@ function mapTypeRelatie(raw: string): { type: PartijType; label: string; waarsch
   if (k === 'belegger') return { type: 'belegger', label: 'Koper' };
   if (k === 'ontwikkelaar') return { type: 'ontwikkelaar', label: 'Ontwikkelaar' };
   if (k === 'eigenaar') return { type: 'eigenaar', label: 'Eigenaar' };
-  return { type: 'belegger', label: raw, waarschuwing: `Onbekend type "${raw}", gebruikt Koper` };
+  return { type: 'overig', label: 'Nog te classificeren', waarschuwing: `Onbekend type "${raw}", gebruikt Overig` };
 }
 
 function mapTypeKoper(raw: string): { label: string; waarschuwing?: string } {
@@ -187,7 +187,8 @@ export function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeade
   const sep = detecteerScheider(regels[vanaf]);
   const headerRaw = splitsCsvRegel(regels[vanaf], sep);
   const isLinkedIn=headerIndex>=0;
-  const herkendeHeaders = headerRaw.map(h => ({ raw: h, veld: HEADER_MAP[normaliseerHeader(h)] ?? null }));
+  const herkendeHeaders = headerRaw.map(h => ({ raw: h,
+    veld: isLinkedIn && normaliseerHeader(h)==='url' ? 'linkedin' as CanonicalField : HEADER_MAP[normaliseerHeader(h)] ?? null }));
 
   // Index per canonical field
   const idx: Partial<Record<CanonicalField, number>> = {};
