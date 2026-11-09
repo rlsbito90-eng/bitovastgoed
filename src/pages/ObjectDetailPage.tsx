@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
+import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -1494,6 +1495,21 @@ export default function ObjectDetailPage() {
                       </div>
                     )}
                   </div>
+                  {(object.adres||object.postcode)&&object.plaats&&
+                    <div className="mt-4 border-t border-border/60 pt-4">
+                      <PdokLocatieVerifier
+                        mode="object" recordId={object.id}
+                        adres={object.adres} postcode={object.postcode} plaats={object.plaats}
+                        latitude={object.geoLat} longitude={object.geoLon} bron={object.geoBron}
+                        onSave={async point=>{
+                          await store.updateObject(object.id,{
+                            geoLat:point.latitude,geoLon:point.longitude,
+                            geoBron:point.bron,geoGeverifieerdOp:point.geverifieerdOp,
+                          });
+                          toast.success('BAG-adres en coördinaten bevestigd voor de matching');
+                        }}
+                      />
+                    </div>}
                 </div>
                 <div className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">
                   <div className="flex items-center gap-2 mb-3">
