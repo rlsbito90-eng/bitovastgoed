@@ -262,6 +262,8 @@ export interface Relatie {
   /** Zonder geverifieerde WGS84-coördinaten blijft R2 te verifiëren. */
   zoekRadiusLat?: number;
   zoekRadiusLon?: number;
+  zoekRadiusBron?: string;
+  zoekRadiusGeverifieerdOp?: string;
   gewensteObjectomvang?: string;
   gewensteSituatie?: string[];
   aankooptermijn?: string;
@@ -330,6 +332,7 @@ export interface ObjectVastgoed {
   geoLat?: number;
   geoLon?: number;
   geoBron?: string;
+  geoGeverifieerdOp?: string;
 
   // Classificatie (legacy)
   type: AssetClass;
