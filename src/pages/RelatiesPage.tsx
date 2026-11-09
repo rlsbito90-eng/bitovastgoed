@@ -8,6 +8,7 @@ import { Search, Plus, ChevronRight, Upload, Users } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import type { LeadStatus, Relatie } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
+import {QuickCreateRelationDialog} from '@/components/forms/QuickCreateRelationDialog';
 import BulkRelatieImportDialog from '@/components/forms/BulkRelatieImportDialog';
 import RelatieHerstelImportDialog from '@/components/forms/RelatieHerstelImportDialog';
 import PageHeader from '@/components/PageHeader';
@@ -41,6 +42,7 @@ export default function RelatiesPage() {
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>(initialView.statusFilter);
   const [profielFilter, setProfielFilter] = useState<RelatieProfielFilter>(initialView.profielFilter);
   const [formOpen, setFormOpen] = useState(false);
+  const [quickOpen,setQuickOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [herstelOpen, setHerstelOpen] = useState(false);
 
@@ -104,8 +106,11 @@ export default function RelatiesPage() {
             <button onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors">
               <Upload className="h-4 w-4" /> Meerdere toevoegen
             </button>
-            <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
-              <Plus className="h-4 w-4" /> Nieuwe relatie
+            <button onClick={()=>setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors">
+              <Plus className="h-4 w-4" /> Uitgebreid toevoegen
+            </button>
+            <button onClick={()=>setQuickOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
+              <Plus className="h-4 w-4" /> Snel toevoegen
             </button>
           </div>
         }
@@ -159,7 +164,7 @@ export default function RelatiesPage() {
           action={
             <button
               type="button"
-              onClick={() => setFormOpen(true)}
+              onClick={() => setQuickOpen(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"
             >
               <Plus className="h-4 w-4" /> Nieuwe relatie
@@ -254,6 +259,13 @@ export default function RelatiesPage() {
         </>
       )}
 
+      <QuickCreateRelationDialog
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+        context="algemeen"
+        showSaveNext
+        onCreated={relatie=>navigate(`/relaties/${relatie.id}`,{state:relatieReturnState})}
+      />
       <RelatieFormDialog open={formOpen} onOpenChange={setFormOpen} />
       <BulkRelatieImportDialog open={bulkOpen} onOpenChange={setBulkOpen} />
       <RelatieHerstelImportDialog open={herstelOpen} onOpenChange={setHerstelOpen} />
