@@ -17,12 +17,14 @@ describe('relatiesViewState', () => {
       zoek: 'Rubens',
       statusFilter: 'warm',
       profielFilter: 'profiel:family_office',
+      pagina:4,
     });
 
     expect(loadRelatiesViewState()).toEqual({
       zoek: 'Rubens',
       statusFilter: 'warm',
       profielFilter: 'profiel:family_office',
+      pagina:4,
     });
   });
 
@@ -33,7 +35,7 @@ describe('relatiesViewState', () => {
       profielFilter: 'profiel:anders',
     }));
     expect(loadRelatiesViewState()).toEqual({
-      zoek: 'test', statusFilter: '', profielFilter: '',
+      zoek: 'test', statusFilter: '', profielFilter: '',pagina:1,
     });
   });
   it('herstelt een bestaande v1 hoofdtypefilter zonder als bewezen profiel te classificeren',()=>{
@@ -41,12 +43,18 @@ describe('relatiesViewState', () => {
       zoek:'',statusFilter:'warm',typeFilter:'belegger',
     }));
     expect(loadRelatiesViewState()).toEqual({
-      zoek:'',statusFilter:'warm',profielFilter:'legacy:belegger',
+      zoek:'',statusFilter:'warm',profielFilter:'legacy:belegger',pagina:1,
     });
+  });
+  it('weigert ongeldige of negatieve paginanummers',()=>{
+    sessionStorage.setItem('crm:relaties:view-state:v2',JSON.stringify({
+      zoek:'',statusFilter:'',profielFilter:'',pagina:-5,
+    }));
+    expect(loadRelatiesViewState().pagina).toBe(1);
   });
   it('geeft een huidige v2 profielkeuze voorrang op een achtergebleven v1 filter',()=>{
     sessionStorage.setItem('crm:relaties:view-state:v1',JSON.stringify({typeFilter:'ontwikkelaar'}));
-    saveRelatiesViewState({zoek:'',statusFilter:'',profielFilter:'profiel:ontwikkelende_belegger'});
+    saveRelatiesViewState({zoek:'',statusFilter:'',profielFilter:'profiel:ontwikkelende_belegger',pagina:2});
     expect(loadRelatiesViewState().profielFilter).toBe('profiel:ontwikkelende_belegger');
   });
 });

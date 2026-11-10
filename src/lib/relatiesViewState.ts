@@ -8,6 +8,8 @@ export interface RelatiesViewState {
   zoek:string;
   statusFilter:LeadStatus|'';
   profielFilter:RelatieProfielFilter;
+  /** Laatst bezochte pagina, ook bij terugkeer vanaf een relatiekaart. */
+  pagina:number;
 }
 
 const KEY='crm:relaties:view-state:v2';
@@ -15,7 +17,7 @@ const OUD_KEY='crm:relaties:view-state:v1';
 const STATUSSEN=new Set(['koud','lauw','warm','actief']);
 
 export const DEFAULT_RELATIES_VIEW_STATE:RelatiesViewState={
-  zoek:'',statusFilter:'',profielFilter:'',
+  zoek:'',statusFilter:'',profielFilter:'',pagina:1,
 };
 
 /** v1 -> v2: een eerder gekozen oud hoofdtype blijft exact als
@@ -35,6 +37,8 @@ export function loadRelatiesViewState():RelatiesViewState{
       statusFilter:STATUSSEN.has(String(parsed.statusFilter??''))
         ? parsed.statusFilter as LeadStatus:'',
       profielFilter,
+      pagina:typeof parsed.pagina==='number' && Number.isSafeInteger(parsed.pagina)
+        && parsed.pagina>=1 && parsed.pagina<=10000 ? parsed.pagina : 1,
     };
   }catch{return DEFAULT_RELATIES_VIEW_STATE;}
 }
