@@ -20,6 +20,7 @@ export interface KandidaatVoorstellenProps {
   relatieNaam: (relatieId: string) => string;
   /** Explicit human approval; parent revalidates and persists the candidate. */
   onConceptGekozen?: (concept: Concept) => void;
+  approvalBusy?: boolean;
 }
 const label: Record<ProfielRoute['kwalificatie'],string> = {
   passend: 'Passend', te_verifieren: 'Te verifiëren', afwijkend: 'Afwijkend', onvoldoende: 'Onvoldoende gegevens',
@@ -36,7 +37,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
     <p className="text-sm text-muted-foreground" role="status">Dit object is momenteel niet beschikbaar voor nieuwe kandidaatsuggesties. Bestaande kandidaten blijven in de historie.</p>
   );
   function selecteer(p: KandidaatVoorstel, route: ProfielRoute) {
-    if(!props.onConceptGekozen) return;
+    if(!props.onConceptGekozen || props.approvalBusy) return;
     const handoff=maakKandidaatConcept(props.object,p,route.key);
     if(!handoff.ok){setFout(handoff.reden);return;}
     setFout(null);
@@ -67,9 +68,9 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           {route.toelichting.afwijkend.map(t=><p key={t} className="text-destructive">Afwijking: {t}</p>)}
           <p className="text-muted-foreground">Deze relatie kan rechtstreeks worden benaderd. Een formeel mandaat is voor matching niet nodig; de uiteindelijke koper kan tijdens het transactietraject worden vastgelegd.</p>
           <button type="button" className="rounded-md border border-input px-3 py-2 font-medium disabled:opacity-50"
-            disabled={!props.onConceptGekozen || route.kwalificatie==='afwijkend'}
+            disabled={!props.onConceptGekozen || props.approvalBusy || route.kwalificatie==='afwijkend'}
             onClick={()=>selecteer(p,route)}>
-            Goedkeuren als kandidaat
+            {props.approvalBusy ? 'Toevoegen…' : 'Goedkeuren als kandidaat'}
           </button>
         </div>
       </details>)}
