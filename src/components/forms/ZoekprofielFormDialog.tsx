@@ -30,9 +30,10 @@ import type {
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
-import { parseerSteden, valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
+import { valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
 import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
 import GemeentePicker from '@/components/forms/GemeentePicker';
+import PlaatsenPicker from '@/components/forms/PlaatsenPicker';
 
 interface Props {
   open: boolean;
@@ -99,16 +100,13 @@ export default function ZoekprofielFormDialog({
   const [form, setForm] = useState<FormState>(leegForm);
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('basis');
-  const [stedenTekst, setStedenTekst] = useState('');
 
   useEffect(() => {
     if (zoekprofiel) {
       const { id, ...rest } = zoekprofiel;
       setForm({ ...leegForm, ...rest });
-      setStedenTekst((rest.steden ?? []).filter(x=>!isGemeenteToken(x)).join(', '));
     } else {
       setForm({ ...leegForm, relatieId: defaultRelatieId || '' });
-      setStedenTekst('');
     }
     setTab('basis');
   }, [zoekprofiel, open, defaultRelatieId]);
@@ -117,14 +115,14 @@ export default function ZoekprofielFormDialog({
     setForm(prev => ({ ...prev, [k]: v }));
 
   const num = (v: string) => v === '' ? undefined : Number(v);
-  const wijzigSteden = (tekst: string) => {
-    setStedenTekst(tekst);
+  const wijzigSteden = (plaatsen: string[]) => {
     setForm(prev=>({
       ...prev,
-      steden:[...(prev.steden ?? []).filter(isGemeenteToken), ...parseerSteden(tekst)],
+      steden:[...(prev.steden ?? []).filter(isGemeenteToken), ...plaatsen],
     }));
   };
   const gekozenGemeenten=(form.steden ?? []).filter(isGemeenteToken).map(gemeenteUitToken);
+  const gekozenPlaatsen=(form.steden ?? []).filter(x=>!isGemeenteToken(x));
   const wijzigGemeenten = (gemeenten: string[]) => {
     setForm(prev=>({
       ...prev,
@@ -274,12 +272,8 @@ export default function ZoekprofielFormDialog({
                   <Veld label="Gemeenten (optioneel)">
                     <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
                   </Veld>
-                  <Veld label="Plaatsen of steden (optioneel, scheiden met komma)">
-                    <Input
-                      value={stedenTekst}
-                      onChange={e => wijzigSteden(e.target.value)}
-                      placeholder="Bijv. Breda, Tilburg of Rotterdam"
-                    />
+                  <Veld label="Plaatsen of steden (optioneel)">
+                    <PlaatsenPicker gekozen={gekozenPlaatsen} onChange={wijzigSteden}/>
                   </Veld>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <Veld label="Budget vanaf (€)">
@@ -363,12 +357,8 @@ export default function ZoekprofielFormDialog({
                 <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
               </Sectie>
               <Sectie titel="Specifieke steden (optioneel)">
-                <Veld label="Steden (kommagescheiden)">
-                  <Input
-                    value={stedenTekst}
-                    onChange={e => wijzigSteden(e.target.value)}
-                    placeholder="Plaats(en) of regio('s)"
-                  />
+                <Veld label="Plaatsen of steden">
+                  <PlaatsenPicker gekozen={gekozenPlaatsen} onChange={wijzigSteden}/>
                 </Veld>
               </Sectie>
             </TabsContent>
