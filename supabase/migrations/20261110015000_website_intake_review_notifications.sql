@@ -12,24 +12,27 @@ security definer
 set search_path = ''
 as $$
 begin
-  if new.status::text in ('ontvangen','nieuw_te_controleren','bestaande_relatie','dubbelzinnig') then
+  if tg_op = 'INSERT' then
     insert into public.notification_events
       (user_id,event_type,source_type,source_id,occurrence_key,title,body,priority,href,metadata)
     select p.user_id,
-      'website_intake_pending','website_investeringsprofiel',new.id::text,
-      'website_intake_pending:' || new.id::text,
-      'Nieuw investeringsprofiel te beoordelen',
-      'Een website-investeringsprofiel staat klaar in Relaties.',
-      'hoog',
-      '/relaties?website_inbox=1&intake_id=' || new.id::text,
+      'website_intake_received','website_investeringsprofiel',new.id::text,
+      'website_intake_received:' || new.id::text,
+      'Nieuw investeringsprofiel ontvangen',
+      'Een website-investeringsprofiel is binnengekomen. Bekijk de aanvraag in Relaties.',
+      'normaal',
+      '/relaties?website_inbox=1&show_processed=1&intake_id=' || new.id::text,
       jsonb_build_object('intake_id',new.id::text)
     from public.notification_preferences p
     where p.in_app_enabled = true and p.website_intake_enabled = true
     on conflict (user_id,occurrence_key) do nothing;
-  else
+  end if;
+  if new.status::text in ('verwerkt','afgewezen') then
+    -- Ontvangstmelding blijft als historisch signaal; alleen herinneringen verdwijnen.
     update public.notification_events e
        set resolved_at = now(), updated_at = now()
      where e.source_type = 'website_investeringsprofiel'
+       and e.event_type = 'website_intake_reminder'
        and e.source_id = new.id::text
        and e.resolved_at is null;
   end if;
@@ -46,11 +49,11 @@ for each row execute function public.sync_website_intake_notifications();
 -- Eénmalig veilig inhalen van reeds openstaande aanvragen, zonder statuswijziging.
 insert into public.notification_events
   (user_id,event_type,source_type,source_id,occurrence_key,title,body,priority,href,metadata)
-select p.user_id,'website_intake_pending','website_investeringsprofiel',i.id::text,
-       'website_intake_pending:' || i.id::text,
-       'Nieuw investeringsprofiel te beoordelen',
-       'Een website-investeringsprofiel staat klaar in Relaties.',
-       'hoog','/relaties?website_inbox=1&intake_id=' || i.id::text,
+select p.user_id,'website_intake_received','website_investeringsprofiel',i.id::text,
+       'website_intake_received:' || i.id::text,
+       'Nieuw investeringsprofiel ontvangen',
+       'Een website-investeringsprofiel is binnengekomen. Bekijk de aanvraag in Relaties.',
+       'normaal','/relaties?website_inbox=1&show_processed=1&intake_id=' || i.id::text,
        jsonb_build_object('intake_id',i.id::text)
 from public.website_investor_intakes i
 cross join public.notification_preferences p
@@ -83,7 +86,7 @@ begin
       'website_intake_reminder:' || i.id::text || ':' || v_day,
       'Investeringsprofiel wacht op beoordeling',
       'Er staat nog een website-investeringsprofiel in de wachtrij.',
-      'hoog','/relaties?website_inbox=1&intake_id=' || i.id::text,
+      'normaal','/relaties?website_inbox=1&show_processed=1&intake_id=' || i.id::text,
       jsonb_build_object('intake_id',i.id::text)
     from public.website_investor_intakes i
     join public.notification_preferences p on p.user_id = p_user_id
@@ -93,7 +96,7 @@ begin
       and exists (
         select 1 from public.notification_events e
         where e.user_id = p_user_id
-          and e.occurrence_key = 'website_intake_pending:' || i.id::text
+          and e.occurrence_key = 'website_intake_received:' || i.id::text
           and e.dismissed_at is null
           and e.resolved_at is null
       )
@@ -105,6 +108,7 @@ begin
      set resolved_at = now(),updated_at = now()
   where e.user_id = p_user_id
     and e.source_type = 'website_investeringsprofiel'
+    and e.event_type = 'website_intake_reminder'
     and e.resolved_at is null
     and not exists (
       select 1 from public.website_investor_intakes i
