@@ -7,6 +7,7 @@ import PasskeyAccessPage from '@/pages/PasskeyAccessPage';
 const mocks = vi.hoisted(() => ({
   signInWithPasskey: vi.fn(),
   toastError: vi.fn(),
+  originAllowed: { value: true },
   authState: { user: null as { id: string } | null, loading: false },
 }));
 
@@ -15,6 +16,10 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => mocks.authState }));
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }));
+vi.mock('@/lib/auth/passkeyOrigin', () => ({
+  PASSKEY_ORIGIN: 'https://bitovastgoed.vercel.app',
+  isPasskeyOriginAllowed: () => mocks.originAllowed.value,
+}));
 
 function renderToegang(path = '/auth') {
   return render(
@@ -28,6 +33,7 @@ function renderToegang(path = '/auth') {
 }
 
 beforeEach(() => {
+  mocks.originAllowed.value = true;
   mocks.authState.user = null;
   mocks.authState.loading = false;
   mocks.signInWithPasskey.mockReset();
@@ -65,5 +71,14 @@ describe('CRM zonder traditioneel inlogformulier', () => {
   it('accepteert geen externe redirect via next', () => {
     renderToegang('/auth?next=%2F%2Fmalafide.example');
     expect(screen.getByRole('link', { name: 'Toegang herstellen' }).getAttribute('href')).toBe('/auth/herstel?next=%2F');
+  });
+
+  it('verbergt Touch ID op een previewdomein en toont het vaste CRM-adres', () => {
+    mocks.originAllowed.value = false;
+    renderToegang();
+    expect(screen.queryByRole('button', { name: /Open met Touch ID \/ passkey/i })).toBeNull();
+    const link = screen.getByRole('link', { name: 'Open het vaste CRM-adres' });
+    expect(link.getAttribute('href')).toBe('https://bitovastgoed.vercel.app');
+    expect(mocks.signInWithPasskey).not.toHaveBeenCalled();
   });
 });
