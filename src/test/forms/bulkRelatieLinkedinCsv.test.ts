@@ -21,7 +21,23 @@ Romy,Voorbeeld,https://linkedin.com/in/romy-voorbeeld/,,Invest BV,Acquisitie,21 
   expect(parsed.rijen[1].data.type).toBe('overig');
   expect(parsed.rijen[0].data.notities).toContain('Directeur');
  });
- it('leest gewone CSV met expliciete kopersclassificatie ongewijzigd',()=>{
+ it('herkent een expliciet partijtype uit LinkedIn maar geen aankoopcriteria',()=>{
+  const csv=`First Name,Last Name,URL,Company,Position
+Mina,Test,https://www.linkedin.com/in/mina-test/,Brecheisen Makelaars,Directeur
+Piet,Voorbeeld,https://www.linkedin.com/in/piet-voorbeeld/,ABC,Projectontwikkelaar
+Els,Test,https://www.linkedin.com/in/els-test/,Huis BV,Vastgoedbelegger
+Sam,Test,https://www.linkedin.com/in/sam-test/,XYZ,Vastgoedbelegger en projectontwikkelaar`;
+  const parsed=parseTekst(csv);
+  expect(parsed.rijen.map(x=>x.data.type)).toEqual([
+    'makelaar','ontwikkelaar','belegger','overig',
+  ]);
+  expect(parsed.rijen[0].data.partijprofiel).toBe('makelaar');
+  expect(parsed.rijen[2].data.partijprofiel).toBe('belegger');
+  expect(parsed.rijen[2].data.commercialRoles).toBeUndefined();
+  expect(parsed.rijen[2].data.aankoopcriteria).toBeUndefined();
+  expect(parsed.rijen[1].data.notities).toContain('Voorlopig partijtype');
+ });
+  it('leest gewone CSV met expliciete kopersclassificatie ongewijzigd',()=>{
   const parsed=parseTekst('Bedrijfsnaam,Contactpersoon,Type relatie,E-mail,Status\nBelegger BV,Jan,Koper,jan@invest.nl,Warm');
   expect(parsed.isLinkedIn).toBe(false);
   expect(parsed.rijen[0].data).toMatchObject({
