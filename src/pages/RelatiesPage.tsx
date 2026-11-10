@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight, Upload, Users } from 'lucide-react';
+import { Search, Plus, ChevronRight, ChevronLeft, Upload, Users } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import type { LeadStatus, Relatie } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
@@ -25,6 +25,7 @@ import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import { loadRelatiesViewState, saveRelatiesViewState } from '@/lib/relatiesViewState';
 import { PARTIJPROFIELEN } from '@/lib/relaties/partijprofiel';
 import {maakContactNaamIndex,matchRelatieZoekterm} from '@/lib/relaties/relatieContactZoekIndex';
+import {berekenRelatiePagina} from '@/lib/relaties/relatiePaginering';
 import ClassificatieReviewPanel from '@/components/relatie/ClassificatieReviewPanel';
 import MatchingImpactPanel from '@/components/relatie/MatchingImpactPanel';
 import WebsiteInvesteringsprofielenInbox from '@/components/relatie/WebsiteInvesteringsprofielenInbox';
@@ -41,20 +42,27 @@ export default function RelatiesPage() {
   const [zoek, setZoek] = useState(() => searchParams.get('q') ?? initialView.zoek);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>(initialView.statusFilter);
   const [profielFilter, setProfielFilter] = useState<RelatieProfielFilter>(initialView.profielFilter);
+  const [pagina,setPagina]=useState(()=>searchParams.get('q') &&
+      searchParams.get('q')!==initialView.zoek?1:initialView.pagina);
+  const laatsteUrlZoekterm=useRef(searchParams.get('q'));
   const [formOpen, setFormOpen] = useState(false);
   const [quickOpen,setQuickOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [herstelOpen, setHerstelOpen] = useState(false);
 
   useEffect(() => {
-    saveRelatiesViewState({ zoek, statusFilter, profielFilter });
-  }, [zoek, statusFilter, profielFilter]);
+    saveRelatiesViewState({ zoek, statusFilter, profielFilter, pagina });
+  }, [zoek, statusFilter, profielFilter, pagina]);
 
   // Een expliciete globale zoekopdracht in de URL wint van de eerder onthouden
   // sessiecontext. Dit voorkomt dat /relaties?q=... stil wordt genegeerd.
   useEffect(() => {
     const q = searchParams.get('q');
-    if (q !== null) setZoek(q);
+    if(q !== null && q !== laatsteUrlZoekterm.current){
+      setZoek(q);
+      setPagina(1);
+    }
+    laatsteUrlZoekterm.current=q;
   }, [searchParams]);
 
   const sortOptions = useMemo<SortOption<Relatie>[]>(() => {
@@ -90,6 +98,43 @@ export default function RelatiesPage() {
   useEffect(() => {
     saveListContext('relaties', filtered.map(r => r.id));
   }, [filtered]);
+
+  const paginaInfo=berekenRelatiePagina(filtered.length,pagina,25);
+  const zichtbareRelaties=useMemo(()=>
+    filtered.slice(paginaInfo.startIndex,paginaInfo.eindeIndex),
+    [filtered,paginaInfo.startIndex,paginaInfo.eindeIndex]);
+
+  const paginaNavigatie=filtered.length>0&&(
+    <nav aria-label="Pagina's relaties" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {paginaInfo.beginNummer}–{paginaInfo.eindeIndex} van {filtered.length} relaties · pagina {paginaInfo.pagina} van {paginaInfo.aantal}
+      </span>
+      <div className="flex flex-wrap items-center gap-1">
+        <button type="button" disabled={paginaInfo.pagina<=1}
+          onClick={()=>setPagina(p=>Math.max(1,p-1))}
+          aria-label="Vorige pagina"
+          className="inline-flex h-9 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:opacity-35 hover:bg-muted">
+          <ChevronLeft className="h-4 w-4"/> <span className="hidden sm:inline">Vorige</span>
+        </button>
+        {paginaInfo.nummers.map(p=>(
+          <button key={p} type="button" aria-label={`Ga naar pagina ${p}`}
+            aria-current={p===paginaInfo.pagina?'page':undefined}
+            onClick={()=>setPagina(p)}
+            className={`h-9 min-w-9 rounded-md border px-2 text-xs font-medium ${p===paginaInfo.pagina
+              ?'border-accent bg-accent text-accent-foreground'
+              :'border-border hover:bg-muted'}`}>
+            {p}
+          </button>
+        ))}
+        <button type="button" disabled={paginaInfo.pagina>=paginaInfo.aantal}
+          onClick={()=>setPagina(p=>Math.min(paginaInfo.aantal,p+1))}
+          aria-label="Volgende pagina"
+          className="inline-flex h-9 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:opacity-35 hover:bg-muted">
+          <span className="hidden sm:inline">Volgende</span> <ChevronRight className="h-4 w-4"/>
+        </button>
+      </div>
+    </nav>
+  );
 
   const relatieReturnState = maakCrmReturnState('/relaties', 'Relaties', 'relaties-lijst');
 
@@ -127,10 +172,10 @@ export default function RelatiesPage() {
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Zoek op naam of bedrijf..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
+          <Input placeholder="Zoek op naam of bedrijf..." className="pl-9 h-10" value={zoek} onChange={e => {setZoek(e.target.value);setPagina(1);}} />
         </div>
         <div className="flex gap-2.5">
-          <select className="flex-1 sm:flex-none h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => setStatusFilter(e.target.value as LeadStatus | '')}>
+          <select className="flex-1 sm:flex-none h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground" value={statusFilter} onChange={e => {setStatusFilter(e.target.value as LeadStatus | '');setPagina(1);}}>
             <option value="">Alle statussen</option>
             <option value="koud">Koud</option>
             <option value="lauw">Lauw</option>
@@ -140,7 +185,7 @@ export default function RelatiesPage() {
           <select aria-label="Filter partijprofiel"
             className="flex-1 sm:flex-none h-10 px-3 rounded-md border border-input bg-card text-sm text-foreground"
             value={profielFilter}
-            onChange={e=>setProfielFilter(normaalProfielFilter(e.target.value))}>
+            onChange={e=>{setProfielFilter(normaalProfielFilter(e.target.value));setPagina(1);}}>
             <option value="">Alle partijprofielen</option>
             <option value="zonder_profiel">Nog niet geclassificeerd</option>
             <optgroup label="Partijprofiel">
@@ -152,9 +197,11 @@ export default function RelatiesPage() {
           </select>
         </div>
         <div className="sm:ml-auto">
-          <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
+          <SortDropdown options={sortOptions} value={sortValue} onChange={v=>{setSortValue(v);setPagina(1);}} />
         </div>
       </div>
+
+      {filtered.length>0&&paginaNavigatie}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -175,7 +222,7 @@ export default function RelatiesPage() {
         <>
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
-            {filtered.map(r => (
+            {zichtbareRelaties.map(r => (
               <Link
                 key={r.id}
                 to={`/relaties/${r.id}`}
@@ -225,7 +272,7 @@ export default function RelatiesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
-                  {filtered.map(r => (
+                  {zichtbareRelaties.map(r => (
                     <tr
                       key={r.id}
                       onClick={() => navigate(`/relaties/${r.id}`, { state: relatieReturnState })}
@@ -258,6 +305,8 @@ export default function RelatiesPage() {
           </div>
         </>
       )}
+
+      {filtered.length>0&&paginaInfo.aantal>1&&paginaNavigatie}
 
       <QuickCreateRelationDialog
         open={quickOpen}
