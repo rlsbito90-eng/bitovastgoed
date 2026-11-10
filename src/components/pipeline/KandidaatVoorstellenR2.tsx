@@ -1,6 +1,7 @@
 /**
- * Bito CRM R2 — READ-ONLY preview, one directly contactable party per row.
- * No calls to Supabase, no automatic candidates, no NDA, teaser or bid.
+ * Bito CRM R2 — read-only proposals; explicit approval delegates to the
+ * parent, which revalidates and persists the candidate in object_pipeline.
+ * Never sends offers, creates bids, or bypasses a human decision.
  */
 import { useMemo, useState } from 'react';
 import {
@@ -17,7 +18,7 @@ export interface KandidaatVoorstellenProps {
   zoekprofielen: readonly CrmMandaatInput[];
   reedsGekoppeld: ReadonlySet<string>;
   relatieNaam: (relatieId: string) => string;
-  /** Human action only. Parent must validate again and separately persist shortlist. */
+  /** Explicit human approval; parent revalidates and persists the candidate. */
   onConceptGekozen?: (concept: Concept) => void;
 }
 const label: Record<ProfielRoute['kwalificatie'],string> = {
@@ -68,7 +69,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           <button type="button" className="rounded-md border border-input px-3 py-2 font-medium disabled:opacity-50"
             disabled={!props.onConceptGekozen || route.kwalificatie==='afwijkend'}
             onClick={()=>selecteer(p,route)}>
-            Bereid keuze voor (geen opslag)
+            Goedkeuren als kandidaat
           </button>
         </div>
       </details>)}
