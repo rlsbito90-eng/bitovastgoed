@@ -4,7 +4,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { formatDate } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight, ChevronLeft, Upload, Users } from 'lucide-react';
+import { Search, Plus, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Upload, Users } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import type { LeadStatus, Relatie } from '@/data/mock-data';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
@@ -45,6 +45,7 @@ export default function RelatiesPage() {
   const [pagina,setPagina]=useState(()=>searchParams.get('q') &&
       searchParams.get('q')!==initialView.zoek?1:initialView.pagina);
   const laatsteUrlZoekterm=useRef(searchParams.get('q'));
+  const lijstBegin=useRef<HTMLDivElement>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [quickOpen,setQuickOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -104,6 +105,10 @@ export default function RelatiesPage() {
     filtered.slice(paginaInfo.startIndex,paginaInfo.eindeIndex),
     [filtered,paginaInfo.startIndex,paginaInfo.eindeIndex]);
 
+  const gaNaarPagina=(nieuw:number)=>{
+    setPagina(nieuw);
+    lijstBegin.current?.scrollIntoView?.({behavior:'smooth',block:'start'});
+  };
   const paginaNavigatie=filtered.length>0&&(
     <nav aria-label="Pagina's relaties" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
       <span className="text-xs text-muted-foreground tabular-nums">
@@ -111,7 +116,12 @@ export default function RelatiesPage() {
       </span>
       <div className="flex flex-wrap items-center gap-1">
         <button type="button" disabled={paginaInfo.pagina<=1}
-          onClick={()=>setPagina(p=>Math.max(1,p-1))}
+          onClick={()=>gaNaarPagina(1)} aria-label="Eerste pagina"
+          className="inline-flex h-9 items-center rounded-md border border-border px-2 disabled:opacity-35 hover:bg-muted">
+          <ChevronsLeft className="h-4 w-4"/>
+        </button>
+        <button type="button" disabled={paginaInfo.pagina<=1}
+          onClick={()=>gaNaarPagina(Math.max(1,paginaInfo.pagina-1))}
           aria-label="Vorige pagina"
           className="inline-flex h-9 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:opacity-35 hover:bg-muted">
           <ChevronLeft className="h-4 w-4"/> <span className="hidden sm:inline">Vorige</span>
@@ -119,7 +129,7 @@ export default function RelatiesPage() {
         {paginaInfo.nummers.map(p=>(
           <button key={p} type="button" aria-label={`Ga naar pagina ${p}`}
             aria-current={p===paginaInfo.pagina?'page':undefined}
-            onClick={()=>setPagina(p)}
+            onClick={()=>gaNaarPagina(p)}
             className={`h-9 min-w-9 rounded-md border px-2 text-xs font-medium ${p===paginaInfo.pagina
               ?'border-accent bg-accent text-accent-foreground'
               :'border-border hover:bg-muted'}`}>
@@ -127,10 +137,15 @@ export default function RelatiesPage() {
           </button>
         ))}
         <button type="button" disabled={paginaInfo.pagina>=paginaInfo.aantal}
-          onClick={()=>setPagina(p=>Math.min(paginaInfo.aantal,p+1))}
+          onClick={()=>gaNaarPagina(Math.min(paginaInfo.aantal,paginaInfo.pagina+1))}
           aria-label="Volgende pagina"
           className="inline-flex h-9 items-center gap-1 rounded-md border border-border px-2 text-xs disabled:opacity-35 hover:bg-muted">
           <span className="hidden sm:inline">Volgende</span> <ChevronRight className="h-4 w-4"/>
+        </button>
+        <button type="button" disabled={paginaInfo.pagina>=paginaInfo.aantal}
+          onClick={()=>gaNaarPagina(paginaInfo.aantal)} aria-label="Laatste pagina"
+          className="inline-flex h-9 items-center rounded-md border border-border px-2 disabled:opacity-35 hover:bg-muted">
+          <ChevronsRight className="h-4 w-4"/>
         </button>
       </div>
     </nav>
@@ -201,6 +216,7 @@ export default function RelatiesPage() {
         </div>
       </div>
 
+      <div ref={lijstBegin} className="scroll-mt-24" />
       {filtered.length>0&&paginaNavigatie}
 
       {filtered.length === 0 ? (
