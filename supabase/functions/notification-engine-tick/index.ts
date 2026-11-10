@@ -17,7 +17,7 @@ const EVENT_PREF_FIELD: Record<string, string> = {
   bid_expiry: 'bid_expiry_enabled',
   strong_match: 'strong_match_enabled',
   data_quality: 'data_quality_enabled',
-  website_intake_pending: 'website_intake_enabled',
+  website_intake_received: 'website_intake_enabled',
   website_intake_reminder: 'website_intake_enabled',
 };
 
