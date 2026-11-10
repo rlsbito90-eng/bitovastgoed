@@ -64,7 +64,9 @@ export default function WebsiteInvesteringsprofielenInbox() {
   },[showProcessed]);
   useEffect(()=>{void refresh()},[refresh]);
   useEffect(()=>{
-    if(new URLSearchParams(location.search).get('website_inbox')==='1')setExpanded(true);
+    const params=new URLSearchParams(location.search);
+    if(params.get('website_inbox')==='1')setExpanded(true);
+    if(params.get('show_processed')==='1')setShowProcessed(true);
   },[location.search]);
 
   // Relaties worden uit de live CRM-store gekozen; geen vrije relatie-ID invoeren.
