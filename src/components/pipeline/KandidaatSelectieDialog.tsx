@@ -404,6 +404,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                 const r = relaties.find(item => item.id === id);
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
               }}
+              approvalBusy={bezig}
               onConceptGekozen={concept => { void handleR2Toevoegen(concept); }}
             /> : <p className="text-sm text-muted-foreground">Object wordt geladen.</p>}
           </div>
