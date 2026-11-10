@@ -31,17 +31,17 @@ describe('Eén zoekveld voor plaatsen én gemeenten',()=>{
     render(<Scherm/>);
     const zoek=screen.getByRole('textbox',{name:'Zoek plaats of gemeente'});
     fireEvent.change(zoek,{target:{value:'Apel'}});
-    fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Apeldoorn'}));
+    fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Plaats Apeldoorn'}));
     expect(screen.getByTestId('waarden').textContent).toBe('{"gemeenten":[],"plaatsen":["Apeldoorn"]}');
     fireEvent.change(zoek,{target:{value:'Deven'}});
-    fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Deventer'}));
+    fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Plaats Deventer'}));
     expect(screen.getByTestId('waarden').textContent).toBe('{"gemeenten":[],"plaatsen":["Apeldoorn","Deventer"]}');
   });
 
   it('kiest expliciet de hele gemeente zonder automatisch de plaats toe te voegen',()=>{
     render(<Scherm/>);
     fireEvent.change(screen.getByRole('textbox',{name:'Zoek plaats of gemeente'}),{target:{value:'Apel'}});
-    fireEvent.click(within(screen.getByRole('group',{name:'Gemeenten'})).getByRole('checkbox',{name:'Apeldoorn'}));
+    fireEvent.click(within(screen.getByRole('group',{name:'Gemeenten'})).getByRole('checkbox',{name:'Gemeente Apeldoorn'}));
     expect(screen.getByTestId('waarden').textContent).toBe('{"gemeenten":["Apeldoorn"],"plaatsen":[]}');
   });
 
