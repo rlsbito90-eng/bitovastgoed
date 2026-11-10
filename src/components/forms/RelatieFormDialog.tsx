@@ -48,8 +48,7 @@ import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
-import GemeentePicker from '@/components/forms/GemeentePicker';
-import PlaatsenPicker from '@/components/forms/PlaatsenPicker';
+import ZoekgebiedPicker from '@/components/forms/ZoekgebiedPicker';
 import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 import { legacyTypeVoorNieuweRelatie } from '@/lib/relaties/partijprofiel';
@@ -631,14 +630,11 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                 />
               </Sectie>
 
-              <Sectie titel="Gemeenten en plaatsen van interesse (provincie optioneel)">
-                <GemeentePicker provincies={form.regio ?? []}
-                  gekozen={form.zoekGemeenten ?? []}
-                  onChange={gemeenten=>set('zoekGemeenten',gemeenten)}/>
-                <Veld label="Plaatsen of steden">
-                  <PlaatsenPicker gekozen={form.zoekPlaatsen ?? []}
-                    onChange={plaatsen=>set('zoekPlaatsen',plaatsen)}/>
-                </Veld>
+              <Sectie titel="Zoekgebied: plaatsen en gemeenten">
+                <ZoekgebiedPicker gemeenten={form.zoekGemeenten ?? []} plaatsen={form.zoekPlaatsen ?? []}
+                  onChange={({gemeenten,plaatsen})=>setForm(prev=>({
+                    ...prev,zoekGemeenten:gemeenten,zoekPlaatsen:plaatsen,
+                  }))}/>
               </Sectie>
 
               <Sectie titel="Aankoopcriteria (websiteformulier)">
