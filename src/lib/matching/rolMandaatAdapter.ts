@@ -214,6 +214,10 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       }else if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
         matcht.push('Plaats komt overeen');geverifieerd++;
       }else afwijkend.push('Gemeente buiten het gekozen zoekgebied');
+    }else if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
+      // De objectplaats is rechtstreeks bekend. Een onbekende bestuurlijke
+      // gemeente mag deze expliciete woonplaatsmatch niet onzichtbaar maken.
+      matcht.push('Plaats komt overeen');geverifieerd++;
     }else{
       controleer.push('Gemeente van object onbekend; bestuurlijke gemeente eerst verifiëren');
       controleNodig=true;
