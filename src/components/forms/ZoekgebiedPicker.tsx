@@ -112,7 +112,7 @@ export default function ZoekgebiedPicker({gemeenten,plaatsen,onChange,id}:Props)
           const naam=(doc.woonplaats??doc.weergavenaam).trim();
           return <label key={'plaats:'+doc.id}
             className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
-            <input type="checkbox" checked={geselecteerd(plaatsen,naam)} onChange={()=>kies('plaats',naam)}/>
+            <input type="checkbox" aria-label={'Plaats '+naam} checked={geselecteerd(plaatsen,naam)} onChange={()=>kies('plaats',naam)}/>
             <span>{naam}</span><span className="ml-auto text-xs text-muted-foreground">Plaats</span>
           </label>;
         })}
@@ -128,7 +128,7 @@ export default function ZoekgebiedPicker({gemeenten,plaatsen,onChange,id}:Props)
         <p className="text-xs font-semibold text-muted-foreground px-2 py-1">Gemeenten (hele gemeente)</p>
         {gemeenteResultaten.map(g=><label key={'gemeente:'+g.provincie+g.naam}
           className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted cursor-pointer">
-          <input type="checkbox" checked={geselecteerd(gemeenten,g.naam)} onChange={()=>kies('gemeente',g.naam)}/>
+          <input type="checkbox" aria-label={'Gemeente '+g.naam} checked={geselecteerd(gemeenten,g.naam)} onChange={()=>kies('gemeente',g.naam)}/>
           <span>{g.naam}</span>
           <span className="ml-auto text-xs text-muted-foreground">{g.provincie}</span>
         </label>)}
