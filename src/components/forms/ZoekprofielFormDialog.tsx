@@ -269,7 +269,7 @@ export default function ZoekprofielFormDialog({
                     <MultiSelectChips options={regioOptions} value={form.regio}
                       onChange={v => set('regio', v)} />
                   </Veld>
-                  <Veld label="Gemeenten (optioneel)">
+                  <Veld label="Gemeenten (zonder provincie te kiezen)">
                     <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
                   </Veld>
                   <Veld label="Plaatsen of steden (optioneel)">
@@ -353,7 +353,7 @@ export default function ZoekprofielFormDialog({
                 />
               </Sectie>
 
-              <Sectie titel="Gemeenten binnen gekozen provincies (optioneel)">
+              <Sectie titel="Gemeenten (provincie niet vereist)">
                 <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
               </Sectie>
               <Sectie titel="Specifieke steden (optioneel)">
