@@ -129,7 +129,11 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                     gemeenten={concept.zoekGemeenten ?? []}
                     plaatsen={concept.zoekPlaatsen ?? []}
                     onChange={({gemeenten,plaatsen})=>{
-                      setConcept(prev=>({...prev,zoekGemeenten:gemeenten,zoekPlaatsen:plaatsen}));
+                      setConcept(prev=>({
+                        ...prev,
+                        ...(!gelijk(prev.zoekGemeenten ?? [],gemeenten)?{zoekGemeenten:gemeenten}:{}),
+                        ...(!gelijk(prev.zoekPlaatsen ?? [],plaatsen)?{zoekPlaatsen:plaatsen}:{}),
+                      }));
                       setFout(null);
                     }}/>
                 :kind==='gemeenten'||kind==='plaatsen'
