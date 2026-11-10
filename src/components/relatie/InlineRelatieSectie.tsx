@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Relatie } from '@/data/mock-data';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
-import GemeentePicker from '@/components/forms/GemeentePicker';
-import PlaatsenPicker from '@/components/forms/PlaatsenPicker';
+import ZoekgebiedPicker from '@/components/forms/ZoekgebiedPicker';
 
 export type InlineRelatieVeld = {
   key: keyof Relatie;
@@ -43,6 +42,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   const [basis,setBasis]=useState<Partial<Relatie>>({});
   const [bezig,setBezig]=useState(false);
   const [fout,setFout]=useState<string|null>(null);
+  const gecombineerdZoekgebied=velden.some(v=>v.key==='zoekGemeenten')&&velden.some(v=>v.key==='zoekPlaatsen');
   const patch:Partial<Relatie>={};
   for(const veld of velden){
     const v=veld.key;
@@ -104,11 +104,14 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
     </div>
     <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
       {velden.map(veld=>{
+        if(gecombineerdZoekgebied&&veld.key==='zoekPlaatsen')return null;
         const waarde=bewerken?concept[veld.key]:relatie[veld.key];
         const id=`relatie-${String(veld.key)}`;
         const kind=veld.kind??'text';
-        return <div key={veld.key} className="min-w-0 space-y-1.5">
-          <label htmlFor={bewerken&&kind!=='readonly'?id:undefined} className="field-label">{veld.label}</label>
+        return <div key={veld.key} className={`min-w-0 space-y-1.5 ${gecombineerdZoekgebied&&veld.key==='zoekGemeenten'?'sm:col-span-2':''}`}>
+          <label htmlFor={bewerken&&kind!=='readonly'?id:undefined} className="field-label">
+            {gecombineerdZoekgebied&&veld.key==='zoekGemeenten'?'Zoekgebied: plaatsen en gemeenten':veld.label}
+          </label>
           {bewerken&&kind!=='readonly'
             ?kind==='textarea'
               ?<textarea id={id} rows={3} value={alsString(waarde)}
@@ -121,14 +124,16 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                     <option value="">— Niet ingevuld —</option>
                     {veld.options?.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}
                   </select>
-                :kind==='gemeenten'
-                  ?<GemeentePicker provincies={Array.isArray(concept.regio) ? concept.regio : relatie.regio ?? []}
-                    gekozen={Array.isArray(waarde) ? waarde : []}
-                    onChange={v=>wijzig(veld.key,v)}/>
-                :kind==='plaatsen'
-                  ?<PlaatsenPicker id={id} label={veld.label}
-                    gekozen={Array.isArray(waarde) ? waarde : []}
-                    onChange={v=>wijzig(veld.key,v)}/>
+                :kind==='gemeenten'&&gecombineerdZoekgebied
+                  ?<ZoekgebiedPicker id={id}
+                    gemeenten={concept.zoekGemeenten ?? []}
+                    plaatsen={concept.zoekPlaatsen ?? []}
+                    onChange={({gemeenten,plaatsen})=>{
+                      setConcept(prev=>({...prev,zoekGemeenten:gemeenten,zoekPlaatsen:plaatsen}));
+                      setFout(null);
+                    }}/>
+                :kind==='gemeenten'||kind==='plaatsen'
+                  ?<p className="text-xs text-muted-foreground">Bewerk plaatsen en gemeenten gezamenlijk in het zoekgebied.</p>
                 :kind==='multi'
                   ?<div className="flex flex-wrap gap-2">{veld.options?.map(o=><label key={o.value}
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-sm">
@@ -147,7 +152,12 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                       value={alsString(waarde)}
                       onChange={e=>wijzig(veld.key,kind==='number'?(e.target.value===''?undefined:Number(e.target.value)):e.target.value)}
                       className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"/>
-            :<p className="field-value min-h-5 break-words whitespace-pre-wrap">{leesbaar(veld,relatie[veld.key])}</p>}
+            :<p className="field-value min-h-5 break-words whitespace-pre-wrap">
+              {gecombineerdZoekgebied&&veld.key==='zoekGemeenten'
+                ?[...(relatie.zoekPlaatsen??[]).map(v=>'Plaats: '+v),
+                   ...(relatie.zoekGemeenten??[]).map(v=>'Gemeente: '+v)].join(', ')||'—'
+                :leesbaar(veld,relatie[veld.key])}
+            </p>}
           {veld.note&&<p className="text-xs text-muted-foreground">{veld.note}</p>}
         </div>;
       })}
