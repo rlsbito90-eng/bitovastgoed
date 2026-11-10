@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest';
-import { geldigeProvincies,redenenVoorBeoordeling,voorstelNieuweRelatie,zoekRadiusVoorstel } from './websiteIntakeBeoordeling';
+import { geldigeProvincies,redenenVoorBeoordeling,voorstelNieuweRelatie,zoekPlaatsenVoorstel,zoekRadiusVoorstel } from './websiteIntakeBeoordeling';
 import type { ReviewIntake } from './websiteIntakeBeoordeling';
 const base:ReviewIntake={
   applicant_name:'Voorbeeld Belegger',applicant_email:'belegger@example.net',applicant_phone:'0612345678',
@@ -39,6 +39,17 @@ describe('Fase 3D — website-beoordeling',()=>{
   expect(x.zoekRadiusWaarde).toBe(35);
   expect(x.zoekRadiusEenheid).toBe('km_hemelsbreed');
   expect(redenenVoorBeoordeling(input,'nieuw_te_controleren').join(' ')).toContain('Zoekgebied');
+ });
+ it('stelt Apeldoorn en Deventer afzonderlijk voor zonder provincie te verzinnen',()=>{
+  const input={...base,raw_payload:{fields:{...base.raw_payload.fields,'search-area':'Apeldoorn/ Deventer'}}};
+  const x=voorstelNieuweRelatie(input,types);
+  expect(x.regio).toEqual([]);
+  expect(x.zoekPlaatsen).toEqual(['Apeldoorn','Deventer']);
+  expect(x.zoekgebiedToelichting).toBe('Apeldoorn/ Deventer');
+  expect(redenenVoorBeoordeling(input,'nieuw_te_controleren').join(' ')).toContain('Mogelijke zoekplaatsen');
+  expect(zoekPlaatsenVoorstel('35 km vanaf Amersfoort / Utrecht')).toEqual([]);
+  expect(zoekPlaatsenVoorstel('Apeldoorn en omgeving / Deventer')).toEqual([]);
+  expect(zoekPlaatsenVoorstel('Gelderland / Overijssel')).toEqual([]);
  });
  it('laat meerdere budgetbanden letterlijk staan zonder numerieke gok',()=>{
   const input={...base,raw_payload:{fields:{...base.raw_payload.fields,
