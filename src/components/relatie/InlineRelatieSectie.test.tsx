@@ -13,7 +13,7 @@ vi.mock('@/lib/bag/pdokLookup', () => ({
         id: 'plaats-' + index, woonplaats: naam, weergavenaam: naam, type: 'woonplaats',
       }))
   ),
-});
+}));
 
 const relatie={
   id:'test-relatie',bedrijfsnaam:'Voorbeeld BV',type:'belegger',
@@ -124,7 +124,7 @@ describe('Fase 1 — één zoekgebied bij Relaties',()=>{
    render(<InlineRelatieSectie titel="Geo" relatie={relatie} velden={geoVelden} onSave={save}/>);
    fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
    fireEvent.change(screen.getByRole('textbox',{name:'Zoek plaats of gemeente'}),{target:{value:'Oisterwijk'}});
-   fireEvent.click(screen.getByRole('checkbox',{name:'Oisterwijk'}));
+   fireEvent.click(screen.getByRole('checkbox',{name:'Gemeente Oisterwijk'}));
    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekGemeenten:['Oisterwijk']}));
    expect(save.mock.calls[0][0]).not.toHaveProperty('zoekPlaatsen');
@@ -136,9 +136,9 @@ describe('Fase 1 — één zoekgebied bij Relaties',()=>{
    fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
    const input=screen.getByRole('textbox',{name:'Zoek plaats of gemeente'});
    fireEvent.change(input,{target:{value:'Breda'}});
-   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Breda'}));
+   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Plaats Breda'}));
    fireEvent.change(input,{target:{value:'Tilburg'}});
-   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Tilburg'}));
+   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Plaats Tilburg'}));
    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekPlaatsen:['Breda','Tilburg']}));
    expect(save.mock.calls[0][0]).not.toHaveProperty('zoekGemeenten');
