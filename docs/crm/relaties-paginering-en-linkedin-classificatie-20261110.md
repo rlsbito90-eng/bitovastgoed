@@ -47,3 +47,17 @@ niet gewijzigd.
   voor v1/v2 zonder paginanummer bevestigd.
 - CI moet typecheck, tests en productiebuild volledig groen tonen.
 - Visuele controle in ingelogde CRM-browser op desktop/mobiel apart uitvoeren.
+
+## Vervolg: nieuwe LinkedIn-imports
+De volgende import hoeft niet opnieuw alle expliciete functies als `Overig` te
+registreren. `src/lib/relaties/linkedinPartijtype.ts` herkent beperkte,
+ondubbelzinnige titels (makelaar, vastgoedbelegger, projectontwikkelaar) en
+heldere bedrijfsnamen (makelaardij, project-/vastgoedontwikkeling).
+Het resultaat wordt als **voorlopig partijprofiel** in de CRM-relatie vastgelegd
+en als herkomst in de bronnotitie bewaard. Bij een hybride titel, een
+onduidelijke functie of generieke woorden als `asset manager`, `adviseur` en
+`investments` wordt niets gegokt. Een herkend beleggerprofiel activeert
+**geen** nieuwe commerciële rol of aankoopcriteria.
+
+Gewone CSV's met een expliciet opgegeven partijtype blijven leidend; de
+LinkedIn-afleiding wordt alleen toegepast wanneer het type ontbreekt.
