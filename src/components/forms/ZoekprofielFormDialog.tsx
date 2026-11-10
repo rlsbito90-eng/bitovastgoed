@@ -32,8 +32,7 @@ import MultiSelectChips from '@/components/object/MultiSelectChips';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 import { valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
 import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
-import GemeentePicker from '@/components/forms/GemeentePicker';
-import PlaatsenPicker from '@/components/forms/PlaatsenPicker';
+import ZoekgebiedPicker from '@/components/forms/ZoekgebiedPicker';
 
 interface Props {
   open: boolean;
@@ -115,19 +114,10 @@ export default function ZoekprofielFormDialog({
     setForm(prev => ({ ...prev, [k]: v }));
 
   const num = (v: string) => v === '' ? undefined : Number(v);
-  const wijzigSteden = (plaatsen: string[]) => {
-    setForm(prev=>({
-      ...prev,
-      steden:[...(prev.steden ?? []).filter(isGemeenteToken), ...plaatsen],
-    }));
-  };
   const gekozenGemeenten=(form.steden ?? []).filter(isGemeenteToken).map(gemeenteUitToken);
   const gekozenPlaatsen=(form.steden ?? []).filter(x=>!isGemeenteToken(x));
-  const wijzigGemeenten = (gemeenten: string[]) => {
-    setForm(prev=>({
-      ...prev,
-      steden:[...(prev.steden ?? []).filter(x=>!isGemeenteToken(x)),...gemeenten.map(alsGemeenteToken)],
-    }));
+  const wijzigZoekgebied=({gemeenten,plaatsen}:{gemeenten:string[];plaatsen:string[]})=>{
+    setForm(prev=>({...prev,steden:[...gemeenten.map(alsGemeenteToken),...plaatsen]}));
   };
 
   // Bij wijzigen van typeVastgoed: filter subcategorieIds zodat ze bij het type passen
@@ -269,11 +259,9 @@ export default function ZoekprofielFormDialog({
                     <MultiSelectChips options={regioOptions} value={form.regio}
                       onChange={v => set('regio', v)} />
                   </Veld>
-                  <Veld label="Gemeenten (zonder provincie te kiezen)">
-                    <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
-                  </Veld>
-                  <Veld label="Plaatsen of steden (optioneel)">
-                    <PlaatsenPicker gekozen={gekozenPlaatsen} onChange={wijzigSteden}/>
+                  <Veld label="Zoekgebied: plaatsen en gemeenten">
+                    <ZoekgebiedPicker gemeenten={gekozenGemeenten} plaatsen={gekozenPlaatsen}
+                      onChange={wijzigZoekgebied}/>
                   </Veld>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <Veld label="Budget vanaf (€)">
@@ -353,13 +341,9 @@ export default function ZoekprofielFormDialog({
                 />
               </Sectie>
 
-              <Sectie titel="Gemeenten (provincie niet vereist)">
-                <GemeentePicker provincies={form.regio} gekozen={gekozenGemeenten} onChange={wijzigGemeenten}/>
-              </Sectie>
-              <Sectie titel="Specifieke steden (optioneel)">
-                <Veld label="Plaatsen of steden">
-                  <PlaatsenPicker gekozen={gekozenPlaatsen} onChange={wijzigSteden}/>
-                </Veld>
+              <Sectie titel="Zoekgebied: plaatsen en gemeenten">
+                <ZoekgebiedPicker gemeenten={gekozenGemeenten} plaatsen={gekozenPlaatsen}
+                  onChange={wijzigZoekgebied}/>
               </Sectie>
             </TabsContent>
 
