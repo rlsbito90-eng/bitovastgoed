@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { PASSKEY_ORIGIN, isPasskeyOriginAllowed } from '@/lib/auth/passkeyOrigin';
 
 // Alleen interne paden accepteren. Een ?next mag nooit naar een externe site leiden.
 function veiligVolgendPad(raw: string | null): string {
@@ -18,6 +19,7 @@ export default function PasskeyAccessPage() {
   const [params] = useSearchParams();
   const next = useMemo(() => veiligVolgendPad(params.get('next')), [params]);
   const [bezig, setBezig] = useState(false);
+  const juistDomein = isPasskeyOriginAllowed(window.location.origin);
 
   useEffect(() => {
     if (!loading && user) navigate(next, { replace: true });
@@ -25,6 +27,10 @@ export default function PasskeyAccessPage() {
 
   const toegangMetPasskey = async () => {
     if (bezig) return;
+    if (!juistDomein) {
+      toast.error('Touch ID werkt uitsluitend op bitovastgoed.vercel.app.');
+      return;
+    }
     if (!window.isSecureContext || !('PublicKeyCredential' in window)) {
       toast.error('Passkeys zijn op dit apparaat of in deze browser niet beschikbaar. Gebruik toegang herstellen.');
       return;
@@ -63,13 +69,21 @@ export default function PasskeyAccessPage() {
           <div className="space-y-2">
             <h1 className="text-xl font-semibold text-foreground">Bito CRM</h1>
             <p className="text-sm text-muted-foreground">
-              Bevestig je identiteit met Touch ID, de pincode van je apparaat of een beveiligingssleutel.
+              {juistDomein
+                ? 'Bevestig je identiteit met Touch ID, de pincode van je apparaat of een beveiligingssleutel.'
+                : 'Dit is een tijdelijk previewadres. Touch ID werkt uitsluitend op het vaste CRM-adres.'}
             </p>
           </div>
-          <Button type="button" disabled={bezig || loading} className="w-full gap-2" onClick={() => void toegangMetPasskey()}>
-            {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
-            {bezig ? 'Beveiligde toegang openen…' : 'Open met Touch ID / passkey'}
-          </Button>
+          {juistDomein ? (
+            <Button type="button" disabled={bezig || loading} className="w-full gap-2" onClick={() => void toegangMetPasskey()}>
+              {bezig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
+              {bezig ? 'Beveiligde toegang openen…' : 'Open met Touch ID / passkey'}
+            </Button>
+          ) : (
+            <Button asChild className="w-full gap-2">
+              <a href={PASSKEY_ORIGIN}>Open het vaste CRM-adres</a>
+            </Button>
+          )}
           <p className="text-xs text-muted-foreground">Ook beschikbaar in een privévenster. Geen e-mailadres of wachtwoord nodig.</p>
           <Link to={herstelPad} className="block text-xs text-muted-foreground underline-offset-4 hover:underline">
             Toegang herstellen
