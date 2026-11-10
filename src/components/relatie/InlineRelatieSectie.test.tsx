@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe,it,expect,vi } from 'vitest';
-import { render,screen,fireEvent,waitFor } from '@testing-library/react';
+import { render,screen,fireEvent,waitFor,within } from '@testing-library/react';
 import type { Relatie } from '@/data/mock-data';
 import InlineRelatieSectie from './InlineRelatieSectie';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
@@ -136,9 +136,9 @@ describe('Fase 1 — één zoekgebied bij Relaties',()=>{
    fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
    const input=screen.getByRole('textbox',{name:'Zoek plaats of gemeente'});
    fireEvent.change(input,{target:{value:'Breda'}});
-   fireEvent.click(await screen.findByRole('checkbox',{name:'Breda'}));
+   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Breda'}));
    fireEvent.change(input,{target:{value:'Tilburg'}});
-   fireEvent.click(await screen.findByRole('checkbox',{name:'Tilburg'}));
+   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Tilburg'}));
    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekPlaatsen:['Breda','Tilburg']}));
    expect(save.mock.calls[0][0]).not.toHaveProperty('zoekGemeenten');
