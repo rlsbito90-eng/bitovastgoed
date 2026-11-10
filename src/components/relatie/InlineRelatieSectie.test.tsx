@@ -6,6 +6,15 @@ import type { Relatie } from '@/data/mock-data';
 import InlineRelatieSectie from './InlineRelatieSectie';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 
+vi.mock('@/lib/bag/pdokLookup', () => ({
+  zoekPdokWoonplaatsen: vi.fn(async (zoektekst: string) =>
+    ['Breda', 'Tilburg'].filter(n => n.toLowerCase().includes(zoektekst.toLowerCase()))
+      .map((naam, index) => ({
+        id: 'plaats-' + index, woonplaats: naam, weergavenaam: naam, type: 'woonplaats',
+      }))
+  ),
+});
+
 const relatie={
   id:'test-relatie',bedrijfsnaam:'Voorbeeld BV',type:'belegger',
   partijprofiel:'fonds',commercialRoles:['koper'],vastgoedStrategieen:['value_add'],
@@ -118,11 +127,15 @@ describe('Fase 1 — gemeenten en plaatsen direct bij Relaties',()=>{
    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekGemeenten:['Oisterwijk']}));
  });
- it('slaat meerdere plaatsen als aparte selectie op',async()=>{
+ it('slaat meerdere officieel geselecteerde plaatsen als aparte keuzes op',async()=>{
    const save=vi.fn().mockResolvedValue(undefined);
    render(<InlineRelatieSectie titel="Geo" relatie={relatie} velden={geoVelden} onSave={save}/>);
    fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
-   fireEvent.change(screen.getByLabelText('Plaatsen'),{target:{value:'Breda, Tilburg'}});
+   const input=screen.getByRole('textbox',{name:'Plaatsen'});
+   fireEvent.change(input,{target:{value:'Breda'}});
+   fireEvent.click(await screen.findByRole('checkbox',{name:'Breda'}));
+   fireEvent.change(input,{target:{value:'Tilburg'}});
+   fireEvent.click(await screen.findByRole('checkbox',{name:'Tilburg'}));
    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekPlaatsen:['Breda','Tilburg']}));
  });
