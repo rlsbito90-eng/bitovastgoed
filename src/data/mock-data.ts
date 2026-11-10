@@ -1505,7 +1505,12 @@ export function getMatchesForRelatieFromData(
       // provincie krijgt de status 'te verifiëren' via berekenMatchScore.
       if (profiel === basis && (relatie?.zoekGemeenten?.length ?? 0)>0) {
         const provincies=provinciesBijGemeenten(relatie!.zoekGemeenten ?? []);
-        if(provincies.length>0 && object.provincie &&
+        const plaatsExplicietGekozen = (relatie?.zoekPlaatsen ?? []).some(
+          plaats => plaats.trim().toLocaleLowerCase('nl-NL') === (object.plaats ?? '').trim().toLocaleLowerCase('nl-NL'),
+        );
+        // Een los gekozen woonplaats blijft geldig naast gemeenten uit
+        // andere provincies; provincie is geen verplichte bovenliggende filter.
+        if(!plaatsExplicietGekozen && provincies.length>0 && object.provincie &&
           !provincies.includes(object.provincie)) continue;
       }
       // Bij alleen nieuwe taxonomie is een ontbrekend objecttype onvoldoende bewijs
