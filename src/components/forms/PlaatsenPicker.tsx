@@ -67,7 +67,10 @@ export default function PlaatsenPicker({
     gekozen.some(x => x.toLocaleLowerCase('nl-NL') === naam.toLocaleLowerCase('nl-NL'));
   const toggle = (naam: string) => {
     if (isGekozen(naam)) onChange(gekozen.filter(x => x.toLocaleLowerCase('nl-NL') !== naam.toLocaleLowerCase('nl-NL')));
-    else onChange([...gekozen, naam]);
+    else {
+      onChange([...gekozen, naam]);
+      setZoek(''); // Volgende stad direct kunnen invoeren zonder de vorige zoekterm te wissen.
+    }
   };
 
   return (
