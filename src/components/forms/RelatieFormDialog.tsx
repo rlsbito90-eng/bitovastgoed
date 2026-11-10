@@ -631,7 +631,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                 />
               </Sectie>
 
-              <Sectie titel="Gemeenten en plaatsen van interesse">
+              <Sectie titel="Gemeenten en plaatsen van interesse (provincie optioneel)">
                 <GemeentePicker provincies={form.regio ?? []}
                   gekozen={form.zoekGemeenten ?? []}
                   onChange={gemeenten=>set('zoekGemeenten',gemeenten)}/>
