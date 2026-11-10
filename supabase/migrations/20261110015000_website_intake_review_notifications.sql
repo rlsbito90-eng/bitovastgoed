@@ -86,7 +86,7 @@ begin
       'website_intake_reminder:' || i.id::text || ':' || v_day,
       'Investeringsprofiel wacht op beoordeling',
       'Er staat nog een website-investeringsprofiel in de wachtrij.',
-      'normaal','/relaties?website_inbox=1&show_processed=1&intake_id=' || i.id::text,
+      'hoog','/relaties?website_inbox=1&show_processed=1&intake_id=' || i.id::text,
       jsonb_build_object('intake_id',i.id::text)
     from public.website_investor_intakes i
     join public.notification_preferences p on p.user_id = p_user_id
