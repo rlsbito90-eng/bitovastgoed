@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Upload, Eye, AlertCircle } from 'lucide-react';
 import { vindMogelijkeRelaties, zijnDezelfdeInvoer, isGeldigeLinkedinProfielUrl } from '@/lib/relaties/relatieInvoerDubbelen';
 import { supabase } from '@/integrations/supabase/client';
+import {herkenLinkedInPartijtype} from '@/lib/relaties/linkedinPartijtype';
 
 interface Props {
   open: boolean;
@@ -239,10 +240,15 @@ export function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeade
       waarschuwingen.push('Budget min > max');
     }
 
-    // Export bevat een netwerk, niet per definitie kopers of beleggers.
-    const tr = isLinkedIn&&!typeRelatieRaw ?
-      {type:'overig' as PartijType,label:'Nog te classificeren'} :
-      mapTypeRelatie(typeRelatieRaw);
+    // Alleen een expliciete functie/bedrijfsomschrijving is voldoende om
+    // het voorlopige partijtype af te leiden, niet om koopintentie te bewijzen.
+    const herkend=isLinkedIn&&!typeRelatieRaw?
+      herkenLinkedInPartijtype(functie,bedrijf):null;
+    const tr=herkend?
+      {type:herkend.type as PartijType,label:`Voorlopig: ${herkend.type}`}:
+      isLinkedIn&&!typeRelatieRaw ?
+        {type:'overig' as PartijType,label:'Nog te classificeren'} :
+        mapTypeRelatie(typeRelatieRaw);
     if (tr.waarschuwing) waarschuwingen.push(tr.waarschuwing);
     const tk = mapTypeKoper(typeKoperRaw);
     if (tk.waarschuwing) waarschuwingen.push(tk.waarschuwing);
@@ -253,7 +259,8 @@ export function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeade
 
     const displayBedrijf = bedrijf || contact || '—';
     const metadata = [
-      isLinkedIn?'LinkedIn-connectie (niet automatisch gekwalificeerd)':null,
+      isLinkedIn?'LinkedIn-connectie; geen aankoopintentie of investeringscriteria bevestigd':null,
+      herkend?`Voorlopig partijtype: ${herkend.type} (bron: ${herkend.bron})`:null,
       functie?`Functie (bij export): ${functie}`:null,
       verbondenSinds?`Connectie sinds: ${verbondenSinds}`:null,
       typeKoperRaw?`Type koper: ${tk.label}`:null,
@@ -263,6 +270,7 @@ export function parseTekst(text: string): { rijen: ParsedRow[]; ontbrekendeHeade
       bedrijfsnaam: bedrijf || contact || '',
       contactpersoon: contact,
       type: tr.type,
+      partijprofiel:herkend?.partijprofiel,
       telefoon,
       email,
       linkedinUrl:linkedin||undefined,
@@ -449,8 +457,10 @@ export default function BulkRelatieImportDialog({ open, onOpenChange }: Props) {
                 {isLinkedIn?'LinkedIn-connectie-export herkend':'Herkende kolommen'}
               </p>
               {isLinkedIn&&<p className="mb-2 text-muted-foreground">
-                Je selecteert handmatig wie relevant is. Alle contacten krijgen eerst type
-                ‘Nog te classificeren’ en standaard leadstatus ‘Actief’.
+                Je selecteert handmatig wie relevant is. Een ondubbelzinnige functie of
+                bedrijfsomschrijving kan een voorlopig partijtype opleveren; overige contacten
+                blijven ‘Nog te classificeren’. Alle geselecteerde contacten krijgen standaard
+                leadstatus ‘Actief’, zonder onbewezen aankoopcriteria.
               </p>}
               <div className="flex flex-wrap gap-1.5">
                 {herkendeHeaders.map((h, i) => (
