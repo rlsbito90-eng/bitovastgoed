@@ -125,7 +125,11 @@ export default function AanbiedingsReactieDialog({
         <div className="space-y-1.5">
           <Label htmlFor="reactie-status">Reactie</Label>
           <select id="reactie-status" value={status}
-            onChange={e=>setStatus(e.target.value as AanbiedingsReactieStatus)}
+            onChange={e=>{
+              const gekozen=e.target.value as AanbiedingsReactieStatus;
+              setStatus(gekozen);
+              if(gekozen==='geen_reactie'){setRedenen([]);setDuiding('onbekend');}
+            }}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
             {Object.entries(REACTIE_STATUS_LABELS).map(([key,label])=>
               <option key={key} value={key}>{label}</option>)}
@@ -151,6 +155,7 @@ export default function AanbiedingsReactieDialog({
           Dit is uitsluitend een intern opvolgsignaal. De kandidaat wordt
           niet op ‘Afgevallen’ gezet en er wordt geen afwijzing aangenomen.
         </p>}
+        {status!=='geen_reactie'&&<>
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">Reden(en) (optioneel, maximaal 5)</legend>
           <div className="grid sm:grid-cols-2 gap-x-3 gap-y-1 max-h-44 overflow-y-auto rounded border p-2">
@@ -175,6 +180,7 @@ export default function AanbiedingsReactieDialog({
             Dit is jouw voorlopige duiding, geen bewezen oordeel over de koper of de prijs.
           </p>
         </div>
+        </>}
         <div className="space-y-1.5">
           <Label htmlFor="reactie-notitie">Wat zei de koper? (optioneel)</Label>
           <Textarea id="reactie-notitie" rows={3} value={notitie}
