@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import AanbiedingRegistrerenDialog from '@/components/forms/AanbiedingRegistrerenDialog';
 import AanbiedingsReactieDialog from '@/components/forms/AanbiedingsReactieDialog';
-import { laatsteReactie, REACTIE_STATUS_LABELS,REACTIE_REDEN_LABELS } from '@/lib/relaties/aanbiedingsReacties';
+import { laatsteReactie, koopsignaalVoorRelatie, REACTIE_STATUS_LABELS,REACTIE_REDEN_LABELS } from '@/lib/relaties/aanbiedingsReacties';
 import { useDataStore } from '@/hooks/useDataStore';
 import { PipelineFaseBadge, InteresseNiveauBadge } from './PipelineBadges';
 import { VOLGENDE_ACTIE_LABELS } from '@/data/mock-data';
@@ -21,6 +21,7 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
   const rijen = aanbodHistorieVoorRelatie(items,contactMoments ?? []);
   const aangeboden = rijen.filter(isAlsAangebodenGeregistreerd);
   const nogNietAangeboden = rijen.filter(r => !isAlsAangebodenGeregistreerd(r));
+  const koopsignaal=koopsignaalVoorRelatie(relatieId,contactMoments??[]);
   const [aanbiedOpen,setAanbiedOpen]=useState(false);
   const [aanbiedObjectId,setAanbiedObjectId]=useState('');
   const [reactieOpen,setReactieOpen]=useState(false);
@@ -116,6 +117,15 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
           </Button>
         </div>
       </div>
+      {koopsignaal.patronen.length>0&&<div className="border-t border-border/70 pt-3 text-xs text-muted-foreground space-y-1">
+        <p className="font-medium text-foreground">Mogelijke aanscherping zoekprofiel</p>
+        {koopsignaal.patronen.map(p=><p key={p.reden}>
+          {p.aantal} verschillende objecten zijn afgewezen met als reden
+          {' '}{p.label.toLowerCase()}. Controleer samen met de belegger
+          of dit een voorkeur of harde eis is.
+        </p>)}
+        <p>Geen automatische wijziging van het investeringsprofiel.</p>
+      </div>}
       <p className="text-xs text-muted-foreground">
         Alleen expliciet vastgelegde teasers, gedeelde informatie of de bijbehorende
         pipelinefase gelden als aangeboden. Een match of kandidaat toevoegen
