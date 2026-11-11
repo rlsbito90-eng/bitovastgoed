@@ -41,7 +41,7 @@ export default function ObjectPartijenHerkomstPanel({
   const {relaties,contactpersonen}=useDataStore();
   const [partijen,setPartijen]=useState<ObjectPartij[]>([]);
   const [aanleveringen,setAanleveringen]=useState<ObjectAanlevering[]>([]);
-  const [relatieId,setRelatieId]=useState('');
+  const [relatieId,setRelatieId]=useState(legacyVerkooprelatieId??'');
   const [rol,setRol]=useState<ObjectPartijRol>('verkoper');
   const [datum,setDatum]=useState('');
   const [kanaal,setKanaal]=useState<AanleverKanaal>('email');
@@ -61,6 +61,7 @@ export default function ObjectPartijenHerkomstPanel({
     }finally{setLaden(false);}
   },[objectId]);
   useEffect(()=>{setLaden(true);void ververs();},[ververs]);
+  useEffect(()=>{setRelatieId(legacyVerkooprelatieId??'');},[objectId,legacyVerkooprelatieId]);
 
   const relatieItems=useMemo<EntityPickerItem[]>(()=>relaties.filter(r=>!r.softDeletedAt).map(r=>{
     const n=getRelatieNamen(r,contactpersonen);
@@ -92,7 +93,8 @@ export default function ObjectPartijenHerkomstPanel({
   };
   const voegAanleveringToe=async()=>{
     if(!relatieId||!datum||opslaan)return;
-    const bestaand=aanleveringen.some(a=>a.relatieId===relatieId&&a.aangeleverdOp===datum&&a.kanaal===kanaal);
+    const bestaand=aanleveringen.some(a=>a.relatieId===relatieId&&a.aangeleverdOp===datum&&a.kanaal===kanaal&&
+      (a.toelichting??'').trim()===toelichting.trim());
     if(bestaand){toast.error('Dit aanlevermoment is al vastgelegd. Controleer de bestaande historie.');return;}
     setOpslaan(true);
     try{
@@ -232,7 +234,9 @@ export default function ObjectPartijenHerkomstPanel({
     </>}
 
     <QuickCreateRelationDialog open={quickOpen} onOpenChange={setQuickOpen}
-      context="verkoper" onCreated={r=>setRelatieId(r.id)}/>
+      context={rol==='juridisch_eigenaar'||rol==='verkoper'?'verkoper':'algemeen'}
+      defaultValues={rol==='verkopend_makelaar'?{type:'makelaar'}:undefined}
+      onCreated={r=>setRelatieId(r.id)}/>
 
     <AlertDialog open={!!teVerwijderen} onOpenChange={open=>{if(!open)setTeVerwijderen(null);}}>
       <AlertDialogContent>
