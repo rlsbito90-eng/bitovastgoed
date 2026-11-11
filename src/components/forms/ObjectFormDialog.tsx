@@ -234,8 +234,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
   const { addObject, updateObject, objecten, genereerRefnummer, relaties, contactpersonen } = useDataStore();
   const isEdit = !!object;
   const relatieItems = useMemo<EntityPickerItem[]>(() =>
-    relaties.filter(r => !r.softDeletedAt).map(r => {
-      const {primair, secundair} = getRelatieNamen(r, contactpersonen);
+    (relaties ?? []).filter(r => !r.softDeletedAt).map(r => {
+      const {primair, secundair} = getRelatieNamen(r, contactpersonen ?? []);
       return {
         id: r.id, primair, secundair,
         searchHaystack: [primair, secundair, r.bedrijfsnaam, r.contactpersoon]
@@ -244,8 +244,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
       };
     }), [relaties,contactpersonen]);
   const voormaligeRelatieItems = useMemo<EntityPickerItem[]>(() =>
-    relaties.filter(r => !!r.softDeletedAt).map(r => {
-      const {primair,secundair}=getRelatieNamen(r,contactpersonen);
+    (relaties ?? []).filter(r => !!r.softDeletedAt).map(r => {
+      const {primair,secundair}=getRelatieNamen(r,contactpersonen ?? []);
       return {id:r.id,primair,secundair,
         searchHaystack:[primair,secundair].filter(Boolean).join(' ').toLocaleLowerCase('nl-NL')};
     }),[relaties,contactpersonen]);
