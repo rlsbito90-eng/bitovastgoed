@@ -71,6 +71,8 @@ import HuurdersPanel from '@/components/object/HuurdersPanel';
 import DocumentenPanel from '@/components/object/DocumentenPanel';
 import FotosPanel from '@/components/object/FotosPanel';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
+import EntityPicker, { type EntityPickerItem } from '@/components/forms/EntityPicker';
+import { getRelatieNamen } from '@/lib/relatieNaam';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
 import { Info, Image, FileText, Users, AlertCircle, AlertTriangle, CheckCircle2, BookMarked, FileSignature, Plus, Trash2 } from 'lucide-react';
@@ -169,6 +171,7 @@ const leegForm: FormState = {
   risicos: undefined,
   onderscheidendeKenmerken: undefined,
   verkoperNaam: undefined,
+  eigenaarRelatieId: undefined,
   verkoperRol: undefined,
   verkoperVia: 'onbekend',
   verkoperTelefoon: undefined,
@@ -227,8 +230,24 @@ const ENERGIELABELS: Energielabel[] =
 
 export default function ObjectFormDialog({ open, onOpenChange, object, initialTab = 'algemeen' }: Props) {
   const navigate = useNavigate();
-  const { addObject, updateObject, objecten, genereerRefnummer } = useDataStore();
+  const { addObject, updateObject, objecten, genereerRefnummer, relaties, contactpersonen } = useDataStore();
   const isEdit = !!object;
+  const relatieItems = useMemo<EntityPickerItem[]>(() =>
+    relaties.filter(r => !r.softDeletedAt).map(r => {
+      const {primair, secundair} = getRelatieNamen(r, contactpersonen);
+      return {
+        id: r.id, primair, secundair,
+        searchHaystack: [primair, secundair, r.bedrijfsnaam, r.contactpersoon]
+          .filter(Boolean).join(' ').toLocaleLowerCase('nl-NL')
+          .normalize('NFKD').replace(/[\u0300-\u036f]/g, ''),
+      };
+    }), [relaties,contactpersonen]);
+  const voormaligeRelatieItems = useMemo<EntityPickerItem[]>(() =>
+    relaties.filter(r => !!r.softDeletedAt).map(r => {
+      const {primair,secundair}=getRelatieNamen(r,contactpersonen);
+      return {id:r.id,primair,secundair,
+        searchHaystack:[primair,secundair].filter(Boolean).join(' ').toLocaleLowerCase('nl-NL')};
+    }),[relaties,contactpersonen]);
 
   // Voor nieuw: we houden object-id bij na 1e opslag zodat media-tabs beschikbaar worden
   const [gemaaktId, setGemaaktId] = useState<string | undefined>(object?.id);
@@ -1143,10 +1162,28 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
 
             {/* TAB 6: VERKOPER */}
             <TabsContent value="contacten" className="space-y-5 mt-0">
+              <Sectie titel="Gekoppelde verkooprelatie">
+                <EntityPicker
+                  label="Verkoper / eigenaar (uit Relaties)"
+                  pickerTitle="Kies een bestaande verkoper of eigenaar"
+                  searchPlaceholder="Zoek op naam of bedrijfsnaam…"
+                  emptyLabel="Nog geen relatie gekoppeld"
+                  value={form.eigenaarRelatieId ?? ''}
+                  onChange={id=>set('eigenaarRelatieId',id || null)}
+                  items={relatieItems}
+                  archivedItems={voormaligeRelatieItems}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deze koppeling maakt de verkoopdossiers van de relatie vindbaar.
+                  Een aanbrenger of makelaar die niet de eigenaar is, hoort niet automatisch
+                  als eigenaar te worden geregistreerd.
+                </p>
+              </Sectie>
               <div className="rounded-md border border-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Deze velden zijn bedoeld als vrije tekst/fallback. De gekoppelde relatie blijft leidend waar beschikbaar.
+                Vrije contactgegevens blijven beschikbaar voor dossiers zonder gekoppelde relatie.
+                Ze worden niet automatisch omgezet naar bestaande relaties.
               </div>
-              <Sectie titel="Verkoper / eigenaar / aanbieder">
+              <Sectie titel="Aanvullende gegevens verkoper / eigenaar">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Naam">
                     <Input value={form.verkoperNaam ?? ''}
