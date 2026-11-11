@@ -14,8 +14,10 @@ import {
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
+import AanbiedingsReactieDialog from '@/components/forms/AanbiedingsReactieDialog';
+import { laatsteGestructureerdeAfwijzing, formatteerAfwijsredenen } from '@/lib/relaties/aanbiedingsReacties';
 import { getLaatsteContactDatum } from '@/lib/relatieContact';
-import { MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus, MessageSquareText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useBiedingen } from '@/hooks/useBiedingen';
 import { fmtEur } from '@/lib/biedingen/format';
@@ -33,6 +35,10 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
   const [form, setForm] = useState<PipelineKandidaat>(kandidaat);
   const [saving, setSaving] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [afwijzingOpen,setAfwijzingOpen]=useState(false);
+  const laatsteAfwijzing=laatsteGestructureerdeAfwijzing(
+    kandidaat.relatieId,kandidaat.objectId,contactMoments??[],
+  );
 
   useEffect(() => { if (open) setForm(kandidaat); }, [open, kandidaat]);
 
@@ -55,7 +61,7 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
     setSaving(true);
     try {
       const OPTIONAL_NULLABLE_KEYS: (keyof PipelineKandidaat)[] = [
-        'redenAfgevallen', 'notities',
+        'notities',
         'teaserVerstuurdOp', 'ndaVerstuurdOp', 'ndaGetekendOp', 'informatieGedeeldOp',
         'bezichtigingDatum',
         'laatsteContactdatum', 'volgendeActie', 'volgendeActieOmschrijving', 'volgendeActieDatum',
@@ -67,6 +73,15 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
       delete patch.biedingVoorwaarden;
       delete patch.financieringsvoorbehoud;
       delete patch.gewensteLevering;
+      // De vrije tekst is alleen nog historische weergave. Nieuwe afwijzingen
+      // krijgen hun gecodeerde bron in contact_moments. Voorkom overschrijven
+      // door een oud en eventueel gelijktijdig geopend kandidaatformulier.
+      delete patch.redenAfgevallen;
+      if (patch.pipelineFase === 'afgevallen' && kandidaat.pipelineFase !== 'afgevallen') {
+        setAfwijzingOpen(true);
+        setSaving(false);
+        return;
+      }
       for (const k of OPTIONAL_NULLABLE_KEYS) {
         if (patch[k] === undefined || patch[k] === '') patch[k] = null;
       }
@@ -105,7 +120,10 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
                   onChange={e => set('pipelineFase', e.target.value as PipelineFase)}
                 >
                   {PIPELINE_FASES.map(f => (
-                    <option key={f.key} value={f.key}>{f.label}</option>
+                    <option key={f.key} value={f.key}
+                      disabled={f.key==='afgevallen' && kandidaat.pipelineFase!=='afgevallen'}>
+                      {f.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -122,12 +140,31 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
                 </select>
               </div>
             </div>
-            {form.pipelineFase === 'afgevallen' && (
-              <div>
-                <Label>Reden afgevallen</Label>
-                <Textarea rows={2} value={form.redenAfgevallen ?? ''} onChange={e => set('redenAfgevallen', e.target.value)} />
-              </div>
-            )}
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+              <div className="text-sm font-medium">Afwijzingsreden</div>
+              {laatsteAfwijzing?.aanbiedingReactie
+                ? <p className="text-sm">
+                    {formatteerAfwijsredenen(laatsteAfwijzing.aanbiedingReactie)}
+                  </p>
+                : form.redenAfgevallen?.trim()
+                  ? <p className="text-sm whitespace-pre-wrap">
+                      <span className="text-muted-foreground">Historische notitie (nog niet gecategoriseerd): </span>
+                      {form.redenAfgevallen}
+                    </p>
+                  : <p className="text-xs text-muted-foreground">
+                      Nog geen gestructureerde afwijsreden geregistreerd.
+                    </p>}
+              <p className="text-xs text-muted-foreground">
+                Nieuwe afwijzingen registreer je met vaste categorieën.
+                Kies alleen ‘Andere reden’ als de bestaande categorieën niet passen.
+                Oude vrije tekst blijft voor de historie behouden.
+              </p>
+              <Button type="button" variant="outline" size="sm"
+                onClick={()=>setAfwijzingOpen(true)}>
+                <MessageSquareText className="h-4 w-4 mr-1.5"/>
+                Afwijzing registreren
+              </Button>
+            </div>
             <div>
               <Label>Notities</Label>
               <Textarea rows={3} value={form.notities ?? ''} onChange={e => set('notities', e.target.value)} />
@@ -251,6 +288,12 @@ export default function PipelineKandidaatDialog({ open, onOpenChange, kandidaat 
         </DialogFooter>
       </DialogContent>
 
+      <AanbiedingsReactieDialog
+        open={afwijzingOpen} onOpenChange={setAfwijzingOpen}
+        defaultStatus="afgewezen"
+        defaultObjectId={kandidaat.objectId}
+        defaultRelatieId={kandidaat.relatieId}
+      />
       <ContactMomentFormDialog
         open={logOpen}
         onOpenChange={setLogOpen}

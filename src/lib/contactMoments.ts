@@ -2,6 +2,7 @@
 // Centrale types, labels, helpers en logger voor de Contactmomenten / Tijdlijn module.
 
 import { supabase } from '@/integrations/supabase/client';
+import type { AanbiedingReactieDetails } from '@/lib/relaties/aanbiedingsReacties';
 import {
   Phone, Mail, MessageCircle, Linkedin, CalendarCheck, Eye, StickyNote,
   FileText, Send, FileSignature, FileInput, Share2,
@@ -29,6 +30,8 @@ export interface ContactMoment {
   title: string;
   description?: string;
   outcome?: string;
+  /** Gestructureerde reactie op een concreet objectaanbod, niet hetzelfde als uitgaande aanbiedingsregistratie. */
+  aanbiedingReactie?: AanbiedingReactieDetails;
   followUpRequired: boolean;
   followUpDate?: string;
   relatieId?: string;
@@ -130,6 +133,7 @@ export const contactMomentFromDb = (r: any): ContactMoment => ({
   title: r.title ?? '',
   description: r.description ?? undefined,
   outcome: r.outcome ?? undefined,
+  aanbiedingReactie: r.aanbieding_reactie ?? undefined,
   followUpRequired: !!r.follow_up_required,
   followUpDate: r.follow_up_date ?? undefined,
   relatieId: r.relatie_id ?? undefined,
@@ -154,6 +158,7 @@ export const contactMomentToDb = (c: Partial<ContactMoment>) => {
   if (c.title !== undefined) out.title = c.title;
   if (c.description !== undefined) out.description = c.description || null;
   if (c.outcome !== undefined) out.outcome = c.outcome || null;
+  if (c.aanbiedingReactie !== undefined) out.aanbieding_reactie = c.aanbiedingReactie || null;
   if (c.followUpRequired !== undefined) out.follow_up_required = c.followUpRequired;
   if (c.followUpDate !== undefined) out.follow_up_date = c.followUpDate || null;
   if (c.relatieId !== undefined) out.relatie_id = c.relatieId || null;
