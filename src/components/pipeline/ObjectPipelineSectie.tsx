@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Pencil, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Pencil, ExternalLink, Send } from 'lucide-react';
 import { PipelineFaseBadge, InteresseNiveauBadge } from './PipelineBadges';
 import PipelineKandidaatDialog from './PipelineKandidaatDialog';
 import KandidaatSelectieDialog from './KandidaatSelectieDialog';
+import AanbiedingRegistrerenDialog from '@/components/forms/AanbiedingRegistrerenDialog';
 import { VOLGENDE_ACTIE_LABELS, type PipelineKandidaat } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
@@ -25,6 +26,12 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
   const kandidaten = getPipelineVoorObject(objectId);
   const [adding, setAdding] = useState(false);
   const [bewerken, setBewerken] = useState<PipelineKandidaat | null>(null);
+  const [aanbiedOpen,setAanbiedOpen]=useState(false);
+  const [aanbiedRelatieId,setAanbiedRelatieId]=useState('');
+  const openAanbieding=(relatieId='')=>{
+    setAanbiedRelatieId(relatieId);
+    setAanbiedOpen(true);
+  };
 
   const reedsGekoppeld = useMemo(
     () => new Set(kandidaten.map(k => k.relatieId)),
@@ -50,9 +57,14 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
             {kandidaten.length === 0 ? 'Nog geen kandidaten in de pipeline.' : `${kandidaten.length} kandida${kandidaten.length === 1 ? 'at' : 'ten'} in pipeline`}
           </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} disabled={relaties.length === reedsGekoppeld.size}>
-          <Plus className="h-4 w-4 mr-1" /> Kandidaat toevoegen
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={()=>openAanbieding()}>
+            <Send className="h-4 w-4 mr-1"/> Aanbieding registreren
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} disabled={relaties.length === reedsGekoppeld.size}>
+            <Plus className="h-4 w-4 mr-1" /> Kandidaat toevoegen
+          </Button>
+        </div>
       </div>
 
       <KandidaatSelectieDialog
@@ -81,6 +93,12 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <button type="button"
+                        onClick={(e)=>{e.stopPropagation();openAanbieding(k.relatieId);}}
+                        className="p-2 text-muted-foreground hover:text-primary rounded-md transition-colors"
+                        aria-label="Aanbieding registreren" title="Aanbieding registreren">
+                        <Send className="h-4 w-4"/>
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setBewerken(k); }}
@@ -169,6 +187,11 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                       </td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">{fmtDatum(k.laatsteContactdatum)}</td>
                       <td className="py-2 px-2 text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" onClick={()=>openAanbieding(k.relatieId)}
+                          title="Aanbieding registreren" aria-label="Aanbieding registreren"
+                          className="h-8 w-8 p-0">
+                          <Send className="h-3.5 w-3.5"/>
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => setBewerken(k)} className="h-8 w-8 p-0">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -185,6 +208,8 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
         </>
       )}
 
+      <AanbiedingRegistrerenDialog open={aanbiedOpen} onOpenChange={setAanbiedOpen}
+        defaultObjectId={objectId} defaultRelatieId={aanbiedRelatieId}/>
       {bewerken && (
         <PipelineKandidaatDialog
           open={!!bewerken}
