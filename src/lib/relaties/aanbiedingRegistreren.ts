@@ -82,6 +82,7 @@ export function heeftZelfdeAanbieding(
 ): boolean {
   return momenten.some(m => m.relatieId === invoer.relatieId &&
     m.objectId === invoer.objectId &&
+    m.direction === 'uitgaand' &&
     m.type === momentType(invoer.soort) && m.momentDate === invoer.datum);
 }
 
