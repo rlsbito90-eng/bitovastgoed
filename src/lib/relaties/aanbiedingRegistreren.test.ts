@@ -27,9 +27,9 @@ const contact=(extra:Partial<ContactMoment>={}):ContactMoment=>({
 });
 const callbacks=(extra:any={})=>({
   bestaandeMomenten:[] as ContactMoment[],
-  voegKandidaatToe:vi.fn(async()=>kandidaat()),
-  werkKandidaatBij:vi.fn(async()=>undefined),
-  voegMomentToe:vi.fn(async()=>contact()),
+  voegKandidaatToe:vi.fn(async (_k: Omit<PipelineKandidaat, 'id' | 'createdAt' | 'updatedAt'>)=>kandidaat()),
+  werkKandidaatBij:vi.fn(async (_id:string,_patch:Partial<PipelineKandidaat>)=>undefined),
+  voegMomentToe:vi.fn(async (_m: Omit<ContactMoment,'id'|'createdAt'|'updatedAt'|'isSystem'>)=>contact()),
   ...extra,
 });
 
