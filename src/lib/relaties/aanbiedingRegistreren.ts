@@ -60,7 +60,7 @@ export function controleerAanbieding(invoer: AanbiedingInvoer): string | null {
   if (!invoer.objectId || !invoer.relatieId)
     return 'Kies een object en een relatie.';
   if (!invoer.objectTitel.trim()) return 'Het object heeft geen naam.';
-  if (!Object.hasOwn(AANBIED_KANALEN, invoer.kanaal))
+  if (!Object.prototype.hasOwnProperty.call(AANBIED_KANALEN, invoer.kanaal))
     return 'Selecteer een geldig contactkanaal.';
   if (invoer.soort !== 'teaser' && invoer.soort !== 'informatie')
     return 'Selecteer wat je daadwerkelijk hebt gedeeld.';
