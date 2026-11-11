@@ -20,6 +20,12 @@ begin
           )
           and aanbieding_reactie->>'duiding' in ('koper','object','onbekend')
           and jsonb_typeof(aanbieding_reactie->'redenen')='array'
+          and jsonb_array_length(aanbieding_reactie->'redenen') <= 5
+          -- Alleen erkende codes, zodat dashboards één stabiele taxonomie gebruiken.
+          and (aanbieding_reactie->'redenen') <@
+            '["prijs","rendement","locatie","vastgoedtype","oppervlakte",
+               "verhuur","onderhoud","financiering","vergunningen","risico",
+               "timing","documentatie","voorwaarden","anders"]'::jsonb
           -- Een afwijzing moet altijd een categorie hebben voor latere analyse.
           and (aanbieding_reactie->>'status'<>'afgewezen'
             or jsonb_array_length(aanbieding_reactie->'redenen')>0)
@@ -30,6 +36,11 @@ begin
             or (
               jsonb_typeof(aanbieding_reactie->'andereReden')='string'
               and length(btrim(aanbieding_reactie->>'andereReden')) between 1 and 500
+            ))
+          and (aanbieding_reactie->>'status'<>'geen_reactie'
+            or (
+              jsonb_array_length(aanbieding_reactie->'redenen')=0
+              and aanbieding_reactie->>'duiding'='onbekend'
             ))
           and (aanbieding_reactie->>'kanaal') in (
             'email','whatsapp','telefoon','linkedin','persoonlijk','anders'
