@@ -213,6 +213,39 @@ export function marktsignaalVoorObject(
     patronen};
 }
 
+/** Suggesties over een koper zijn alleen terugkerende, werkelijk vastgelegde
+ * antwoorden op verschillende objecten. Het CRM wijzigt het zoekprofiel nooit zelf.
+ */
+export function koopsignaalVoorRelatie(
+  relatieId:string,momenten:readonly ContactMoment[],
+){
+  const laatstePerObject=new Map<string,ContactMoment>();
+  for(const m of momenten.filter(m=>m.relatieId===relatieId && m.objectId &&
+    m.aanbiedingReactie?.versie==='1' && m.aanbiedingReactie.status!=='geen_reactie')){
+    const old=laatstePerObject.get(m.objectId!);
+    if(!old || m.momentDate>old.momentDate ||
+      (m.momentDate===old.momentDate && m.createdAt>old.createdAt)){
+      laatstePerObject.set(m.objectId!,m);
+    }
+  }
+  const reacties=[...laatstePerObject.values()];
+  const redenen={} as Partial<Record<ReactieReden,number>>;
+  for(const m of reacties.filter(x=>x.aanbiedingReactie?.status==='afgewezen')){
+    for(const reden of m.aanbiedingReactie?.redenen??[]){
+      redenen[reden]=(redenen[reden]??0)+1;
+    }
+  }
+  const patronen=Object.entries(redenen)
+    .filter(([,aantal])=>aantal>=3 && reacties.length>=3)
+    .map(([reden,aantal])=>({
+      reden:reden as ReactieReden,
+      aantal,reacties:reacties.length,
+      label:REACTIE_REDEN_LABELS[reden as ReactieReden],
+    }))
+    .sort((a,b)=>b.aantal-a.aantal);
+  return {reacties:reacties.length,patronen};
+}
+
 export async function registreerAanbiedingsReactie(
   input:ReactieInvoer,opslag:ReactieOpslag,vandaag:string,
 ):Promise<void>{
