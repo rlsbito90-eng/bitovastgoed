@@ -23,19 +23,21 @@ interface Props {
   onOpenChange:(open:boolean)=>void;
   defaultObjectId?:string;
   defaultRelatieId?:string;
+  defaultStatus?:AanbiedingsReactieStatus;
 }
 const norm=(s:string)=>s.toLocaleLowerCase('nl-NL').normalize('NFKD').replace(/[\u0300-\u036f]/g,'');
 
 export default function AanbiedingsReactieDialog({
-  open,onOpenChange,defaultObjectId,defaultRelatieId,
+  open,onOpenChange,defaultObjectId,defaultRelatieId,defaultStatus='informatie_gevraagd',
 }:Props){
   const store=useDataStore();
   const [objectId,setObjectId]=useState(defaultObjectId??'');
   const [relatieId,setRelatieId]=useState(defaultRelatieId??'');
-  const [status,setStatus]=useState<AanbiedingsReactieStatus>('informatie_gevraagd');
+  const [status,setStatus]=useState<AanbiedingsReactieStatus>(defaultStatus);
   const [kanaal,setKanaal]=useState<AanbiedKanaal>('email');
   const [datum,setDatum]=useState(datumVandaagNL);
   const [redenen,setRedenen]=useState<ReactieReden[]>([]);
+  const [andereReden,setAndereReden]=useState('');
   const [duiding,setDuiding]=useState<ReactieDuiding>('onbekend');
   const [notitie,setNotitie]=useState('');
   const [bezig,setBezig]=useState(false);
@@ -43,9 +45,9 @@ export default function AanbiedingsReactieDialog({
   useEffect(()=>{
     if(!open)return;
     setObjectId(defaultObjectId??'');setRelatieId(defaultRelatieId??'');
-    setStatus('informatie_gevraagd');setKanaal('email');setDatum(datumVandaagNL());
-    setRedenen([]);setDuiding('onbekend');setNotitie('');
-  },[open,defaultObjectId,defaultRelatieId]);
+    setStatus(defaultStatus);setKanaal('email');setDatum(datumVandaagNL());
+    setRedenen([]);setAndereReden('');setDuiding('onbekend');setNotitie('');
+  },[open,defaultObjectId,defaultRelatieId,defaultStatus]);
 
   const relatieItems=useMemo<EntityPickerItem[]>(()=> (store.relaties??[])
     .filter(r=>!r.softDeletedAt).map(r=>{
@@ -67,7 +69,7 @@ export default function AanbiedingsReactieDialog({
     : undefined;
   const invoer:ReactieInvoer={
     objectId,relatieId,objectTitel:object?.titel??'',status,kanaal,
-    datum,redenen,duiding,notitie,
+    datum,redenen,andereReden:redenen.includes('anders')?andereReden:undefined,duiding,notitie,
   };
   const kanGeenReactie=!!kandidaat &&
     (kandidaat.teaserVerstuurd || kandidaat.informatieGedeeld ||
@@ -81,6 +83,7 @@ export default function AanbiedingsReactieDialog({
     setRedenen(prev=>gekozen
       ?prev.includes(reden)?prev:prev.length>=5?prev:[...prev,reden]
       :prev.filter(r=>r!==reden));
+    if(reden==='anders'&&!gekozen)setAndereReden('');
   };
   const slaOp=async()=>{
     if(bezig)return;
@@ -128,7 +131,7 @@ export default function AanbiedingsReactieDialog({
             onChange={e=>{
               const gekozen=e.target.value as AanbiedingsReactieStatus;
               setStatus(gekozen);
-              if(gekozen==='geen_reactie'){setRedenen([]);setDuiding('onbekend');}
+              if(gekozen==='geen_reactie'){setRedenen([]);setAndereReden('');setDuiding('onbekend');}
             }}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
             {Object.entries(REACTIE_STATUS_LABELS).map(([key,label])=>
@@ -157,7 +160,13 @@ export default function AanbiedingsReactieDialog({
         </p>}
         {status!=='geen_reactie'&&<>
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Reden(en) (optioneel, maximaal 5)</legend>
+          <legend className="text-sm font-medium">
+            Redencategorieën {status==='afgewezen'?'(minimaal één)':'(optioneel)'} · maximaal 5
+          </legend>
+          <p className="text-xs text-muted-foreground mb-2">
+            Kies bij voorkeur een bestaande categorie. ‘Andere reden’ is bedoeld
+            voor uitzonderingen en blijft apart herkenbaar in rapportages.
+          </p>
           <div className="grid sm:grid-cols-2 gap-x-3 gap-y-1 max-h-44 overflow-y-auto rounded border p-2">
             {(Object.entries(REACTIE_REDEN_LABELS) as Array<[ReactieReden,string]>).map(([key,label])=>
               <label key={key} className="flex items-start gap-2 text-xs cursor-pointer py-1.5">
@@ -167,6 +176,17 @@ export default function AanbiedingsReactieDialog({
                 <span>{label}</span>
               </label>)}
           </div>
+          {redenen.includes('anders')&&<div className="mt-3 space-y-1.5">
+            <Label htmlFor="reactie-andere-reden">Welke andere reden? (verplicht)</Label>
+            <Textarea id="reactie-andere-reden" value={andereReden}
+              maxLength={500} rows={2}
+              onChange={e=>setAndereReden(e.target.value)}
+              placeholder="Omschrijf kort wat niet onder de bestaande categorieën valt."/>
+            <p className="text-xs text-muted-foreground">
+              Deze toelichting blijft gekoppeld aan ‘Andere reden’ en wordt
+              niet als aparte automatische categorie geteld.
+            </p>
+          </div>}
         </fieldset>
         <div className="space-y-1.5">
           <Label htmlFor="reactie-duiding">Waar lijkt het vooral aan te liggen?</Label>
