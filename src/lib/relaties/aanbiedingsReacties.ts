@@ -233,13 +233,16 @@ export function marktsignaalVoorObject(
       redenTellingen[r]=(redenTellingen[r]??0)+1;
   }
   const patronen=Object.entries(redenTellingen)
-    .filter(([,aantal])=>aantal>=3 && reacties.length>=3)
+    // Verschillende vrije omschrijvingen onder 'anders' vormen samen
+    // geen bewezen inhoudelijk patroon; wel een aparte dashboardbucket.
+    .filter(([reden,aantal])=>reden!=='anders' && aantal>=3 && reacties.length>=3)
     .map(([reden,aantal])=>({
       reden:reden as ReactieReden,aantal,reacties:reacties.length,
       label:REACTIE_REDEN_LABELS[reden as ReactieReden],
     }))
     .sort((a,b)=>b.aantal-a.aantal);
   return {reacties:reacties.length,
+    andersAantal:redenTellingen.anders??0,
     zonderReactie:openZonderReactie.size,
     afwijzingen:reacties.filter(m=>m.aanbiedingReactie?.status==='afgewezen').length,
     patronen};
@@ -268,14 +271,16 @@ export function koopsignaalVoorRelatie(
     }
   }
   const patronen=Object.entries(redenen)
-    .filter(([,aantal])=>aantal>=3 && reacties.length>=3)
+    // Verschillende vrije omschrijvingen onder 'anders' vormen samen
+    // geen bewezen inhoudelijk patroon; wel een aparte dashboardbucket.
+    .filter(([reden,aantal])=>reden!=='anders' && aantal>=3 && reacties.length>=3)
     .map(([reden,aantal])=>({
       reden:reden as ReactieReden,
       aantal,reacties:reacties.length,
       label:REACTIE_REDEN_LABELS[reden as ReactieReden],
     }))
     .sort((a,b)=>b.aantal-a.aantal);
-  return {reacties:reacties.length,patronen};
+  return {reacties:reacties.length,andersAantal:redenen.anders??0,patronen};
 }
 
 export async function registreerAanbiedingsReactie(
