@@ -166,7 +166,7 @@ export function QuickCreateRelationDialog({
   // secundaire contactpersonen, niet uitsluitend de legacy Relaties-velden.
   const duplicates = useMemo(() => vindMogelijkeRelaties({
     bedrijfsnaam, contactpersoon:naam, email,telefoon,linkedinUrl,
-  },relaties,contactpersonen ?? []).slice(0,5),[
+  },relaties ?? [],contactpersonen ?? []).slice(0,5),[
     bedrijfsnaam,naam,email,telefoon,linkedinUrl,relaties,contactpersonen,
   ]);
 
