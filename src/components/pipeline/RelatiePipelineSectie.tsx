@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import AanbiedingRegistrerenDialog from '@/components/forms/AanbiedingRegistrerenDialog';
 import { useDataStore } from '@/hooks/useDataStore';
 import { PipelineFaseBadge, InteresseNiveauBadge } from './PipelineBadges';
 import { VOLGENDE_ACTIE_LABELS } from '@/data/mock-data';
 import { aanbodHistorieVoorRelatie,isAlsAangebodenGeregistreerd,type AanbiedingHistorieRij } from '@/lib/relaties/aanbiedingsHistorie';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { Building2 } from 'lucide-react';
+import { Building2, Send } from 'lucide-react';
 
 const fmtDatum = (d?: string) =>
   d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
@@ -16,6 +19,12 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
   const rijen = aanbodHistorieVoorRelatie(items,contactMoments ?? []);
   const aangeboden = rijen.filter(isAlsAangebodenGeregistreerd);
   const nogNietAangeboden = rijen.filter(r => !isAlsAangebodenGeregistreerd(r));
+  const [aanbiedOpen,setAanbiedOpen]=useState(false);
+  const [aanbiedObjectId,setAanbiedObjectId]=useState('');
+  const openAanbieding=(objectId='')=>{
+    setAanbiedObjectId(objectId);
+    setAanbiedOpen(true);
+  };
 
   const toonRij = (rij: AanbiedingHistorieRij) => {
     const k=rij.kandidaat;
@@ -59,16 +68,26 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
       {k.redenAfgevallen && <p className="mt-1 ml-6 text-xs text-muted-foreground">
         <strong className="text-foreground/80">Reden afgevallen:</strong> {k.redenAfgevallen}
       </p>}
+      <div className="mt-2 ml-6">
+        <Button variant="outline" size="sm" onClick={()=>openAanbieding(k.objectId)}>
+          <Send className="h-3.5 w-3.5 mr-1.5"/> Aanbieding registreren
+        </Button>
+      </div>
     </li>;
   };
 
   return (
     <section className="section-card p-5 sm:p-6 space-y-4">
-      <div>
-        <h2 className="section-title">Aanbiedingshistorie en kandidaten</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {aangeboden.length} als aangeboden geregistreerd · {nogNietAangeboden.length} gekoppeld zonder geregistreerde aanbieding
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="section-title">Aanbiedingshistorie en kandidaten</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {aangeboden.length} als aangeboden geregistreerd · {nogNietAangeboden.length} gekoppeld zonder geregistreerde aanbieding
+          </p>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={()=>openAanbieding()}>
+          <Send className="h-4 w-4 mr-1.5"/> Aanbieding registreren
+        </Button>
       </div>
       <p className="text-xs text-muted-foreground">
         Alleen expliciet vastgelegde teasers, gedeelde informatie of de bijbehorende
@@ -95,6 +114,10 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
         </p>
         <ul className="divide-y divide-border/70 -mx-2">{nogNietAangeboden.map(toonRij)}</ul>
       </div>}
+      <AanbiedingRegistrerenDialog open={aanbiedOpen}
+        onOpenChange={setAanbiedOpen}
+        defaultRelatieId={relatieId}
+        defaultObjectId={aanbiedObjectId}/>
     </section>
   );
 }
