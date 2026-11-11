@@ -59,6 +59,7 @@ import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenActieBadge';
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
+import ObjectPartijenHerkomstPanel from '@/components/object/ObjectPartijenHerkomstPanel';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
 import FocusPointDialog from '@/components/object/FocusPointDialog';
@@ -1952,6 +1953,14 @@ export default function ObjectDetailPage() {
               </SectionAnchor>
             );
           })()}
+
+          {/* Nieuwe onafhankelijke relatie-rollen en werkelijke aanleverhistorie */}
+          {activeTab === 'meer' && (
+            <ObjectPartijenHerkomstPanel
+              objectId={object.id}
+              legacyVerkooprelatieId={object.eigenaarRelatieId}
+            />
+          )}
 
           {/* ============ EIGENDOM & RELATIES (conditioneel) ============ */}
           {activeTab === 'meer' && hasContactenData(object) && (
