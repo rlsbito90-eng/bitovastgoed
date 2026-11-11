@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import AanbiedingRegistrerenDialog from '@/components/forms/AanbiedingRegistrerenDialog';
 import AanbiedingsReactieDialog from '@/components/forms/AanbiedingsReactieDialog';
-import { laatsteReactie, koopsignaalVoorRelatie, REACTIE_STATUS_LABELS,REACTIE_REDEN_LABELS } from '@/lib/relaties/aanbiedingsReacties';
+import { laatsteReactie, laatsteGestructureerdeAfwijzing, formatteerAfwijsredenen, koopsignaalVoorRelatie, REACTIE_STATUS_LABELS } from '@/lib/relaties/aanbiedingsReacties';
 import { useDataStore } from '@/hooks/useDataStore';
 import { PipelineFaseBadge, InteresseNiveauBadge } from './PipelineBadges';
 import { VOLGENDE_ACTIE_LABELS } from '@/data/mock-data';
@@ -37,6 +37,8 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
   const toonRij = (rij: AanbiedingHistorieRij) => {
     const k=rij.kandidaat;
     const obj=getObjectById(k.objectId);
+    const laatste=laatsteReactie(relatieId,k.objectId,contactMoments??[]);
+    const laatsteAfwijzing=laatsteGestructureerdeAfwijzing(relatieId,k.objectId,contactMoments??[]);
     return <li key={k.id} className="px-2 py-3">
       <div className="flex items-start justify-between gap-3">
         <Link to={'/objecten/'+k.objectId} className="flex-1 min-w-0 group">
@@ -73,21 +75,19 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
           (m.soort === 'teaser' ? 'Teaser ' : 'Informatie ')+fmtDatum(m.datum)
         )).join(' · ')}
       </p>}
-      {laatsteReactie(relatieId,k.objectId,contactMoments??[])&&
+      {laatste?.aanbiedingReactie&&
         <p className="mt-1 ml-6 text-xs text-muted-foreground">
           <strong className="text-foreground/80">Laatste reactie: </strong>
-          {REACTIE_STATUS_LABELS[
-            laatsteReactie(relatieId,k.objectId,contactMoments??[])!.aanbiedingReactie!.status
-          ]}
-          {laatsteReactie(relatieId,k.objectId,contactMoments??[])!.aanbiedingReactie!.redenen.length>0
-            ?' · '+laatsteReactie(relatieId,k.objectId,contactMoments??[])!.aanbiedingReactie!.redenen.map(
-              r=>REACTIE_REDEN_LABELS[r],
-            ).join(', ')
+          {REACTIE_STATUS_LABELS[laatste.aanbiedingReactie.status]}
+          {laatste.aanbiedingReactie.redenen.length>0
+            ?' · '+formatteerAfwijsredenen(laatste.aanbiedingReactie)
             :''}
         </p>}
-      {k.redenAfgevallen && <p className="mt-1 ml-6 text-xs text-muted-foreground">
-        <strong className="text-foreground/80">Reden afgevallen:</strong> {k.redenAfgevallen}
-      </p>}
+      {!laatsteAfwijzing && k.redenAfgevallen&&
+        <p className="mt-1 ml-6 text-xs text-muted-foreground">
+          <strong className="text-foreground/80">Historische afwijsnotitie: </strong>
+          {k.redenAfgevallen}
+        </p>}
       <div className="mt-2 ml-6 flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={()=>openReactie(k.objectId)}>
           <MessageSquareText className="h-3.5 w-3.5 mr-1.5"/> Reactie registreren
