@@ -39,6 +39,8 @@ export interface AanbiedingReactieDetails {
   versie:'1';
   status:AanbiedingsReactieStatus;
   redenen:ReactieReden[];
+  /** Alleen bij categorie anders, afzonderlijk van de gecodeerde reden. */
+  andereReden?:string;
   duiding:ReactieDuiding;
   kanaal:AanbiedKanaal;
 }
@@ -65,6 +67,26 @@ export class ReactiePipelineNietBijgewerkt extends Error {
   }
 }
 
+/** De gecodeerde categorie blijft leidend voor tellingen.
+ * Vrije tekst is uitsluitend nuance bij categorie 'Anders'.
+ */
+export function formatteerAfwijsredenen(
+  reactie: Pick<AanbiedingReactieDetails,'redenen'|'andereReden'>,
+):string {
+  return reactie.redenen.map(reden=>reden==='anders' && reactie.andereReden?.trim()
+    ? 'Andere reden: '+reactie.andereReden.trim()
+    : REACTIE_REDEN_LABELS[reden]).join(', ');
+}
+
+export function laatsteGestructureerdeAfwijzing(
+  relatieId:string,objectId:string,momenten:readonly ContactMoment[],
+):ContactMoment|undefined{
+  return momenten.filter(m=>m.relatieId===relatieId && m.objectId===objectId &&
+    m.aanbiedingReactie?.versie==='1' && m.aanbiedingReactie.status==='afgewezen')
+    .sort((a,b)=>b.momentDate.localeCompare(a.momentDate) ||
+      b.createdAt.localeCompare(a.createdAt))[0];
+}
+
 const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s) &&
   !Number.isNaN(Date.parse(s+'T12:00:00')) &&
   new Date(s+'T12:00:00').toISOString().slice(0,10)===s;
@@ -83,7 +105,16 @@ export function controleerReactie(invoer:ReactieInvoer,vandaag:string):string|nu
   if(invoer.redenen.length>5 || new Set(invoer.redenen).size!==invoer.redenen.length ||
       invoer.redenen.some(r=>!Object.prototype.hasOwnProperty.call(REACTIE_REDEN_LABELS,r)))
     return 'Kies maximaal vijf verschillende geldige redenen.';
-  if(invoer.status==='geen_reactie' && (invoer.redenen.length>0 || invoer.duiding!=='onbekend'))
+  if(invoer.status==='afgewezen' && invoer.redenen.length===0)
+    return 'Kies minimaal één redencategorie bij een afwijzing.';
+  if(invoer.redenen.includes('anders') && !invoer.andereReden?.trim())
+    return 'Beschrijf de andere reden kort, zodat deze later onderzocht kan worden.';
+  if((invoer.andereReden?.length??0)>500)
+    return 'Een andere reden mag maximaal 500 tekens bevatten.';
+  if(!invoer.redenen.includes('anders') && invoer.andereReden?.trim())
+    return 'Selecteer Anders om een andere reden vast te leggen.';
+  if(invoer.status==='geen_reactie' &&
+     (invoer.redenen.length>0 || invoer.duiding!=='onbekend' || !!invoer.andereReden?.trim()))
     return 'Zonder reactie is er nog geen reden of oorzaak vastgesteld.';
   return null;
 }
@@ -96,7 +127,7 @@ export function maakReactieMoment(input:ReactieInvoer):NieuwMoment{
   const beschrijving=[
     'Reactie op aanbieding:',
     REACTIE_STATUS_LABELS[input.status],
-    input.redenen.length?'Redenen: '+input.redenen.map(r=>REACTIE_REDEN_LABELS[r]).join(', '):'',
+    input.redenen.length?'Redenen: '+formatteerAfwijsredenen(input):'',
     'Duiding: '+REACTIE_DUIDING_LABELS[input.duiding],
     input.notitie?.trim()??'',
   ].filter(Boolean).join('\n');
@@ -112,6 +143,7 @@ export function maakReactieMoment(input:ReactieInvoer):NieuwMoment{
     followUpRequired:false,
     aanbiedingReactie:{
       versie:'1',status:input.status,redenen:input.redenen,
+      ...(input.redenen.includes('anders')?{andereReden:input.andereReden?.trim()}:{}),
       duiding:input.duiding,kanaal:input.kanaal,
     },
   };
@@ -154,7 +186,7 @@ export function reactiePipelinePatch(
     patch.pipelineFase='afgevallen';
     patch.interesseNiveau='koud';
     if(!kandidaat.redenAfgevallen?.trim()){
-      const reden=input.redenen.map(r=>REACTIE_REDEN_LABELS[r]).join(', ');
+      const reden=formatteerAfwijsredenen(input);
       if(reden)patch.redenAfgevallen=reden;
     }
   }else if(input.status==='informatie_gevraagd'){
