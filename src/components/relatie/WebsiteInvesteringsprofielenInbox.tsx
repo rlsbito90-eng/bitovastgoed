@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { RefreshCw, ChevronDown, ChevronUp, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,6 +35,8 @@ const cijfers=(s:string|null|undefined)=>(s??'').replace(/\D/g,'').slice(-9);
 
 export default function WebsiteInvesteringsprofielenInbox() {
   const store=useDataStore();
+  const location=useLocation();
+  const focusIntakeId=new URLSearchParams(location.search).get('intake_id');
   const {propertyTypes}=usePropertyTaxonomie();
   const [expanded,setExpanded]=useState(false);
   const [showProcessed,setShowProcessed]=useState(false);
@@ -61,6 +63,11 @@ export default function WebsiteInvesteringsprofielenInbox() {
     setError(null);setItems((data??[]) as unknown as WebsiteIntake[]);
   },[showProcessed]);
   useEffect(()=>{void refresh()},[refresh]);
+  useEffect(()=>{
+    const params=new URLSearchParams(location.search);
+    if(params.get('website_inbox')==='1')setExpanded(true);
+    if(params.get('show_processed')==='1')setShowProcessed(true);
+  },[location.search]);
 
   // Relaties worden uit de live CRM-store gekozen; geen vrije relatie-ID invoeren.
   const sortedRelaties=useMemo(()=>[...store.relaties].filter(r=>!r.softDeletedAt)
@@ -188,7 +195,7 @@ export default function WebsiteInvesteringsprofielenInbox() {
         const selected=gekozen[item.id]||item.suggested_relatie_id||'';
         const reason=redenenVoorBeoordeling(item,item.status);
         const canCreate=isOpen(item)&&matches.length===0;
-        return <details key={item.id} className="rounded-lg border border-border p-3">
+        return <details key={item.id} open={item.id===focusIntakeId?true:undefined} className="rounded-lg border border-border p-3">
           <summary className="cursor-pointer">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div><strong className="block text-sm">{item.applicant_name}</strong>

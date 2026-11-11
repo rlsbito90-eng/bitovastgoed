@@ -17,6 +17,8 @@ const EVENT_PREF_FIELD: Record<string, string> = {
   bid_expiry: 'bid_expiry_enabled',
   strong_match: 'strong_match_enabled',
   data_quality: 'data_quality_enabled',
+  website_intake_received: 'website_intake_enabled',
+  website_intake_reminder: 'website_intake_enabled',
 };
 
 async function getRuntimeSecret(key: string): Promise<string> {
@@ -93,6 +95,15 @@ Deno.serve(async (req: Request) => {
       const radarRow = Array.isArray(radarData) ? radarData[0] : radarData;
       createdEvents += Number(radarRow?.created_count ?? 0);
       resolvedEvents += Number(radarRow?.resolved_count ?? 0);
+
+      const { data: intakeData, error: intakeError } = await supabase.rpc(
+        'refresh_website_intake_notification_events',
+        { p_user_id: userId },
+      );
+      if (intakeError) throw intakeError;
+      const intakeRow = Array.isArray(intakeData) ? intakeData[0] : intakeData;
+      createdEvents += Number(intakeRow?.created_count ?? 0);
+      resolvedEvents += Number(intakeRow?.resolved_count ?? 0);
     }
 
     // De databasefunctie blijft bewust generiek, maar elke actieve Radar-opvolgmelding

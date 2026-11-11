@@ -42,6 +42,20 @@ export const geldigeProvincies=(raw:string):string[]=>{
   const parts=raw.split(',').map(x=>x.trim()).filter(Boolean);
   return parts.length>0 && parts.every(x=>provincies.has(x)) ? parts : [];
 };
+/** Voorinvulling voor de beoordelaar, geen geverifieerde geolocatie.
+ * Alleen expliciete plaatscombinaties met een schuine streep herkennen;
+ * alle originele tekst blijft bewaard, inclusief eventuele onzekerheid.
+ */
+export function zoekPlaatsenVoorstel(tekst:string):string[] {
+  const raw=tekst.trim();
+  if(!raw || /\b(?:km|kilometer|minuten|radius|straal|omgeving|regio|tussen|vanaf|rond|landelijk)\b/i.test(raw))return [];
+  const delen=raw.split(/\s*\/\s*/);
+  if(delen.length<2 || delen.length>4 ||
+    !delen.every(naam=>/^[\p{L}][\p{L} .'-]{1,70}$/u.test(naam.trim())) ||
+    delen.some(naam=>provincies.has(naam.trim())))return [];
+  return [...new Set(delen.map(naam=>naam.trim()))];
+}
+
 /** Alleen letterlijke, eenduidige radiusteksten vooraf invullen.
  * Alle overige regio-omschrijvingen blijven vrije tekst en vragen handmatige controle.
  */
@@ -88,6 +102,7 @@ export function voorstelNieuweRelatie(i:ReviewIntake, propertyTypes:PropertyType
     bronRelatie:'Investeringsprofiel website (handmatig beoordeeld)',
     assetClasses,propertyTypeIds:propertyTypes.filter(t=>slugs.has(t.slug)).map(t=>t.id),
     regio:geldigeProvincies(gebied),
+    zoekPlaatsen:zoekPlaatsenVoorstel(gebied),
     zoekgebiedToelichting:gebied||undefined,
     ...zoekRadiusVoorstel(gebied),
     vastgoedStrategieen:strategieen,
@@ -115,7 +130,12 @@ export function redenenVoorBeoordeling(i:ReviewIntake,status:string):string[]{
   if(waardeLijst(f,'party-type').length!==1) reasons.push('Partijtype ontbreekt of is niet eenduidig.');
   if(waardeLijst(f,'asset-types').length===0 || waardeLijst(f,'asset-types').some(x=>!types[x])) reasons.push('Vastgoedsegment ontbreekt of heeft een onbekende keuze.');
   if(waardeLijst(f,'investment-size').length!==1 || !budgetRange(waardeLijst(f,'investment-size')).budgetMin)reasons.push('Budget is niet één herkenbare bandbreedte.');
-  if(!geldigeProvincies(waardeTekst(f,'search-area')).length) reasons.push('Zoekgebied is een plaats, straal, reistijd of vrij omschreven gebied; handmatig verifiëren.');
+  if(!geldigeProvincies(waardeTekst(f,'search-area')).length) {
+    const plaatsen=zoekPlaatsenVoorstel(waardeTekst(f,'search-area'));
+    reasons.push(plaatsen.length
+      ? `Mogelijke zoekplaatsen: ${plaatsen.join(', ')}. Controleer of alleen deze steden bedoeld zijn of ook de omgeving.`
+      : 'Zoekgebied is een plaats, straal, reistijd of vrij omschreven gebied; handmatig verifiëren.');
+  }
   if(!waardeLijst(f,'privacy').includes('1'))reasons.push('Formulierprivacytoestemming is niet vast te stellen.');
   return reasons.length?reasons:['Handmatige beoordeling nodig; originele antwoorden controleren.'];
 }

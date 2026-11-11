@@ -100,7 +100,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [quickOpen, setQuickOpen] = useState(false);
   const [toonR2, setToonR2] = useState(false);
   type R2Concept = Extract<ReturnType<typeof maakKandidaatConcept>, { ok: true }>['concept'];
-  const [r2Concept, setR2Concept] = useState<R2Concept | null>(null);
   const r2Actief = MATCH_R2_PREVIEW_ENABLED && toonR2;
   const zoekRef = useRef<HTMLInputElement>(null);
 
@@ -111,7 +110,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       setFilterPlaats(''); setBudgetMinFilter(''); setBudgetMaxFilter('');
       setAlleenActief(false); setGeselecteerd(new Set()); setQuickOpen(false);
       setSortKey('match'); setSortDir('desc');
-      setToonR2(false); setR2Concept(null);
+      setToonR2(false);
     }
   }, [open]);
 
@@ -298,8 +297,8 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   };
 
 
-  const handleR2Toevoegen = async () => {
-    if(bezig || !r2Concept || !object || r2Concept.objectId!==objectId) return;
+  const handleR2Toevoegen = async (r2Concept: R2Concept) => {
+    if(bezig || !object || r2Concept.objectId!==objectId) return;
     const relatieId=r2Concept.contactRelatieId;
     if(!isAanbiedbaar(object)) {
       toast.error('Object is niet meer beschikbaar voor nieuwe suggesties.');
@@ -314,7 +313,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     const route=partij?.alleRoutes.find(x=>x.zoekprofielId===r2Concept.gekozenMandaatId && x.kwalificatie!=='afwijkend');
     if(!route || !partij) {
       toast.error('Deze suggestie is gewijzigd. Selecteer de partij opnieuw.');
-      setR2Concept(null);
       return;
     }
     const handoff=maakKandidaatConcept(object,partij,route.key);
@@ -337,7 +335,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         feeAkkoord:false,
       });
       toast.success('Kandidaat aan object gekoppeld');
-      setR2Concept(null);
       onToegevoegd?.();
       onOpenChange(false);
     } catch(err) {
@@ -385,12 +382,12 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         {MATCH_R2_PREVIEW_ENABLED && (
           <nav className="px-5 py-2 flex flex-wrap gap-2 border-b border-border" aria-label="Wijze van kandidaatselectie">
             <button type="button" aria-pressed={!r2Actief}
-              onClick={() => { setToonR2(false); setR2Concept(null); }}
+              onClick={() => { setToonR2(false); }}
               className={`rounded-md px-3 py-2 text-sm border ${!r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
               Bestaande selectie
             </button>
             <button type="button" aria-pressed={r2Actief}
-              onClick={() => { setToonR2(true); setR2Concept(null); }}
+              onClick={() => { setToonR2(true); }}
               className={`rounded-md px-3 py-2 text-sm border ${r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
               Matches op zoekprofiel
             </button>
@@ -399,7 +396,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
 
         {r2Actief && (
           <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 space-y-4">
-            <p className="text-xs text-muted-foreground">Bekijk passende partijen, kies een zoekroute en voeg de kandidaat na controle zelf toe. Er worden geen berichten, biedingen of contactmomenten automatisch aangemaakt.</p>
+            <p className="text-xs text-muted-foreground">Controleer de zoekroute en klik op ‘Goedkeuren als kandidaat’. De partij verschijnt dan direct bij de kandidaten van dit object; er wordt geen aanbod verzonden.</p>
             {object ? <KandidaatVoorstellenR2
               object={object} relaties={relaties} zoekprofielen={zoekprofielen}
               reedsGekoppeld={reedsGekoppeld}
@@ -407,13 +404,9 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                 const r = relaties.find(item => item.id === id);
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
               }}
-              onConceptGekozen={setR2Concept}
+              approvalBusy={bezig}
+              onConceptGekozen={concept => { void handleR2Toevoegen(concept); }}
             /> : <p className="text-sm text-muted-foreground">Object wordt geladen.</p>}
-            {r2Concept && <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1" role="status">
-              <p className="font-medium text-sm">Kandidaat geselecteerd — nog niet toegevoegd</p>
-              <p className="text-xs">Contact: {relaties.find(r => r.id === r2Concept.contactRelatieId)?.bedrijfsnaam || 'Relatie'} · Direct benaderbare partij</p>
-              <p className="text-xs text-muted-foreground">Zoekcriteria zijn leidend. Een mandaat is niet verplicht; de uiteindelijke koper kan later worden vastgelegd.</p>
-            </div>}
           </div>
         )}
 
@@ -627,21 +620,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         </div>}
 
         <DialogFooter className="px-5 py-3 border-t border-border bg-card shrink-0">
-          {r2Actief ? (
-            <>
-              <p className="text-xs text-muted-foreground mr-auto self-center">Alleen een expliciete klik op ‘Kandidaat toevoegen’ legt de koppeling vast. Geen automatische verzending.</p>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-              <Button onClick={handleR2Toevoegen} disabled={!r2Concept||bezig}>
-                {bezig?'Bezig…':'Kandidaat toevoegen'}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-              <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig}>
-                {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
-              </Button>
-            </>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
+          {!r2Actief && (
+            <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig}>
+              {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

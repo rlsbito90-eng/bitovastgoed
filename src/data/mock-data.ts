@@ -1226,11 +1226,18 @@ export function berekenMatchScore(
   const gemeentenInZoekprofiel = (profiel.steden ?? []).filter(x=>x.startsWith('gemeente:'));
   const lossePlaatsen = (profiel.steden ?? []).filter(x=>!x.startsWith('gemeente:'));
   if (gemeentenInZoekprofiel.length>0) {
-    // Het bestaande ObjectVastgoed-model heeft geen gevalideerde bestuurlijke gemeente.
-    // Dus geen onterechte positieve 20-puntenmatch uitsluitend op basis van de provincie.
-    ontbrekendeData.push('regio');
-    factoren.push({ categorie:'regio', aard:'ontbrekend',
-      label:'Geselecteerde gemeenten nog niet verifieerbaar via objectlocatie', punten:0, max:20 });
+    // Gemeente is niet geverifieerd, maar een apart expliciet gekozen
+    // woonplaats mag wel rechtstreeks met object.plaats worden vergeleken.
+    if (lossePlaatsen.some(x=>x.trim().toLocaleLowerCase('nl-NL')===(object.plaats??'').trim().toLocaleLowerCase('nl-NL'))) {
+      score+=20;
+      factoren.push({ categorie:'regio', aard:'positief',
+        label:'Expliciet gekozen plaats komt overeen', punten:20, max:20 });
+      redenen.push('Plaats komt overeen');
+    } else {
+      ontbrekendeData.push('regio');
+      factoren.push({ categorie:'regio', aard:'ontbrekend',
+        label:'Geselecteerde gemeenten nog niet verifieerbaar via objectlocatie', punten:0, max:20 });
+    }
   } else if (lossePlaatsen.length>0) {
     if (!lossePlaatsen.some(x=>x.trim().toLowerCase()===(object.plaats ?? '').trim().toLowerCase())) return null;
     score+=20;
@@ -1498,7 +1505,12 @@ export function getMatchesForRelatieFromData(
       // provincie krijgt de status 'te verifiëren' via berekenMatchScore.
       if (profiel === basis && (relatie?.zoekGemeenten?.length ?? 0)>0) {
         const provincies=provinciesBijGemeenten(relatie!.zoekGemeenten ?? []);
-        if(provincies.length>0 && object.provincie &&
+        const plaatsExplicietGekozen = (relatie?.zoekPlaatsen ?? []).some(
+          plaats => plaats.trim().toLocaleLowerCase('nl-NL') === (object.plaats ?? '').trim().toLocaleLowerCase('nl-NL'),
+        );
+        // Een los gekozen woonplaats blijft geldig naast gemeenten uit
+        // andere provincies; provincie is geen verplichte bovenliggende filter.
+        if(!plaatsExplicietGekozen && provincies.length>0 && object.provincie &&
           !provincies.includes(object.provincie)) continue;
       }
       // Bij alleen nieuwe taxonomie is een ontbrekend objecttype onvoldoende bewijs

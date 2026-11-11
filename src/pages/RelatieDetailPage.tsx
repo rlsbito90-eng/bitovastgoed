@@ -78,11 +78,11 @@ const VESTIGINGSVELDEN: readonly InlineRelatieVeld[] = [
 const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'regio',label:'Regio’s en provincies',kind:'multi',
     options:REGIO_OPTIES.map(value=>({value,label:value})),
-    note:'Selecteer provincies om daaronder gemeenten te kiezen.'},
+    note:'Provincies zijn optioneel. Gemeenten en plaatsen zijn afzonderlijke, gerichte zoekcriteria.'},
   {key:'zoekGemeenten',label:'Gemeenten',kind:'gemeenten',
     note:'Gemeente is niet hetzelfde als woonplaats. Zonder geverifieerde objectgemeente blijft matching te controleren.'},
   {key:'zoekPlaatsen',label:'Plaatsen en steden',kind:'plaatsen',
-    note:'Meerdere plaatsnamen scheiden met een komma.'},
+    note:'Zoek officiële woonplaatsen en vink meerdere plaatsen aan, zonder provincie te kiezen.'},
   {key:'zoekgebiedToelichting',label:'Zoekgebied — letterlijke toelichting',kind:'textarea',
     note:'Bestaande tekst blijft bewaard. Gestructureerde radius wordt apart ingesteld.'},
   {key:'zoekRadiusCentrum',label:'Zoekradius vanaf plaats',note:'Bijvoorbeeld Amersfoort of Ede.'},

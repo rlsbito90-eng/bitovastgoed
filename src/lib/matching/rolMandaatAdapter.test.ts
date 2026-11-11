@@ -345,3 +345,19 @@ test('portefeuilleadres is slechts referentiepunt, geen harde afwijzing op radiu
  assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('Portefeuille')));
  assert.ok(!rows[0].besteRoute.toelichting.afwijkend.some(x=>x.includes('Buiten radius')));
 });
+
+test('Apeldoorn en Deventer blijven een gericht zoekgebied zonder provincievereiste',()=>{
+ const r=relatie({regio:[],zoekGemeenten:[],zoekPlaatsen:['Apeldoorn','Deventer']});
+ const rows=voorstel(object({plaats:'Deventer',provincie:'Overijssel'}),[r]);
+ assert.equal(rows.length,1);
+ assert.ok(rows[0].besteRoute.toelichting.matcht.includes('Plaats komt overeen'));
+ const elders=voorstel(object({plaats:'Arnhem',provincie:'Gelderland'}),[r]);
+ assert.equal(elders.length,1);
+ assert.equal(elders[0].besteRoute.kwalificatie,'te_verifieren');
+});
+test('gekozen gemeente en expliciete woonplaats: exacte plaats is bruikbaar zonder objectgemeente',()=>{
+ const r=relatie({regio:[],zoekGemeenten:['Apeldoorn','Deventer'],zoekPlaatsen:['Apeldoorn','Deventer']});
+ const rows=voorstel(object({plaats:'Apeldoorn',provincie:'Gelderland',gemeente:null}),[r]);
+ assert.equal(rows.length,1);
+ assert.ok(rows[0].besteRoute.toelichting.matcht.includes('Plaats komt overeen'));
+});

@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe,it,expect,vi } from 'vitest';
-import { render,screen,fireEvent,waitFor } from '@testing-library/react';
+import { render,screen,fireEvent,waitFor,within } from '@testing-library/react';
 import type { Relatie } from '@/data/mock-data';
 import InlineRelatieSectie from './InlineRelatieSectie';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
+
+vi.mock('@/lib/bag/pdokLookup', () => ({
+  zoekPdokWoonplaatsen: vi.fn(async (zoektekst: string) =>
+    ['Breda', 'Tilburg'].filter(n => n.toLowerCase().includes(zoektekst.toLowerCase()))
+      .map((naam, index) => ({
+        id: 'plaats-' + index, woonplaats: naam, weergavenaam: naam, type: 'woonplaats',
+      }))
+  ),
+}));
 
 const relatie={
   id:'test-relatie',bedrijfsnaam:'Voorbeeld BV',type:'belegger',
@@ -105,29 +114,50 @@ describe('Investeringsprofiel op Relaties — websitesituaties en bronbehoud',()
   });
 });
 
-describe('Fase 1 — gemeenten en plaatsen direct bij Relaties',()=>{
+describe('Fase 1 — één zoekgebied bij Relaties',()=>{
  const geoVelden=[{key:'regio',label:'Regio',kind:'multi',options:[{value:'Noord-Brabant',label:'Noord-Brabant'}]},
    {key:'zoekGemeenten',label:'Gemeenten',kind:'gemeenten'},
    {key:'zoekPlaatsen',label:'Plaatsen',kind:'plaatsen'}] as const;
- it('kiest een bestaande officiële gemeente zonder nieuw zoekprofiel',async()=>{
-   const save=vi.fn().mockResolvedValue(undefined);
-   render(<InlineRelatieSectie titel="Geo" relatie={{...relatie,regio:['Noord-Brabant']}} velden={geoVelden} onSave={save}/>);
-   fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
-   fireEvent.change(screen.getByRole('textbox',{name:'Gemeente zoeken'}),{target:{value:'Oisterwijk'}});
-   fireEvent.click(screen.getByRole('checkbox',{name:'Oisterwijk'}));
-   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
-   await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekGemeenten:['Oisterwijk']}));
- });
- it('slaat meerdere plaatsen als aparte selectie op',async()=>{
+
+ it('kiest één gemeente zonder ook een plaats in te vullen',async()=>{
    const save=vi.fn().mockResolvedValue(undefined);
    render(<InlineRelatieSectie titel="Geo" relatie={relatie} velden={geoVelden} onSave={save}/>);
    fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
-   fireEvent.change(screen.getByLabelText('Plaatsen'),{target:{value:'Breda, Tilburg'}});
+   fireEvent.change(screen.getByRole('textbox',{name:'Zoek plaats of gemeente'}),{target:{value:'Oisterwijk'}});
+   fireEvent.click(screen.getByRole('checkbox',{name:'Gemeente Oisterwijk'}));
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekGemeenten:['Oisterwijk']}));
+   expect(save.mock.calls[0][0]).not.toHaveProperty('zoekPlaatsen');
+ });
+
+ it('slaat twee plaatsen in één zoekveld op en niet als gemeenten',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineRelatieSectie titel="Geo" relatie={relatie} velden={geoVelden} onSave={save}/>);
+   fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
+   const input=screen.getByRole('textbox',{name:'Zoek plaats of gemeente'});
+   fireEvent.change(input,{target:{value:'Breda'}});
+   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Plaats Breda'}));
+   fireEvent.change(input,{target:{value:'Tilburg'}});
+   fireEvent.click(await within(screen.getByRole('group',{name:'Plaatsen'})).findByRole('checkbox',{name:'Plaats Tilburg'}));
    fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
    await waitFor(()=>expect(save).toHaveBeenCalledWith({zoekPlaatsen:['Breda','Tilburg']}));
+   expect(save.mock.calls[0][0]).not.toHaveProperty('zoekGemeenten');
+ });
+
+ it('behoudt beide bestaande soorten zoekgebieden ongewijzigd',async()=>{
+   const save=vi.fn().mockResolvedValue(undefined);
+   render(<InlineRelatieSectie titel="Geo"
+     relatie={{...relatie,zoekGemeenten:['Oisterwijk'],zoekPlaatsen:['Breda']}}
+     velden={geoVelden} onSave={save}/>);
+   expect(screen.getByText(/Plaats: Breda/)).toBeTruthy();
+   expect(screen.getByText(/Gemeente: Oisterwijk/)).toBeTruthy();
+   fireEvent.click(screen.getByRole('button',{name:'Geo bewerken'}));
+   expect(screen.getByRole('button',{name:'Verwijder plaats Breda'})).toBeTruthy();
+   expect(screen.getByRole('button',{name:'Verwijder gemeente Oisterwijk'})).toBeTruthy();
+   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
+   expect(save).not.toHaveBeenCalled();
  });
 });
-
 
 describe('Fase 3C — letterlijke budget- en rendementskeuzes',()=>{
  const bronVelden=[

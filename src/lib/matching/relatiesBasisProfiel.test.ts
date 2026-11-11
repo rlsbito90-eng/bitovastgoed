@@ -138,6 +138,23 @@ describe('Relaties is het primaire investeringsprofiel', () => {
     expect(matches[0].ontbrekendeData).toContain('regio');
   });
 
+  it('plaatst expliciet gekozen woonplaats op een relatie hoger, ook zonder provincies', () => {
+    const r: Relatie={...basis, regio:[], zoekGemeenten:['Apeldoorn','Deventer'],
+      zoekPlaatsen:['Apeldoorn','Deventer']};
+    const o={...object(),plaats:'Deventer',provincie:'Overijssel'};
+    const matches=getMatchesForRelatieFromData(r.id,[],[o],r);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].factoren.some(f=>f.categorie==='regio'&&f.aard==='positief')).toBe(true);
+  });
+
+  it('laat een expliciete plaats buiten de provincie van een andere gekozen gemeente toe', () => {
+    const r: Relatie={...basis, regio:[], zoekGemeenten:['Apeldoorn'], zoekPlaatsen:['Deventer']};
+    const o={...object(),plaats:'Deventer',provincie:'Overijssel'};
+    const matches=getMatchesForRelatieFromData(r.id,[],[o],r);
+    expect(matches).toHaveLength(1);
+    expect(matches[0].factoren.some(f=>f.categorie==='regio'&&f.aard==='positief')).toBe(true);
+  });
+
   it('verbergt gearchiveerde en soft-deleted objecten uit de relatiekaart', () => {
     expect(getMatchesForRelatieFromData(basis.id, [], [{...object(), isArchived:true}], basis)).toHaveLength(0);
     expect(getMatchesForRelatieFromData(basis.id, [], [{...object(), softDeletedAt:'2026-11-07T10:00:00Z'}], basis)).toHaveLength(0);
