@@ -21,7 +21,8 @@ export interface AanbiedingHistorieRij {
 const geldigDatum = (datum?: string): datum is string =>
   !!datum && /^\d{4}-\d{2}-\d{2}/.test(datum);
 const isAanbiedMoment = (m: ContactMoment) =>
-  m.type === 'teaser_verstuurd' || m.type === 'informatie_gedeeld';
+  m.direction === 'uitgaand' &&
+  (m.type === 'teaser_verstuurd' || m.type === 'informatie_gedeeld');
 
 export function aanbodHistorieVoorRelatie(
   kandidaten: readonly PipelineKandidaat[],
