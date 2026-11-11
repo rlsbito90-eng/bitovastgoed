@@ -3,7 +3,8 @@ import type { PipelineKandidaat } from '@/data/mock-data';
 import type { ContactMoment } from '@/lib/contactMoments';
 import {
   controleerReactie, maakReactieMoment, reactiePipelinePatch,
-  marktsignaalVoorObject, koopsignaalVoorRelatie, laatsteReactie, registreerAanbiedingsReactie,
+  formatteerAfwijsredenen, marktsignaalVoorObject, koopsignaalVoorRelatie,
+  laatsteGestructureerdeAfwijzing, laatsteReactie, registreerAanbiedingsReactie,
   ReactiePipelineNietBijgewerkt,
   type ReactieInvoer, type AanbiedingReactieDetails,
 } from './aanbiedingsReacties';
@@ -93,6 +94,70 @@ describe('Matching 3: reacties op daadwerkelijke aanbiedingen',()=>{
       status:'geen_reactie',redenen:['prijs'],duiding:'object',
     });
     expect(controleerReactie(input,'2026-11-11')).toMatch(/geen reden of oorzaak/);
+  });
+  it('een expliciete afwijzing vereist een redencategorie',()=>{
+    expect(controleerReactie(
+      reactie({status:'afgewezen',redenen:[]}),
+      '2026-11-11',
+    )).toMatch(/minimaal één redencategorie/);
+  });
+  it('andere reden vereist een korte toelichting en blijft als code Anders opgeslagen',()=>{
+    const input=reactie({
+      status:'afgewezen',redenen:['rendement','anders'],duiding:'koper',
+      andereReden:'Vereist eigen exploitatiebedrijf',
+    });
+    expect(controleerReactie(input,'2026-11-11')).toBeNull();
+    const event=maakReactieMoment(input);
+    expect(event.aanbiedingReactie).toMatchObject({
+      redenen:['rendement','anders'],
+      andereReden:'Vereist eigen exploitatiebedrijf',
+    });
+    expect(event.description).toContain('Andere reden: Vereist eigen exploitatiebedrijf');
+    expect(formatteerAfwijsredenen(event.aanbiedingReactie!))
+      .toContain('Rendement, Andere reden: Vereist eigen exploitatiebedrijf');
+    expect(controleerReactie({
+      ...input,andereReden:'  ',
+    },'2026-11-11')).toMatch(/Beschrijf de andere reden/);
+    expect(controleerReactie({
+      ...input,andereReden:'x'.repeat(501),
+    },'2026-11-11')).toMatch(/maximaal 500/);
+    expect(controleerReactie({
+      ...input,redenen:['prijs'],
+    },'2026-11-11')).toMatch(/Selecteer Anders/);
+  });
+  it('gestructureerde afwijzing blijft leidend; losse oude notitie wordt niet meegeteld',()=>{
+    const events=[
+      gebeurtenis('r1','informatie_gevraagd',{momentDate:'2026-11-11'}),
+      gebeurtenis('r1','afgewezen',{momentDate:'2026-11-10'}),
+    ];
+    expect(laatsteGestructureerdeAfwijzing('r1','o1',events)?.aanbiedingReactie?.status)
+      .toBe('afgewezen');
+    expect(laatsteGestructureerdeAfwijzing('r2','o1',events)).toBeUndefined();
+  });
+  it('drie verschillende vrije Anders-redenen zijn geen inhoudelijk patroon',()=>{
+    const events=['r1','r2','r3'].map((relatieId,i)=>gebeurtenis(
+      relatieId,'afgewezen',{
+        aanbiedingReactie:{
+          versie:'1',status:'afgewezen',redenen:['anders'],
+          andereReden:'Niet standaard reden nummer '+i,
+          duiding:'onbekend',kanaal:'whatsapp',
+        },
+      },
+    ));
+    const object=marktsignaalVoorObject('o1',events);
+    expect(object.andersAantal).toBe(3);
+    expect(object.patronen).toEqual([]);
+    const investeerder=koopsignaalVoorRelatie('r1',[
+      ...['o1','o2','o3'].map((objectId,i)=>gebeurtenis('r1','afgewezen',{
+        objectId,id:'anders-'+i,
+        aanbiedingReactie:{
+          versie:'1',status:'afgewezen',redenen:['anders'],
+          andereReden:'Uitzondering '+i,duiding:'koper',kanaal:'whatsapp',
+        },
+      })),
+    ]);
+    expect(investeerder.andersAantal).toBe(3);
+    expect(investeerder.patronen).toEqual([]);
   });
   it('geen reactie vereist een al eerder aangeboden object, niet alleen een potentiële match',async()=>{
     const d=deps({bestaandeKandidaat:kandidaat({
