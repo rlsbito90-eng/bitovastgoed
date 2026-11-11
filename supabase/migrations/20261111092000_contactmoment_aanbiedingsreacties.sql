@@ -1,0 +1,32 @@
+-- Matching 3.0 — structured feedback on offers, on the EXISTING contact
+-- timeline record. No parallel match/pipeline table is introduced.
+-- Inherits contact_moments RLS (including internal user authorization).
+alter table public.contact_moments
+  add column if not exists aanbieding_reactie jsonb;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint
+      where conrelid='public.contact_moments'::regclass
+        and conname='contact_moments_aanbieding_reactie_shape_check') then
+    alter table public.contact_moments
+      add constraint contact_moments_aanbieding_reactie_shape_check
+      check (
+        aanbieding_reactie is null or (
+          jsonb_typeof(aanbieding_reactie)='object'
+          and aanbieding_reactie->>'versie'='1'
+          and aanbieding_reactie->>'status' in (
+            'interesse','informatie_gevraagd','afgewezen','geen_reactie'
+          )
+          and aanbieding_reactie->>'duiding' in ('koper','object','onbekend')
+          and jsonb_typeof(aanbieding_reactie->'redenen')='array'
+          and (aanbieding_reactie->>'kanaal') in (
+            'email','whatsapp','telefoon','linkedin','persoonlijk','anders'
+          )
+        )
+      );
+  end if;
+end $$;
+
+comment on column public.contact_moments.aanbieding_reactie is
+  'Gestructureerde, handmatig vastgelegde koperfeedback op een aanbieding; versie 1. Geen automatisch profielwijzigingsbesluit.';
