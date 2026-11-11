@@ -1,0 +1,219 @@
+import type { ContactMoment } from '@/lib/contactMoments';
+import type { PipelineKandidaat } from '@/data/mock-data';
+import type { AanbiedKanaal } from './aanbiedingRegistreren';
+
+export type AanbiedingsReactieStatus = 'interesse'|'informatie_gevraagd'|'afgewezen'|'geen_reactie';
+export type ReactieDuiding = 'koper'|'object'|'onbekend';
+export type ReactieReden =
+  | 'prijs' | 'rendement' | 'locatie' | 'vastgoedtype' | 'oppervlakte'
+  | 'verhuur' | 'onderhoud' | 'financiering' | 'vergunningen'
+  | 'risico' | 'timing' | 'documentatie' | 'voorwaarden' | 'anders';
+
+export const REACTIE_STATUS_LABELS:Record<AanbiedingsReactieStatus,string>={
+  interesse:'Interesse',informatie_gevraagd:'Aanvullende informatie gevraagd',
+  afgewezen:'Afgewezen',geen_reactie:'Nog geen reactie (opvolgsignaal)',
+};
+export const REACTIE_REDEN_LABELS:Record<ReactieReden,string>={
+  prijs:'Vraagprijs / prijsniveau',
+  rendement:'Rendement',
+  locatie:'Locatie / zoekgebied',
+  vastgoedtype:'Vastgoedtype',
+  oppervlakte:'Omvang / oppervlakte',
+  verhuur:'Verhuursituatie / huurders',
+  onderhoud:'Staat / onderhoud',
+  financiering:'Financiering',
+  vergunningen:'Vergunningen / ontwikkeling',
+  risico:'Risico',
+  timing:'Timing / aankooptermijn',
+  documentatie:'Aanvullende documentatie',
+  voorwaarden:'Transactievoorwaarden',
+  anders:'Andere reden',
+};
+export const REACTIE_DUIDING_LABELS:Record<ReactieDuiding,string>={
+  koper:'Mogelijk koperspecifiek',
+  object:'Mogelijk objectspecifiek',
+  onbekend:'Nog niet te bepalen',
+};
+
+export interface AanbiedingReactieDetails {
+  versie:'1';
+  status:AanbiedingsReactieStatus;
+  redenen:ReactieReden[];
+  duiding:ReactieDuiding;
+  kanaal:AanbiedKanaal;
+}
+export interface ReactieInvoer extends Omit<AanbiedingReactieDetails,'versie'> {
+  relatieId:string;
+  objectId:string;
+  objectTitel:string;
+  datum:string;
+  notitie?:string;
+}
+type NieuwMoment=Omit<ContactMoment,'id'|'createdAt'|'updatedAt'|'isSystem'>;
+type NieuwKandidaat=Omit<PipelineKandidaat,'id'|'createdAt'|'updatedAt'>;
+export interface ReactieOpslag {
+  bestaandeKandidaat?:PipelineKandidaat;
+  bestaandeMomenten:readonly ContactMoment[];
+  maakKandidaat:(k:NieuwKandidaat)=>Promise<PipelineKandidaat|null>;
+  voegMomentToe:(m:NieuwMoment)=>Promise<ContactMoment|null>;
+  werkKandidaatBij:(id:string,patch:Partial<PipelineKandidaat>)=>Promise<void>;
+}
+export class ReactiePipelineNietBijgewerkt extends Error {
+  constructor(){
+    super('Reactie opgeslagen in de tijdlijn, maar de kandidaatstatus kon niet worden bijgewerkt. Controleer de pipeline handmatig.');
+    this.name='ReactiePipelineNietBijgewerkt';
+  }
+}
+
+const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s) &&
+  !Number.isNaN(Date.parse(s+'T12:00:00')) &&
+  new Date(s+'T12:00:00').toISOString().slice(0,10)===s;
+
+export function controleerReactie(invoer:ReactieInvoer,vandaag:string):string|null{
+  if(!invoer.objectId||!invoer.relatieId||!invoer.objectTitel.trim())
+    return 'Selecteer een bestaande relatie en een object.';
+  if(!validDate(invoer.datum)||invoer.datum>vandaag)
+    return 'Vul een geldige, niet-toekomstige registratiedatum in.';
+  if(!Object.prototype.hasOwnProperty.call(REACTIE_STATUS_LABELS,invoer.status))
+    return 'Ongeldige reactiestatus.';
+  if(!Object.prototype.hasOwnProperty.call(REACTIE_DUIDING_LABELS,invoer.duiding))
+    return 'Ongeldige duiding.';
+  if(!['email','whatsapp','telefoon','linkedin','persoonlijk','anders'].includes(invoer.kanaal))
+    return 'Ongeldig contactkanaal.';
+  if(invoer.redenen.length>5 || new Set(invoer.redenen).size!==invoer.redenen.length ||
+      invoer.redenen.some(r=>!Object.prototype.hasOwnProperty.call(REACTIE_REDEN_LABELS,r)))
+    return 'Kies maximaal vijf verschillende geldige redenen.';
+  return null;
+}
+export function maakReactieMoment(input:ReactieInvoer):NieuwMoment{
+  const intern=input.status==='geen_reactie';
+  const kanaalType:Record<AanbiedKanaal,ContactMoment['type']>={
+    email:'email',whatsapp:'whatsapp',telefoon:'telefoon',
+    linkedin:'linkedin',persoonlijk:'afspraak',anders:'notitie',
+  };
+  const beschrijving=[
+    'Reactie op aanbieding:',
+    REACTIE_STATUS_LABELS[input.status],
+    input.redenen.length?'Redenen: '+input.redenen.map(r=>REACTIE_REDEN_LABELS[r]).join(', '):'',
+    'Duiding: '+REACTIE_DUIDING_LABELS[input.duiding],
+    input.notitie?.trim()??'',
+  ].filter(Boolean).join('\n');
+  return {
+    type:intern?'notitie':kanaalType[input.kanaal],
+    direction:intern?'intern':'inkomend',
+    momentDate:input.datum,
+    title:intern?'Geen reactie geregistreerd — '+input.objectTitel
+      :'Aanbiedingsreactie: '+REACTIE_STATUS_LABELS[input.status]+' — '+input.objectTitel,
+    description:beschrijving,
+    relatieId:input.relatieId,
+    objectId:input.objectId,
+    followUpRequired:false,
+    aanbiedingReactie:{
+      versie:'1',status:input.status,redenen:input.redenen,
+      duiding:input.duiding,kanaal:input.kanaal,
+    },
+  };
+}
+
+const isNieuweKandidaat=(input:ReactieInvoer):NieuwKandidaat=>({
+  objectId:input.objectId,
+  relatieId:input.relatieId,
+  pipelineFase:'match_gevonden',
+  interesseNiveau:'lauw',
+  teaserVerstuurd:false,
+  ndaVerstuurd:false,ndaGetekend:false,informatieGedeeld:false,
+  feeAkkoord:false,
+});
+const VROEGE_FASEN=new Set<PipelineKandidaat['pipelineFase']>([
+  'match_gevonden','teaser_verstuurd','interesse_ontvangen',
+  'nda_verstuurd','nda_getekend','informatie_gedeeld',
+]);
+export function reactiePipelinePatch(
+  kandidaat:PipelineKandidaat,input:ReactieInvoer,
+):Partial<PipelineKandidaat>{
+  const patch:Partial<PipelineKandidaat>={};
+  // Historische feedback mag latere pipelinecontacten niet terugdateren.
+  if(!kandidaat.laatsteContactdatum || input.datum>kandidaat.laatsteContactdatum)
+    patch.laatsteContactdatum=input.datum;
+  if(input.status==='interesse'){
+    if(VROEGE_FASEN.has(kandidaat.pipelineFase) &&
+      ['match_gevonden','teaser_verstuurd'].includes(kandidaat.pipelineFase))
+      patch.pipelineFase='interesse_ontvangen';
+    if(kandidaat.interesseNiveau==='koud'||kandidaat.interesseNiveau==='lauw')
+      patch.interesseNiveau='warm';
+  }else if(input.status==='afgewezen' && VROEGE_FASEN.has(kandidaat.pipelineFase)){
+    patch.pipelineFase='afgevallen';
+    patch.interesseNiveau='koud';
+    if(!kandidaat.redenAfgevallen?.trim()){
+      const reden=input.redenen.map(r=>REACTIE_REDEN_LABELS[r]).join(', ');
+      if(reden)patch.redenAfgevallen=reden;
+    }
+  }else if(input.status==='informatie_gevraagd'){
+    // Vragen om stukken ≠ aankoopinteresse. Geen pipelinepromotie.
+    if(!kandidaat.volgendeActie)
+      patch.volgendeActie='stukken_delen';
+  }
+  return patch;
+}
+
+export function laatsteReactie(
+  relatieId:string,objectId:string,momenten:readonly ContactMoment[],
+):ContactMoment|undefined{
+  return momenten.filter(m=>m.relatieId===relatieId &&
+    m.objectId===objectId && m.aanbiedingReactie?.versie==='1')
+    .sort((a,b)=>b.momentDate.localeCompare(a.momentDate) ||
+      b.createdAt.localeCompare(a.createdAt))[0];
+}
+
+/** Marktfeedback is descriptief en uitsluitend gebaseerd op geregistreerde
+ * reacties van verschillende kopers. Laat nooit uit stilte een afwijzing volgen.
+ */
+export function marktsignaalVoorObject(
+  objectId:string,momenten:readonly ContactMoment[],
+){
+  const laatstePerRelatie=new Map<string,ContactMoment>();
+  for(const m of momenten.filter(m=>m.objectId===objectId &&
+    m.relatieId && m.aanbiedingReactie?.versie==='1')){
+    const bestaand=laatstePerRelatie.get(m.relatieId!);
+    if(!bestaand || m.momentDate>bestaand.momentDate ||
+      (m.momentDate===bestaand.momentDate && m.createdAt>bestaand.createdAt))
+      laatstePerRelatie.set(m.relatieId!,m);
+  }
+  const reacties=[...laatstePerRelatie.values()].filter(m=>
+    m.aanbiedingReactie?.status!=='geen_reactie');
+  const redenTellingen={} as Partial<Record<ReactieReden,number>>;
+  for(const m of reacties.filter(x=>x.aanbiedingReactie?.status==='afgewezen')){
+    for(const r of m.aanbiedingReactie?.redenen??[])
+      redenTellingen[r]=(redenTellingen[r]??0)+1;
+  }
+  const patronen=Object.entries(redenTellingen)
+    .filter(([,aantal])=>aantal>=3 && reacties.length>=3)
+    .map(([reden,aantal])=>({
+      reden:reden as ReactieReden,aantal,reacties:reacties.length,
+      label:REACTIE_REDEN_LABELS[reden as ReactieReden],
+    }))
+    .sort((a,b)=>b.aantal-a.aantal);
+  return {reacties:reacties.length,
+    zonderReactie:[...laatstePerRelatie.values()].filter(m=>
+      m.aanbiedingReactie?.status==='geen_reactie').length,
+    afwijzingen:reacties.filter(m=>m.aanbiedingReactie?.status==='afgewezen').length,
+    patronen};
+}
+
+export async function registreerAanbiedingsReactie(
+  input:ReactieInvoer,opslag:ReactieOpslag,vandaag:string,
+):Promise<void>{
+  const fout=controleerReactie(input,vandaag);
+  if(fout)throw new Error(fout);
+  if(!opslag.bestaandeKandidaat){
+    const toegevoegd=await opslag.maakKandidaat(isNieuweKandidaat(input));
+    if(!toegevoegd)throw new Error('Kandidaat kon niet worden gekoppeld.');
+    opslag={...opslag,bestaandeKandidaat:toegevoegd};
+  }
+  const moment=await opslag.voegMomentToe(maakReactieMoment(input));
+  if(!moment)throw new Error('Reactiemoment kon niet worden opgeslagen.');
+  const patch=reactiePipelinePatch(opslag.bestaandeKandidaat!,input);
+  if(Object.keys(patch).length===0)return;
+  try{await opslag.werkKandidaatBij(opslag.bestaandeKandidaat!.id,patch);}
+  catch{throw new ReactiePipelineNietBijgewerkt();}
+}
