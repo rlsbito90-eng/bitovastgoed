@@ -83,6 +83,8 @@ export function controleerReactie(invoer:ReactieInvoer,vandaag:string):string|nu
   if(invoer.redenen.length>5 || new Set(invoer.redenen).size!==invoer.redenen.length ||
       invoer.redenen.some(r=>!Object.prototype.hasOwnProperty.call(REACTIE_REDEN_LABELS,r)))
     return 'Kies maximaal vijf verschillende geldige redenen.';
+  if(invoer.status==='geen_reactie' && (invoer.redenen.length>0 || invoer.duiding!=='onbekend'))
+    return 'Zonder reactie is er nog geen reden of oorzaak vastgesteld.';
   return null;
 }
 export function maakReactieMoment(input:ReactieInvoer):NieuwMoment{
