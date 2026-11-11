@@ -17,6 +17,8 @@ import ObjectQuickCreateDialog from '@/components/forms/ObjectQuickCreateDialog'
 import type { Relatie, RelatieContactpersoon } from '@/data/mock-data';
 
 const addObjectMock = vi.fn();
+const addRelatieMock = vi.fn();
+const addContactpersoonMock = vi.fn();
 const navigateMock = vi.fn();
 
 let relatiesMock: Relatie[] = [];
@@ -25,6 +27,8 @@ let contactpersonenMock: RelatieContactpersoon[] = [];
 vi.mock('@/hooks/useDataStore', () => ({
   useDataStore: () => ({
     addObject: addObjectMock,
+    addRelatie: addRelatieMock,
+    addContactpersoon: addContactpersoonMock,
     relaties: relatiesMock,
     contactpersonen: contactpersonenMock,
   }),
@@ -36,7 +40,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }));
 
 // SubcategorieSelect gebruikt supabase via useSubcategorieen — mock hem.
@@ -59,6 +63,10 @@ function renderDialog() {
 
 beforeEach(() => {
   addObjectMock.mockReset();
+  addRelatieMock.mockReset();
+  addContactpersoonMock.mockReset();
+  addRelatieMock.mockImplementation(async (relatie:any)=>({id:'nieuw-verkoper-1',...relatie}));
+  addContactpersoonMock.mockResolvedValue({id:'cp-1'});
   navigateMock.mockReset();
   relatiesMock = [];
   contactpersonenMock = [];
@@ -184,6 +192,21 @@ describe('ObjectQuickCreateDialog', () => {
     const payload = addObjectMock.mock.calls[0][0];
     expect(payload.eigenaarRelatieId).toBe('r-1');
     expect(payload.verkoperNaam).toBeUndefined();
+  });
+
+  it('maakt nieuwe verkoper vanuit object en koppelt na opslaan automatisch aan object', async () => {
+    const user=userEvent.setup();
+    renderDialog();
+    await user.type(screen.getByLabelText(/Titel \/ objectnaam/i), 'Nieuwe verkoopopdracht');
+    await user.click(screen.getByRole('button',{name:/Nieuwe verkopende relatie aanmaken/i}));
+    const dialog=await screen.findByRole('dialog',{name:'Nieuwe relatie'});
+    await user.type(within(dialog).getByLabelText(/Bedrijfsnaam/i),'Nieuwe Eigenaar BV');
+    await user.click(within(dialog).getByRole('button',{name:'Relatie aanmaken'}));
+    await waitFor(()=>expect(addRelatieMock).toHaveBeenCalledTimes(1));
+    expect(addRelatieMock.mock.calls[0][0].type).toBe('eigenaar');
+    await user.click(screen.getByRole('button',{name:'Object aanmaken'}));
+    await waitFor(()=>expect(addObjectMock).toHaveBeenCalledTimes(1));
+    expect(addObjectMock.mock.calls[0][0].eigenaarRelatieId).toBe('nieuw-verkoper-1');
   });
 
   it('quick-create zonder relatie stuurt geen eigenaarRelatieId en geen verkoperNaam', async () => {
