@@ -20,6 +20,17 @@ begin
           )
           and aanbieding_reactie->>'duiding' in ('koper','object','onbekend')
           and jsonb_typeof(aanbieding_reactie->'redenen')='array'
+          -- Een afwijzing moet altijd een categorie hebben voor latere analyse.
+          and (aanbieding_reactie->>'status'<>'afgewezen'
+            or jsonb_array_length(aanbieding_reactie->'redenen')>0)
+          -- 'Anders' mag niet in een vrije, ongestructureerde categorie verdwijnen.
+          -- Een toelichting is verplicht, maar telt nooit als automatisch
+          -- nieuwe categorie in dashboards.
+          and (not coalesce(aanbieding_reactie->'redenen' ? 'anders',false)
+            or (
+              jsonb_typeof(aanbieding_reactie->'andereReden')='string'
+              and length(btrim(aanbieding_reactie->>'andereReden')) between 1 and 500
+            ))
           and (aanbieding_reactie->>'kanaal') in (
             'email','whatsapp','telefoon','linkedin','persoonlijk','anders'
           )
