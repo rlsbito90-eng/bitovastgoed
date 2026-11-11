@@ -72,6 +72,7 @@ import DocumentenPanel from '@/components/object/DocumentenPanel';
 import FotosPanel from '@/components/object/FotosPanel';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
 import EntityPicker, { type EntityPickerItem } from '@/components/forms/EntityPicker';
+import QuickCreateRelationDialog from '@/components/forms/QuickCreateRelationDialog';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { propertyTypeSlugNaarAssetClass } from '@/lib/taxonomie-mapping';
@@ -257,6 +258,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState(initialTab);
   const [preflightOpen, setPreflightOpen] = useState(false);
+  const [nieuweRelatieOpen, setNieuweRelatieOpen] = useState(false);
   const [preflightMatches, setPreflightMatches] = useState<ObjectMatchResultaat[]>([]);
 
   // Reset tab alleen bij een echte open-transitie (false → true). Hierdoor
@@ -1173,6 +1175,10 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                   items={relatieItems}
                   archivedItems={voormaligeRelatieItems}
                 />
+                <Button type="button" variant="outline" size="sm"
+                  onClick={()=>setNieuweRelatieOpen(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1.5"/> Nieuwe verkopende relatie aanmaken
+                </Button>
                 <p className="text-xs text-muted-foreground">
                   Deze koppeling maakt de verkoopdossiers van de relatie vindbaar.
                   Een aanbrenger of makelaar die niet de eigenaar is, hoort niet automatisch
@@ -1646,7 +1652,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
+      <QuickCreateRelationDialog
+        open={nieuweRelatieOpen}
+        onOpenChange={setNieuweRelatieOpen}
+        context="verkoper"
+        onCreated={relatie=>{
+          set('eigenaarRelatieId',relatie.id);
+          toast.info('Relatie geselecteerd. Sla het object op om de koppeling vast te leggen.');
+        }}
+      />
     </Dialog>
   );
 }
