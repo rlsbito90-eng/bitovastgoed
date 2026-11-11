@@ -133,13 +133,20 @@ export function reactiePipelinePatch(
 ):Partial<PipelineKandidaat>{
   const patch:Partial<PipelineKandidaat>={};
   // Historische feedback mag latere pipelinecontacten niet terugdateren.
-  if(!kandidaat.laatsteContactdatum || input.datum>kandidaat.laatsteContactdatum)
+  if(input.status!=='geen_reactie' &&
+    (!kandidaat.laatsteContactdatum || input.datum>kandidaat.laatsteContactdatum))
     patch.laatsteContactdatum=input.datum;
+  // Een historische reactie mag een inmiddels verder gevorderd traject
+  // niet alsnog naar Interesse ontvangen of Afgevallen verplaatsen.
+  const historisch=!!kandidaat.laatsteContactdatum &&
+    input.datum<kandidaat.laatsteContactdatum;
+  if(historisch)return patch;
   if(input.status==='interesse'){
     if(VROEGE_FASEN.has(kandidaat.pipelineFase) &&
       ['match_gevonden','teaser_verstuurd'].includes(kandidaat.pipelineFase))
       patch.pipelineFase='interesse_ontvangen';
-    if(kandidaat.interesseNiveau==='koud'||kandidaat.interesseNiveau==='lauw')
+    if(VROEGE_FASEN.has(kandidaat.pipelineFase) &&
+      (kandidaat.interesseNiveau==='koud'||kandidaat.interesseNiveau==='lauw'))
       patch.interesseNiveau='warm';
   }else if(input.status==='afgewezen' && VROEGE_FASEN.has(kandidaat.pipelineFase)){
     patch.pipelineFase='afgevallen';
@@ -172,15 +179,20 @@ export function marktsignaalVoorObject(
   objectId:string,momenten:readonly ContactMoment[],
 ){
   const laatstePerRelatie=new Map<string,ContactMoment>();
+  const openZonderReactie=new Set<string>();
   for(const m of momenten.filter(m=>m.objectId===objectId &&
     m.relatieId && m.aanbiedingReactie?.versie==='1')){
+    if(m.aanbiedingReactie?.status==='geen_reactie'){
+      openZonderReactie.add(m.relatieId!);
+      continue; // Stilte wist een eerder gegeven reactie niet.
+    }
     const bestaand=laatstePerRelatie.get(m.relatieId!);
     if(!bestaand || m.momentDate>bestaand.momentDate ||
       (m.momentDate===bestaand.momentDate && m.createdAt>bestaand.createdAt))
       laatstePerRelatie.set(m.relatieId!,m);
   }
-  const reacties=[...laatstePerRelatie.values()].filter(m=>
-    m.aanbiedingReactie?.status!=='geen_reactie');
+  const reacties=[...laatstePerRelatie.values()];
+  for(const rid of laatstePerRelatie.keys())openZonderReactie.delete(rid);
   const redenTellingen={} as Partial<Record<ReactieReden,number>>;
   for(const m of reacties.filter(x=>x.aanbiedingReactie?.status==='afgewezen')){
     for(const r of m.aanbiedingReactie?.redenen??[])
@@ -194,8 +206,7 @@ export function marktsignaalVoorObject(
     }))
     .sort((a,b)=>b.aantal-a.aantal);
   return {reacties:reacties.length,
-    zonderReactie:[...laatstePerRelatie.values()].filter(m=>
-      m.aanbiedingReactie?.status==='geen_reactie').length,
+    zonderReactie:openZonderReactie.size,
     afwijzingen:reacties.filter(m=>m.aanbiedingReactie?.status==='afgewezen').length,
     patronen};
 }
