@@ -32,6 +32,7 @@ import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
+import RelatieVerkoopHistorie from '@/components/relatie/RelatieVerkoopHistorie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -321,6 +322,9 @@ export default function RelatieDetailPage() {
               <div><p className="field-label">Aangemaakt op</p><p className="field-value">{relatie.createdAt?formatDate(relatie.createdAt.slice(0,10)):'—'}</p></div>
             </div>
           </section>
+
+          {/* VERKOOPDOSSIERS: uitsluitend expliciet gekoppelde CRM-objecten */}
+          <RelatieVerkoopHistorie relatieId={relatie.id} objecten={store.objecten}/>
 
           {/* PIPELINE */}
           <RelatiePipelineSectie relatieId={relatie.id} />
