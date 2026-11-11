@@ -216,6 +216,12 @@ export async function registreerAanbiedingsReactie(
 ):Promise<void>{
   const fout=controleerReactie(input,vandaag);
   if(fout)throw new Error(fout);
+  if(input.status==='geen_reactie' && !(
+    opslag.bestaandeKandidaat?.teaserVerstuurd ||
+    opslag.bestaandeKandidaat?.informatieGedeeld ||
+    (opslag.bestaandeKandidaat && ['teaser_verstuurd','informatie_gedeeld']
+      .includes(opslag.bestaandeKandidaat.pipelineFase))
+  ))throw new Error('Registreer eerst de oorspronkelijke aanbieding voordat je ontbrekende reactie vastlegt.');
   if(!opslag.bestaandeKandidaat){
     const toegevoegd=await opslag.maakKandidaat(isNieuweKandidaat(input));
     if(!toegevoegd)throw new Error('Kandidaat kon niet worden gekoppeld.');
