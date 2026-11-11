@@ -33,7 +33,9 @@ import {
 } from '@/data/mock-data';
 import SubcategorieSelect from '@/components/object/SubcategorieSelect';
 import EntityPicker, { type EntityPickerItem } from '@/components/forms/EntityPicker';
+import QuickCreateRelationDialog from '@/components/forms/QuickCreateRelationDialog';
 import { getRelatieNamen } from '@/lib/relatieNaam';
+import { Plus } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -75,6 +77,7 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
   const [subcategorieId, setSubcategorieId] = useState<string | undefined>(undefined);
   const [bron, setBron] = useState('');
   const [relatieId, setRelatieId] = useState<string>('');
+  const [nieuweRelatieOpen,setNieuweRelatieOpen]=useState(false);
   const [vraagprijs, setVraagprijs] = useState<number | undefined>(undefined);
   const [prijsindicatie, setPrijsindicatie] = useState('');
   const [notitie, setNotitie] = useState('');
@@ -357,6 +360,10 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
             onChange={setRelatieId}
             items={relatieItems}
           />
+          <Button type="button" variant="outline" size="sm"
+            onClick={()=>setNieuweRelatieOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5"/> Nieuwe verkopende relatie aanmaken
+          </Button>
 
           {/* Prijs */}
           <div className="grid gap-3 sm:grid-cols-2">
@@ -403,6 +410,12 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
           </Button>
         </DialogFooter>
       </DialogContent>
+      <QuickCreateRelationDialog
+        open={nieuweRelatieOpen}
+        onOpenChange={setNieuweRelatieOpen}
+        context="verkoper"
+        onCreated={relatie=>setRelatieId(relatie.id)}
+      />
     </Dialog>
   );
 }
