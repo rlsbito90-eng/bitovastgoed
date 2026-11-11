@@ -88,6 +88,22 @@ describe('Matching 3: reacties op daadwerkelijke aanbiedingen',()=>{
     expect(controleerReactie(reactie({redenen:['prijs','prijs']}),'2026-11-11')).toMatch(/verschillende/);
     expect(controleerReactie(reactie({datum:'2026-11-10'}),'2026-11-11')).toBeNull();
   });
+  it('zonder reactie mogen geen oorzaak of afwijzingsredenen worden geregistreerd',()=>{
+    const input=reactie({
+      status:'geen_reactie',redenen:['prijs'],duiding:'object',
+    });
+    expect(controleerReactie(input,'2026-11-11')).toMatch(/geen reden of oorzaak/);
+  });
+  it('geen reactie vereist een al eerder aangeboden object, niet alleen een potentiële match',async()=>{
+    const d=deps({bestaandeKandidaat:kandidaat({
+      pipelineFase:'match_gevonden',teaserVerstuurd:false,teaserVerstuurdOp:undefined,
+      informatieGedeeld:false,
+    })});
+    await expect(registreerAanbiedingsReactie(
+      reactie({status:'geen_reactie',redenen:[]}),d,'2026-11-11',
+    )).rejects.toThrow(/oorspronkelijke aanbieding/);
+    expect(d.voegMomentToe).not.toHaveBeenCalled();
+  });
   it('laatste reactie wordt op datum per relatie en object geselecteerd',()=>{
     const events=[
       gebeurtenis('r1','interesse',{momentDate:'2026-11-07'}),
