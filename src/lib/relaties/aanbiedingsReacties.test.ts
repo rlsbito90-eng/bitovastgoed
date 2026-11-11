@@ -3,7 +3,7 @@ import type { PipelineKandidaat } from '@/data/mock-data';
 import type { ContactMoment } from '@/lib/contactMoments';
 import {
   controleerReactie, maakReactieMoment, reactiePipelinePatch,
-  marktsignaalVoorObject, laatsteReactie, registreerAanbiedingsReactie,
+  marktsignaalVoorObject, koopsignaalVoorRelatie, laatsteReactie, registreerAanbiedingsReactie,
   ReactiePipelineNietBijgewerkt,
   type ReactieInvoer, type AanbiedingReactieDetails,
 } from './aanbiedingsReacties';
@@ -127,6 +127,22 @@ describe('Matching 3: reacties op daadwerkelijke aanbiedingen',()=>{
     expect(x.afwijzingen).toBe(4);
     expect(x.zonderReactie).toBe(1);
     expect(x.patronen[0]).toMatchObject({reden:'prijs',aantal:4,reacties:5});
+  });
+  it('drie verschillende afgewezen objecten geven profielreviewvoorstel, geen profielwijziging',()=>{
+    const events=['o1','o2','o3'].map(objectId=>
+      gebeurtenis('r1','afgewezen',{objectId,id:'cm-'+objectId}));
+    const resultaat=koopsignaalVoorRelatie('r1',events);
+    expect(resultaat.reacties).toBe(3);
+    expect(resultaat.patronen).toEqual(expect.arrayContaining([
+      expect.objectContaining({reden:'prijs',aantal:3}),
+    ]));
+    const extra=koopsignaalVoorRelatie('r1',[
+      ...events,gebeurtenis('r1','afgewezen',{
+        objectId:'o2',momentDate:'2026-11-11',id:'later',
+      }),
+    ]);
+    expect(extra.patronen[0].aantal).toBe(3);
+    expect(koopsignaalVoorRelatie('r2',events).patronen).toEqual([]);
   });
   it('geen marktconclusie na een enkele afwijzing en geen afwijzing uit stilte',()=>{
     const x=marktsignaalVoorObject('o1',[gebeurtenis('r1','afgewezen'),gebeurtenis('r2','geen_reactie')]);
