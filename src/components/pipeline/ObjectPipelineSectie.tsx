@@ -83,6 +83,10 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
           {' · '}{marktsignaal.afwijzingen} afwijzingen
           {marktsignaal.zonderReactie>0?' · '+marktsignaal.zonderReactie+' nog zonder reactie':''}
         </p>
+        {marktsignaal.andersAantal>0&&<p>
+          {marktsignaal.andersAantal} afwijzing(en) onder ‘Andere reden’.
+          Bekijk de toelichtingen voordat je een nieuwe categorie overweegt.
+        </p>}
         {marktsignaal.patronen.map(p=><p key={p.reden} className="text-foreground">
           Markttoets: {p.aantal} van {p.reacties} reagerende beleggers noemt
           {' '}{p.label.toLowerCase()}. Beoordeel zelf of de propositie aanpassing vraagt.
