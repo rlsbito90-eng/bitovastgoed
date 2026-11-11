@@ -117,13 +117,18 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
           </Button>
         </div>
       </div>
-      {koopsignaal.patronen.length>0&&<div className="border-t border-border/70 pt-3 text-xs text-muted-foreground space-y-1">
+      {(koopsignaal.patronen.length>0||koopsignaal.andersAantal>0)&&
+        <div className="border-t border-border/70 pt-3 text-xs text-muted-foreground space-y-1">
         <p className="font-medium text-foreground">Mogelijke aanscherping zoekprofiel</p>
         {koopsignaal.patronen.map(p=><p key={p.reden}>
           {p.aantal} verschillende objecten zijn afgewezen met als reden
           {' '}{p.label.toLowerCase()}. Controleer samen met de belegger
           of dit een voorkeur of harde eis is.
         </p>)}
+        {koopsignaal.andersAantal>0&&<p>
+          {koopsignaal.andersAantal} objecten met afwijsreden ‘Anders’.
+          Controleer de toelichtingen; deze vormen niet automatisch één gedeelde reden.
+        </p>}
         <p>Geen automatische wijziging van het investeringsprofiel.</p>
       </div>}
       <p className="text-xs text-muted-foreground">
