@@ -53,7 +53,7 @@ export function bepaalGolfKandidaatStatus(
     kandidaat.teaserVerstuurdOp,kandidaat.informatieGedeeldOp,
     ...aanbod.map(m=>m.momentDate),
   ].map(dateOnly).filter(geldigDatum).sort();
-  const laatsteAanbieddatum=dates.at(-1);
+  const laatsteAanbieddatum=dates.length>0?dates[dates.length-1]:undefined;
   const isAangeboden=kandidaat.teaserVerstuurd || kandidaat.informatieGedeeld ||
     aanbod.length>0 || ['teaser_verstuurd','informatie_gedeeld'].includes(kandidaat.pipelineFase);
   if(!isAangeboden){
