@@ -120,17 +120,22 @@ export default function ObjectAanbiedgolvenPanel({
         het object en selecteer daarna de best passende partijen voor golf 1.
       </p>}
       {golven.map(g=>{
-        const deelnemers=kandidaten.filter(k=>selecties.some(x=>
-          x.golfId===g.id&&x.kandidaatId===k.id));
+        const selectieIds=selecties.filter(s=>s.golfId===g.id).map(s=>s.kandidaatId);
+        const deelnemers=kandidaten.filter(k=>selectieIds.includes(k.id));
+        const historischeSelecties=selectieIds.length-deelnemers.length;
         const voortgang=berekenGolfVoortgang(deelnemers,store.contactMoments??[],today);
         return <div key={g.id} className="border border-border/70 rounded-md p-3 space-y-2">
           <div className="flex flex-wrap justify-between gap-2">
-            <p className="text-sm font-semibold">Golf {g.volgnummer} · {voortgang.aantal} kandidaten</p>
+            <p className="text-sm font-semibold">Golf {g.volgnummer} · {selectieIds.length} kandidaten</p>
             <p className="text-xs text-muted-foreground">
               {voortgang.gereageerd} gereageerd · {voortgang.wachten} wachten
               {voortgang.opvolgen>0?' · '+voortgang.opvolgen+' opvolgen':''}
             </p>
           </div>
+          {historischeSelecties>0&&<p className="text-xs text-amber-700 dark:text-amber-400">
+            {historischeSelecties} geselecteerde kandidaat(kandidaten) staan niet
+            meer in de actuele pipeline. Hun historische selectie blijft bestaan.
+          </p>}
           {g.toelichting&&<p className="text-xs text-muted-foreground whitespace-pre-wrap">
             {g.toelichting}
           </p>}
