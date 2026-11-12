@@ -13,6 +13,9 @@ import {
 } from '@/lib/objecten/aanbiedGolven';
 import { laadAanbiedgolven,maakNieuweAanbiedgolf } from '@/lib/objecten/aanbiedGolvenApi';
 import { datumVandaagNL } from '@/lib/relaties/aanbiedingRegistreren';
+import { laadCommercieleBeoordeling } from '@/lib/objecten/commercieleBeoordelingApi';
+import { bepaalCommercieelAdvies, AANBIED_ADVIES_LABELS,
+  type ObjectCommercieleBeoordeling } from '@/lib/objecten/commercieleBeoordeling';
 
 interface Props {
   objectId:string;
@@ -29,6 +32,8 @@ export default function ObjectAanbiedgolvenPanel({
   const store=useDataStore();
   const kandidaten=store.getPipelineVoorObject(objectId);
   const [golven,setGolven]=useState<AanbiedGolf[]>([]);
+  const [commercieel,setCommercieel]=useState<ObjectCommercieleBeoordeling|null>(null);
+  const [commercieelFout,setCommercieelFout]=useState<string|null>(null);
   const [selecties,setSelecties]=useState<GolfSelectie[]>([]);
   const [gekozen,setGekozen]=useState<string[]>([]);
   const [toelichting,setToelichting]=useState('');
@@ -52,6 +57,25 @@ export default function ObjectAanbiedgolvenPanel({
       .finally(()=>{if(actief)setLaden(false);});
     return ()=>{actief=false;};
   },[objectId]);
+
+  useEffect(()=>{
+    let actief=true;
+    setCommercieel(null);setCommercieelFout(null);
+    void laadCommercieleBeoordeling(objectId)
+      .then(result=>{if(actief)setCommercieel(result);})
+      .catch(e=>{if(actief)setCommercieelFout(
+        e instanceof Error?e.message:'Beoordeling niet beschikbaar',
+      );});
+    return ()=>{actief=false;};
+  },[objectId]);
+
+  const object=store.getObjectById(objectId);
+  const commercieelAdvies=object?bepaalCommercieelAdvies(object,commercieel):null;
+  const commercieleWaarschuwing=!commercieel
+    ?'Voor dit object is nog geen commerciële beoordeling opgeslagen.'
+    :commercieelAdvies && ['verkennen','herbeoordelen'].includes(commercieelAdvies.gekozen)
+      ?'De commerciële beoordeling adviseert eerst verkennen of herbeoordelen. Bespreek dit voordat je kopers breder benadert.'
+      :null;
 
   const bestaandeIds=useMemo(()=>new Set(selecties.map(x=>x.kandidaatId)),[selecties]);
   const beschikbaar=kandidaten.filter(k=>!bestaandeIds.has(k.id));
@@ -105,6 +129,22 @@ export default function ObjectAanbiedgolvenPanel({
         Commerciële beoordeling
       </Link>
     </div>
+    {commercieelAdvies&&<div className="border border-border/70 rounded-md p-3 space-y-1">
+      <p className="text-xs font-medium">
+        Commerciële beoordeling: {AANBIED_ADVIES_LABELS[commercieelAdvies.gekozen]}
+        {commercieelAdvies.handmatig?' · handmatig besluit':''}
+      </p>
+      {commercieleWaarschuwing&&<p className="text-xs text-amber-700 dark:text-amber-400">
+        {commercieleWaarschuwing} De golfselectie blijft mogelijk; de beoordeling
+        is een advies, geen harde blokkade.
+      </p>}
+      {commercieelAdvies.gekozen==='markttoets'&&<p className="text-xs text-muted-foreground">
+        Gebruik deze golf voor een gerichte markttoets bij twee à drie passende kopers.
+      </p>}
+      {commercieelFout&&<p className="text-xs text-destructive">
+        Commerciële beoordeling kon niet worden geladen: {commercieelFout}
+      </p>}
+    </div>}
     {fout&&<div role="alert" className="rounded-md border border-destructive/30 p-3 text-xs text-destructive">
       Aanbiedgolven niet beschikbaar: {fout}. Controleer of de database-uitbreiding is toegepast.
       <Button size="sm" type="button" variant="outline" className="ml-2"
