@@ -52,6 +52,12 @@ describe('Commerciële objectbeoordeling',()=>{
     expect(x.voorgesteld).toBe('markttoets');
     expect(x.redenen.join(' ')).toMatch(/ambitieus/i);
   });
+  it('een automatisch actief-advies vereist bron en verkoopmotief',()=>{
+    expect(bepaalCommercieelAdvies(o({marktwaardeBron:undefined}),b()).voorgesteld)
+      .toBe('markttoets');
+    expect(bepaalCommercieelAdvies(o({verkoopmotivatie:undefined}),b()).voorgesteld)
+      .toBe('markttoets');
+  });
   it('handmatige keuze is toegestaan, maar verandert advies niet',()=>{
     const x=bepaalCommercieelAdvies(o(),b({
       prijsOordeel:'herzien',besluit:'markttoets',
