@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Pencil, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ObjectVastgoed } from '@/data/mock-data';
+import { useDataStore } from '@/hooks/useDataStore';
+import { marktsignaalVoorObject } from '@/lib/relaties/aanbiedingsReacties';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -56,6 +58,8 @@ function Keuze<T extends string>({id,label,value,values,onChange}:{
 export default function ObjectCommercieleBeoordelingPanel({
   object,onEditBrongegevens,
 }:Props){
+  const {contactMoments}=useDataStore();
+  const marktsignaal=marktsignaalVoorObject(object.id,contactMoments??[]);
   const [form,setForm]=useState<ObjectCommercieleBeoordeling>({
     objectId:object.id,...LEEG_BEOORDELING,
   });
@@ -191,6 +195,34 @@ export default function ObjectCommercieleBeoordelingPanel({
       <Textarea id="cb-intern-oordeel" rows={2} maxLength={2000}
         value={form.internOordeel??''} onChange={e=>set('internOordeel',e.target.value)}
         placeholder="Wat moet eerst bij verkoper of in het dossier worden gecontroleerd?"/>
+    </div>
+
+    <div className="rounded-md border border-border/70 p-3 space-y-2">
+      <h4 className="font-medium text-sm">Marktfeedback op dit object</h4>
+      <p className="text-xs text-muted-foreground">
+        {marktsignaal.reacties} unieke beleggers met een vastgelegde inhoudelijke reactie
+        {' · '}{marktsignaal.afwijzingen} expliciete afwijzingen
+        {marktsignaal.zonderReactie>0
+          ?' · '+marktsignaal.zonderReactie+' nog zonder reactie':''}
+      </p>
+      {marktsignaal.patronen.map(p=><p key={p.reden} className="text-xs">
+        {p.aantal} van {p.reacties} reagerende beleggers noemden
+        {' '}{p.label.toLowerCase()}. Bespreek de eventuele prijs- of
+        propositieaanpassing met de verkoper.
+      </p>)}
+      {marktsignaal.andersAantal>0&&<p className="text-xs text-muted-foreground">
+        {marktsignaal.andersAantal} afwijzing(en) met ‘Anders’. De
+        toelichtingen vormen niet automatisch dezelfde afwijsreden.
+      </p>}
+      {marktsignaal.reacties===0&&
+        <p className="text-xs text-muted-foreground">
+          Nog geen markttoetsfeedback geregistreerd. Begin zo nodig
+          met twee of drie passende, bewezen kopers.
+        </p>}
+      <p className="text-xs text-muted-foreground">
+        Alleen gedocumenteerde reacties; stilte is geen afwijzing.
+        Marktfeedback wijzigt het commerciële besluit niet automatisch.
+      </p>
     </div>
 
     <div className="rounded-md border border-border bg-muted/30 p-4 space-y-3">
