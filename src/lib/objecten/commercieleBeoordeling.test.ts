@@ -50,7 +50,7 @@ describe('Commerciële objectbeoordeling',()=>{
       prijsOordeel:'ambitieus',verkoopBereidheid:'bereid',
     }));
     expect(x.voorgesteld).toBe('markttoets');
-    expect(x.redenen.join(' ')).toMatch(/ambitieus/i);
+    expect(x.redenen.join(' ')).toMatch(/ambitieu/i);
   });
   it('een automatisch actief-advies vereist bron en verkoopmotief',()=>{
     expect(bepaalCommercieelAdvies(o({marktwaardeBron:undefined}),b()).voorgesteld)
