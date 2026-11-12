@@ -138,7 +138,9 @@ export function bepaalCommercieelAdvies(
     b.verkoopBereidheid==='bevestigd' &&
     b.beslisserStatus==='bevoegd' &&
     (b.informatieStatus==='voldoende'||b.informatieStatus==='geverifieerd') &&
-    (!!object.vraagprijs||!!object.prijsindicatie?.trim())){
+    (!!object.vraagprijs||!!object.prijsindicatie?.trim()) &&
+    !!object.marktwaardeIndicatie && !!object.marktwaardeBron?.trim() &&
+    !!object.verkoopmotivatie?.trim()){
     voorgesteld='actief';
     redenen.push('Prijs beoordeeld, concreet verkoopbesluit en voldoende informatie.');
   }else{
