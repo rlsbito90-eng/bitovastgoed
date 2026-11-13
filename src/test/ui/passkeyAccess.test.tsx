@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   originAllowed: { value: true },
   previewOrigin: { value: false },
   verifyOtp: vi.fn(),
-  popupWindow: { postMessage: vi.fn() },
   authState: { user: null as { id: string } | null, loading: false },
 }));
 
@@ -46,7 +45,6 @@ beforeEach(() => {
   mocks.originAllowed.value = true;
   mocks.previewOrigin.value = false;
   mocks.verifyOtp.mockReset();
-  mocks.popupWindow.postMessage.mockReset();
   mocks.authState.user = null;
   mocks.authState.loading = false;
   mocks.signInWithPasskey.mockReset();
@@ -98,7 +96,7 @@ describe('CRM zonder traditioneel inlogformulier', () => {
   it('opent in previews een popup op het vaste CRM-adres zonder wachtwoord', () => {
     mocks.originAllowed.value = false;
     mocks.previewOrigin.value = true;
-    const open = vi.spyOn(window, 'open').mockImplementation(() => mocks.popupWindow as unknown as Window);
+    const open = vi.spyOn(window, 'open').mockImplementation(() => window);
     try {
       renderToegang();
       fireEvent.click(screen.getByRole('button', { name: 'Aanmelden via Touch ID' }));
@@ -116,7 +114,8 @@ describe('CRM zonder traditioneel inlogformulier', () => {
     mocks.originAllowed.value = false;
     mocks.previewOrigin.value = true;
     mocks.verifyOtp.mockResolvedValue({ error: null });
-    const open = vi.spyOn(window, 'open').mockImplementation(() => mocks.popupWindow as unknown as Window);
+    const open = vi.spyOn(window, 'open').mockImplementation(() => window);
+    const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
     try {
       renderToegang();
       fireEvent.click(screen.getByRole('button', { name: 'Aanmelden via Touch ID' }));
@@ -125,7 +124,7 @@ describe('CRM zonder traditioneel inlogformulier', () => {
       await act(async () => {
         window.dispatchEvent(new MessageEvent('message', {
           origin: 'https://evil.example',
-          source: mocks.popupWindow as unknown as MessageEventSource,
+          source: window,
           data: grant,
         }));
       });
@@ -134,18 +133,19 @@ describe('CRM zonder traditioneel inlogformulier', () => {
       await act(async () => {
         window.dispatchEvent(new MessageEvent('message', {
           origin: 'https://bitovastgoed.vercel.app',
-          source: mocks.popupWindow as unknown as MessageEventSource,
+          source: window,
           data: grant,
         }));
       });
       await waitFor(() => expect(mocks.verifyOtp).toHaveBeenCalledWith({ type: 'magiclink', token_hash: 'b'.repeat(64) }));
       await waitFor(() => expect(screen.getByText('Dashboard')).toBeTruthy());
-      expect(mocks.popupWindow.postMessage).toHaveBeenCalledWith({
+      expect(post).toHaveBeenCalledWith({
         type: 'bito-crm-preview-login-ack-v1',
         nonce: 'a'.repeat(64),
       }, 'https://bitovastgoed.vercel.app');
     } finally {
       open.mockRestore();
+      post.mockRestore();
     }
   });
 });
