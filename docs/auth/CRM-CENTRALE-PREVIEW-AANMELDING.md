@@ -17,7 +17,8 @@ Er is één **server-side**, beperkt Vercel API-token nodig. De eigenaar maakt d
 
 **Supabase Dashboard → Project → Edge Functions → Secrets**
 - Name: `VERCEL_PREVIEW_AUTH_READ_TOKEN`
-- Value: nieuw Vercel API-token met alleen de noodzakelijke rechten om deployments te **lezen** binnen Bito Vastgoed (geen deploy-, write- of managementrecht).
+- Value: een Vercel API-token dat toegang heeft tot de deployments van het Bito-team. Beperk de scope zoveel mogelijk (team/project en indien ondersteund alleen leesrechten). **Let op:** niet elk type persoonlijk Vercel API-token ondersteunt afzonderlijke read-only rechten; ga er niet zomaar van uit dat dit token geen schrijfrechten heeft.
+- Gebruik waar mogelijk een specifieke, beperkt bevoegde integratie of account en geef het token een korte vervaldatum. Bij een potentieel breed bevoegd eigenaarstoken eerst het risico afwegen.
 - Dit token nooit in ChatGPT, GitHub, logs of `VITE_*`-variabelen plakken; het hoort uitsluitend in Supabase Edge Function secrets. Na invullen is er geen wijziging aan het Vite-frontend nodig.
 
 Verificatie / eigenaarstoken:
