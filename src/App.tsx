@@ -11,6 +11,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const PasskeyAccessPage = lazy(() => import('@/pages/PasskeyAccessPage'));
+const PreviewAuthBridgePage = lazy(() => import('@/pages/PreviewAuthBridgePage'));
 const OAuthConsentPage = lazy(() => import('@/pages/OAuthConsentPage'));
 const CrmProtectedApp = lazy(() => import('@/CrmProtectedApp'));
 
@@ -33,6 +34,7 @@ const App = () => (
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/auth" element={<PasskeyAccessPage />} />
+              <Route path="/auth/preview-bridge" element={<PreviewAuthBridgePage />} />
               <Route path="/auth/herstel" element={<AuthPage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
               <Route
