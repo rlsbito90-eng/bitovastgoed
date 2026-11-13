@@ -159,30 +159,11 @@ export default function RelatiesPage() {
         title="Relaties"
         subtitle={`${relaties.length} contacten`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setHerstelOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-destructive/40 text-destructive rounded-md hover:bg-destructive/5 transition-colors">
-              Foutieve import herstellen
-            </button>
-            <button onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors">
-              <Upload className="h-4 w-4" /> Meerdere toevoegen
-            </button>
-            <button onClick={()=>setFormOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium border border-border text-foreground rounded-md hover:bg-muted transition-colors">
-              <Plus className="h-4 w-4" /> Uitgebreid toevoegen
-            </button>
-            <button onClick={()=>setQuickOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm">
-              <Plus className="h-4 w-4" /> Snel toevoegen
-            </button>
-          </div>
+          <button onClick={() => setQuickOpen(true)} className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-accent-foreground shadow-sm transition-colors hover:bg-accent/90">
+            <Plus className="h-4 w-4" /> Nieuwe relatie
+          </button>
         }
       />
-
-      <WebsiteInvesteringsprofielenInbox />
-
-      <ClassificatieReviewPanel relaties={relaties} zoekprofielen={zoekprofielen}
-        pipelineKandidaten={pipelineKandidaten} contactMoments={contactMoments}
-        contactpersonen={contactpersonen} objecten={objecten}/>
-      <MatchingImpactPanel objecten={objecten} relaties={relaties} zoekprofielen={zoekprofielen}
-        pipelineKandidaten={pipelineKandidaten} contactpersonen={contactpersonen}/>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
@@ -215,6 +196,31 @@ export default function RelatiesPage() {
           <SortDropdown options={sortOptions} value={sortValue} onChange={v=>{setSortValue(v);setPagina(1);}} />
         </div>
       </div>
+
+      <details className="rounded-xl border border-border/70 bg-card/45">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-foreground">
+          Beheer en controles <span className="ml-2 font-normal text-muted-foreground">Websiteprofielen, imports en matching</span>
+        </summary>
+        <div className="space-y-3 border-t border-border/70 p-3 sm:p-4">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted">
+              <Upload className="h-4 w-4" /> Meerdere toevoegen
+            </button>
+            <button onClick={() => setFormOpen(true)} className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted">
+              <Plus className="h-4 w-4" /> Uitgebreid toevoegen
+            </button>
+            <button onClick={() => setHerstelOpen(true)} className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive hover:bg-destructive/5">
+              Foutieve import herstellen
+            </button>
+          </div>
+          <WebsiteInvesteringsprofielenInbox />
+          <ClassificatieReviewPanel relaties={relaties} zoekprofielen={zoekprofielen}
+            pipelineKandidaten={pipelineKandidaten} contactMoments={contactMoments}
+            contactpersonen={contactpersonen} objecten={objecten}/>
+          <MatchingImpactPanel objecten={objecten} relaties={relaties} zoekprofielen={zoekprofielen}
+            pipelineKandidaten={pipelineKandidaten} contactpersonen={contactpersonen}/>
+        </div>
+      </details>
 
       <div ref={lijstBegin} className="scroll-mt-24" />
       {filtered.length>0&&paginaNavigatie}

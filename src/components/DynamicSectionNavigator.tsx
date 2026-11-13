@@ -29,6 +29,10 @@ function isEditing(): boolean {
     || active?.getAttribute('contenteditable') === 'true';
 }
 
+function isQuickCreateExpanded(): boolean {
+  return Boolean(document.querySelector('[data-testid="quick-create-menu"], [data-testid="quick-task-capture-dock"] [data-testid="quick-task-capture"]'));
+}
+
 function isTaskSelectionActive(): boolean {
   return Boolean(document.querySelector('[data-task-selection-mode="true"]'));
 }
@@ -157,7 +161,7 @@ export default function DynamicSectionNavigator() {
 
         const container = getScrollContainer();
         const scrollTop = getScrollTop(container);
-        setVisible(scrollTop > MIN_SCROLL_Y && !isEditing() && !isTaskSelectionActive());
+        setVisible(scrollTop > MIN_SCROLL_Y && !isEditing() && !isTaskSelectionActive() && !isQuickCreateExpanded());
 
         if (armedSectionTop.current !== null) {
           const distanceToArmedSection = Math.abs(scrollTop - armedSectionTop.current);
