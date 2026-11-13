@@ -60,6 +60,7 @@ import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenA
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
+import ObjectCommercieleBeoordelingPanel from '@/components/object/ObjectCommercieleBeoordelingPanel';
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
 import FocusPointDialog from '@/components/object/FocusPointDialog';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
@@ -357,7 +358,7 @@ const WORKSPACE_TABS: Array<{ id: WorkspaceTabId; label: string; icon: any; mobi
 /** Map van anchor-id (deep links blijven werken) naar tab waarop het anchor leeft */
 export const ANCHOR_TO_TAB: Record<string, WorkspaceTabId> = {
   overzicht: 'overzicht',
-  dealflow: 'dealflow', biedingen: 'dealflow', activiteit: 'dealflow',
+  dealflow: 'dealflow', commercieel: 'dealflow', biedingen: 'dealflow', activiteit: 'dealflow',
   kandidaten: 'kandidaten', referenties: 'financieel',
   vastgoedrekenen: 'vastgoedrekenen',
   financieel: 'financieel', verhuur: 'financieel',
@@ -1544,6 +1545,17 @@ export default function ObjectDetailPage() {
                 <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
               </div>
             </div>
+          </SectionAnchor>
+          )}
+
+          {/* ============ COMMERCIELE BEOORDELING: voor kandidaatbenadering ============ */}
+          {activeTab === 'dealflow' && (
+          <SectionAnchor id="commercieel" eyebrow={eyebrowFor("commercieel", "Market readiness")}
+            title="Commerciële beoordeling">
+            <ObjectCommercieleBeoordelingPanel
+              object={object}
+              onEditBrongegevens={openEdit}
+            />
           </SectionAnchor>
           )}
 

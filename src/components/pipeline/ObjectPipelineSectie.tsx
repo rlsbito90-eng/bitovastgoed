@@ -8,6 +8,7 @@ import PipelineKandidaatDialog from './PipelineKandidaatDialog';
 import KandidaatSelectieDialog from './KandidaatSelectieDialog';
 import AanbiedingRegistrerenDialog from '@/components/forms/AanbiedingRegistrerenDialog';
 import AanbiedingsReactieDialog from '@/components/forms/AanbiedingsReactieDialog';
+import ObjectAanbiedgolvenPanel from '@/components/object/ObjectAanbiedgolvenPanel';
 import { laatsteReactie, marktsignaalVoorObject, REACTIE_STATUS_LABELS } from '@/lib/relaties/aanbiedingsReacties';
 import { VOLGENDE_ACTIE_LABELS, type PipelineKandidaat } from '@/data/mock-data';
 import { toast } from 'sonner';
@@ -92,6 +93,8 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
           {' '}{p.label.toLowerCase()}. Beoordeel zelf of de propositie aanpassing vraagt.
         </p>)}
       </div>}
+      <ObjectAanbiedgolvenPanel objectId={objectId}
+        onAanbieding={openAanbieding} onReactie={openReactie}/>
       <KandidaatSelectieDialog
         open={adding}
         onOpenChange={setAdding}
