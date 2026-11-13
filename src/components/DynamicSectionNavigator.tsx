@@ -122,6 +122,8 @@ function openScenarioAudit(): void {
 
 export default function DynamicSectionNavigator() {
   const location = useLocation();
+  // Laat de zwevende taakinvoer bereikbaar; geen overlap met sectienavigatie.
+  const hasFloatingTaskDock = location.pathname !== '/taken' && !location.pathname.startsWith('/taken/');
   const [visible, setVisible] = useState(false);
   const [label, setLabel] = useState('Naar boven');
   const [targetTop, setTargetTop] = useState(0);
@@ -251,7 +253,7 @@ export default function DynamicSectionNavigator() {
           onClick={handleClick}
           title={title}
           aria-label={title}
-          className="group fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-11 sm:px-3.5"
+          className={`group fixed right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:right-6 sm:h-11 sm:px-3.5 ${hasFloatingTaskDock ? 'bottom-[calc(env(safe-area-inset-bottom)+5rem)] sm:bottom-24' : 'bottom-[calc(env(safe-area-inset-bottom)+1rem)] sm:bottom-6'}`}
         >
           <ArrowUp className="h-5 w-5 shrink-0" />
           <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">{label}</span>
