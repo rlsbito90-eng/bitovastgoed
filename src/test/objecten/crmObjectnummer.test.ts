@@ -47,3 +47,15 @@ describe('CRM-objectnummer', () => {
     expect(sql).toContain('ORDER BY created_at, id');
   });
 });
+
+describe('Zoeken op adressen', () => {
+  it('vindt een object op huisnummer, straat of postcode zonder spatie', () => {
+    const object = {
+      crmObjectnummer: 'OBJ-000123', titel: 'Appartement', plaats: 'Hilversum',
+      adres: 'Geuzenweg 22-A', postcode: '1211 AB',
+    };
+    expect(objectMatchesCrmSearch(object, 'Geuzenweg 22-A')).toBe(true);
+    expect(objectMatchesCrmSearch(object, '1211AB')).toBe(true);
+    expect(objectMatchesCrmSearch(object, '1211 AB')).toBe(true);
+  });
+});
