@@ -19,6 +19,7 @@ import { byDate, byNumber, byString, combine } from '@/lib/sorting/comparators';
 import { smartObjectCompare } from '@/lib/sorting/urgency';
 import type { SortOption } from '@/lib/sorting/types';
 import { objectMatchesCrmSearch } from '@/lib/objecten/crmObjectnummer';
+import { groepeerObjectenLijst, indexeerPortefeuilleOnderdelen, zoektInPortefeuilleOnderdelen } from '@/lib/objecten/objectenLijstGroepering';
 import { getObjectIntegriteitVoorObject } from '@/lib/objecten/objectIntegriteit';
 import { maakCrmReturnState } from '@/lib/crmReturnContext';
 import {
@@ -37,12 +38,14 @@ export default function ObjectenPage() {
   const [statusFilter, setStatusFilter] = useState<ObjectStatus | ''>(initialView.statusFilter);
   const [archiefView, setArchiefView] = useState<ObjectenArchiefView>(initialView.archiefView);
   const [formOpen, setFormOpen] = useState(false);
+  const [toonOnderdelenLos, setToonOnderdelenLos] = useState(initialView.toonOnderdelenLos);
+  const kinderenPerPortefeuille = useMemo(() => indexeerPortefeuilleOnderdelen(objecten), [objecten]);
 
   useEffect(() => {
     saveObjectenViewState({
-      zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView,
+      zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView, toonOnderdelenLos,
     });
-  }, [zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView]);
+  }, [zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView, toonOnderdelenLos]);
 
   const aantalArchief = objecten.filter(o => o.isArchived).length;
   const aantalActief = objecten.length - aantalArchief;
@@ -72,15 +75,16 @@ export default function ObjectenPage() {
     const list = objecten.filter(o => {
       if (archiefView === 'actief' && o.isArchived) return false;
       if (archiefView === 'archief' && !o.isArchived) return false;
-      const matchZoek = objectMatchesCrmSearch(o, zoek);
+      const matchZoek = objectMatchesCrmSearch(o, zoek)
+        || zoektInPortefeuilleOnderdelen(o, kinderenPerPortefeuille.get(o.id) ?? [], zoek);
       const matchType = !typeFilter || o.propertyTypeId === typeFilter;
       const matchSub = !subtypeFilter || (o.propertySubtypeIds ?? []).includes(subtypeFilter);
       const matchDeal = !dealtypeFilter || (o.dealTypeIds ?? []).includes(dealtypeFilter);
       const matchStatus = !statusFilter || o.status === statusFilter;
       return matchZoek && matchType && matchSub && matchDeal && matchStatus;
     });
-    return [...list].sort(activeSort.compare);
-  }, [objecten, zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView, activeSort]);
+    return groepeerObjectenLijst([...list].sort(activeSort.compare), toonOnderdelenLos);
+  }, [objecten, kinderenPerPortefeuille, zoek, typeFilter, subtypeFilter, dealtypeFilter, statusFilter, archiefView, activeSort, toonOnderdelenLos]);
 
   useEffect(() => {
     saveListContext('objecten', filtered.map(o => o.id));
@@ -139,7 +143,7 @@ export default function ObjectenPage() {
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5">
         <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Zoek op naam, plaats of object-ID..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
+          <Input placeholder="Zoek naam, adres, postcode of object-ID..." className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} />
         </div>
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2.5">
           <select
@@ -182,6 +186,12 @@ export default function ObjectenPage() {
           <SortDropdown options={sortOptions} value={sortValue} onChange={setSortValue} />
         </div>
       </div>
+      <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+        <input type="checkbox" checked={toonOnderdelenLos}
+          onChange={e => setToonOnderdelenLos(e.target.checked)}
+          className="h-4 w-4 rounded border-border accent-accent" />
+        Portefeuilleonderdelen ook als losse objecten tonen
+      </label>
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -232,6 +242,17 @@ export default function ObjectenPage() {
                   <p className="text-xs text-muted-foreground mt-1 truncate">
                     {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
                   </p>
+                  {obj.isPortefeuille && (kinderenPerPortefeuille.get(obj.id)?.length ?? 0) > 0 && (
+                    <div className="mt-1.5 text-xs text-muted-foreground space-y-0.5">
+                      <p className="font-medium">{kinderenPerPortefeuille.get(obj.id)!.length} gekoppelde onderdelen</p>
+                      {kinderenPerPortefeuille.get(obj.id)!.slice(0, 3).map(child => (
+                        <p className="truncate" key={child.id}>· {child.adres || child.titel}{child.plaats ? `, ${child.plaats}` : ''}</p>
+                      ))}
+                    </div>
+                  )}
+                  {obj.parentObjectId && toonOnderdelenLos && (
+                    <p className="text-[11px] text-muted-foreground mt-1">Portefeuilleonderdeel</p>
+                  )}
                   {obj.isArchived && (
                     <div className="mt-2 flex items-center justify-between gap-2 text-xs">
                       <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -252,6 +273,9 @@ export default function ObjectenPage() {
                     <span className="text-sm text-foreground font-mono-data truncate">
                       {formatCurrency(obj.vraagprijs)}
                     </span>
+                    {obj.isPortefeuille && (
+                      <span className="text-[10px] text-muted-foreground">Pakketprijs</span>
+                    )}
                     {rendement && (
                       <span className="text-xs text-success font-mono-data shrink-0">
                         {rendement}%
@@ -289,6 +313,17 @@ export default function ObjectenPage() {
                       >
                         <td className="px-5 py-3.5">
                           <p className="font-medium text-foreground group-hover:text-primary transition-colors">{obj.titel}</p>
+                          {obj.isPortefeuille && (kinderenPerPortefeuille.get(obj.id)?.length ?? 0) > 0 && (
+                            <div className="mt-0.5 text-[11px] text-muted-foreground">
+                              <span className="font-medium">{kinderenPerPortefeuille.get(obj.id)!.length} gekoppelde onderdelen</span>
+                              <span className="block truncate max-w-[340px]">
+                                {kinderenPerPortefeuille.get(obj.id)!.map(child => child.adres || child.titel).join(' · ')}
+                              </span>
+                            </div>
+                          )}
+                          {obj.parentObjectId && toonOnderdelenLos && (
+                            <p className="text-[11px] text-muted-foreground">Portefeuilleonderdeel</p>
+                          )}
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {obj.crmObjectnummer && <span className="font-mono-data">{obj.crmObjectnummer}</span>}
                             {integriteit.heeftWaarschuwing && (
@@ -300,7 +335,10 @@ export default function ObjectenPage() {
                             {[obj.plaats, obj.provincie].filter(Boolean).join(', ')}
                           </p>
                         </td>
-                        <td className="px-5 py-3.5 text-right font-mono-data text-foreground">{formatCurrency(obj.vraagprijs)}</td>
+                        <td className="px-5 py-3.5 text-right font-mono-data text-foreground">
+                          {formatCurrency(obj.vraagprijs)}
+                          {obj.isPortefeuille && <span className="block text-[10px] text-muted-foreground">Pakketprijs</span>}
+                        </td>
                         <td className="px-5 py-3.5 text-right hidden lg:table-cell font-mono-data">
                           {rendement ? <span className="text-success">{rendement}%</span> : <span className="text-muted-foreground">—</span>}
                         </td>
