@@ -1575,7 +1575,9 @@ export default function ObjectDetailPage() {
                 toast.success('Object gekoppeld aan portefeuille');
               }}
               onOntkoppel={async (childId) => {
-                await store.updateObject(childId, { parentObjectId: undefined });
+                // Lege string wordt door toDbObject expliciet als SQL NULL opgeslagen.
+                // undefined zou de bestaande parent-koppeling juist laten staan.
+                await store.updateObject(childId, { parentObjectId: '' });
                 toast.success('Object losgekoppeld van portefeuille');
               }}
             />
