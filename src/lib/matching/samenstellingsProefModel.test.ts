@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { berekenSamenstellingsProef, parseOppervlakte, type OnderdeelConcept } from './samenstellingsProefModel';
+import { berekenSamenstellingsProef, berekenSamenstellingZonderVinkjes, parseOppervlakte, type OnderdeelConcept } from './samenstellingsProefModel';
 
 const component = (id: string, functie: string, oppervlakte: string, basis: 'vvo'|'gbo'|'bvo'='vvo'): OnderdeelConcept => ({
   id, omschrijving:id, gebruiksfunctieCode:functie, oppervlakte, meetbasis:basis, adres:'',
@@ -53,4 +53,39 @@ describe('Samenstelling-proef: alle overige functies gezamenlijk',()=>{
     expect(result.uitkomst.diskwalificatie).toBe(true);
   });
 
+});
+
+describe('Automatische gegevenscontrole zonder handmatige vinkjes',()=>{
+  const parts = [
+    component('hal','bedrijfsruimte','750'),
+    component('kantoor','kantoor','250'),
+  ];
+  const afgebakend = { totaalM2:1000, meetbasis:'vvo' as const, afbakening:'afgebakend' as const,
+    omschrijving:'Fictieve onafhankelijke bron' };
+  it('leidt een toetsbare 75/25-verhouding af uit dezelfde meetbasis en totaal',()=>{
+    const x=berekenSamenstellingZonderVinkjes(parts,70,'hard','vvo',afgebakend);
+    expect(x.bronStatus).toBe('toetsbaar');
+    expect(x.resultaat.uitkomst.status).toBe('voldoet');
+  });
+  it('signaleert automatisch ontbrekende afbakening zonder knop',()=>{
+    const x=berekenSamenstellingZonderVinkjes(parts,70,'hard','vvo',
+      {...afgebakend,afbakening:'onbekend'});
+    expect(x.resultaat.uitkomst.status).toBe('controle_nodig');
+    expect(x.resultaat.uitkomst.diskwalificatie).toBe(false);
+    expect(x.resultaat.bedrijfsruimteAandeel).toBe(75);
+  });
+  it('controleert onafhankelijk totaal en weigert stilzwijgende dubbeltelling',()=>{
+    const x=berekenSamenstellingZonderVinkjes(parts,70,'hard','vvo',{...afgebakend,totaalM2:1100});
+    expect(x.resultaat.uitkomst.status).toBe('controle_nodig');
+    expect(x.controlemelding).toMatch(/wijkt af/);
+  });
+  it('beschouwt een bron met andere meetbasis niet als bewijs',()=>{
+    const x=berekenSamenstellingZonderVinkjes(parts,70,'hard','vvo',
+      {...afgebakend,meetbasis:'gbo'});
+    expect(x.resultaat.uitkomst.status).toBe('controle_nodig');
+  });
+  it('zonder onafhankelijk objecttotaal blijft de harde eis onbewezen',()=>{
+    const x=berekenSamenstellingZonderVinkjes(parts,70,'hard','vvo',{...afgebakend,totaalM2:null});
+    expect(x.resultaat.uitkomst.status).toBe('controle_nodig');
+  });
 });

@@ -1,10 +1,20 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Plus, RotateCcw, Trash2, FlaskConical, ShieldAlert } from 'lucide-react';
-import { berekenSamenstellingsProef, DEMO_GEBRUIKSFUNCTIES, type OnderdeelConcept } from '@/lib/matching/samenstellingsProefModel';
+import { berekenSamenstellingZonderVinkjes, DEMO_GEBRUIKSFUNCTIES, type OnderdeelConcept, type AutomatischeSamenstellingsBron } from '@/lib/matching/samenstellingsProefModel';
 import type { CriteriumSterkte, Meetbasis } from '@/lib/matching/samenstellingscriterium';
 
 type Scenario = 'voldoet' | 'afgevallen' | 'geuzenweg' | 'onbekend';
+const VOORBEELDBRONNEN: Record<Scenario, AutomatischeSamenstellingsBron> = {
+  voldoet: { totaalM2: 1000, meetbasis: 'vvo', afbakening: 'afgebakend',
+    omschrijving: 'Fictieve ruimteverdeling bedrijfscomplex — 1.000 m² VVO' },
+  afgevallen: { totaalM2: 1000, meetbasis: 'vvo', afbakening: 'afgebakend',
+    omschrijving: 'Fictieve ruimteverdeling gemengd pand — 1.000 m² VVO' },
+  geuzenweg: { totaalM2: 139, meetbasis: 'gbo', afbakening: 'afgebakend',
+    omschrijving: 'Fictieve verdeling twee woonunits — 139 m² GBO' },
+  onbekend: { totaalM2: null, meetbasis: 'vvo', afbakening: 'onbekend',
+    omschrijving: 'Geen compleet oppervlakteoverzicht beschikbaar' },
+};
 const createParts = (scenario: Scenario): OnderdeelConcept[] => {
   const mk = (id:string, omschrijving:string, code:string, oppervlakte:string, meetbasis:Meetbasis, adres=''):OnderdeelConcept => ({
     id, omschrijving, gebruiksfunctieCode:code, oppervlakte, meetbasis, adres,
@@ -35,15 +45,17 @@ export default function SamenstellingProefPage() {
   const [minimum,setMinimum]=useState('70');
   const [sterkte,setSterkte]=useState<CriteriumSterkte>('hard');
   const [meetbasisEis,setMeetbasisEis]=useState<Meetbasis>('vvo');
-  const [volledig,setVolledig]=useState(true);
-  const [overlapvrij,setOverlapvrij]=useState(true);
+  const bron = VOORBEELDBRONNEN[scenario];
   const minimaal=minimum.trim()===''?Number.NaN:Number(minimum.replace(',','.'));
   const minimumGeldig=Number.isFinite(minimaal)&&minimaal>=0&&minimaal<=100;
-  const result=useMemo(()=>berekenSamenstellingsProef(parts,minimaal,sterkte,volledig,overlapvrij,meetbasisEis),
-    [parts,minimaal,sterkte,volledig,overlapvrij,meetbasisEis]);
+  const automatischeControle = useMemo(
+    ()=>berekenSamenstellingZonderVinkjes(parts,minimaal,sterkte,meetbasisEis,bron),
+    [parts,minimaal,sterkte,meetbasisEis,bron],
+  );
+  const result=automatischeControle.resultaat;
   const reset=(name:Scenario)=>{
     setScenario(name);setParts(createParts(name));setNextId(1);
-    setMinimum('70');setSterkte('hard');setMeetbasisEis('vvo');setVolledig(name!=='onbekend');setOverlapvrij(true);
+    setMinimum('70');setSterkte('hard');setMeetbasisEis('vvo');
   };
   const update=(id:string,key:keyof OnderdeelConcept,value:string)=>
     setParts(old=>old.map(p=>p.id===id?{...p,[key]:value}:p));
@@ -130,17 +142,21 @@ export default function SamenstellingProefPage() {
           className="rounded-md border border-border px-3 py-2 text-sm inline-flex items-center gap-1.5">
           <Plus className="h-4 w-4"/> Onderdeel toevoegen
         </button>
-        <div className="rounded-lg bg-muted/30 p-3 space-y-2">
-          <h3 className="text-sm font-semibold">Datakwaliteit</h3>
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={volledig} onChange={e=>setVolledig(e.target.checked)}/>
-            Alle relevante ruimten zijn opgenomen
-          </label>
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={overlapvrij} onChange={e=>setOverlapvrij(e.target.checked)}/>
-            Oppervlaktes tellen niet dubbel mee
-          </label>
-          <p className="text-xs text-muted-foreground">Deze bevestigingen zijn in de proef handmatig. In de echte CRM moeten ze met broninformatie onderbouwd worden.</p>
+        <div className="rounded-lg bg-muted/30 p-3 space-y-2" aria-label="Automatische gegevenscontrole">
+          <h3 className="text-sm font-semibold">Automatische gegevenscontrole</h3>
+          <p className="text-xs font-medium">{automatischeControle.bronStatus==='toetsbaar'
+            ? 'Gegevens onderling consistent (voorbeeld)'
+            : 'Aanvullende informatie ontbreekt of is tegenstrijdig'}</p>
+          <p className="text-xs text-muted-foreground">{automatischeControle.controlemelding}</p>
+          <p className="text-xs text-muted-foreground">Beschikbare bron: {bron.omschrijving}</p>
+          <p className="text-xs text-muted-foreground">
+            Geen controlevinkjes: het systeem kijkt naar de aanwezige onderdelen, hun meetbasis,
+            het geregistreerde totaal en de afbakening. Ontbreekt betrouwbare broninformatie,
+            dan volgt automatisch ‘Controle nodig’, zonder extra handelingen.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Deze voorbeeldbron is fictief; dit is geen daadwerkelijke verificatie van Geuzenweg of andere panden.
+          </p>
         </div>
       </div>
     </section>
@@ -181,7 +197,7 @@ export default function SamenstellingProefPage() {
           status==='wijkt_af'?'Afwijkende voorkeur':'Controle nodig'}
         </span>
       </div>
-      {status!=='controle_nodig'&&
+      {result.bedrijfsruimteAandeel!==null&&
         <div className="h-4 w-full rounded-md overflow-hidden flex bg-muted" aria-label="Ruimteverdeling">
           <div style={{width:String(result.bedrijfsruimteAandeel)+'%',backgroundColor:'#28765B'}}/>
           <div className="flex-1" style={{backgroundColor:'#91A8BF'}}/>
@@ -191,6 +207,8 @@ export default function SamenstellingProefPage() {
         <div><p className="text-xs text-muted-foreground">Overige functies</p><p className="font-semibold">{format(result.overigeAandeel,'%')}</p></div>
         <div><p className="text-xs text-muted-foreground">Totale vergelijkbare m²</p><p className="font-semibold">{format(result.totaalM2)}</p></div>
       </div>
+      {status==='controle_nodig'&&result.bedrijfsruimteAandeel!==null&&
+        <p className="text-xs text-muted-foreground">Percentages zijn indicatief, niet geverifieerd.</p>}
       <p className="text-xs text-muted-foreground">{result.uitkomst.verklaring}</p>
       <p className="text-xs text-muted-foreground">{result.uitleg}</p>
       <div className="rounded-md border border-border/70 p-3 flex items-start gap-2">

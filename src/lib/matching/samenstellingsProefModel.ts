@@ -114,3 +114,66 @@ export function berekenSamenstellingsProef(
       + '; alle overige gebruiksfuncties worden samen meegeteld.',
   };
 }
+
+/** Broninformatie die de CRM in de echte versie uit reeds bekende objectgegevens
+ * en document-/ruimteregistraties moet ophalen; géén extra vinkjes voor de gebruiker. */
+export interface AutomatischeSamenstellingsBron {
+  /** Onafhankelijk geregistreerd totaal van dezelfde juridische/fysieke scope. */
+  totaalM2: number | null;
+  meetbasis: Meetbasis;
+  /** Alleen 'afgebakend' indien de bron onafhankelijke, niet-overlappende ruimtes beschrijft. */
+  afbakening: 'afgebakend' | 'onbekend';
+  omschrijving: string;
+}
+
+export interface AutomatischeSamenstellingsUitkomst {
+  resultaat: SamenstellingsProefResultaat;
+  bronStatus: 'toetsbaar' | 'nader_te_controleren';
+  controlemelding: string;
+}
+
+export function berekenSamenstellingZonderVinkjes(
+  regels: readonly OnderdeelConcept[],
+  percentage: number,
+  sterkte: CriteriumSterkte,
+  meetbasisEis: Meetbasis,
+  bron: AutomatischeSamenstellingsBron,
+): AutomatischeSamenstellingsUitkomst {
+  // De ruwe verhouding kan indicatief worden berekend zonder haar als geverifieerd te presenteren.
+  const indicatief = berekenSamenstellingsProef(regels, percentage, sterkte, true, true, meetbasisEis);
+  const review = (message: string): AutomatischeSamenstellingsUitkomst => ({
+    bronStatus: 'nader_te_controleren',
+    controlemelding: message,
+    resultaat: {
+      ...indicatief,
+      uitkomst: {
+        status: 'controle_nodig', diskwalificatie: false,
+        gemetenPercentage: indicatief.uitkomst.gemetenPercentage,
+        verklaring: message,
+      },
+      uitleg: 'Eventuele percentages zijn slechts indicatief; de harde eis is nog niet aantoonbaar getoetst.',
+    },
+  });
+  if (indicatief.uitkomst.status === 'controle_nodig') {
+    return review(indicatief.uitkomst.verklaring);
+  }
+  if (bron.afbakening !== 'afgebakend') {
+    return review('Geen aantoonbare, niet-overlappende ruimteafbakening beschikbaar in het objectdossier.');
+  }
+  if (bron.meetbasis !== meetbasisEis) {
+    return review('Het geregistreerde objecttotaal heeft een andere meetbasis dan de kopersvoorwaarde.');
+  }
+  if (bron.totaalM2 === null || !Number.isFinite(bron.totaalM2) || bron.totaalM2 <= 0) {
+    return review('Een onafhankelijk geregistreerd totaaloppervlak voor deze meetbasis ontbreekt.');
+  }
+  const verschil = Math.abs(bron.totaalM2 - (indicatief.totaalM2 ?? 0));
+  if (verschil > 0.01) {
+    return review('De som van de onderdelen wijkt af van het bekende objecttotaal (' +
+      bron.totaalM2.toLocaleString('nl-NL') + ' m²).');
+  }
+  return {
+    bronStatus: 'toetsbaar',
+    controlemelding: 'Automatische toets: onderdeelafbakening en oppervlaktes komen overeen met het objecttotaal.',
+    resultaat: indicatief,
+  };
+}

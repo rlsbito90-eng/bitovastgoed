@@ -51,4 +51,18 @@ describe('Samenstellingproef zonder CRM-wijzigingen',()=>{
     expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
   });
 
+  it('heeft geen handmatige datakwaliteit-checkboxes meer',()=>{
+    setup();
+    expect(screen.getByLabelText('Automatische gegevenscontrole')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Deze bevestigingen zijn in de proef handmatig/)).not.toBeInTheDocument();
+  });
+  it('controleert totaaloppervlak automatisch wanneer een gebruiker m² wijzigt',async()=>{
+    const user=userEvent.setup();setup();
+    await user.clear(screen.getByLabelText('Onderdeel 1 oppervlakte'));
+    await user.type(screen.getByLabelText('Onderdeel 1 oppervlakte'),'700');
+    expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
+    expect(screen.getByText(/wijkt af van het bekende objecttotaal/)).toBeInTheDocument();
+  });
+
 });

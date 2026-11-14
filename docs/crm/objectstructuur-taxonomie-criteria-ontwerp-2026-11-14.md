@@ -83,3 +83,15 @@ Acceptatiescenario bedrijfscomplex:
 
 ### Eerste pure toetsfunctie
 De functie `src/lib/matching/samenstellingscriterium.ts` toetst getypeerde min/max aandelen binnen een bevestigde volledige, niet-overlappende meetbasis. Deze is **nog niet** aangesloten op Relaties, Objecten of de live matching. Zo kunnen we de regels vooraf toetsen zonder productiegegevens te wijzigen.
+
+## 9. Gebruikersgemak is een harde acceptatie-eis (14-11-2026)
+
+- **Geen extra controlevinkjes voor volledigheid of overlap** in Objecten, Relaties of Matching. Het CRM voert controles automatisch uit op basis van eenmalig vastgelegde gegevens.
+- **Eén keer invoeren, op meerdere plekken gebruiken:** bron/meetbasis, objectonderdelen, adressen, verhuur en taxonomie worden niet dubbel opgevraagd.
+- **Bestaande bronnen eerst hergebruiken:** objecttotaal, onderliggende units, bestaande documenten, BAG en waar aanwezig meetrapporten. Een document is niet automatisch bewijs van juiste m²; bronstatus blijft onderscheiden van daadwerkelijke verificatie.
+- **Geleidelijke invoer:** verplichte invoer blijft beperkt tot wat voor het vastgoedaanbod zelf nodig is. Specifieke aanvullende velden verschijnen alleen indien relevant, zonder een wizard met onnodige vragen.
+- **Geen schijnzekerheid:** rekenkundige overeenstemming met totaalruimte bewijst niet op zichzelf dat alle fysieke ruimtes niet overlappen; hiervoor is broninformatie met afbakening nodig. Bij ontbrekende gegevens werkt de CRM door, toont percentages hoogstens als indicatief en geeft de matchtoets **Controle nodig** zonder de gebruiker om lege bevestigingsvinkjes te vragen.
+- **Zonder herhaalde controles:** automatische data-health bij import of wijziging, geen continue zware achtergrondqueries of extra performancekosten.
+- **Uitzonderingen doelgericht:** pas bij een relevante kandidaat of transactie kan één concreet ontbrekend gegeven worden gevraagd, nooit alle denkbare kenmerken vooraf.
+
+**Acceptatietest:** een vastgoedobject registreren, inclusief eenvoudig pand of pakket van drie appartementen, mag geen extra checkbox voor datakwaliteit of dubbele prijs-/adres-/m²-invoer vereisen. Het 70/30-criterium moet zelfstandig kunnen toetsen op bestaande gegevens, anders helder en niet-opdringerig 'Controle nodig' geven. Geen bestaande matchscore mag op basis van ontbrekende gegevens automatisch als geschikt worden gepresenteerd.
