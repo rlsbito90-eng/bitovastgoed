@@ -60,6 +60,8 @@ import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenA
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import InlineObjectField from '@/components/object/InlineObjectField';
+import PortefeuilleOnderdelenPanel from '@/components/object/PortefeuilleOnderdelenPanel';
+import ObjectQuickCreateDialog from '@/components/forms/ObjectQuickCreateDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
 import FocusPointDialog from '@/components/object/FocusPointDialog';
@@ -675,6 +677,7 @@ export default function ObjectDetailPage() {
   const { propertyTypeById, propertySubtypeById, dealTypeById } = usePropertyTaxonomie();
   const object = store.getObjectById(id!);
   const [editOpen, setEditOpen] = useState(false);
+  const [quickChildOpen, setQuickChildOpen] = useState(false);
   const [editInitialTab, setEditInitialTab] = useState<string>('algemeen');
   const openEdit = (tab: string = 'algemeen') => {
     setEditInitialTab(tab);
@@ -696,12 +699,12 @@ export default function ObjectDetailPage() {
 
   // ── Workspace tabs: bepaal welke tabs zichtbaar zijn voor dit object ──
   const visibleTabs = useMemo(() => {
-    const hasMeer = shouldShowMeerTab(
+    const hasMeer = object ? shouldShowMeerTab(
       object,
       store.getDealsByObject(object.id),
       kadasterRecords,
       kadasterDocs,
-    );
+    ) : false;
     return WORKSPACE_TABS.filter(t => t.id !== 'meer' || hasMeer);
   }, [object, store, kadasterRecords, kadasterDocs]);
 
@@ -1559,6 +1562,23 @@ export default function ObjectDetailPage() {
               </div>
             </div>
           </SectionAnchor>
+          )}
+
+          {/* Portefeuilleonderdelen: adressen en gekoppelde objecten, zonder financieel dubbeltellen. */}
+          {activeTab === 'overzicht' && object.isPortefeuille && (
+            <PortefeuilleOnderdelenPanel
+              portefeuille={object}
+              objecten={store.objecten}
+              onNieuwOnderdeel={() => setQuickChildOpen(true)}
+              onKoppel={async (childId) => {
+                await store.updateObject(childId, { parentObjectId: object.id });
+                toast.success('Object gekoppeld aan portefeuille');
+              }}
+              onOntkoppel={async (childId) => {
+                await store.updateObject(childId, { parentObjectId: undefined });
+                toast.success('Object losgekoppeld van portefeuille');
+              }}
+            />
           )}
 
           {/* ============ DEALFLOW ============ */}
@@ -2561,6 +2581,10 @@ export default function ObjectDetailPage() {
       </div>
 
       <ObjectFormDialog open={editOpen} onOpenChange={setEditOpen} object={object} initialTab={editInitialTab} />
+      {object.isPortefeuille && (
+        <ObjectQuickCreateDialog open={quickChildOpen} onOpenChange={setQuickChildOpen}
+          defaultParentObjectId={object.id} defaultParentTitel={object.titel} />
+      )}
 
       {hoofdfoto && heroUrl && (
         <FocusPointDialog

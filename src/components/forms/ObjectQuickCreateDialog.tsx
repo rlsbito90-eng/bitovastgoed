@@ -38,6 +38,9 @@ import { getRelatieNamen } from '@/lib/relatieNaam';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Optioneel: maak dit object meteen onderdeel van een bestaande portefeuille. */
+  defaultParentObjectId?: string;
+  defaultParentTitel?: string;
 }
 
 // Asset-class opties voor quick-create.
@@ -57,7 +60,7 @@ const QUICK_ASSET_CLASSES: AssetClass[] = [
 
 const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 
-export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
+export default function ObjectQuickCreateDialog({ open, onOpenChange, defaultParentObjectId, defaultParentTitel }: Props) {
   const navigate = useNavigate();
   const { addObject, relaties, contactpersonen } = useDataStore();
 
@@ -79,6 +82,7 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
   const [prijsindicatie, setPrijsindicatie] = useState('');
   const [notitie, setNotitie] = useState('');
   const [bezig, setBezig] = useState(false);
+  const [isPortefeuille, setIsPortefeuille] = useState(false);
 
   // EntityPicker items voor relaties: label = alleen naam + bedrijf.
   // getRelatieNamen valt nooit terug op e-mail; secundair = bedrijfsnaam of null.
@@ -117,6 +121,7 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
     setVraagprijs(undefined);
     setPrijsindicatie('');
     setNotitie('');
+    setIsPortefeuille(false);
   };
 
   const handleClose = (v: boolean) => {
@@ -162,7 +167,8 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
       asbestinventarisatieAanwezig: false,
       ontwikkelPotentie: false,
       transformatiePotentie: false,
-      isPortefeuille: false,
+      isPortefeuille: defaultParentObjectId ? false : isPortefeuille,
+      parentObjectId: defaultParentObjectId ?? undefined,
       documentenBeschikbaar: false,
       markeerAlsReferentie: false,
       referentieanalyseZichtbaar: true,
@@ -191,10 +197,21 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Nieuw object</DialogTitle>
+          <DialogTitle>{defaultParentObjectId ? 'Nieuw portefeuilleonderdeel' : 'Nieuw object'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto pr-1" style={{ maxHeight: '70vh' }}>
+          {defaultParentObjectId ? (
+            <p className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
+              Onderdeel van <strong className="text-foreground">{defaultParentTitel || 'deze portefeuille'}</strong>.
+              De gezamenlijke vraagprijs blijft op het hoofdobject.
+            </p>
+          ) : (
+            <label className="flex items-center justify-between rounded-md border border-border/70 p-3 gap-2">
+              <span className="text-sm font-medium">Dit is een portefeuille</span>
+              <Switch checked={isPortefeuille} onCheckedChange={setIsPortefeuille} aria-label="Dit is een portefeuille" />
+            </label>
+          )}
           {/* Titel */}
           <div className="space-y-1.5">
             <Label htmlFor="quick-titel">
@@ -361,7 +378,9 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
           {/* Prijs */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="quick-vraagprijs">Vraagprijs (€, optioneel)</Label>
+              <Label htmlFor="quick-vraagprijs">
+                {defaultParentObjectId ? 'Eigen vraagprijs (alleen bij afzonderlijk aanbod)' : 'Vraagprijs (€, optioneel)'}
+              </Label>
               <NumberField
                 id="quick-vraagprijs"
                 value={vraagprijs}
