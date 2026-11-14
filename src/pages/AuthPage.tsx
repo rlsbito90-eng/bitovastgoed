@@ -186,8 +186,9 @@ export default function AuthPage() {
                   <Label htmlFor="login-email">E-mailadres</Label>
                   <Input
                     id="login-email"
+                    name="username"
                     type="email"
-                    autoComplete="email"
+                    autoComplete="username"
                     required
                     value={loginEmail}
                     onChange={e => setLoginEmail(e.target.value)}
@@ -198,6 +199,7 @@ export default function AuthPage() {
                   <Label htmlFor="login-ww">Wachtwoord</Label>
                   <Input
                     id="login-ww"
+                    name="password"
                     type="password"
                     autoComplete="current-password"
                     required
