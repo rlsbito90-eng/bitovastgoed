@@ -6,6 +6,6 @@
  */
 export const FIXED_CRM_TEST_HOST = 'bitovastgoed-git-crm-test-bitovastgoed.vercel.app';
 
-export function useDirectLoginForHost(hostname: string): boolean {
+export function isDirectLoginHost(hostname: string): boolean {
   return hostname.toLowerCase() === FIXED_CRM_TEST_HOST;
 }

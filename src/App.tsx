@@ -8,7 +8,7 @@ import DynamicSectionNavigator from '@/components/DynamicSectionNavigator';
 import { AuthProvider } from '@/hooks/useAuth';
 import { queryClient } from '@/lib/queryClient';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useDirectLoginForHost } from '@/lib/auth/stableTestLogin';
+import { isDirectLoginHost } from '@/lib/auth/stableTestLogin';
 
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const PasskeyAccessPage = lazy(() => import('@/pages/PasskeyAccessPage'));
@@ -34,7 +34,7 @@ const App = () => (
         <AuthProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
-              <Route path="/auth" element={useDirectLoginForHost(window.location.hostname) ? <AuthPage /> : <PasskeyAccessPage />} />
+              <Route path="/auth" element={isDirectLoginHost(window.location.hostname) ? <AuthPage /> : <PasskeyAccessPage />} />
               <Route path="/auth/preview-bridge" element={<PreviewAuthBridgePage />} />
               <Route path="/auth/herstel" element={<AuthPage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
