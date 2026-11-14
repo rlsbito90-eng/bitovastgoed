@@ -45,4 +45,12 @@ describe('Samenstelling-proef: alle overige functies gezamenlijk',()=>{
     expect(bereken([component('hal','bedrijfsruimte','750'),component('hal','kantoor','250')]).uitkomst.status).toBe('controle_nodig');
     expect(bereken([component('kant','kantoor','800')]).uitkomst.diskwalificatie).toBe(true);
   });
+  it('een volledig in GBO gemeten woonobject voldoet niet automatisch aan een VVO-criterium',()=>{
+    const parts=[component('app-a','wonen','75','gbo'),component('app-b','wonen','64','gbo')];
+    expect(bereken(parts).uitkomst.status).toBe('controle_nodig');
+    const result=berekenSamenstellingsProef(parts,70,'hard',true,true,'gbo');
+    expect(result.uitkomst.status).toBe('wijkt_af');
+    expect(result.uitkomst.diskwalificatie).toBe(true);
+  });
+
 });

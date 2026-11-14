@@ -38,4 +38,17 @@ describe('Samenstellingproef zonder CRM-wijzigingen',()=>{
     expect(screen.getByLabelText('Onderdeel 3 oppervlakte')).toHaveValue('');
     expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
   });
+  it('toont bij Geuzenweg GBO eerst controle nodig als de eis VVO is',async()=>{
+    const u=userEvent.setup();setup();
+    await u.selectOptions(screen.getByLabelText('Praktijkvoorbeeld'),'geuzenweg');
+    expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
+    await u.selectOptions(screen.getByLabelText('Meetbasis van de eis'),'gbo');
+    expect(screen.getByRole('status')).toHaveTextContent('Afgevallen — harde eis');
+  });
+  it('een leeg drempelpercentage geldt niet als nul procent',async()=>{
+    const u=userEvent.setup();setup();
+    await u.clear(screen.getByLabelText('Minimaal bedrijfsruimtepercentage'));
+    expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
+  });
+
 });

@@ -34,13 +34,16 @@ export default function SamenstellingProefPage() {
   const [nextId,setNextId]=useState(1);
   const [minimum,setMinimum]=useState('70');
   const [sterkte,setSterkte]=useState<CriteriumSterkte>('hard');
+  const [meetbasisEis,setMeetbasisEis]=useState<Meetbasis>('vvo');
   const [volledig,setVolledig]=useState(true);
   const [overlapvrij,setOverlapvrij]=useState(true);
-  const result=useMemo(()=>berekenSamenstellingsProef(parts,Number(minimum),sterkte,volledig,overlapvrij),
-    [parts,minimum,sterkte,volledig,overlapvrij]);
+  const minimaal=minimum.trim()===''?Number.NaN:Number(minimum.replace(',','.'));
+  const minimumGeldig=Number.isFinite(minimaal)&&minimaal>=0&&minimaal<=100;
+  const result=useMemo(()=>berekenSamenstellingsProef(parts,minimaal,sterkte,volledig,overlapvrij,meetbasisEis),
+    [parts,minimaal,sterkte,volledig,overlapvrij,meetbasisEis]);
   const reset=(name:Scenario)=>{
     setScenario(name);setParts(createParts(name));setNextId(1);
-    setMinimum('70');setSterkte('hard');setVolledig(name!=='onbekend');setOverlapvrij(true);
+    setMinimum('70');setSterkte('hard');setMeetbasisEis('vvo');setVolledig(name!=='onbekend');setOverlapvrij(true);
   };
   const update=(id:string,key:keyof OnderdeelConcept,value:string)=>
     setParts(old=>old.map(p=>p.id===id?{...p,[key]:value}:p));
@@ -143,7 +146,7 @@ export default function SamenstellingProefPage() {
     </section>
     <section className="section-card p-4 sm:p-5 space-y-3">
       <h2 className="text-base font-semibold">Investeringsprofiel — aanvullende eis</h2>
-      <div className="grid sm:grid-cols-3 gap-2 items-end">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
         <div className="text-sm"><p className="text-xs text-muted-foreground mb-1">Gebruiksfunctie</p><p className="font-medium">Bedrijfsruimte</p></div>
         <label className="space-y-1 text-xs"><span>Minimaal aandeel (%)</span>
           <input aria-label="Minimaal bedrijfsruimtepercentage" value={minimum} inputMode="decimal"
@@ -157,9 +160,16 @@ export default function SamenstellingProefPage() {
             <option value="hard">Harde eis</option><option value="voorkeur">Voorkeur</option>
           </select>
         </label>
+        <label className="space-y-1 text-xs"><span>Meetbasis van de eis</span>
+          <select aria-label="Meetbasis van de eis" value={meetbasisEis}
+            onChange={e=>setMeetbasisEis(e.target.value as Meetbasis)}
+            className="h-10 rounded-md border border-input bg-background px-3 w-full text-sm">
+            <option value="vvo">VVO</option><option value="gbo">GBO</option><option value="bvo">BVO</option>
+          </select>
+        </label>
       </div>
       <p className="text-xs text-muted-foreground">
-        De overige gebruiksfuncties samen mogen maximaal {Number.isFinite(Number(minimum))&&minimum.trim()!==''?format(100-Number(minimum),'%'):'onbekend'} zijn.
+        De overige gebruiksfuncties samen mogen maximaal {minimumGeldig?format(100-minimaal,'%'):'onbekend'} zijn.
         Dit is een afgeleide van de minimumeis, géén afzonderlijke kantoorlimiet.
       </p>
     </section>

@@ -64,6 +64,7 @@ export function berekenSamenstellingsProef(
   sterkte: CriteriumSterkte,
   volledig: boolean,
   zonderOverlap: boolean,
+  meetbasisEis: Meetbasis = 'vvo',
 ): SamenstellingsProefResultaat {
   if (!Number.isFinite(minimumbedrijfsruimte) || minimumbedrijfsruimte < 0 || minimumbedrijfsruimte > 100) {
     return REVIEW('Het percentage moet tussen 0 en 100 liggen.');
@@ -89,14 +90,14 @@ export function berekenSamenstellingsProef(
     });
   }
 
-  const basis = onderdelen[0].meetbasis;
-  if (onderdelen.some(o => o.meetbasis !== basis)) {
-    return REVIEW('Verschillende meetbases (VVO/GBO/BVO) kunnen niet voor deze verhouding worden opgeteld.');
+  if (onderdelen.some(o => o.meetbasis !== meetbasisEis)) {
+    return REVIEW('De objectonderdelen zijn niet allemaal gemeten volgens de vereiste meetbasis ' +
+      meetbasisEis.toUpperCase() + '. VVO, GBO en BVO mogen niet ongemerkt worden gemengd.');
   }
   const uitkomst = toetsSamenstelling(
     { onderdelen, volledigheidBevestigd: true, zonderOverlapBevestigd: true },
     { gebruiksfunctieCode: 'bedrijfsruimte', operator: 'min',
-      percentage: minimumbedrijfsruimte, sterkte, meetbasis: basis },
+      percentage: minimumbedrijfsruimte, sterkte, meetbasis: meetbasisEis },
   );
   if (uitkomst.status === 'controle_nodig') return REVIEW(uitkomst.verklaring);
   const totaalM2 = onderdelen.reduce((sum, o) => sum + o.oppervlakteM2, 0);
@@ -109,7 +110,7 @@ export function berekenSamenstellingsProef(
   return {
     uitkomst, totaalM2, bedrijfsruimteM2, overigeM2,
     bedrijfsruimteAandeel, overigeAandeel,
-    uitleg: 'Vergelijking op basis van ' + basis.toUpperCase()
+    uitleg: 'Vergelijking op basis van ' + meetbasisEis.toUpperCase()
       + '; alle overige gebruiksfuncties worden samen meegeteld.',
   };
 }
