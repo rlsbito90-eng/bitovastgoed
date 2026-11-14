@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, ShieldAlert, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { IS_ISOLATED_PREVIEW_SANDBOX } from '@/lib/auth/previewSandbox';
 
 const AUTH_DISABLED = false;
 
@@ -23,6 +24,21 @@ export default function ProtectedRoute({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!user && IS_ISOLATED_PREVIEW_SANDBOX) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md rounded-xl border bg-card p-8 text-center space-y-3">
+          <ShieldAlert className="mx-auto h-8 w-8 text-warning" />
+          <h1 className="text-lg font-semibold">Testomgeving niet beschikbaar</h1>
+          <p className="text-sm text-muted-foreground">
+            De afzonderlijke sandboxdatabase is nog niet ingericht voor automatische gasttoegang.
+            Productiegegevens blijven afgeschermd.
+          </p>
+        </div>
       </div>
     );
   }
@@ -67,5 +83,14 @@ export default function ProtectedRoute({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {IS_ISOLATED_PREVIEW_SANDBOX && (
+        <div aria-label="Testomgeving" className="fixed bottom-3 right-3 z-[9999] rounded-md border border-border bg-background/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+          TESTOMGEVING · fictieve gegevens
+        </div>
+      )}
+      {children}
+    </>
+  );
 }
