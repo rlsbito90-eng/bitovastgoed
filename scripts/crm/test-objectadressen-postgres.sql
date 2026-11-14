@@ -18,4 +18,13 @@ CREATE TABLE public.objecten (
   type_vastgoed text NOT NULL
 );
 
+-- In de proef horen bestaande Objecten-rechten bij de interne gebruikersrol.
+GRANT SELECT, UPDATE ON public.objecten TO authenticated;
+ALTER TABLE public.objecten ENABLE ROW LEVEL SECURITY;
+CREATE POLICY objecten_stub_intern_read ON public.objecten FOR SELECT TO authenticated
+  USING (public.is_intern_gebruiker((SELECT auth.uid())));
+CREATE POLICY objecten_stub_intern_write ON public.objecten FOR UPDATE TO authenticated
+  USING (public.is_intern_gebruiker((SELECT auth.uid())))
+  WITH CHECK (public.is_intern_gebruiker((SELECT auth.uid())));
+
 -- Het ontwerp-SQL wordt na deze setup als aparte stap toegepast.

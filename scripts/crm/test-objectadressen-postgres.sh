@@ -13,6 +13,9 @@ psql -v ON_ERROR_STOP=1 -f docs/crm/sql/object-adressen-onderdelen-ONTWERP-NIET-
 
 # Constraintevaluaties en RLS-positief/negatief.
 psql -v ON_ERROR_STOP=1 -f scripts/crm/test-objectadressen-verify.sql
+# Transactionele adresopslag: dezelfde SQL als de toekomstige live-migratie.
+psql -v ON_ERROR_STOP=1 -f docs/crm/sql/object-adressen-opslaan-ONTWERP-NIET-UITVOEREN.sql
+psql -v ON_ERROR_STOP=1 -f scripts/crm/test-objectadressen-rpc-verify.sql
 
 # ANON mag helemaal geen SELECT-rechten hebben, zelfs niet op lege tabellen.
 if psql -v ON_ERROR_STOP=1 -c "SET ROLE anon; SELECT count(*) FROM public.crm_object_adressen" > /tmp/crm-anon-denied.log 2>&1; then
