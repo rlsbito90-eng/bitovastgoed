@@ -23,7 +23,7 @@ export function objectMatchesCrmSearch(
   const fields = [object.titel, object.adres, object.postcode, object.plaats, object.publiekeRegio]
     .filter((field): field is string => typeof field === 'string' && field.length > 0);
   // Postcodes zijn met én zonder spatie doorzoekbaar.
-  const compact = (value: string) => value.toLocaleLowerCase('nl-NL').replace(/[\\s-]/g, '');
+  const compact = (value: string) => value.toLocaleLowerCase('nl-NL').replace(/[\s-]/g, '');
   return fields.some(field =>
     field.toLocaleLowerCase('nl-NL').includes(normalizedQuery)
     || compact(field).includes(compact(normalizedQuery)))

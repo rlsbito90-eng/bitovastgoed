@@ -33,7 +33,7 @@ export interface ObjectAdresOverzicht {
   controlepunten: string[];
 }
 const compact = (v?: string | null): string => (v ?? '').trim().toLocaleLowerCase('nl-NL')
-  .replace(/\\s+/g, ' ')
+  .replace(/\s+/g, ' ')
   .replace(/[.,]+$/g, '');
 
 /**
