@@ -26,6 +26,7 @@ import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { useSwipeMenu } from "@/hooks/useSwipeMenu";
 import { useAuth } from "@/hooks/useAuth";
 import PasskeySetupMenuItem from "@/components/auth/PasskeySetupMenuItem";
+import { IS_OFFLINE_PREVIEW } from "@/lib/auth/offlinePreview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,6 +123,9 @@ function VastgoedrekenenSubmenu({
 
 function GebruikerMenu({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const { user, isAdmin, signOut } = useAuth();
+  if (IS_OFFLINE_PREVIEW) {
+    return <div className="px-2 py-2 text-xs text-sidebar-foreground/65">Demo · geen login</div>;
+  }
   if (!user) {
     return (
       <div className={`px-2 py-1.5 text-xs text-sidebar-foreground/60 ${collapsed ? "text-center" : ""}`}>
@@ -336,6 +340,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
+        {IS_OFFLINE_PREVIEW && (
+          <div role="status" className="sticky top-0 z-40 shrink-0 border-b border-amber-500/30 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            TESTOMGEVING · fictieve gegevens · uitsluitend lokaal in deze browser · geen verbinding met het echte CRM
+          </div>
+        )}
         {mobileOpen && (
           <div className="fixed inset-0 z-50 glass-overlay lg:hidden" onClick={() => setMobileOpen(false)}>
             <aside
