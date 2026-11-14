@@ -31,7 +31,7 @@ describe('Opslagcontract meerdere adressen (geen echte netwerkcalls)',()=>{
     expect(payload[0].id).toBe(ADRES_ID);
   });
   it('weigert dubbele, onvolledige of hoofdadresloze invoer',()=>{
-    expect(valideerAdresConcept([base,{...base,id:'draft:1'}])).toMatch(/meerdere keren/);
+    expect(valideerAdresConcept([base,{...base,id:'draft:1',isHoofdadres:false}])).toMatch(/meerdere keren/);
     expect(valideerAdresConcept([{...base,plaats:''}])).toMatch(/verplicht/);
     expect(valideerAdresConcept([{...base,isHoofdadres:false}])).toMatch(/één hoofdadres/);
     expect(valideerAdresConcept([])).toMatch(/minimaal één/);
@@ -53,7 +53,7 @@ describe('Opslagcontract meerdere adressen (geen echte netwerkcalls)',()=>{
   });
   it('faalt lokaal vóór een RPC wanneer een adresinvoer onjuist is',async()=>{
     const rpc=vi.fn();
-    await expect(bewaarObjectAdressen({rpc} as AdresRpcClient,ID,etag,[base,{...base,id:'draft:2'}]))
+    await expect(bewaarObjectAdressen({rpc} as AdresRpcClient,ID,etag,[base,{...base,id:'draft:2',isHoofdadres:false}]))
       .rejects.toThrow(/meerdere keren/);
     expect(rpc).not.toHaveBeenCalled();
   });
