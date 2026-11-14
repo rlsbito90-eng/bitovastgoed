@@ -217,3 +217,30 @@ describe('Fase 2C-1 — geen auto-write bij openen', () => {
     expect(addObjectMock).not.toHaveBeenCalled();
   });
 });
+
+describe('Zelfde rekenbasis in formulier en objectdossier', () => {
+  it('commercieel: VVO heeft voorrang op GBO', () => {
+    renderDialog(baseObject({ type: 'kantoren', oppervlakteVvo: 500, oppervlakteGbo: 400, oppervlakte: 300, huurPerM2: 135 }));
+    expect(screen.getByTestId('huurperm2-meetbasis').textContent).toContain('500 m² VVO');
+    expect(screen.getByTestId('huurperm2-delta').textContent).toMatch(/Δ\\s*\\+€\\s*15/);
+  });
+  it('wonen: GBO heeft voorrang op VVO', () => {
+    renderDialog(baseObject({ type: 'wonen', oppervlakteVvo: 500, oppervlakteGbo: 400, oppervlakte: 300, huurPerM2: 135 }));
+    expect(screen.getByTestId('huurperm2-meetbasis').textContent).toContain('400 m² GBO');
+    expect(screen.getByTestId('huurperm2-delta').textContent).toMatch(/Δ\\s*−€\\s*15/);
+  });
+  it('alleen totaal: onbekende meetbasis is expliciet zichtbaar', () => {
+    renderDialog(baseObject({ type: 'wonen', oppervlakteGbo: undefined, oppervlakteVvo: undefined, oppervlakte: 300, huurPerM2: undefined }));
+    expect(screen.getByTestId('huurperm2-meetbasis').textContent).toContain('meetbasis onbekend');
+    expect(screen.getByTestId('huurperm2-meetbasis').textContent).toContain('Controleer GBO of VVO');
+  });
+  it('alleen BVO: geen automatische rekenoppervlakte', () => {
+    renderDialog(baseObject({ type: 'kantoren', oppervlakteGbo: undefined, oppervlakteVvo: undefined, oppervlakte: undefined, oppervlakteBvo: 800, huurPerM2: undefined }));
+    expect(screen.getByTestId('huurperm2-meetbasis').textContent).toContain('Geen rekenoppervlakte');
+    expect(screen.getByTestId('huurperm2-meetbasis').textContent).toContain('BVO');
+  });
+  it('ontwikkellocatie: geen automatische huur/m²', () => {
+    renderDialog(baseObject({ type: 'ontwikkellocatie', oppervlakteGbo: 400, oppervlakteVvo: 500, oppervlakte: 300, huurPerM2: undefined }));
+    expect(screen.getByTestId('huurperm2-meetbasis').textContent).toContain('Geen rekenoppervlakte');
+  });
+});

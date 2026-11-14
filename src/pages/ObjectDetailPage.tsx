@@ -1014,6 +1014,7 @@ export default function ObjectDetailPage() {
     if (m2Bron.bron === 'none') return undefined;
     const parts: string[] = [m2Bron.label];
     if (m2Bron.fallback) parts.push('primaire bron ontbreekt, fallback gebruikt');
+    if (m2Bron.bron === 'oppervlakte') parts.push('meetbasis onbekend: controleer VVO of GBO');
     const ac = (object as { type?: string | null }).type;
     if (ac === 'zorgvastgoed') parts.push('marktstandaard varieert');
     else if (ac === 'mixed_use') parts.push('mixed-use, componentsplitsing volgt');
@@ -1414,9 +1415,9 @@ export default function ObjectDetailPage() {
           );
         }
         if (m2Bron.m2 != null) {
-          const meetbasis = m2Bron.bron === 'vvo' ? 'VVO' : m2Bron.bron === 'gbo' ? 'GBO' : 'Oppervlakte (type onbekend)';
+          const meetbasis = m2Bron.bron === 'vvo' ? 'VVO' : m2Bron.bron === 'gbo' ? 'GBO' : 'Totaal · meetbasis onbekend';
           tiles.push(<MetricTile key="opp" label={meetbasis} value={formatM2(m2Bron.m2)}
-            hint={m2Bron.fallback ? 'Alternatieve meetbasis gebruikt' : undefined} />);
+            hint={m2Bron.bron === 'oppervlakte' ? 'Controleer GBO/VVO' : m2Bron.fallback ? 'Alternatieve meetbasis gebruikt' : undefined} />);
         } else if (object.oppervlakteBvo != null) {
           tiles.push(<MetricTile key="opp" label="BVO" value={formatM2(object.oppervlakteBvo)}
             hint="Niet gebruikt voor €/m²-berekening" />);
@@ -1635,7 +1636,8 @@ export default function ObjectDetailPage() {
                   value={huurPerM2.value != null ? formatHuurPerM2PerJaar(huurPerM2.value) : 'onvoldoende gegevens voor m²-berekening'}
                   badge={huurPerM2.value != null ? (huurPerM2.source === 'override' ? 'handmatig' : 'auto') : 'onvoldoende'}
                   overrideInfo={huurPerM2OverrideInfo}
-                  hint={huurPerM2.value != null ? m2BronHint : undefined}
+                  hint={huurPerM2.source === 'auto' ? m2BronHint
+                     : huurPerM2.source === 'override' ? 'Handmatig ingevuld, onafhankelijk van rekenoppervlakte' : undefined}
                 />
 
                 {object.wozWaarde != null && (

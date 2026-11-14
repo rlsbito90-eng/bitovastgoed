@@ -25,6 +25,7 @@ import {
   calculateFactor as calculateFactorDerived,
   calculateMonthlyRent,
   calculateAnnualFromMonthly,
+  getBerekenM2Bron,
 } from '@/lib/derivations/financial';
 
 // Fase 2C-2a: consolideer calc-helpers naar derivations/financial.ts, maar
@@ -733,7 +734,12 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
 
               <Sectie titel="Huur & rendement">
                 {(() => {
-                  const m2Basis = form.oppervlakteGbo ?? form.oppervlakteVvo ?? form.oppervlakte;
+                  // Eén rekenbron voor bewerkformulier en objectdossier, per vastgoedtype.
+                  const m2Bron = getBerekenM2Bron(form, form.type);
+                  const m2Basis = m2Bron.m2 ?? undefined;
+                  const m2Soort = m2Bron.bron === 'oppervlakte'
+                    ? 'totale oppervlakte (meetbasis onbekend)'
+                    : m2Bron.bron.toUpperCase();
                   // Huur/m² per jaar = jaarhuur / m². ALTIJD afgeleid van jaarhuur, nooit van maandhuur.
                   const autoHuurPerM2 = calcHuurPerM2(form.huurinkomsten, m2Basis);
                   const autoBar = calcBar(form.huurinkomsten, form.vraagprijs);
@@ -782,6 +788,13 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                               set('huurPerM2', v);
                             }}
                             placeholder={autoHuurPerM2 != null ? fmtEuroNL(autoHuurPerM2, { decimals: 2 }) : 'onvoldoende gegevens'} />
+                          <p data-testid="huurperm2-meetbasis"
+                            className={`mt-1 text-[11px] ${m2Bron.bron === 'oppervlakte' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                            {m2Basis != null
+                              ? `Rekenbasis: ${m2Basis.toLocaleString('nl-NL')} m² ${m2Soort}.${m2Bron.fallback ? ' Alternatieve meetbasis gebruikt.' : ''}${m2Bron.bron === 'oppervlakte' ? ' Controleer GBO of VVO.' : ''}`
+                              : 'Geen rekenoppervlakte vastgesteld. BVO en perceeloppervlak worden niet automatisch gebruikt.'}
+                            {huurPerM2Manual ? ' De ingevulde huur/m² is handmatig.' : ''}
+                          </p>
                           {/* Fase 2C-1: auto/delta-preview alleen bij handmatige override + geldige auto. */}
                           {huurPerM2Manual && form.huurPerM2 != null && autoHuurPerM2 != null && (() => {
                             const delta = form.huurPerM2! - autoHuurPerM2;
@@ -1005,6 +1018,10 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
                   <Veld label={<>Oppervlakte totaal (m²)<RefMark level="sterk" show={markeerAlsReferentie} /></>}>
                     <NumberField decimals={2} value={form.oppervlakte}
                       onChange={v => set('oppervlakte', v)} />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Apart opgeslagen, geen optelsom van GBO/VVO/BVO. Alleen laatste
+                      terugvalbasis voor berekeningen per m²; de meetbasis is dan onbekend.
+                    </p>
                   </Veld>
                   <Veld label="VVO — verhuurbaar vloeroppervlak (m²)">
                     <NumberField decimals={2} value={form.oppervlakteVvo}
