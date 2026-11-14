@@ -21,6 +21,7 @@ const RelatiesPage = lazy(() => import('@/pages/RelatiesPage'));
 const RelatieDetailPage = lazy(() => import('@/pages/RelatieDetailPage'));
 const ObjectenPage = lazy(() => import('@/pages/ObjectenPage'));
 const ObjectDetailPage = lazy(() => import('@/pages/ObjectDetailPage'));
+const AdresModelProefPage = lazy(() => import('@/pages/AdresModelProefPage'));
 const DealsPage = lazy(() => import('@/pages/DealsPage'));
 const DealDetailPage = lazy(() => import('@/pages/DealDetailPage'));
 const ZoekprofielenPage = lazy(() => import('@/pages/ZoekprofielenPage'));
@@ -97,6 +98,7 @@ export default function CrmProtectedApp() {
                     <Route path="/relaties" element={<RelatiesPage />} />
                     <Route path="/relaties/:id" element={<CrmDetailNavigationBoundary fallbackPath="/relaties" fallbackLabel="Relaties" source="relatie-detail"><RelatieDetailPage /></CrmDetailNavigationBoundary>} />
                     <Route path="/objecten" element={<ObjectenPage />} />
+                    <Route path="/objecten/adresproef" element={<AdresModelProefPage />} />
                     <Route path="/objecten/:id" element={<CrmDetailNavigationBoundary fallbackPath="/objecten" fallbackLabel="Objecten" source="object-detail"><SafeObjectDetailRoute /></CrmDetailNavigationBoundary>} />
                     <Route path="/deals" element={<DealsPage />} />
                     <Route path="/deals/:id" element={<CrmDetailNavigationBoundary fallbackPath="/deals" fallbackLabel="Deals" source="deal-detail"><DealDetailPage /></CrmDetailNavigationBoundary>} />

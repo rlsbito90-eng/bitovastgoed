@@ -5,7 +5,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { formatCurrency, formatDate } from '@/data/mock-data';
 import { ObjectStatusBadge } from '@/components/StatusBadges';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ChevronRight, Archive, RotateCcw, Building2, AlertTriangle } from 'lucide-react';
+import { Search, Plus, ChevronRight, Archive, RotateCcw, Building2, AlertTriangle, FlaskConical } from 'lucide-react';
 import EmptyState from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import type { ObjectStatus, ObjectVastgoed } from '@/data/mock-data';
@@ -124,6 +124,12 @@ export default function ObjectenPage() {
         }
       />
 
+      <div className="flex items-center gap-2 pb-1 flex-wrap">
+        <Link to="/objecten/adresproef" className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
+          <FlaskConical className="h-3.5 w-3.5" /> Proef: meerdere adressen per object
+        </Link>
+        <span className="text-xs text-muted-foreground">Zonder opslag in de CRM</span>
+      </div>
       <div className="flex gap-1 border-b border-border">
         {tabs.map(t => (
           <button
