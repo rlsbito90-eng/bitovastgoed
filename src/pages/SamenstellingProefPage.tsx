@@ -209,7 +209,8 @@ export default function SamenstellingProefPage() {
       </div>
       {status==='controle_nodig'&&result.bedrijfsruimteAandeel!==null&&
         <p className="text-xs text-muted-foreground">Percentages zijn indicatief, niet geverifieerd.</p>}
-      <p className="text-xs text-muted-foreground">{result.uitkomst.verklaring}</p>
+      {result.uitkomst.verklaring!==automatischeControle.controlemelding &&
+        <p className="text-xs text-muted-foreground">{result.uitkomst.verklaring}</p>}
       <p className="text-xs text-muted-foreground">{result.uitleg}</p>
       <div className="rounded-md border border-border/70 p-3 flex items-start gap-2">
         <ShieldAlert className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5"/>
