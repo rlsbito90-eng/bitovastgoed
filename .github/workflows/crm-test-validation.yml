@@ -11,11 +11,32 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: crm_test_only
+          POSTGRES_DB: crm_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crm_test_only"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: crm_test_only
+      PGDATABASE: crm_test_only
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Tijdelijke PostgreSQL 17 — multi-adres-schema en RLS toetsen
+        run: bash scripts/crm/test-objectadressen-postgres.sh
       - name: Node.js 24
         uses: actions/setup-node@v4
         with:
