@@ -27,6 +27,9 @@ export default function AdresModelProefPage(){
     <div className="space-y-2">
       <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent"><FlaskConical className="h-4 w-4"/> Interactieve proef</p>
       <h1 className="text-2xl font-semibold">Meerdere adressen per object</h1>
+      <Link to="/objecten/samenstellingproef" className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
+        Bekijk ook de proef voor objectonderdelen en koperscriteria
+      </Link>
       <p className="text-sm text-muted-foreground max-w-2xl">
         Test de toekomstige invoer. Dit zijn uitsluitend voorbeeldgegevens. Wijzigingen worden
         <strong className="text-foreground"> niet opgeslagen in je CRM of database</strong>.

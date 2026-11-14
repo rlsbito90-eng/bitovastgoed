@@ -128,6 +128,9 @@ export default function ObjectenPage() {
         <Link to="/objecten/adresproef" className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
           <FlaskConical className="h-3.5 w-3.5" /> Proef: meerdere adressen per object
         </Link>
+        <Link to="/objecten/samenstellingproef" className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
+          <FlaskConical className="h-3.5 w-3.5" /> Proef: objectonderdelen & koperscriteria
+        </Link>
         <span className="text-xs text-muted-foreground">Zonder opslag in de CRM</span>
       </div>
       <div className="flex gap-1 border-b border-border">

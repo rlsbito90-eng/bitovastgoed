@@ -1,0 +1,41 @@
+import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import SamenstellingProefPage from '@/pages/SamenstellingProefPage';
+
+const setup=()=>render(<MemoryRouter><SamenstellingProefPage/></MemoryRouter>);
+describe('Samenstellingproef zonder CRM-wijzigingen',()=>{
+  it('start met 75% bedrijfsruimte en een harde 70%-eis',()=>{
+    setup();
+    expect(screen.getByRole('status')).toHaveTextContent('Voldoet');
+    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(screen.getByText(/slaat niets op in de CRM/)).toBeInTheDocument();
+  });
+  it('toont harde uitsluiting bij 65% bedrijf, ook met kantoor en wonen',async()=>{
+    const u=userEvent.setup();setup();
+    await u.selectOptions(screen.getByLabelText('Praktijkvoorbeeld'),'afgevallen');
+    expect(screen.getByRole('status')).toHaveTextContent('Afgevallen — harde eis');
+    expect(screen.getByText('35%')).toBeInTheDocument();
+  });
+  it('toont controle nodig wanneer GBO-bewoning wordt vergeleken met VVO of wanneer iets ontbreekt',async()=>{
+    const u=userEvent.setup();setup();
+    await u.selectOptions(screen.getByLabelText('Praktijkvoorbeeld'),'onbekend');
+    expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
+    await u.selectOptions(screen.getByLabelText('Praktijkvoorbeeld'),'voldoet');
+    await u.selectOptions(screen.getByLabelText('Onderdeel 2 meetbasis'),'gbo');
+    expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
+  });
+  it('kan een harde eis naar voorkeur omzetten en oppervlaktes aanpassen',async()=>{
+    const u=userEvent.setup();setup();
+    await u.selectOptions(screen.getByLabelText('Praktijkvoorbeeld'),'afgevallen');
+    await u.selectOptions(screen.getByLabelText('Aard van de eis'),'voorkeur');
+    expect(screen.getByRole('status')).toHaveTextContent('Afwijkende voorkeur');
+  });
+  it('onderdeel toevoegen vraagt om complete oppervlakte voordat een verhouding wordt getoond',async()=>{
+    const u=userEvent.setup();setup();
+    await u.click(screen.getByRole('button',{name:'Onderdeel toevoegen'}));
+    expect(screen.getByLabelText('Onderdeel 3 oppervlakte')).toHaveValue('');
+    expect(screen.getByRole('status')).toHaveTextContent('Controle nodig');
+  });
+});
