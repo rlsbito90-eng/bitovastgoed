@@ -104,3 +104,13 @@ Het huidige object-/portefeuille-overzicht leest vanaf `crm-test` bij alle gekop
 - een expliciete disclaimer dat de som van gekoppelde onderdelen geen geverifieerd oppervlak van de volledige verkooppropositie bewijst; niet-gekoppelde objecten kunnen ontbreken.
 
 Geen formulieruitbreiding, geen extra vinkjes, geen tweede registratie. Hoofdprijs en hoofdhuur worden niet gewijzigd en niet opgeteld met onderdelen. Dit is een **read-only inventarisatie**, nog geen juridische of functionele m²-verdeling voor harde matchingcriteria.
+
+## 11. Kopersvoorwaarden automatisch uit bestaande dossiers signaleren (14-11-2026)
+
+De aanvullende voorwaarden/uitsluitingen die al bij een **Relatie** of zelfstandig **Zoekprofiel** staan, worden op de Relatie-detailpagina bij een voorgesteld object voortaan **read-only** getoond als ze niet aantoonbaar door de bestaande R2-matching zijn getoetst. Dit vereist geen nieuwe velden of vinkjes.
+
+- Algemene routes lezen de relevante bestaande relatievelden; profielroutes lezen het **juiste profiel-ID** en de gezamenlijke relatie-uitsluitingen. Een zelfstandig profiel krijgt niet zomaar de algemene relatievoorkeuren als harde eis.
+- Vrije tekst met bijvoorbeeld 'minimaal 70% bedrijfsruimte' wordt **niet** met een regexp omgezet naar een beweerd geverifieerde eis. Zonder gestructureerde basis én objectonderdelen blijft deze 'te controleren'.
+- Het label 'Indicatief passend' krijgt bij zulke niet-getoetste voorwaarden in de relatie-preview de context 'Aanvullende eisen controleren'. Dit is **alleen presentatie**, zonder wijziging van berekende scores, kandidaten, objecten of pipeline.
+- Er wordt geen taak aangemaakt en geen extra antwoord gevraagd bij de gebruiker.
+- Latere automatische toetsing met de generieke criteria-engine mag de tekstcontrole pas vervangen nadat dezelfde concrete eis betrouwbaar toetsbaar is, met vastgelegde meetbasis/scope en bewijs.

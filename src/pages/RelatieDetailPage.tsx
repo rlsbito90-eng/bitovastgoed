@@ -31,6 +31,7 @@ import WebsiteProfielHerkomst from '@/components/relatie/WebsiteProfielHerkomst'
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
+import { inventariseerNietGetoetsteKopersvoorwaarden } from '@/lib/matching/nietGetoetsteKopersvoorwaarden';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
 import {
@@ -427,6 +428,11 @@ export default function RelatieDetailPage() {
               {matches.slice(0,5).map(({object,voorstel})=>{
                 const route=voorstel.besteRoute;
                 const labels={passend:'Indicatief passend',te_verifieren:'Te verifiëren',onvoldoende:'Onvoldoende gegevens',afwijkend:'Afwijkend'} as const;
+                const nogNietGetoetst=inventariseerNietGetoetsteKopersvoorwaarden(relatie,route,zoekprofielen);
+                const extraControle=nogNietGetoetst.length>0;
+                // Alleen de leesweergave wordt aangescherpt; R2-score en rangorde blijven ongewijzigd.
+                const zichtbareStatus=route.kwalificatie==='passend'&&extraControle
+                  ? 'Aanvullende eisen controleren' : labels[route.kwalificatie];
                 return <details key={object.id} className="group">
                   <summary className="flex justify-between items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-muted/40">
                     <div className="min-w-0">
@@ -437,7 +443,7 @@ export default function RelatieDetailPage() {
                       </p>
                     </div>
                     <span className="shrink-0 rounded border border-border px-2 py-1 text-xs">
-                      {labels[route.kwalificatie]}
+                      {zichtbareStatus}
                     </span>
                   </summary>
                   <div className="px-5 pb-4 space-y-1 text-xs">
@@ -448,6 +454,17 @@ export default function RelatieDetailPage() {
                     {route.toelichting.afwijkend.map((tekst,i)=><p key={i} className="text-destructive">
                       Afwijking: {tekst}
                     </p>)}
+                    {extraControle&&(
+                      <div className="rounded-md border border-border/70 bg-muted/30 p-2.5 space-y-1.5" aria-label="Nog niet automatisch getoetste kopersvoorwaarden">
+                        <p className="font-medium">Bestaande voorwaarden nog niet getoetst</p>
+                        {nogNietGetoetst.map(item=><p key={item.bron+':'+item.sleutel} className="text-muted-foreground break-words">
+                          {item.label}: {item.toelichting}
+                        </p>)}
+                        <p className="text-muted-foreground">
+                          Alleen lezen: geen nieuwe velden, geen automatische uitsluiting en geen wijziging van de matchscore.
+                        </p>
+                      </div>
+                    )}
                     <p className="pt-2 text-muted-foreground">
                       Geen automatische aanbieding of aankoopbeslissing. Eventuele aanvullende zoekrichtingen blijven behouden.
                     </p>
