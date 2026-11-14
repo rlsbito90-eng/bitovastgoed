@@ -20,6 +20,7 @@ describe('objectenViewState', () => {
       dealtypeFilter: 'deal-1',
       statusFilter: 'beschikbaar',
       archiefView: 'alles',
+      toonOnderdelenLos: true,
     });
 
     expect(loadObjectenViewState()).toEqual({
@@ -29,6 +30,7 @@ describe('objectenViewState', () => {
       dealtypeFilter: 'deal-1',
       statusFilter: 'beschikbaar',
       archiefView: 'alles',
+      toonOnderdelenLos: true,
     });
   });
 
@@ -43,6 +45,14 @@ describe('objectenViewState', () => {
       zoek: 'x',
       statusFilter: '',
       archiefView: 'actief',
+      toonOnderdelenLos: false,
     });
+  });
+});
+
+describe('Portefeuillelijst optie', () => {
+  it('herstelt ook bij oude sessies standaard de gegroepeerde weergave', () => {
+    sessionStorage.setItem('crm:objecten:view-state:v1', JSON.stringify({ zoek: 'Test', archiefView: 'alles' }));
+    expect(loadObjectenViewState().toonOnderdelenLos).toBe(false);
   });
 });

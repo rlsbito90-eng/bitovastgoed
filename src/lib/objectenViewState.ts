@@ -9,6 +9,8 @@ export interface ObjectenViewState {
   dealtypeFilter: string;
   statusFilter: ObjectStatus | '';
   archiefView: ObjectenArchiefView;
+  /** Kinderen afzonderlijk tonen of onder hun portefeuille groeperen. */
+  toonOnderdelenLos: boolean;
 }
 
 const KEY = 'crm:objecten:view-state:v1';
@@ -25,6 +27,7 @@ export const DEFAULT_OBJECTEN_VIEW_STATE: ObjectenViewState = {
   dealtypeFilter: '',
   statusFilter: '',
   archiefView: 'actief',
+  toonOnderdelenLos: false,
 };
 
 export function loadObjectenViewState(): ObjectenViewState {
@@ -43,6 +46,7 @@ export function loadObjectenViewState(): ObjectenViewState {
       archiefView: ARCHIEF_VIEWS.has(parsed.archiefView as ObjectenArchiefView)
         ? parsed.archiefView as ObjectenArchiefView
         : 'actief',
+      toonOnderdelenLos: parsed.toonOnderdelenLos === true,
     };
   } catch {
     return DEFAULT_OBJECTEN_VIEW_STATE;
