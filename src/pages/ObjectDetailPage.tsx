@@ -59,6 +59,7 @@ import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenActieBadge';
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
+import InlineObjectField from '@/components/object/InlineObjectField';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
 import FocusPointDialog from '@/components/object/FocusPointDialog';
@@ -167,9 +168,9 @@ function MetricTile({
           </span>
         )}
       </div>
-      <p className={`mt-1.5 text-base sm:text-lg font-semibold font-mono-data leading-none break-words ${toneCls}`}>
+      <div className={`mt-1.5 text-base sm:text-lg font-semibold font-mono-data leading-tight break-words ${toneCls}`}>
         {value}
-      </p>
+      </div>
       {overrideInfo && (
         <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground leading-tight break-words">
           <span className="truncate">
@@ -1270,8 +1271,9 @@ export default function ObjectDetailPage() {
 
         const titleBlock = (
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-semibold text-foreground tracking-tight leading-[1.1] break-words drop-shadow-sm">
-              {object.titel}
+            <h1 className="text-xl sm:text-2xl lg:text-[28px] font-semibold text-foreground tracking-tight leading-[1.2] break-words drop-shadow-sm">
+              <InlineObjectField label="Objectnaam" value={object.titel} required
+                onSave={(value) => store.updateObject(object.id, { titel: String(value) })} />
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
               <HeaderChip
@@ -1295,7 +1297,7 @@ export default function ObjectDetailPage() {
         return (
           <header className="relative overflow-hidden rounded-2xl border border-border/60 shadow-sm glass-card">
             {/* Banner */}
-            <div className="relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted">
+            <div className={heroUrl ? 'relative aspect-[21/6] sm:aspect-[24/5] lg:aspect-[28/5] max-h-52 bg-muted' : 'hidden'}>
               {heroUrl ? (
                 <img
                   src={heroUrl}
@@ -1345,7 +1347,7 @@ export default function ObjectDetailPage() {
             </div>
 
             {/* DESKTOP — overlay content */}
-            <div className="hidden sm:flex absolute inset-0 flex-col justify-between p-6 lg:p-8">
+            <div className={heroUrl ? 'hidden sm:flex absolute inset-0 flex-col justify-between p-5 lg:p-6' : 'hidden sm:flex relative flex-col gap-3 justify-between p-5 lg:p-6'}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 {badgesBlock}
                 {actionsBlock}
@@ -1356,6 +1358,10 @@ export default function ObjectDetailPage() {
         );
       })()}
 
+      {/* Tabbladen staan nu direct onder de compacte objectkop. */}
+      <WorkspaceTabsNav tabs={visibleTabs} active={activeTab} onSelect={setActiveTab} />
+      {activeTab === 'overzicht' && (
+        <>
       {/* =================================================
           HERO KPI STRIP — dynamisch: alleen relevante tiles
           ================================================= */}
@@ -1368,7 +1374,9 @@ export default function ObjectDetailPage() {
               label="Vraagprijs"
               value={
                 object.vraagprijs != null
-                  ? formatCurrency(object.vraagprijs)
+                  ? <InlineObjectField label="Vraagprijs" value={object.vraagprijs} kind="number"
+                      format={(value) => formatCurrency(Number(value))}
+                      onSave={(value) => store.updateObject(object.id, { vraagprijs: Number(value) })} />
                   : <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span>
               }
               hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
@@ -1398,13 +1406,20 @@ export default function ObjectDetailPage() {
             <MetricTile
               key="huur"
               label="Huur / jr"
-              value={formatCurrencyCompact(object.huurinkomsten)}
+              value={<InlineObjectField label="Jaarhuur" value={object.huurinkomsten} kind="number"
+                format={(value) => formatCurrencyCompact(Number(value))}
+                onSave={(value) => store.updateObject(object.id, { huurinkomsten: Number(value) })} />}
               hint={maandhuur.value != null ? `${formatCurrencyCompact(maandhuur.value)} / mnd` : undefined}
             />,
           );
         }
-        if (object.oppervlakte) {
-          tiles.push(<MetricTile key="opp" label="Oppervlakte" value={formatM2(object.oppervlakte)} />);
+        if (m2Bron.m2 != null) {
+          const meetbasis = m2Bron.bron === 'vvo' ? 'VVO' : m2Bron.bron === 'gbo' ? 'GBO' : 'Oppervlakte (type onbekend)';
+          tiles.push(<MetricTile key="opp" label={meetbasis} value={formatM2(m2Bron.m2)}
+            hint={m2Bron.fallback ? 'Alternatieve meetbasis gebruikt' : undefined} />);
+        } else if (object.oppervlakteBvo != null) {
+          tiles.push(<MetricTile key="opp" label="BVO" value={formatM2(object.oppervlakteBvo)}
+            hint="Niet gebruikt voor €/m²-berekening" />);
         }
         if (tiles.length === 0) return null;
         return (
@@ -1442,10 +1457,8 @@ export default function ObjectDetailPage() {
         onGoto={(anchor: DossierAnchor) => goToAnchor(anchor)}
       />
 
-      {/* =================================================
-          STICKY SECTION NAV
-          ================================================= */}
-      <WorkspaceTabsNav tabs={visibleTabs} active={activeTab} onSelect={setActiveTab} />
+        </>
+      )}
 
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
@@ -1563,7 +1576,9 @@ export default function ObjectDetailPage() {
                   label="Vraagprijs"
                   value={
                     object.vraagprijs != null
-                      ? formatCurrency(object.vraagprijs)
+                      ? <InlineObjectField label="Vraagprijs" value={object.vraagprijs} kind="number"
+                          format={(value) => formatCurrency(Number(value))}
+                          onSave={(value) => store.updateObject(object.id, { vraagprijs: Number(value) })} />
                       : (object.prijsindicatie ? <span className="text-sm font-normal italic text-muted-foreground line-clamp-2">{object.prijsindicatie}</span> : '—')
                   }
                   hint={object.vraagprijs == null && object.prijsindicatie ? 'Prijsindicatie' : undefined}
@@ -1587,7 +1602,11 @@ export default function ObjectDetailPage() {
                 />
                 <MetricTile
                   label="Huur / jr"
-                  value={object.huurinkomsten != null ? formatCurrency(object.huurinkomsten) : 'onvoldoende gegevens'}
+                  value={object.huurinkomsten != null
+                    ? <InlineObjectField label="Jaarhuur" value={object.huurinkomsten} kind="number"
+                        format={(value) => formatCurrency(Number(value))}
+                        onSave={(value) => store.updateObject(object.id, { huurinkomsten: Number(value) })} />
+                    : 'onvoldoende gegevens'}
                   badge={object.huurinkomsten != null ? undefined : 'onvoldoende'}
                 />
                 <MetricTile

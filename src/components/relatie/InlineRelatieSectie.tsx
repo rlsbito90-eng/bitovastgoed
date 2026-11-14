@@ -115,6 +115,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
             ?kind==='textarea'
               ?<textarea id={id} rows={3} value={alsString(waarde)}
                 onChange={e=>wijzig(veld.key,e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void opslaan();}}}
                 className="flex min-h-20 w-full rounded-md border border-input bg-background p-2 text-sm"/>
               :kind==='select'
                 ?<select id={id} value={alsString(waarde)}
@@ -130,6 +131,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                 :kind==='plaatsen'
                   ?<textarea id={id} rows={2} value={plaatsenInvoer}
                     onChange={e=>{setPlaatsenInvoer(e.target.value);wijzig(veld.key,parseerSteden(e.target.value));}}
+                    onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void opslaan();}}}
                     className="flex min-h-16 w-full rounded-md border border-input bg-background p-2 text-sm"/>
                 :kind==='multi'
                   ?<div className="flex flex-wrap gap-2">{veld.options?.map(o=><label key={o.value}
@@ -148,6 +150,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                       min={kind==='number'?0:undefined} step={kind==='number'?'any':undefined}
                       value={alsString(waarde)}
                       onChange={e=>wijzig(veld.key,kind==='number'?(e.target.value===''?undefined:Number(e.target.value)):e.target.value)}
+                      onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();void opslaan();}}}
                       className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"/>
             :<p className="field-value min-h-5 break-words whitespace-pre-wrap">{leesbaar(veld,relatie[veld.key])}</p>}
           {veld.note&&<p className="text-xs text-muted-foreground">{veld.note}</p>}

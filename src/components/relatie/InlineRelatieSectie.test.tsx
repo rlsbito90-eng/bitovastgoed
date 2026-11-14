@@ -150,3 +150,27 @@ describe('Fase 3C — letterlijke budget- en rendementskeuzes',()=>{
    expect(save.mock.calls[0][0]).not.toHaveProperty('budgetMin');
  });
 });
+
+describe('Relatiegegevens opslaan met het toetsenbord', () => {
+  it('Enter bewaart een tekstwijziging zonder extra klik', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    render(<InlineRelatieSectie titel="Bedrijf" relatie={relatie} velden={company} onSave={save}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Bedrijf bewerken'}));
+    const input = screen.getByLabelText('Website');
+    fireEvent.change(input,{target:{value:'https://voorbeeld.com'}});
+    fireEvent.keyDown(input,{key:'Enter'});
+    await waitFor(()=>expect(save).toHaveBeenCalledWith({website:'https://voorbeeld.com'}));
+  });
+  it('Ctrl+Enter bewaart een notitie maar Enter alleen niet', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const fields=[{key:'notities',label:'Interne notities',kind:'textarea'}] as const;
+    render(<InlineRelatieSectie titel="Notities" relatie={relatie} velden={fields} onSave={save}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Notities bewerken'}));
+    const textarea=screen.getByLabelText('Interne notities');
+    fireEvent.change(textarea,{target:{value:'Een nieuwe notitie'}});
+    fireEvent.keyDown(textarea,{key:'Enter'});
+    expect(save).not.toHaveBeenCalled();
+    fireEvent.keyDown(textarea,{key:'Enter',ctrlKey:true});
+    await waitFor(()=>expect(save).toHaveBeenCalledWith({notities:'Een nieuwe notitie'}));
+  });
+});
