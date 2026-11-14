@@ -61,6 +61,7 @@ import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenA
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import InlineObjectField from '@/components/object/InlineObjectField';
 import PortefeuilleOnderdelenPanel from '@/components/object/PortefeuilleOnderdelenPanel';
+import ObjectAdressenEditor from '@/components/object/ObjectAdressenEditor';
 import ObjectQuickCreateDialog from '@/components/forms/ObjectQuickCreateDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
@@ -1581,6 +1582,10 @@ export default function ObjectDetailPage() {
                 toast.success('Object losgekoppeld van portefeuille');
               }}
             />
+          )}
+
+          {import.meta.env.VITE_CRM_MULTI_ADRES_WRITE_ENABLED === 'true' && activeTab === 'overzicht' && (
+            <ObjectAdressenEditor object={object} />
           )}
 
           {/* ============ DEALFLOW ============ */}
