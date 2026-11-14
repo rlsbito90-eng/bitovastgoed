@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { IS_ISOLATED_PREVIEW_SANDBOX } from '@/lib/auth/previewSandbox';
 
 type Rol = 'admin' | 'medewerker';
 
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let actief = true;
+    let gastAanmeldingGeprobeerd = false;
 
     // INITIAL_SESSION volgt op het herstellen van een bewaarde Supabase-sessie.
     // Gebruik één eventbron in plaats van daarnaast getSession() aan te roepen:
@@ -45,6 +47,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!nieuweUserId) {
         setRollen([]);
+        // Alleen wanneer de preview gegarandeerd naar een andere Supabase-
+        // database wijst. In productie blijft dit pad uitgeschakeld.
+        if (IS_ISOLATED_PREVIEW_SANDBOX && event === 'INITIAL_SESSION' && !gastAanmeldingGeprobeerd) {
+          gastAanmeldingGeprobeerd = true;
+          setLoading(true);
+          setTimeout(() => {
+            if (!actief) return;
+            void supabase.auth.signInAnonymously()
+              .then(({ error }) => {
+                if (error && actief) {
+                  console.warn('Previewtestomgeving: anonieme sessie niet beschikbaar.');
+                  setLoading(false);
+                }
+              })
+              .catch(() => {
+                if (!actief) return;
+                console.warn('Previewtestomgeving: anonieme sessie kon niet worden gestart.');
+                setLoading(false);
+              });
+          }, 0);
+          return;
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (IS_ISOLATED_PREVIEW_SANDBOX && nieuweSession?.user.is_anonymous) {
+        // Uitsluitend de React-navigatie in de afgescheiden testomgeving.
+        // De testdatabase moet eigen, sandbox-only RLS-regels bevatten.
+        setRollen(['admin']);
         setLoading(false);
         return;
       }
