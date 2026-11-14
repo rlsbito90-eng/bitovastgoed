@@ -32,6 +32,7 @@ import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
 import { inventariseerNietGetoetsteKopersvoorwaarden } from '@/lib/matching/nietGetoetsteKopersvoorwaarden';
+import { vergelijkBestaandeProfielkenmerken } from '@/lib/matching/vergelijkBestaandeProfielkenmerken';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
 import {
@@ -428,11 +429,19 @@ export default function RelatieDetailPage() {
               {matches.slice(0,5).map(({object,voorstel})=>{
                 const route=voorstel.besteRoute;
                 const labels={passend:'Indicatief passend',te_verifieren:'Te verifiëren',onvoldoende:'Onvoldoende gegevens',afwijkend:'Afwijkend'} as const;
-                const nogNietGetoetst=inventariseerNietGetoetsteKopersvoorwaarden(relatie,route,zoekprofielen);
-                const extraControle=nogNietGetoetst.length>0;
+                const vergelijkingen=vergelijkBestaandeProfielkenmerken(object,route,zoekprofielen);
+                const vergelekenSleutels=new Set(vergelijkingen.map(x=>x.sleutel));
+                const nogNietGetoetst=inventariseerNietGetoetsteKopersvoorwaarden(relatie,route,zoekprofielen)
+                  .filter(x=>!vergelekenSleutels.has(x.sleutel as typeof vergelijkingen[number]['sleutel']));
+                const afwijkendeKenmerken=vergelijkingen.some(x=>x.uitkomst==='afwijking');
+                const extraControle=nogNietGetoetst.length>0
+                  ||vergelijkingen.some(x=>x.uitkomst!=='overeenkomst');
                 // Alleen de leesweergave wordt aangescherpt; R2-score en rangorde blijven ongewijzigd.
-                const zichtbareStatus=route.kwalificatie==='passend'&&extraControle
-                  ? 'Aanvullende eisen controleren' : labels[route.kwalificatie];
+                const zichtbareStatus=route.kwalificatie==='passend'&&afwijkendeKenmerken
+                  ? 'Profielkenmerken wijken af'
+                  : route.kwalificatie==='passend'&&extraControle
+                    ? 'Aanvullende eisen controleren'
+                    : labels[route.kwalificatie];
                 return <details key={object.id} className="group">
                   <summary className="flex justify-between items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-muted/40">
                     <div className="min-w-0">
@@ -454,7 +463,21 @@ export default function RelatieDetailPage() {
                     {route.toelichting.afwijkend.map((tekst,i)=><p key={i} className="text-destructive">
                       Afwijking: {tekst}
                     </p>)}
-                    {extraControle&&(
+                    {vergelijkingen.length>0&&(
+                      <div className="rounded-md border border-border/70 bg-muted/20 p-2.5 space-y-1.5"
+                        aria-label="Vergelijking bestaande profielkenmerken">
+                        <p className="font-medium">Automatisch vergeleken met objectregistratie</p>
+                        {vergelijkingen.map(item=><p key={item.sleutel} className="text-muted-foreground break-words">
+                          {item.uitkomst==='overeenkomst'?'✓':item.uitkomst==='afwijking'?'⚠':'?'}
+                          {' '}{item.label}: {item.reden}
+                        </p>)}
+                        <p className="text-muted-foreground">
+                          Alleen feitelijke vergelijking van bestaande velden. Dit is geen bewezen harde eis,
+                          geen zelfstandige verificatie en verandert de bestaande matching niet.
+                        </p>
+                      </div>
+                    )}
+                    {nogNietGetoetst.length>0&&(
                       <div className="rounded-md border border-border/70 bg-muted/30 p-2.5 space-y-1.5" aria-label="Nog niet automatisch getoetste kopersvoorwaarden">
                         <p className="font-medium">Bestaande voorwaarden nog niet getoetst</p>
                         {nogNietGetoetst.map(item=><p key={item.bron+':'+item.sleutel} className="text-muted-foreground break-words">
