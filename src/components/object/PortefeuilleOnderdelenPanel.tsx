@@ -9,6 +9,8 @@ import {
   portefeuilleOnderdelen,
   beschikbarePortefeuilleOnderdelen,
   portefeuilleAdresLabel,
+  inventariseerPortefeuilleOnderdelen,
+  individueleOppervlakte,
 } from '@/lib/objecten/portefeuilleOnderdelen';
 
 interface Props {
@@ -31,6 +33,7 @@ export default function PortefeuilleOnderdelenPanel({
   const [zoek, setZoek] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const onderdelen = portefeuilleOnderdelen(objecten, portefeuille.id);
+  const inventarisatie = inventariseerPortefeuilleOnderdelen(onderdelen);
   const kandidaten = beschikbarePortefeuilleOnderdelen(objecten, portefeuille.id)
     .filter(o => [o.titel, o.adres, o.postcode, o.plaats]
       .some(v => (v ?? '').toLocaleLowerCase('nl').includes(zoek.trim().toLocaleLowerCase('nl'))))
@@ -74,6 +77,26 @@ export default function PortefeuilleOnderdelenPanel({
         </div>
       </div>
 
+      {onderdelen.length > 0 && (
+        <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2" aria-label="Automatisch overzicht portefeuille">
+          <p className="text-xs font-semibold">Automatisch uit gekoppelde dossiers</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <p><strong>{inventarisatie.metVolledigAdres}/{inventarisatie.aantal}</strong> adressen volledig</p>
+            <p><strong>{inventarisatie.metJaarhuur}/{inventarisatie.aantal}</strong> jaarhuren bekend</p>
+            <p><strong>{inventarisatie.metEigenPrijs}/{inventarisatie.aantal}</strong> eigen prijzen vermeld</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {inventarisatie.oppervlakte.m2 !== null && inventarisatie.oppervlakte.meetbasis
+              ? `${inventarisatie.oppervlakte.m2.toLocaleString('nl-NL', { maximumFractionDigits: 2 })} m² ${inventarisatie.oppervlakte.meetbasis.toUpperCase()} · ${inventarisatie.oppervlakte.toelichting}`
+              : `${inventarisatie.oppervlakte.van}/${inventarisatie.aantal} onderdelen met vergelijkbare oppervlaktemeting · ${inventarisatie.oppervlakte.toelichting}`}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Dit overzicht leest bestaande records; het vraagt niets extra's en verandert geen prijzen,
+            huur of matchgegevens. Niet-gekoppelde panden kunnen hier ontbreken.
+          </p>
+        </div>
+      )}
+
       {onderdelen.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
           Nog geen objecten gekoppeld. Voeg een onderdeel toe of koppel een bestaand object.
@@ -86,6 +109,7 @@ export default function PortefeuilleOnderdelenPanel({
             const url = o.adres && o.plaats ? buildMapsUrl({
               adres: o.adres, postcode: o.postcode, plaats: o.plaats, provincie: o.provincie,
             }) : null;
+            const oppervlakte = individueleOppervlakte(o);
             return (
               <div key={o.id} className="rounded-lg border border-border/70 bg-card/60 p-3 space-y-2">
                 <div className="flex items-start gap-2.5">
@@ -103,6 +127,7 @@ export default function PortefeuilleOnderdelenPanel({
                         ? `Eigen vraagprijs: ${formatCurrency(o.vraagprijs)} (niet opgeteld)`
                         : 'Geen afzonderlijke vraagprijs'}
                       {o.huurinkomsten != null && ` · Eigen jaarhuur: ${formatCurrencyCompact(o.huurinkomsten)}`}
+                      {oppervlakte && ` · ${oppervlakte.m2.toLocaleString('nl-NL', { maximumFractionDigits: 2 })} m² ${oppervlakte.meetbasis.toUpperCase()}`}
                       {o.isArchived && ' · Gearchiveerd'}
                     </p>
                   </div>

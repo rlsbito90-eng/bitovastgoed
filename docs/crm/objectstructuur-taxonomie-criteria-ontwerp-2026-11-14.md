@@ -95,3 +95,12 @@ De functie `src/lib/matching/samenstellingscriterium.ts` toetst getypeerde min/m
 - **Uitzonderingen doelgericht:** pas bij een relevante kandidaat of transactie kan één concreet ontbrekend gegeven worden gevraagd, nooit alle denkbare kenmerken vooraf.
 
 **Acceptatietest:** een vastgoedobject registreren, inclusief eenvoudig pand of pakket van drie appartementen, mag geen extra checkbox voor datakwaliteit of dubbele prijs-/adres-/m²-invoer vereisen. Het 70/30-criterium moet zelfstandig kunnen toetsen op bestaande gegevens, anders helder en niet-opdringerig 'Controle nodig' geven. Geen bestaande matchscore mag op basis van ontbrekende gegevens automatisch als geschikt worden gepresenteerd.
+
+## 10. Automatisch portefeuille-inzicht zonder nieuwe velden (14-11-2026)
+
+Het huidige object-/portefeuille-overzicht leest vanaf `crm-test` bij alle gekoppelde child-records automatisch:
+- bestaande adressen (volledigheid), aanwezige jaarhuren en **eventueel** afzonderlijke prijzen;
+- VVO, GBO of BVO per onderdeel, met optelling **uitsluitend wanneer alle zichtbare child-records dezelfde geldige meetbasis hebben**;
+- een expliciete disclaimer dat de som van gekoppelde onderdelen geen geverifieerd oppervlak van de volledige verkooppropositie bewijst; niet-gekoppelde objecten kunnen ontbreken.
+
+Geen formulieruitbreiding, geen extra vinkjes, geen tweede registratie. Hoofdprijs en hoofdhuur worden niet gewijzigd en niet opgeteld met onderdelen. Dit is een **read-only inventarisatie**, nog geen juridische of functionele m²-verdeling voor harde matchingcriteria.
