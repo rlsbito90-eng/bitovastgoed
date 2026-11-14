@@ -96,10 +96,10 @@ class Query {
     else this.filters.push(r => !eqValue(r[name], value));
     return this;
   }
-  gt(name: string, value: unknown) { this.filters.push(r => r[name] > value); return this; }
-  gte(name: string, value: unknown) { this.filters.push(r => r[name] >= value); return this; }
-  lt(name: string, value: unknown) { this.filters.push(r => r[name] < value); return this; }
-  lte(name: string, value: unknown) { this.filters.push(r => r[name] <= value); return this; }
+  gt(name: string, value: unknown) { this.filters.push(r => r[name] > (value as any)); return this; }
+  gte(name: string, value: unknown) { this.filters.push(r => r[name] >= (value as any)); return this; }
+  lt(name: string, value: unknown) { this.filters.push(r => r[name] < (value as any)); return this; }
+  lte(name: string, value: unknown) { this.filters.push(r => r[name] <= (value as any)); return this; }
   ilike(name: string, value: string) { const part = value.replace(/%/g, '').toLowerCase(); this.filters.push(r => String(r[name] ?? '').toLowerCase().includes(part)); return this; }
   like(name: string, value: string) { return this.ilike(name, value); }
   contains(name: string, value: unknown) { this.filters.push(r => Array.isArray(r[name]) && Array.isArray(value) && value.every(x => r[name].includes(x))); return this; }
