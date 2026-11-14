@@ -47,6 +47,6 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Relevant CRM regression tests
-        run: npx vitest run src/lib/objecten/adresModel.test.ts src/lib/matching/samenstellingscriterium.test.ts src/test/objecten/adresModelProefPage.test.tsx src/test/objecten/objectenLijstGroepering.test.ts src/test/objecten/crmObjectnummer.test.ts src/test/forms/objectQuickCreateDialog.test.tsx src/test/objectenViewState.test.ts src/test/object/portefeuilleOnderdelen.test.ts
+        run: npx vitest run src/lib/objecten/adresModel.test.ts src/lib/objecten/multiAdresRepository.test.ts src/lib/matching/samenstellingscriterium.test.ts src/test/objecten/adresModelProefPage.test.tsx src/test/objecten/objectenLijstGroepering.test.ts src/test/objecten/crmObjectnummer.test.ts src/test/forms/objectQuickCreateDialog.test.tsx src/test/objectenViewState.test.ts src/test/object/portefeuilleOnderdelen.test.ts
       - name: Build
         run: npm run build
