@@ -82,9 +82,10 @@ export default function PortefeuilleOnderdelenPanel({
       ) : (
         <div className="space-y-2">
           {onderdelen.map(o => {
-            const url = buildMapsUrl({
+            // Zonder straat/huisnummer zou Maps hooguit de plaats aanwijzen.
+            const url = o.adres && o.plaats ? buildMapsUrl({
               adres: o.adres, postcode: o.postcode, plaats: o.plaats, provincie: o.provincie,
-            });
+            }) : null;
             return (
               <div key={o.id} className="rounded-lg border border-border/70 bg-card/60 p-3 space-y-2">
                 <div className="flex items-start gap-2.5">
@@ -130,6 +131,12 @@ export default function PortefeuilleOnderdelenPanel({
 
       {koppelenOpen && (
         <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-2">
+          {window.location.hostname === 'bitovastgoed-git-crm-test-bitovastgoed.vercel.app' && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Let op: deze testomgeving deelt de bestaande CRM-database.
+              Koppelen en ontkoppelen wijzigen daarom echte objectgegevens.
+            </p>
+          )}
           <label htmlFor="portefeuille-zoek" className="text-xs font-medium">
             Bestaand object zoeken
           </label>

@@ -80,3 +80,6 @@ Acceptatiescenario bedrijfscomplex:
 - Er is nog geen gecombineerde overzichtskaart of batchimport van meerdere adressen.
 - Bestaande kandidatenscores en pipeline worden nog niet geconsolideerd op propositieniveau.
 - Geen nieuw SQL-schema of RLS-policy uitgevoerd; crm-test deelt de bestaande database.
+
+### Eerste pure toetsfunctie
+De functie `src/lib/matching/samenstellingscriterium.ts` toetst getypeerde min/max aandelen binnen een bevestigde volledige, niet-overlappende meetbasis. Deze is **nog niet** aangesloten op Relaties, Objecten of de live matching. Zo kunnen we de regels vooraf toetsen zonder productiegegevens te wijzigen.
