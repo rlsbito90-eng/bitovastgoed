@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Fingerprint, Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import {
   CRM_PRIMARY_ORIGIN,
   isBitoPreviewOrigin,
   PREVIEW_LOGIN_ACK,
+  PREVIEW_LOGIN_ERROR,
   PREVIEW_LOGIN_MESSAGE,
 } from '@/lib/auth/previewSso';
 
@@ -33,16 +34,32 @@ export default function PreviewAuthBridgePage() {
   const [busy, setBusy] = useState(false);
   const [verstuurd, setVerstuurd] = useState(false);
   const [afgerond, setAfgerond] = useState(false);
+  const [overdrachtFout, setOverdrachtFout] = useState<string | null>(null);
+  const retryTimer = useRef<number | null>(null);
+
+  const stopRetry = () => {
+    if (retryTimer.current !== null) window.clearInterval(retryTimer.current);
+    retryTimer.current = null;
+  };
 
   useEffect(() => {
     const onAck = (event: MessageEvent) => {
-      if (event.source !== window.opener || event.origin !== origin) return;
-      if (event.data?.type !== PREVIEW_LOGIN_ACK || event.data?.nonce !== nonce) return;
-      setAfgerond(true);
-      window.close();
+      if (event.origin !== origin || event.data?.nonce !== nonce) return;
+      if (event.data?.type === PREVIEW_LOGIN_ACK) {
+        stopRetry();
+        setAfgerond(true);
+        window.close();
+      } else if (event.data?.type === PREVIEW_LOGIN_ERROR) {
+        stopRetry();
+        setVerstuurd(false);
+        setOverdrachtFout('De preview heeft de aanmelding ontvangen, maar kon de sessie niet openen. Probeer opnieuw.');
+      }
     };
     window.addEventListener('message', onAck);
-    return () => window.removeEventListener('message', onAck);
+    return () => {
+      window.removeEventListener('message', onAck);
+      stopRetry();
+    };
   }, [origin, nonce]);
 
   const verleenToegang = async () => {
@@ -51,6 +68,7 @@ export default function PreviewAuthBridgePage() {
       toast.error('Alleen een CRM-beheerder kan previewtoegang bevestigen.');
       return;
     }
+    setOverdrachtFout(null);
     setBusy(true);
     try {
       let { data: { session } } = await supabase.auth.getSession();
@@ -82,11 +100,25 @@ export default function PreviewAuthBridgePage() {
 
       // De doel-origin is twee keer gecontroleerd: browserformaat hierboven,
       // werkelijk Vercel-project/branch binnen de Supabase Edge Function.
-      window.opener.postMessage(
-        { type: PREVIEW_LOGIN_MESSAGE, nonce, tokenHash: data.tokenHash },
-        origin,
-      );
+      // Het browserbericht kan bij een popupovergang verloren gaan. Herhaal
+      // alleen tot de preview een ACK terugstuurt; de tokenhash is eenmalig.
+      let pogingen = 0;
+      const stuur = () => {
+        if (pogingen >= 6 || !window.opener) {
+          stopRetry();
+          setVerstuurd(false);
+          setOverdrachtFout('Er kwam geen bevestiging terug vanuit de preview. Start de aanmelding opnieuw.');
+          return;
+        }
+        window.opener.postMessage(
+          { type: PREVIEW_LOGIN_MESSAGE, nonce, tokenHash: data.tokenHash },
+          origin,
+        );
+        pogingen += 1;
+      };
       setVerstuurd(true);
+      stuur();
+      retryTimer.current = window.setInterval(stuur, 1600);
     } catch {
       toast.error('Centrale previewaanmelding is niet gelukt. Probeer het opnieuw.');
     } finally {
@@ -110,6 +142,9 @@ export default function PreviewAuthBridgePage() {
               Er wordt geen bestaande CRM-sessie gedeeld.
             </p>
             <p className="break-all text-xs text-muted-foreground">{origin}</p>
+            {overdrachtFout && (
+              <p role="alert" className="text-sm text-destructive">{overdrachtFout}</p>
+            )}
             {afgerond ? (
               <p className="text-sm">Toegang bevestigd. Je kunt dit venster sluiten.</p>
             ) : verstuurd ? (

@@ -448,7 +448,7 @@ export default function TakenPage() {
       <PageHeader
         title="Taken"
         subtitle={<span className="text-sm text-muted-foreground"><span className="capitalize">{datumLabel}</span><span className="mx-1.5">·</span><span className="font-medium text-foreground tabular-nums">{stats.vandaag}</span> gepland vandaag{stats.teLaat > 0 && <><span className="mx-1.5">·</span><span className="text-destructive font-medium">{stats.teLaat} achterstallig</span></>}</span>}
-        actions={<button onClick={() => { setEditTaak(null); setFormOpen(true); }} className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>}
+        actions={<button onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>}
       />
 
       <div className="flex gap-1.5 -mx-1 px-1 overflow-x-auto pb-0.5">

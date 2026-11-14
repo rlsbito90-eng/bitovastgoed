@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { PASSKEY_ORIGIN, isPasskeyOriginAllowed } from '@/lib/auth/passkeyOrigin';
-import { createPreviewNonce, isBitoPreviewOrigin, PREVIEW_LOGIN_ACK, PREVIEW_LOGIN_MESSAGE } from '@/lib/auth/previewSso';
+import { createPreviewNonce, isBitoPreviewOrigin, PREVIEW_LOGIN_ACK, PREVIEW_LOGIN_ERROR, PREVIEW_LOGIN_MESSAGE } from '@/lib/auth/previewSso';
 
 // Alleen interne paden accepteren. Een ?next mag nooit naar een externe site leiden.
 function veiligVolgendPad(raw: string | null): string {
@@ -37,11 +37,14 @@ export default function PasskeyAccessPage() {
     if (!geldigPreviewadres) return;
     const ontvangPreviewLogin = async (event: MessageEvent) => {
       const nonce = nonceRef.current;
-      if (!nonce || event.origin !== PASSKEY_ORIGIN || event.source !== popupRef.current) return;
+      // Exacte primaire origin + cryptografisch willekeurige nonce zijn vereist.
+      // De WindowProxy van een popup kan bij navigatie wisselen.
+      if (!nonce || event.origin !== PASSKEY_ORIGIN) return;
       if (event.data?.type !== PREVIEW_LOGIN_MESSAGE || event.data?.nonce !== nonce) return;
       if (typeof event.data?.tokenHash !== 'string' || !/^[a-f0-9]{64}$/i.test(event.data.tokenHash)) return;
 
-      nonceRef.current = null; // Slechts één respons verwerken.
+      nonceRef.current = null; // Slechts één respons verwerken, ook bij herhaalde postMessages.
+      const responder = (event.source as Window | null) ?? popupRef.current;
       setBezig(true);
       try {
         const { error } = await supabase.auth.verifyOtp({
@@ -49,12 +52,14 @@ export default function PasskeyAccessPage() {
           token_hash: event.data.tokenHash,
         });
         if (error) {
+          responder?.postMessage({ type: PREVIEW_LOGIN_ERROR, nonce }, PASSKEY_ORIGIN);
           toast.error('De eenmalige previewtoegang is verlopen of al gebruikt. Start opnieuw.');
           return;
         }
-        popupRef.current?.postMessage({ type: PREVIEW_LOGIN_ACK, nonce }, PASSKEY_ORIGIN);
+        responder?.postMessage({ type: PREVIEW_LOGIN_ACK, nonce }, PASSKEY_ORIGIN);
         navigate(next, { replace: true });
       } catch {
+        responder?.postMessage({ type: PREVIEW_LOGIN_ERROR, nonce }, PASSKEY_ORIGIN);
         toast.error('Centrale previewaanmelding mislukt. Probeer opnieuw.');
       } finally {
         setBezig(false);

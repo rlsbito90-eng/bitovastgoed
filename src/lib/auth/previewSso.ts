@@ -24,3 +24,4 @@ export function createPreviewNonce(): string {
 
 export const PREVIEW_LOGIN_MESSAGE = 'bito-crm-preview-login-v1' as const;
 export const PREVIEW_LOGIN_ACK = 'bito-crm-preview-login-ack-v1' as const;
+export const PREVIEW_LOGIN_ERROR = 'bito-crm-preview-login-error-v1' as const;
