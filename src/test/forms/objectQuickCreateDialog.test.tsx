@@ -217,3 +217,21 @@ describe('ObjectFormDialog edit-mode (regressie)', () => {
     expect(text).toMatch(/initialTab/);
   });
 });
+
+describe('Anonieme objecten houden intern hun echte adres', () => {
+  it('slaat een intern adres op terwijl anonimiteit ingeschakeld blijft', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.type(screen.getByLabelText(/Titel \/ objectnaam/i), 'Geuzenweg test');
+    await user.type(screen.getByLabelText('Adres (intern)'), 'Geuzenweg 22A');
+    await user.type(screen.getByLabelText('Postcode'), '1211 AB');
+    await user.type(screen.getByLabelText('Plaats'), 'Hilversum');
+    await user.click(screen.getByRole('button', { name: /Object aanmaken/i }));
+    await waitFor(() => expect(addObjectMock).toHaveBeenCalled());
+    const payload = addObjectMock.mock.calls[0][0];
+    expect(payload.anoniem).toBe(true);
+    expect(payload.adres).toBe('Geuzenweg 22A');
+    expect(payload.postcode).toBe('1211 AB');
+    expect(payload.plaats).toBe('Hilversum');
+  });
+});

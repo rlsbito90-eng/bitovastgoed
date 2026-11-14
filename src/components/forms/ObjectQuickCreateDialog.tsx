@@ -68,7 +68,7 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange, defaultPar
   const [status, setStatus] = useState<ObjectStatus>('te_beoordelen');
   const [aanbiedingswijze, setAanbiedingswijze] = useState<Aanbiedingswijze>('off_market');
   const [anoniem, setAnoniem] = useState(true);
-  // Locatie: als anoniem → publiekeRegio; anders adres + postcode + plaats + provincie.
+  // Anoniem tonen bepaalt de externe zichtbaarheid; de interne locatie blijft invulbaar.
   const [publiekeRegio, setPubliekeRegio] = useState('');
   const [adres, setAdres] = useState('');
   const [postcode, setPostcode] = useState('');
@@ -155,12 +155,12 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange, defaultPar
       eigenaarRelatieId: relatieId || undefined,
       verkoperVia: 'onbekend',
 
-      // Locatie afhankelijk van anonimiteit:
+      // Presentatie-anonimiteit staat los van interne adresregistratie.
       publiekeRegio: anoniem ? (publiekeRegio.trim() || undefined) : undefined,
-      adres: !anoniem ? (adres.trim() || undefined) : undefined,
-      postcode: !anoniem ? (postcode.trim() || undefined) : undefined,
-      plaats: !anoniem ? (plaats.trim() || '') : '',
-      provincie: !anoniem ? (provincie.trim() || '') : '',
+      adres: adres.trim() || undefined,
+      postcode: postcode.trim() || undefined,
+      plaats: plaats.trim() || '',
+      provincie: provincie.trim() || '',
       // Verplichte kolommen met bewuste defaults:
       verhuurStatus: 'leeg',
       exclusief: false,
@@ -268,61 +268,44 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange, defaultPar
               <Switch checked={anoniem} onCheckedChange={setAnoniem} aria-label="Anoniem tonen" />
             </div>
 
-            {anoniem ? (
+            {anoniem && (
               <div className="space-y-1.5">
                 <Label htmlFor="quick-regio">Publieke regio</Label>
-                <Input
-                  id="quick-regio"
-                  value={publiekeRegio}
-                  onChange={(e) => setPubliekeRegio(e.target.value)}
-                  placeholder="bv. Randstad, Noord-Holland"
-                />
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="quick-adres">Adres</Label>
-                  <Input
-                    id="quick-adres"
-                    value={adres}
-                    onChange={(e) => setAdres(e.target.value)}
-                    placeholder="Straat en huisnummer"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="quick-postcode">Postcode</Label>
-                  <Input
-                    id="quick-postcode"
-                    value={postcode}
-                    onChange={(e) => setPostcode(e.target.value)}
-                    placeholder="1234 AB"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="quick-plaats">Plaats</Label>
-                  <Input
-                    id="quick-plaats"
-                    value={plaats}
-                    onChange={(e) => setPlaats(e.target.value)}
-                    placeholder="bv. Amsterdam"
-                  />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="quick-provincie">Provincie</Label>
-                  <select
-                    id="quick-provincie"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={provincie}
-                    onChange={(e) => setProvincie(e.target.value)}
-                  >
-                    <option value="">— Kies provincie —</option>
-                    {PROVINCIES.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
+                <Input id="quick-regio" value={publiekeRegio}
+                  onChange={e => setPubliekeRegio(e.target.value)}
+                  placeholder="bv. Randstad, Noord-Holland" />
               </div>
             )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="quick-adres">Adres (intern)</Label>
+                <Input id="quick-adres" value={adres} onChange={e => setAdres(e.target.value)}
+                  placeholder="Straat en huisnummer" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="quick-postcode">Postcode</Label>
+                <Input id="quick-postcode" value={postcode} onChange={e => setPostcode(e.target.value)}
+                  placeholder="1234 AB" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="quick-plaats">Plaats</Label>
+                <Input id="quick-plaats" value={plaats} onChange={e => setPlaats(e.target.value)}
+                  placeholder="bv. Amsterdam" />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="quick-provincie">Provincie</Label>
+                <select id="quick-provincie"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={provincie} onChange={e => setProvincie(e.target.value)}>
+                  <option value="">— Kies provincie —</option>
+                  {PROVINCIES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Het adres blijft intern opgeslagen, ook als het object anoniem wordt gepresenteerd.
+              Alleen de publieke regio wordt extern gebruikt.
+            </p>
           </div>
 
           {/* Type vastgoed */}
