@@ -12,6 +12,7 @@ import { IS_OFFLINE_PREVIEW } from '@/lib/auth/offlinePreview';
 import { isBitoPreviewOrigin } from '@/lib/auth/previewSso';
 
 const AuthPage = lazy(() => import('@/pages/AuthPage'));
+const AuthRecoveryPage = lazy(() => import('@/pages/AuthRecoveryPage'));
 const PasskeyAccessPage = lazy(() => import('@/pages/PasskeyAccessPage'));
 const PreviewAuthBridgePage = lazy(() => import('@/pages/PreviewAuthBridgePage'));
 const OAuthConsentPage = lazy(() => import('@/pages/OAuthConsentPage'));
@@ -37,7 +38,7 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={IS_OFFLINE_PREVIEW ? <Navigate to="/" replace /> : isBitoPreviewOrigin(window.location.origin) ? <PasskeyAccessPage /> : <AuthPage />} />
               <Route path="/auth/preview-bridge" element={IS_OFFLINE_PREVIEW ? <Navigate to="/" replace /> : <PreviewAuthBridgePage />} />
-              <Route path="/auth/herstel" element={IS_OFFLINE_PREVIEW ? <Navigate to="/" replace /> : <AuthPage />} />
+              <Route path="/auth/herstel" element={IS_OFFLINE_PREVIEW ? <Navigate to="/" replace /> : <AuthRecoveryPage />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
               <Route
                 path="*"
