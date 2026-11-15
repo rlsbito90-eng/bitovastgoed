@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bepaalVoorstelPrioriteit } from './voorstelPrioriteit';
+import { bepaalVoorstelPrioriteit, bepaalInhoudelijkeVoorstelPrioriteit, VOORSTEL_LABELS } from './voorstelPrioriteit';
 import { maakKandidaatVoorstellen, type CrmObjectInput, type CrmRelatieInput } from './rolMandaatAdapter';
 import type { RendementsOordeel } from './rendementsOordeel';
 
@@ -60,5 +60,17 @@ describe('bewijsgerichte prioritering van objectvoorstellen',()=>{
   it('een algemene landelijke scope zonder type valt niet in de actieve shortlist',()=>{
     const v=route(r({propertyTypeIds:[],regio:['Heel Nederland']}));
     expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('niet_aanbevolen');
+  });
+  it('beide richtingen herkennen alleen budget als zwak onderbouwd',()=>{
+    const v=route(r({propertyTypeIds:[],regio:[]}));
+    expect(bepaalInhoudelijkeVoorstelPrioriteit(v)).toBe('niet_aanbevolen');
+    expect(VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(v)]).toBe('Zwak onderbouwd');
+  });
+  it('een passende type- en locatiecombinatie is alleen indicatief kansrijk',()=>{
+    const v=route(r());
+    expect(bepaalInhoudelijkeVoorstelPrioriteit(v)).toBe('kansrijk');
+    expect(VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(v)]).toBe('Kansrijk (indicatief)');
+    expect(bepaalVoorstelPrioriteit(v,{status:'controle',uitleg:'Methode onbekend',hardKnockout:false}))
+      .toBe('controleren');
   });
 });
