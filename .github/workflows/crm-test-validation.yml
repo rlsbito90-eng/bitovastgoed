@@ -42,6 +42,10 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-setup.sql
           psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-opslaan-ONTWERP-NIET-UITVOEREN.sql
           psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-verify.sql
+      - name: Tijdelijke PostgreSQL 17 — bulkherstel en auditbehoud testen
+        run: |
+          psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-herstel-ONTWERP-NIET-UITVOEREN.sql
+          psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-herstel-verify.sql
       - name: Node.js 24
         uses: actions/setup-node@v4
         with:
