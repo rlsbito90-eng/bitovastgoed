@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,8 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const next = useNextPath();
   const [bezig, setBezig] = useState(false);
+  const [linkBezig, setLinkBezig] = useState(false);
+  const [linkVerzonden, setLinkVerzonden] = useState(false);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -81,7 +84,41 @@ export default function AuthPage() {
     }
   }, [user, loading, navigate, next]);
 
+  // Passkey is niet verplicht. Alleen bestaande accounts ontvangen een eenmalige link.
+  // AuthProvider en ProtectedRoute blijven de echte rollen en sessie verifiëren.
+  const stuurToegangslink = async () => {
+    const email = loginEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Vul een geldig e-mailadres in.');
+      return;
+    }
+    setLinkBezig(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: window.location.origin + next,
+        },
+      });
+      if (error) {
+        toast.error('Toegangslink kon niet worden verstuurd. Probeer de wachtwoordoptie.');
+        return;
+      }
+      setLinkVerzonden(true);
+    } catch {
+      toast.error('Toegangslink kon niet worden verstuurd. Probeer de wachtwoordoptie.');
+    } finally {
+      setLinkBezig(false);
+    }
+  };
+
   const onLogin = async (e: React.FormEvent) => {
+    if (!loginEmail.trim()) {
+      e.preventDefault();
+      toast.error('Vul eerst je e-mailadres in.');
+      return;
+    }
     e.preventDefault();
     setBezig(true);
     const { error } = await signIn(loginEmail, loginWw);
@@ -181,35 +218,54 @@ export default function AuthPage() {
             )}
 
             <TabsContent value="login">
-              <form onSubmit={onLogin} className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-1 text-center">
+                  <h1 className="text-lg font-semibold text-foreground">Bito CRM</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Eenmaal aanmelden op dit apparaat. Daarna opent het CRM direct zolang je sessie geldig is.
+                  </p>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="login-email">E-mailadres</Label>
                   <Input
                     id="login-email"
                     type="email"
                     autoComplete="email"
-                    required
                     value={loginEmail}
-                    onChange={e => setLoginEmail(e.target.value)}
-                    placeholder="naam@bitovastgoed.nl"
+                    onChange={e => { setLoginEmail(e.target.value); setLinkVerzonden(false); }}
+                    placeholder="Je bestaande CRM-e-mailadres"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="login-ww">Wachtwoord</Label>
-                  <Input
-                    id="login-ww"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={loginWw}
-                    onChange={e => setLoginWw(e.target.value)}
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={bezig}>
-                  {bezig && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Inloggen
-                </Button>
-              </form>
+                {linkVerzonden ? (
+                  <p className="rounded-md border border-border bg-muted/40 px-3 py-3 text-sm text-foreground" role="status">
+                    Als dit e-mailadres toegang heeft, ontvang je een eenmalige aanmeldlink.
+                    Open die bij voorkeur in Safari. Je hoeft geen passkey te gebruiken.
+                  </p>
+                ) : (
+                  <Button type="button" className="w-full" disabled={linkBezig || bezig}
+                    onClick={() => void stuurToegangslink()}>
+                    {linkBezig && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {linkBezig ? 'Toegangslink versturen…' : 'Stuur een toegangslink'}
+                  </Button>
+                )}
+                <details className="rounded-md border border-border p-3">
+                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                    Liever met wachtwoord aanmelden?
+                  </summary>
+                  <form onSubmit={onLogin} className="mt-4 space-y-3">
+                    <Label htmlFor="login-ww">Wachtwoord</Label>
+                    <Input id="login-ww" type="password" autoComplete="current-password"
+                      required value={loginWw} onChange={e => setLoginWw(e.target.value)} />
+                    <Button type="submit" variant="outline" className="w-full" disabled={bezig || linkBezig}>
+                      {bezig && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Inloggen met wachtwoord
+                    </Button>
+                  </form>
+                </details>
+                <p className="text-xs text-center text-muted-foreground">
+                  Geen nieuwe accounts of openbare toegang. Alleen bestaande CRM-gebruikers met een geldige rol.
+                </p>
+              </div>
             </TabsContent>
 
             {AUTH_SIGNUP_ENABLED && (
