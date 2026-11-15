@@ -48,7 +48,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       relatieId,status:b.status,
     }));
     return sorteerVoorstellenOpBesluit(berekend,handmatigeBesluiten,props.reedsGekoppeld);
-  },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,toonAfwijkend,besluiten]);
+  },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,toonAfwijkend,props.besluiten]);
 
   const afgewezen=Object.entries(props.besluiten)
     .filter(([relatieId,b])=>b.status==='afgewezen'&&!props.reedsGekoppeld.has(relatieId));
