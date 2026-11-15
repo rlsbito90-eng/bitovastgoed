@@ -9,7 +9,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
 import { MATCH_AFWIJSREDENEN } from '@/lib/matching/relatieObjectBesluiten';
 import { beoordeelObjectRendement } from '@/lib/matching/rendementsOordeel';
-import { bepaalVoorstelPrioriteit, rangVoorstelPrioriteit, type VoorstelPrioriteit } from '@/lib/matching/voorstelPrioriteit';
+import { bepaalVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
 
 const REDENEN = MATCH_AFWIJSREDENEN;
 
@@ -107,11 +107,7 @@ export default function ObjectvoorstellenPanel({
   type Voorstel = typeof beoordeeld[number];
   function VoorstelRij({item}:{item:Voorstel}) {
     const id=item.object.id;
-    const omschrijving=item.prioriteit==='kansrijk'
-      ? 'Vastgoedtype en zoekgebied komen overeen'
-      : item.prioriteit==='controleren'
-        ? 'Relevante criteria nog controleren'
-        : 'Nog geen voldoende inhoudelijke overeenkomst';
+    const omschrijving=VOORSTEL_LABELS[item.prioriteit];
     return <div className="px-5 py-3 space-y-2" key={id}>
       <div className="flex justify-between items-start gap-2">
         <div className="min-w-0">
@@ -215,7 +211,7 @@ export default function ObjectvoorstellenPanel({
       {kansrijk.slice(0,8).map(x=><VoorstelRij key={x.object.id} item={x}/>)}
       {interessant.length===0&&kansrijk.length===0&&
         <p className="px-5 py-4 text-sm text-muted-foreground">
-          Geen nieuwe kansrijke voorstellen op basis van de bevestigde zoekcriteria.
+          Geen nieuwe kansrijke voorstellen op basis van de beschikbare zoekcriteria.
         </p>}
     </div>}
     {!loading&&kansrijk.length>8&&<p className="px-5 py-2 text-xs text-muted-foreground">
