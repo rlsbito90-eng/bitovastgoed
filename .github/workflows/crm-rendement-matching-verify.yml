@@ -7,7 +7,7 @@ on:
     paths:
       - 'src/components/relatie/**'
       - 'src/hooks/useRelatieMatchingData.ts'
-      - 'src/lib/matching/rendementsOordeel.ts'
+      - 'src/lib/matching/rendementsOordeel*'
       - 'src/components/pipeline/KandidaatVoorstellenR2.tsx'
       - 'src/pages/RelatieDetailPage.tsx'
       - 'src/components/forms/RelatieFormDialog.tsx'
@@ -39,6 +39,6 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Matching unit tests
-        run: npx vitest run src/lib/matching/rolMandaatAdapter.test.ts src/lib/matching/relatieObjectVoorstellenR2.test.ts
+        run: npx vitest run src/lib/matching/rolMandaatAdapter.test.ts src/lib/matching/relatieObjectVoorstellenR2.test.ts src/lib/matching/rendementsOordeel.test.ts
       - name: Build
         run: npm run build
