@@ -2,6 +2,7 @@ import {useMemo,useRef,useState} from 'react';
 import {CheckCircle2,Database,ShieldCheck} from 'lucide-react';
 import {bouwKandidaatBulkVerzoek,type KandidaatBulkActie,type KandidaatBulkVerzoek} from '@/lib/pipeline/kandidaatBulkContract';
 import {voerBulkUit} from '@/lib/pipeline/kandidaatBulkUitvoering';
+import {bouwKandidaatBulkHerstelVerzoek,voerBulkHerstelUit,type KandidaatBulkHerstelVerzoek} from '@/lib/pipeline/kandidaatBulkHerstel';
 import {INTERESSE_LABELS,PIPELINE_FASES,type InteresseNiveau,type PipelineFase} from '@/data/mock-data';
 import {REACTIE_REDEN_LABELS,type ReactieReden} from '@/lib/relaties/aanbiedingsReacties';
 import {DEMO_BULK_OBJECT_ID,maakFictieveBulkPoort} from './sandboxKandidaatBulkPoort';
@@ -22,6 +23,10 @@ export default function SandboxBulkOpslagPage(){
   const [scenario,setScenario]=useState<Proefscenario>('normaal');
   const [voorstel,setVoorstel]=useState<KandidaatBulkVerzoek|null>(null);
   const [onzekerVerzoek,setOnzekerVerzoek]=useState<KandidaatBulkVerzoek|null>(null);
+  const [laatsteBulkId,setLaatsteBulkId]=useState<string|null>(null);
+  const [laatsteGewijzigdeId,setLaatsteGewijzigdeId]=useState<string|null>(null);
+  const [herstelVoorstel,setHerstelVoorstel]=useState<KandidaatBulkHerstelVerzoek|null>(null);
+  const [onzekerHerstel,setOnzekerHerstel]=useState<KandidaatBulkHerstelVerzoek|null>(null);
   const [melding,setMelding]=useState('');
   const [fout,setFout]=useState('');
   const [bezig,setBezig]=useState(false);
@@ -54,6 +59,9 @@ export default function SandboxBulkOpslagPage(){
       if(resultaat.status==='opgeslagen'){
         setKandidaten(resultaat.kandidaten);
         setSelectie(new Set());setVoorstel(null);setOnzekerVerzoek(null);
+        setLaatsteBulkId(resultaat.resultaat.aangepast>0?resultaat.resultaat.verzoek_id:null);
+        setLaatsteGewijzigdeId(resultaat.resultaat.wijzigingen[0]?.id??null);
+        setHerstelVoorstel(null);
         setMelding('Bevestigd opgeslagen: '+resultaat.resultaat.aangepast+
           ' gewijzigd, '+resultaat.resultaat.ongewijzigd+
           ' ongewijzigd. Lijst opnieuw geladen.');
@@ -69,9 +77,47 @@ export default function SandboxBulkOpslagPage(){
       }
     }finally{bezigRef.current=false;setBezig(false);}
   };
+  const bereidHerstelVoor=()=>{
+    if(!laatsteBulkId||onzekerVerzoek||onzekerHerstel||bezigRef.current)return;
+    try{
+      const id='b4000000-0000-4000-8000-'+String(++volgendeId.current).padStart(12,'0');
+      setHerstelVoorstel(bouwKandidaatBulkHerstelVerzoek(DEMO_BULK_OBJECT_ID,laatsteBulkId,id));
+      setFout('');setMelding('');
+    }catch(e){setFout(e instanceof Error?e.message:'Herstel kan niet worden voorbereid');}
+  };
+  const voerHerstelUit=async(herhaal=false)=>{
+    const verzoek=herhaal?onzekerHerstel:herstelVoorstel;
+    if(!verzoek||bezigRef.current)return;
+    bezigRef.current=true;setBezig(true);setFout('');setMelding('');
+    try{
+      const uitkomst=await voerBulkHerstelUit(verzoek,demo.herstelPoort);
+      if(uitkomst.status==='hersteld'){
+        setKandidaten(uitkomst.kandidaten);
+        setSelectie(new Set());setVoorstel(null);setHerstelVoorstel(null);
+        setOnzekerHerstel(null);setLaatsteBulkId(null);setLaatsteGewijzigdeId(null);
+        setMelding('Herstel bevestigd: '+uitkomst.resultaat.hersteld+
+          ' kandidaten hersteld. De oorspronkelijke audit blijft bestaan.');
+      }else if(uitkomst.status==='hersteld_niet_ververst'){
+        setHerstelVoorstel(null);setOnzekerHerstel(null);setLaatsteBulkId(null);
+        setMelding(uitkomst.melding);
+      }else if(uitkomst.status==='onzeker'){
+        setOnzekerHerstel(uitkomst.verzoek);setHerstelVoorstel(null);
+        setFout(uitkomst.melding);
+      }else{
+        setFout(uitkomst.melding);setHerstelVoorstel(null);
+        if(uitkomst.status==='conflict')setLaatsteBulkId(null);
+      }
+    }finally{bezigRef.current=false;setBezig(false);}
+  };
+  const simuleerLatereWijziging=()=>{
+    if(!laatsteGewijzigdeId||!laatsteBulkId)return;
+    demo.simuleerWijzigingVanuitAnderTabblad(laatsteGewijzigdeId);
+    setMelding('Een ander fictief tabblad heeft de kandidaat na het opslaan gewijzigd. Herstel zal daarom worden geweigerd.');
+    setHerstelVoorstel(null);
+  };
   const ververs=async()=>{
     setKandidaten(await demo.poort.ververs(DEMO_BULK_OBJECT_ID));
-    setSelectie(new Set());setVoorstel(null);setFout('');
+    setSelectie(new Set());setVoorstel(null);setHerstelVoorstel(null);setFout('');
     setMelding('Fictieve gegevens vernieuwd. Kies opnieuw welke kandidaten je wilt wijzigen.');
   };
 
@@ -203,6 +249,52 @@ export default function SandboxBulkOpslagPage(){
         </button>
       </div>
     </section>
+    {laatsteBulkId&&!onzekerVerzoek&&<section className="section-card p-4 sm:p-6 space-y-3"
+      aria-label="Herstel laatste bulkactie">
+      <h2 className="section-title">Laatste bulkactie herstellen</h2>
+      <p className="text-xs text-muted-foreground">
+        Herstel is een nieuwe, afzonderlijk geauditeerde handeling. De oorspronkelijke
+        wijzigingshistorie blijft staan. Heeft iemand een kandidaat daarna gewijzigd,
+        dan wordt de volledige herstelactie geblokkeerd.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {!herstelVoorstel&&!onzekerHerstel&&<button type="button" disabled={bezig}
+          onClick={bereidHerstelVoor} className="rounded-md border border-border px-3 py-2 text-sm">
+          Herstel controleren
+        </button>}
+        {laatsteGewijzigdeId&&!herstelVoorstel&&!onzekerHerstel&&
+          <button type="button" disabled={bezig}
+            onClick={simuleerLatereWijziging}
+            className="rounded-md border border-border px-3 py-2 text-sm">
+            Simuleer latere wijziging
+          </button>}
+      </div>
+      {herstelVoorstel&&<div className="border border-border rounded-lg p-3 space-y-2"
+        aria-label="Herstelvoorstel">
+        <strong className="text-sm">Controleer de herstelactie</strong>
+        <p className="text-xs text-muted-foreground">
+          De laatst bevestigde bulkactie wordt alleen volledig hersteld als alle kandidaten
+          sindsdien ongewijzigd zijn.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={bezig} onClick={()=>void voerHerstelUit()}
+            className="rounded-md bg-accent text-accent-foreground px-3 py-2 text-sm">
+            Bevestig herstel van laatste bulkactie
+          </button>
+          <button type="button" disabled={bezig} onClick={()=>setHerstelVoorstel(null)}
+            className="rounded-md border border-border px-3 py-2 text-sm">
+            Annuleren
+          </button>
+        </div>
+      </div>}
+      {onzekerHerstel&&<div className="border border-border rounded-lg p-3 space-y-2">
+        <p className="text-xs">Status onbekend. Gebruik hetzelfde herstelverzoek-ID.</p>
+        <button type="button" disabled={bezig} onClick={()=>void voerHerstelUit(true)}
+          className="rounded-md bg-accent text-accent-foreground px-3 py-2 text-sm">
+          Herstel opnieuw controleren met hetzelfde ID
+        </button>
+      </div>}
+    </section>}
     <section className="section-card p-4 space-y-3">
       <h2 className="section-title flex items-center gap-2"><CheckCircle2 className="h-4 w-4"/>
         Auditregistraties in de proef ({audit.length})
@@ -219,7 +311,7 @@ export default function SandboxBulkOpslagPage(){
       <ShieldCheck className="h-4 w-4 shrink-0"/>
       Dit is géén echte database. De verwerking gebeurt alleen in browsergeheugen;
       er is geen netwerkverzoek, geen Supabase-client en geen wijziging aan productie.
-      Bij echte opslag moet een herstelactie apart worden geaudit, niet alleen lokaal ongedaan gemaakt.
+      Herstel wordt hier apart geaudit; de echte databasefunctie blijft uitsluitend in de tijdelijke PostgreSQL-tests.
     </p>
   </div>;
 }

@@ -42,4 +42,30 @@ describe('Browserproef bulkopslag: geïsoleerde koppeling met dezelfde verzoek-I
    expect(await screen.findByRole('status')).toHaveTextContent('Bevestigd opgeslagen: 1 gewijzigd');
    expect(screen.getByText('Auditregistraties in de proef (1)')).toBeInTheDocument();
  });
+
+ it('herstelt een opgeslagen bulkactie zonder oorspronkelijke audit te verwijderen',async()=>{
+   const user=userEvent.setup();render(<SandboxBulkOpslagPage/>);
+   await user.click(screen.getByLabelText('Selecteer opslagproef Belegger C'));
+   await user.click(screen.getByRole('button',{name:'Voorstel controleren'}));
+   await user.click(screen.getByRole('button',{name:'Bevestig opslagproef voor 1 kandidaten'}));
+   expect(await screen.findByRole('status')).toHaveTextContent('Bevestigd opgeslagen');
+   await user.click(screen.getByRole('button',{name:'Herstel controleren'}));
+   expect(screen.getByLabelText('Herstelvoorstel')).toHaveTextContent('Controleer de herstelactie');
+   await user.click(screen.getByRole('button',{name:'Bevestig herstel van laatste bulkactie'}));
+   expect(await screen.findByRole('status')).toHaveTextContent('Herstel bevestigd: 1 kandidaten hersteld');
+   expect(screen.getByText('Auditregistraties in de proef (2)')).toBeInTheDocument();
+   expect(screen.queryByRole('button',{name:'Herstel controleren'})).not.toBeInTheDocument();
+ });
+ it('weigert browserherstel als andere sessie na opslaan één kandidaat wijzigde',async()=>{
+   const user=userEvent.setup();render(<SandboxBulkOpslagPage/>);
+   await user.click(screen.getByLabelText('Selecteer opslagproef Belegger C'));
+   await user.click(screen.getByRole('button',{name:'Voorstel controleren'}));
+   await user.click(screen.getByRole('button',{name:'Bevestig opslagproef voor 1 kandidaten'}));
+   expect(await screen.findByRole('status')).toHaveTextContent('Bevestigd opgeslagen');
+   await user.click(screen.getByRole('button',{name:'Simuleer latere wijziging'}));
+   await user.click(screen.getByRole('button',{name:'Herstel controleren'}));
+   await user.click(screen.getByRole('button',{name:'Bevestig herstel van laatste bulkactie'}));
+   expect(await screen.findByRole('alert')).toHaveTextContent('Er is niets hersteld');
+   expect(screen.getByText('Auditregistraties in de proef (1)')).toBeInTheDocument();
+ });
 });
