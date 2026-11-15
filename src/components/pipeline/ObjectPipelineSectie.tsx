@@ -169,12 +169,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     <PipelineFaseBadge fase={k.pipelineFase} />
                     <InteresseNiveauBadge niveau={k.interesseNiveau} />
-                    {k.matchscore != null && (
-                      <span className="text-xs text-muted-foreground font-mono-data">
-                        {k.matchscore}% match
-                      </span>
-                    )}
-                  </div>
+                    </div>
                   {laatsteReactie(k.relatieId,objectId,contactMoments??[])&&
                     <p className="text-xs text-muted-foreground mt-1.5">
                       Laatste reactieregistratie: {REACTIE_STATUS_LABELS[
@@ -200,7 +195,6 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                   <th className="text-left font-medium py-2 px-2">Relatie</th>
                   <th className="text-left font-medium py-2 px-2">Fase</th>
                   <th className="text-left font-medium py-2 px-2">Interesse</th>
-                  <th className="text-right font-medium py-2 px-2">Match</th>
                   <th className="text-right font-medium py-2 px-2">Bieding</th>
                   <th className="text-left font-medium py-2 px-2">Volgende actie</th>
                   <th className="text-left font-medium py-2 px-2">Laatste pipeline-activiteit</th>
@@ -228,9 +222,6 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                       </td>
                       <td className="py-2 px-2"><PipelineFaseBadge fase={k.pipelineFase} /></td>
                       <td className="py-2 px-2"><InteresseNiveauBadge niveau={k.interesseNiveau} /></td>
-                      <td className="py-2 px-2 text-right font-mono-data text-xs">
-                        {k.matchscore != null ? `${k.matchscore}%` : '—'}
-                      </td>
                       <td className="py-2 px-2 text-right font-mono-data text-xs">{fmtBedrag(k.biedingBedrag)}</td>
                       <td className="py-2 px-2 text-xs">
                         {k.volgendeActie ? (
