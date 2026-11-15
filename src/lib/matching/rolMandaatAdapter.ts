@@ -230,11 +230,15 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       controleNodig=true;
     }
   }else if(gevuld(rawRegion)&&!radius){
-    if(rawRegion!.some(x=>{
-      const r=normaliseerRegio(x);
-      return LANDELIJK.has(r)||objectLocaties.includes(r);
-    })){matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++;bewijs.locatie=true;}
-    else{controleer.push('Zoekregio is niet automatisch te verifiëren');controleNodig=true}
+    // Landelijk = geen geografische uitsluiting, maar geen specifiek matchbewijs.
+    // Daardoor is een vastgoedtype + 'heel Nederland' niet direct 'kansrijk'.
+    const specifiekPassend=rawRegion!.some(x=>objectLocaties.includes(normaliseerRegio(x)));
+    const landelijkeScope=rawRegion!.some(x=>LANDELIJK.has(normaliseerRegio(x)));
+    if(specifiekPassend){
+      matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++;bewijs.locatie=true;
+    }else if(landelijkeScope){
+      matcht.push('Landelijk zoekgebied: objectlocatie niet uitgesloten');geverifieerd++;
+    }else{controleer.push('Zoekregio is niet automatisch te verifiëren');controleNodig=true}
   }
   if(radius){
     const waarde=radius.zoekRadiusWaarde!;

@@ -57,6 +57,26 @@ describe('bewijsgerichte prioritering van objectvoorstellen',()=>{
     const v=route(r(),{...o,plaats:null,provincie:null});
     expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('controleren');
   });
+  it('landelijke scope met passend vastgoedtype is niet automatisch een sterke locatiematch',()=>{
+    const v=route(r({regio:['Heel Nederland']}));
+    expect(v.kwalificatie).toBe('passend');
+    expect(v.bewijs?.vastgoedtype).toBe(true);
+    expect(v.bewijs?.locatie).toBe(false);
+    expect(v.toelichting.matcht).toContain('Landelijk zoekgebied: objectlocatie niet uitgesloten');
+    expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('controleren');
+    expect(bepaalInhoudelijkeVoorstelPrioriteit(v)).toBe('controleren');
+  });
+  it('een specifiek passende provincie blijft een locatiematch naast landelijke scope',()=>{
+    const v=route(r({regio:['Heel Nederland','Noord-Holland']}));
+    expect(v.bewijs?.locatie).toBe(true);
+    expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('kansrijk');
+  });
+  it('alleen landelijk zoekgebied en budget wordt geen vastgoedaanbeveling',()=>{
+    const v=route(r({propertyTypeIds:[],regio:['Nederland']}));
+    expect(v.bewijs?.locatie).toBe(false);
+    expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('niet_aanbevolen');
+  });
+
   it('een algemene landelijke scope zonder type valt niet in de actieve shortlist',()=>{
     const v=route(r({propertyTypeIds:[],regio:['Heel Nederland']}));
     expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('niet_aanbevolen');
