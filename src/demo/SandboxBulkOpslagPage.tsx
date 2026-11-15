@@ -257,6 +257,11 @@ export default function SandboxBulkOpslagPage(){
         wijzigingshistorie blijft staan. Heeft iemand een kandidaat daarna gewijzigd,
         dan wordt de volledige herstelactie geblokkeerd.
       </p>
+      <p className="text-xs text-muted-foreground">
+        Opvolgtaken worden in deze fictieve browserproef niet gesimuleerd. In het
+        bestaande CRM kan intern afwijzen een opvolgtaak annuleren. Herstel kan
+        daarna een nieuwe taak aanmaken; het oorspronkelijke taak-ID komt niet terug.
+      </p>
       <div className="flex flex-wrap gap-2">
         {!herstelVoorstel&&!onzekerHerstel&&<button type="button" disabled={bezig}
           onClick={bereidHerstelVoor} className="rounded-md border border-border px-3 py-2 text-sm">
