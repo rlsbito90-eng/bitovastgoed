@@ -47,21 +47,21 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       .map(p=>{
         // De onderbouwde zoekroute heeft voorrang boven alleen een ruwe kwalificatie.
         const routes=[...p.alleRoutes].sort((a,b)=>
-          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b))-
-          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a)));
+          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b,props.object))-
+          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a,props.object)));
         return {...p,besteRoute:routes[0]??p.besteRoute};
       }).sort((a,b)=>{
         const voorkeur=Number(props.besluiten[b.relatieId]?.status==='interessant')-
           Number(props.besluiten[a.relatieId]?.status==='interessant');
         if(voorkeur)return voorkeur;
-        return rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b.besteRoute))-
-          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a.besteRoute));
+        return rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b.besteRoute,props.object))-
+          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a.besteRoute,props.object));
       });
   },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,props.besluiten]);
-  const overigeAantal=alleVoorgesteld.filter(p=>bepaalInhoudelijkeVoorstelPrioriteit(p.besteRoute)==='niet_aanbevolen' &&
+  const overigeAantal=alleVoorgesteld.filter(p=>bepaalInhoudelijkeVoorstelPrioriteit(p.besteRoute,props.object)==='niet_aanbevolen' &&
     props.besluiten[p.relatieId]?.status!=='interessant').length;
   const voorgesteld=alleVoorgesteld.filter(p=>toonOverige ||
-    bepaalInhoudelijkeVoorstelPrioriteit(p.besteRoute)!=='niet_aanbevolen' ||
+    bepaalInhoudelijkeVoorstelPrioriteit(p.besteRoute,props.object)!=='niet_aanbevolen' ||
     props.besluiten[p.relatieId]?.status==='interessant');
 
   const afgewezen=Object.entries(props.besluiten)
@@ -129,7 +129,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           <div className="min-w-0">
             <h3 className="font-medium text-sm break-words">{props.relatieNaam(p.relatieId)}</h3>
             <p className="text-xs text-muted-foreground">
-              {besluit?.status==='interessant'?'Door jou interessant bevonden':VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(voorkeursroute)]}
+              {besluit?.status==='interessant'?'Door jou interessant bevonden':VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(voorkeursroute,props.object)]}
             </p>
           </div>
         </div>
@@ -174,7 +174,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
             <p>Andere zoekroutes</p>
             {p.alleRoutes.filter(route=>route.key!==voorkeursroute.key).map(route=>
               <div key={route.key} className="flex flex-wrap items-center gap-2">
-                <span>{route.naam} · {VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(route)]}</span>
+                <span>{route.naam} · {VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(route,props.object)]}</span>
                 <button type="button" disabled={!props.onConceptGekozen || route.kwalificatie==='afwijkend'}
                   onClick={()=>kiesKandidaat(p,route)}
                   className="rounded border border-border px-2 py-1 disabled:opacity-40">

@@ -61,6 +61,17 @@ describe('bewijsgerichte prioritering van objectvoorstellen',()=>{
     const v=route(r({propertyTypeIds:[],regio:['Heel Nederland']}));
     expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('niet_aanbevolen');
   });
+  it('een portefeuille is in beide matchingrichtingen controle, niet direct kansrijk',()=>{
+    const v=route(r());
+    expect(bepaalInhoudelijkeVoorstelPrioriteit(v)).toBe('kansrijk');
+    expect(bepaalInhoudelijkeVoorstelPrioriteit(v,{isPortefeuille:true})).toBe('controleren');
+    expect(bepaalVoorstelPrioriteit(v,neutraal,{isPortefeuille:true})).toBe('controleren');
+    expect(bepaalVoorstelPrioriteit(v,neutraal,{isPortefeuille:false})).toBe('kansrijk');
+  });
+  it('ook een portefeuille wordt geen aanbeveling zonder inhoudelijk vastgoedbewijs',()=>{
+    const v=route(r({propertyTypeIds:[],regio:['Heel Nederland']}));
+    expect(bepaalInhoudelijkeVoorstelPrioriteit(v,{isPortefeuille:true})).toBe('niet_aanbevolen');
+  });
   it('beide richtingen herkennen alleen budget als zwak onderbouwd',()=>{
     const v=route(r({propertyTypeIds:[],regio:[]}));
     expect(bepaalInhoudelijkeVoorstelPrioriteit(v)).toBe('niet_aanbevolen');
