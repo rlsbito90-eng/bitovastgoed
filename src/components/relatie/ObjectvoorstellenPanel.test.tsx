@@ -19,7 +19,7 @@ const relatie = {
   leadStatus: 'actief', ndaGetekend: false, laatsteContact: '',
 } as Relatie;
 const objecten = Array.from({ length: 11 }, (_, i) => ({
-  id: 'object-' + (i + 1), titel: 'Fictief object ' + (i + 1), plaats: 'Amsterdam',
+  id: 'object-' + (i + 1), titel: 'Fictief object ' + String(i + 1).padStart(2, '0'), plaats: 'Amsterdam',
   provincie: 'Noord-Holland', type: 'wonen', vraagprijs: 475_000,
   status: 'beschikbaar', anoniem: false, exclusief: false,
 } as ObjectVastgoed));
@@ -33,15 +33,15 @@ describe('Objectvoorstellen — ook kansrijke suggesties na de eerste acht berei
           onBesluit={vi.fn()} onWis={vi.fn()} />
       </MemoryRouter>,
     );
-    expect(screen.getByText('Fictief object 8')).toBeTruthy();
-    expect(screen.queryByText('Fictief object 9')).toBeNull();
+    expect(screen.getByText('Fictief object 08')).toBeTruthy();
+    expect(screen.queryByText('Fictief object 09')).toBeNull();
     const meer = screen.getByTestId('kansrijk-toon-meer');
     expect(meer.textContent).toContain('3 resterend');
     fireEvent.click(meer);
-    expect(screen.getByText('Fictief object 9')).toBeTruthy();
+    expect(screen.getByText('Fictief object 09')).toBeTruthy();
     expect(screen.getByText('Fictief object 11')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Toon eerste acht' }));
-    expect(screen.queryByText('Fictief object 9')).toBeNull();
+    expect(screen.queryByText('Fictief object 09')).toBeNull();
     expect(screen.getByTestId('kansrijk-toon-meer')).toBeTruthy();
   });
 
