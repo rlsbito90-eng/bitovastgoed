@@ -90,6 +90,16 @@ DECLARE
   v_na jsonb;
   v_nieuwe_tijd timestamptz;
   v_result jsonb;
+  v_object_pipeline_id uuid;
+  v_object_stage_id uuid;
+  v_object_stage_locked boolean;
+  v_default_pipeline_id uuid;
+  v_target_slug text;
+  v_target_stage_id uuid;
+  v_target_sort_order integer;
+  v_current_sort_order integer;
+  v_current_terminal boolean;
+  v_object_stage_change jsonb := NULL;
 BEGIN
   IF v_actor IS NULL OR NOT coalesce(public.is_intern_gebruiker(v_actor),false) THEN
     RAISE EXCEPTION 'Geen toegang tot bulkbewerking' USING ERRCODE='42501';
@@ -261,9 +271,88 @@ BEGIN
     );
   END LOOP;
 
+  -- Pariteit met src/data/mock-data.ts -> KANDIDAAT_NAAR_OBJECT_STAGE.
+  -- Alleen een daadwerkelijke fasewijziging mag het Object vooruitzetten.
+  -- Kandidaatafwijzingen en interesseniveaus wijzigen nooit de objectfase.
+  -- De objectfase is een voortgangsmijlpaal: een herstelactie demoteert die niet.
+  IF v_soort='fase' AND v_aantal>0 THEN
+    v_target_slug:=CASE v_fase::text
+      WHEN 'match_gevonden' THEN 'in_verkoop'
+      WHEN 'teaser_verstuurd' THEN 'kandidaten_benaderd'
+      WHEN 'interesse_ontvangen' THEN 'kandidaten_benaderd'
+      WHEN 'nda_verstuurd' THEN 'nda_dataroom'
+      WHEN 'nda_getekend' THEN 'nda_dataroom'
+      WHEN 'informatie_gedeeld' THEN 'nda_dataroom'
+      WHEN 'bezichtiging_gepland' THEN 'bezichtigingen'
+      WHEN 'bezichtiging_geweest' THEN 'bezichtigingen'
+      WHEN 'indicatieve_bieding' THEN 'biedingen_ontvangen'
+      WHEN 'onderhandeling' THEN 'onderhandeling'
+      WHEN 'loi_ontvangen' THEN 'loi'
+      WHEN 'due_diligence' THEN 'due_diligence'
+      WHEN 'koopovereenkomst_concept' THEN 'koopovereenkomst'
+      WHEN 'koopovereenkomst_getekend' THEN 'koopovereenkomst'
+      WHEN 'transport_closing' THEN 'closing'
+      ELSE NULL
+    END;
+
+    IF v_target_slug IS NOT NULL THEN
+      -- Lock het live Object vóór de stagecontrole; handmatige wijzigingen winnen.
+      SELECT pipeline_id,pipeline_stage_id,pipeline_stage_locked
+        INTO v_object_pipeline_id,v_object_stage_id,v_object_stage_locked
+      FROM public.objecten WHERE id=p_object_id FOR UPDATE;
+
+      IF FOUND AND NOT coalesce(v_object_stage_locked,false) THEN
+        -- Zelfde keuze als de bestaande individuele CRM-update:
+        -- een gekoppelde objectpipeline gaat vóór de standaardpipeline.
+        SELECT id INTO v_default_pipeline_id
+        FROM public.pipelines
+        WHERE entity_type='object' AND is_active=true
+        ORDER BY is_default DESC,created_at,id LIMIT 1;
+        v_object_pipeline_id:=coalesce(v_object_pipeline_id,v_default_pipeline_id);
+
+        SELECT id,sort_order INTO v_target_stage_id,v_target_sort_order
+        FROM public.pipeline_stages
+        WHERE pipeline_id=v_object_pipeline_id AND slug=v_target_slug
+          AND is_active=true AND is_won=false AND is_lost=false
+        ORDER BY sort_order,id LIMIT 1;
+
+        IF v_target_stage_id IS NOT NULL THEN
+          -- Geen automatische actie bij een gewonnen/verloren of ongeldige stage.
+          IF v_object_stage_id IS NULL THEN
+            v_current_sort_order:=NULL;
+            v_current_terminal:=false;
+          ELSE
+            SELECT sort_order,(is_won OR is_lost)
+              INTO v_current_sort_order,v_current_terminal
+            FROM public.pipeline_stages
+            WHERE id=v_object_stage_id AND pipeline_id=v_object_pipeline_id;
+            IF NOT FOUND THEN v_current_terminal:=true; END IF;
+          END IF;
+
+          IF NOT coalesce(v_current_terminal,true)
+             AND (v_current_sort_order IS NULL
+                  OR v_target_sort_order>v_current_sort_order) THEN
+            UPDATE public.objecten
+            SET pipeline_id=v_object_pipeline_id,
+                pipeline_stage_id=v_target_stage_id,
+                pipeline_updated_at=clock_timestamp()
+            WHERE id=p_object_id;
+            v_object_stage_change:=jsonb_build_object(
+              'object_id',p_object_id,
+              'oude_stage_id',v_object_stage_id,
+              'nieuwe_stage_id',v_target_stage_id,
+              'nieuwe_slug',v_target_slug
+            );
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
   v_result:=jsonb_build_object(
     'verzoek_id',p_request_id,'aangepast',v_aantal,
-    'ongewijzigd',v_ongewijzigd,'wijzigingen',v_changes
+    'ongewijzigd',v_ongewijzigd,'wijzigingen',v_changes,
+    'object_fase_wijziging',v_object_stage_change
   );
   UPDATE public.crm_pipeline_bulk_requests SET result=v_result
     WHERE id=p_request_id;

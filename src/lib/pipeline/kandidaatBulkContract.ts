@@ -1,5 +1,5 @@
 import {
-  INTERESSE_LABELS, PIPELINE_FASES,
+  INTERESSE_LABELS, PIPELINE_FASES, KANDIDAAT_NAAR_OBJECT_STAGE,
   type InteresseNiveau, type PipelineFase, type PipelineKandidaat,
 } from '@/data/mock-data';
 import { REACTIE_REDEN_LABELS, type ReactieReden } from '@/lib/relaties/aanbiedingsReacties';
@@ -27,6 +27,20 @@ export interface KandidaatBulkOpslagResultaat {
   aangepast: number;
   ongewijzigd: number;
   wijzigingen: { id: string; updated_at: string }[];
+  /** Optioneel: resultaat van de objectfase-verhoging binnen dezelfde DB-transactie. */
+  object_fase_wijziging?: null | {
+    object_id: string;
+    oude_stage_id: string | null;
+    nieuwe_stage_id: string;
+    nieuwe_slug: string;
+  };
+}
+/**
+ * Alleen wanneer de bulkfase in de bronmapping staat, is Object-voortgang
+ * toegestaan. Geen kandidaat kan een object in de eindfase zetten.
+ */
+export function verwachteObjectFaseBijBulk(actie: KandidaatBulkActie): string | null {
+  return actie.type === 'fase' ? KANDIDAAT_NAAR_OBJECT_STAGE[actie.fase] ?? null : null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

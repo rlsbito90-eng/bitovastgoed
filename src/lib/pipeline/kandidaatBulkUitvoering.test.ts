@@ -44,4 +44,36 @@ describe('Aansluiten bulkopslag met veilige herhaalstrategie',()=>{
    const result=await voerBulkUit(p,{opslaan:async()=>{throw {code:'42501'};},ververs:async()=>[]});
    expect(result.status).toBe('geweigerd');
  });
+
+ it('accepteert alleen canonieke vooruitgang van de objectfase bij echte kandidaatfase-update',async()=>{
+   const faseVerzoek={...p,p_actie:{type:'fase' as const,fase:'bezichtiging_gepland' as const}};
+   const objectFase={
+     object_id:p.p_object_id,
+     oude_stage_id:'b6000000-0000-4000-8000-000000000040',
+     nieuwe_stage_id:'b6000000-0000-4000-8000-000000000070',
+     nieuwe_slug:'bezichtigingen',
+   };
+   const succes=await voerBulkUit(faseVerzoek,{
+     opslaan:async()=>({...r,object_fase_wijziging:objectFase}),
+     ververs:async()=>[],
+   });
+   expect(succes.status).toBe('opgeslagen');
+
+   for(const afwijking of [
+     {...objectFase,nieuwe_slug:'afgerond'},
+     {...objectFase,object_id:'b1000000-0000-4000-8000-000000000099'},
+     {...objectFase,nieuwe_stage_id:objectFase.oude_stage_id},
+   ]){
+     const verkeerd=await voerBulkUit(faseVerzoek,{
+       opslaan:async()=>({...r,object_fase_wijziging:afwijking}),
+       ververs:async()=>[],
+     });
+     expect(verkeerd.status).toBe('onzeker');
+   }
+   const interestVerkeerd=await voerBulkUit(p,{
+     opslaan:async()=>({...r,object_fase_wijziging:objectFase}),
+     ververs:async()=>[],
+   });
+   expect(interestVerkeerd.status).toBe('onzeker');
+ });
 });

@@ -1,4 +1,4 @@
-import type { KandidaatBulkVerzoek, KandidaatBulkOpslagResultaat } from './kandidaatBulkContract';
+import { verwachteObjectFaseBijBulk, type KandidaatBulkVerzoek, type KandidaatBulkOpslagResultaat } from './kandidaatBulkContract';
 
 /**
  * Testbare adapter. De toekomstige CRM-client moet een expliciete poort aanleveren.
@@ -37,6 +37,21 @@ export function controleerBulkResultaat(
        !Number.isFinite(Date.parse(wijziging.updated_at)))
       throw new Error('Onbetrouwbare gewijzigde kandidaat in opslagresultaat');
     gezien.add(wijziging.id.toLowerCase());
+  }
+  // Objectfase mag uitsluitend binnen een echte, gewijzigde faseactie vooruitgaan.
+  const stageChange=r.object_fase_wijziging;
+  if(stageChange !== undefined && stageChange !== null){
+    const verwacht=verwachteObjectFaseBijBulk(verzoek.p_actie);
+    const uuid=/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
+    if(!verwacht || r.aangepast===0 || typeof stageChange!=='object' ||
+       typeof stageChange.object_id!=='string' ||
+       stageChange.object_id.toLowerCase()!==verzoek.p_object_id.toLowerCase() ||
+       !uuid.test(stageChange.nieuwe_stage_id) ||
+       (stageChange.oude_stage_id!==null &&
+          (typeof stageChange.oude_stage_id!=='string'||!uuid.test(stageChange.oude_stage_id))) ||
+       stageChange.nieuwe_slug!==verwacht ||
+       stageChange.oude_stage_id?.toLowerCase()===stageChange.nieuwe_stage_id.toLowerCase()
+    ) throw new Error('Ongeldige automatische objectfase in bulkresultaat');
   }
   return r as KandidaatBulkOpslagResultaat;
 }

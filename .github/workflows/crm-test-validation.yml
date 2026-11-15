@@ -46,6 +46,8 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-herstel-ONTWERP-NIET-UITVOEREN.sql
           psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-herstel-verify.sql
+      - name: Tijdelijke PostgreSQL 17 — kandidaat- en objectfase in bulk toetsen
+        run: psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-object-stage-verify.sql
       - name: Node.js 24
         uses: actions/setup-node@v4
         with:
@@ -56,6 +58,6 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Relevant CRM regression tests
-        run: npx vitest run src/lib/objecten/adresModel.test.ts src/lib/objecten/multiAdresRepository.test.ts src/lib/matching/nietGetoetsteKopersvoorwaarden.test.ts src/lib/matching/vergelijkBestaandeProfielkenmerken.test.ts src/lib/matching/criteriumMotor.test.ts src/demo/demoHost.test.ts src/demo/sandboxModel.test.ts src/demo/sandboxAssessment.test.ts src/demo/TestMatchingPage.test.tsx src/components/pipeline/ObjectPipelineActies.test.tsx src/lib/pipeline/kandidaatSortering.test.ts src/lib/pipeline/kandidaatBulkContract.test.ts src/lib/pipeline/kandidaatBulkUitvoering.test.ts src/lib/pipeline/kandidaatBulkHerstel.test.ts src/lib/pipeline/kandidaatBulkTestDatabasePoort.test.ts src/demo/afzonderlijkeSupabaseTestClient.test.ts src/demo/sandboxKandidaatBulkPoort.test.ts src/demo/SandboxBulkOpslagPage.test.tsx src/demo/SandboxKandidatenPage.test.tsx src/demo/kandidaatBulkProefModel.test.ts src/lib/matching/samenstellingscriterium.test.ts src/lib/matching/samenstellingsProefModel.test.ts src/test/objecten/samenstellingProefPage.test.tsx src/test/objecten/adresModelProefPage.test.tsx src/test/objecten/objectenLijstGroepering.test.ts src/test/objecten/crmObjectnummer.test.ts src/test/forms/objectQuickCreateDialog.test.tsx src/test/objectenViewState.test.ts src/test/object/portefeuilleOnderdelen.test.ts
+        run: npx vitest run src/lib/objecten/adresModel.test.ts src/lib/objecten/multiAdresRepository.test.ts src/lib/matching/nietGetoetsteKopersvoorwaarden.test.ts src/lib/matching/vergelijkBestaandeProfielkenmerken.test.ts src/lib/matching/criteriumMotor.test.ts src/demo/demoHost.test.ts src/demo/sandboxModel.test.ts src/demo/sandboxAssessment.test.ts src/demo/TestMatchingPage.test.tsx src/components/pipeline/ObjectPipelineActies.test.tsx src/lib/pipeline/kandidaatSortering.test.ts src/lib/pipeline/kandidaatBulkContract.test.ts src/lib/pipeline/kandidaatBulkUitvoering.test.ts src/lib/pipeline/kandidaatBulkSqlPariteit.test.ts src/lib/pipeline/kandidaatBulkHerstel.test.ts src/lib/pipeline/kandidaatBulkTestDatabasePoort.test.ts src/demo/afzonderlijkeSupabaseTestClient.test.ts src/demo/sandboxKandidaatBulkPoort.test.ts src/demo/SandboxBulkOpslagPage.test.tsx src/demo/SandboxKandidatenPage.test.tsx src/demo/kandidaatBulkProefModel.test.ts src/lib/matching/samenstellingscriterium.test.ts src/lib/matching/samenstellingsProefModel.test.ts src/test/objecten/samenstellingProefPage.test.tsx src/test/objecten/adresModelProefPage.test.tsx src/test/objecten/objectenLijstGroepering.test.ts src/test/objecten/crmObjectnummer.test.ts src/test/forms/objectQuickCreateDialog.test.tsx src/test/objectenViewState.test.ts src/test/object/portefeuilleOnderdelen.test.ts
       - name: Build
         run: npm run build

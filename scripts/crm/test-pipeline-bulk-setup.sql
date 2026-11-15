@@ -44,3 +44,46 @@ CREATE TABLE public.crm_bulk_test_contact_moments (
 
 -- De testgebruiker mag alleen tellen of er fictieve reacties zijn aangemaakt.
 GRANT SELECT ON public.crm_bulk_test_contact_moments TO authenticated;
+
+
+-- Fictieve objectpipeline: dezelfde kolommen/slug-volgorde als de bestaande CRM.
+-- Uitsluitend de wegwerp-database; de oorspronkelijke objecten-stub blijft intact.
+CREATE TABLE public.pipelines (
+  id uuid PRIMARY KEY,
+  entity_type text NOT NULL,
+  is_default boolean NOT NULL DEFAULT false,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE TABLE public.pipeline_stages (
+  id uuid PRIMARY KEY,
+  pipeline_id uuid NOT NULL REFERENCES public.pipelines(id),
+  slug text NOT NULL,
+  sort_order integer NOT NULL,
+  is_won boolean NOT NULL DEFAULT false,
+  is_lost boolean NOT NULL DEFAULT false,
+  is_active boolean NOT NULL DEFAULT true
+);
+ALTER TABLE public.objecten
+  ADD COLUMN pipeline_id uuid REFERENCES public.pipelines(id),
+  ADD COLUMN pipeline_stage_id uuid REFERENCES public.pipeline_stages(id),
+  ADD COLUMN pipeline_stage_locked boolean NOT NULL DEFAULT false,
+  ADD COLUMN pipeline_updated_at timestamptz;
+
+INSERT INTO public.pipelines(id,entity_type,is_default) VALUES (
+  'b5000000-0000-4000-8000-000000000001','object',true
+);
+INSERT INTO public.pipeline_stages(id,pipeline_id,slug,sort_order,is_won,is_lost)
+VALUES
+('b6000000-0000-4000-8000-000000000040','b5000000-0000-4000-8000-000000000001','in_verkoop',40,false,false),
+('b6000000-0000-4000-8000-000000000050','b5000000-0000-4000-8000-000000000001','kandidaten_benaderd',50,false,false),
+('b6000000-0000-4000-8000-000000000060','b5000000-0000-4000-8000-000000000001','nda_dataroom',60,false,false),
+('b6000000-0000-4000-8000-000000000070','b5000000-0000-4000-8000-000000000001','bezichtigingen',70,false,false),
+('b6000000-0000-4000-8000-000000000080','b5000000-0000-4000-8000-000000000001','biedingen_ontvangen',80,false,false),
+('b6000000-0000-4000-8000-000000000090','b5000000-0000-4000-8000-000000000001','onderhandeling',90,false,false),
+('b6000000-0000-4000-8000-000000000100','b5000000-0000-4000-8000-000000000001','loi',100,false,false),
+('b6000000-0000-4000-8000-000000000110','b5000000-0000-4000-8000-000000000001','due_diligence',110,false,false),
+('b6000000-0000-4000-8000-000000000120','b5000000-0000-4000-8000-000000000001','koopovereenkomst',120,false,false),
+('b6000000-0000-4000-8000-000000000130','b5000000-0000-4000-8000-000000000001','closing',130,false,false),
+('b6000000-0000-4000-8000-000000000140','b5000000-0000-4000-8000-000000000001','afgerond',140,true,false),
+('b6000000-0000-4000-8000-000000000999','b5000000-0000-4000-8000-000000000001','afgevallen',999,false,true);
