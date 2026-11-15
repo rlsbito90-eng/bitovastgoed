@@ -14,7 +14,9 @@ CREATE TABLE IF NOT EXISTS public.crm_pipeline_bulk_requests (
 );
 ALTER TABLE public.crm_pipeline_bulk_requests ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.crm_pipeline_bulk_requests FROM PUBLIC, anon, authenticated;
-GRANT SELECT, INSERT, UPDATE ON public.crm_pipeline_bulk_requests TO authenticated;
+-- Updates blijven beperkt tot het resultaat; actor, payload_hash en object_id zijn immutable.
+GRANT SELECT, INSERT ON public.crm_pipeline_bulk_requests TO authenticated;
+GRANT UPDATE(result) ON public.crm_pipeline_bulk_requests TO authenticated;
 CREATE POLICY crm_bulk_requests_read ON public.crm_pipeline_bulk_requests
   FOR SELECT TO authenticated USING (
     public.is_intern_gebruiker((SELECT auth.uid()))
@@ -22,7 +24,7 @@ CREATE POLICY crm_bulk_requests_read ON public.crm_pipeline_bulk_requests
 CREATE POLICY crm_bulk_requests_insert ON public.crm_pipeline_bulk_requests
   FOR INSERT TO authenticated WITH CHECK (
     public.is_intern_gebruiker((SELECT auth.uid()))
-    AND actor_id=(SELECT auth.uid()));
+    AND actor_id=(SELECT auth.uid()) AND result IS NULL);
 CREATE POLICY crm_bulk_requests_update ON public.crm_pipeline_bulk_requests
   FOR UPDATE TO authenticated
   USING (public.is_intern_gebruiker((SELECT auth.uid())) AND actor_id=(SELECT auth.uid()))
