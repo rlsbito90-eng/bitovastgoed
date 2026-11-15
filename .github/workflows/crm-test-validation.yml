@@ -48,6 +48,18 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-herstel-verify.sql
       - name: Tijdelijke PostgreSQL 17 — kandidaat- en objectfase in bulk toetsen
         run: psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-object-stage-verify.sql
+      - name: Echte CRM-migraties — triggers, audit, rollen en herstel in tweede wegwerp-database
+        run: |
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE crm_pipeline_schema_proef"
+          export PGDATABASE=crm_pipeline_schema_proef
+          psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-real-schema-setup.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260809140859_crm_mig_pipeline_fundament.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260818032408_pipeline_next_action_canonical_task_sync.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260821192500_pipeline_next_action_enum_comparison_fix.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260831162734_standardize_lost_reasons.sql
+          psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-opslaan-ONTWERP-NIET-UITVOEREN.sql
+          psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-herstel-ONTWERP-NIET-UITVOEREN.sql
+          psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-real-schema-verify.sql
       - name: Node.js 24
         uses: actions/setup-node@v4
         with:
