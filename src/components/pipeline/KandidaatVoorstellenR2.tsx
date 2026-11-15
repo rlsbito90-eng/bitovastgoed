@@ -5,6 +5,7 @@
  */
 import { useMemo, useState } from 'react';
 import type { ObjectBesluiten } from '@/hooks/useObjectMatchBesluiten';
+import { bepaalInhoudelijkeVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
 import { MATCH_AFWIJSREDENEN, sorteerVoorstellenOpBesluit, type MatchBesluitStatus } from '@/lib/matching/relatieObjectBesluiten';
 import {
   isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen,
@@ -28,27 +29,40 @@ export interface KandidaatVoorstellenProps {
   onBeoordeel:(relatieId:string,status:MatchBesluitStatus,redenCode?:string|null)=>Promise<void>;
   onHerstel:(relatieId:string)=>Promise<void>;
 }
-const kwalificatieLabel:Record<ProfielRoute['kwalificatie'],string>={
-  passend:'Indicatief passend',te_verifieren:'Controle nodig',
-  onvoldoende:'Onvoldoende onderbouwd',afwijkend:'Wijkt af',
-};
-
 export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
-  const [toonAfwijkend,setToonAfwijkend]=useState(false);
+  const [toonOverige,setToonOverige]=useState(false);
   const [toonAfgewezen,setToonAfgewezen]=useState(false);
   const [redenVoor,setRedenVoor]=useState<string|null>(null);
   const [redenen,setRedenen]=useState<Record<string,string>>({});
   const [fout,setFout]=useState<string|null>(null);
   const [bezig,setBezig]=useState<string|null>(null);
 
-  const voorgesteld=useMemo(()=>{
+  const alleVoorgesteld=useMemo(()=>{
     const berekend=maakKandidaatVoorstellen(props.object,props.relaties,props.zoekprofielen,
-      {reedsGekoppeld:props.reedsGekoppeld,toonAfwijkende:toonAfwijkend});
+      {reedsGekoppeld:props.reedsGekoppeld,toonAfwijkende:true});
     const handmatigeBesluiten=Object.entries(props.besluiten).map(([relatieId,b])=>({
       relatieId,status:b.status,
     }));
-    return sorteerVoorstellenOpBesluit(berekend,handmatigeBesluiten,props.reedsGekoppeld);
-  },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,toonAfwijkend,props.besluiten]);
+    return sorteerVoorstellenOpBesluit(berekend,handmatigeBesluiten,props.reedsGekoppeld)
+      .map(p=>{
+        // De onderbouwde zoekroute heeft voorrang boven alleen een ruwe kwalificatie.
+        const routes=[...p.alleRoutes].sort((a,b)=>
+          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b))-
+          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a)));
+        return {...p,besteRoute:routes[0]??p.besteRoute};
+      }).sort((a,b)=>{
+        const voorkeur=Number(props.besluiten[b.relatieId]?.status==='interessant')-
+          Number(props.besluiten[a.relatieId]?.status==='interessant');
+        if(voorkeur)return voorkeur;
+        return rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b.besteRoute))-
+          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a.besteRoute));
+      });
+  },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,props.besluiten]);
+  const overigeAantal=alleVoorgesteld.filter(p=>bepaalInhoudelijkeVoorstelPrioriteit(p.besteRoute)==='niet_aanbevolen' &&
+    props.besluiten[p.relatieId]?.status!=='interessant').length;
+  const voorgesteld=alleVoorgesteld.filter(p=>toonOverige ||
+    bepaalInhoudelijkeVoorstelPrioriteit(p.besteRoute)!=='niet_aanbevolen' ||
+    props.besluiten[p.relatieId]?.status==='interessant');
 
   const afgewezen=Object.entries(props.besluiten)
     .filter(([relatieId,b])=>b.status==='afgewezen'&&!props.reedsGekoppeld.has(relatieId));
@@ -97,10 +111,10 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
 
   return <section className="space-y-3" aria-label="Kandidaatvoorstellen">
     <div className="flex flex-wrap justify-between items-center gap-2">
-      <p className="text-sm text-muted-foreground">{voorgesteld.length} kandidaatvoorstellen</p>
+      <p className="text-sm text-muted-foreground">{voorgesteld.length} voorstellen om te beoordelen</p>
       <label className="text-xs text-muted-foreground flex items-center gap-2">
-        <input type="checkbox" checked={toonAfwijkend}
-          onChange={e=>setToonAfwijkend(e.target.checked)}/> Toon afwijkingen
+        <input type="checkbox" checked={toonOverige}
+          onChange={e=>setToonOverige(e.target.checked)}/> Overige indicaties ({overigeAantal})
       </label>
     </div>
     {fout&&<p className="text-xs text-destructive" role="alert">{fout}</p>}
@@ -115,7 +129,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           <div className="min-w-0">
             <h3 className="font-medium text-sm break-words">{props.relatieNaam(p.relatieId)}</h3>
             <p className="text-xs text-muted-foreground">
-              {besluit?.status==='interessant'?'Door jou interessant bevonden':kwalificatieLabel[voorkeursroute.kwalificatie]}
+              {besluit?.status==='interessant'?'Door jou interessant bevonden':VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(voorkeursroute)]}
             </p>
           </div>
         </div>
@@ -154,12 +168,13 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
             {voorkeursroute.toelichting.matcht.map((t,i)=><p key={i}>✓ {t}</p>)}
             {voorkeursroute.toelichting.controleer.map((t,i)=><p key={i}>Te controleren: {t}</p>)}
             {voorkeursroute.toelichting.afwijkend.map((t,i)=><p key={i}>{t}</p>)}
+            <p>Dit is een inhoudelijke indicatie. Rendement en aanvullende voorwaarden moeten afzonderlijk worden gecontroleerd.</p>
           </div>
           {p.alleRoutes.length>1&&<div className="mt-3 space-y-2">
             <p>Andere zoekroutes</p>
             {p.alleRoutes.filter(route=>route.key!==voorkeursroute.key).map(route=>
               <div key={route.key} className="flex flex-wrap items-center gap-2">
-                <span>{route.naam} · {kwalificatieLabel[route.kwalificatie]}</span>
+                <span>{route.naam} · {VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(route)]}</span>
                 <button type="button" disabled={!props.onConceptGekozen || route.kwalificatie==='afwijkend'}
                   onClick={()=>kiesKandidaat(p,route)}
                   className="rounded border border-border px-2 py-1 disabled:opacity-40">
