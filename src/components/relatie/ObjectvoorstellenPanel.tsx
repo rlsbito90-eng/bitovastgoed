@@ -1,18 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ChevronDown, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronDown, RotateCcw, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ObjectVastgoed, Relatie, Zoekprofiel } from '@/data/mock-data';
 import type { RelatieObjectBesluit, Rendementscriterium } from '@/hooks/useRelatieMatchingData';
 import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
+import { useDataStore } from '@/hooks/useDataStore';
+import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
+import { MATCH_AFWIJSREDENEN } from '@/lib/matching/relatieObjectBesluiten';
 import { beoordeelObjectRendement } from '@/lib/matching/rendementsOordeel';
 import { bepaalVoorstelPrioriteit, rangVoorstelPrioriteit, type VoorstelPrioriteit } from '@/lib/matching/voorstelPrioriteit';
 
-const REDENEN: Record<string,string> = {
-  type:'Vastgoedtype / ontwikkeling', locatie:'Locatie / zoekgebied',
-  budget:'Prijs of budget', rendement:'Rendement', strategie:'Investeringsstrategie',
-  huursituatie:'Huursituatie', staat:'Onderhoudsstaat', overig:'Overig / niet passend',
-};
+const REDENEN = MATCH_AFWIJSREDENEN;
 
 type Props = {
   relatie:Relatie; objecten:readonly ObjectVastgoed[]; zoekprofielen:readonly Zoekprofiel[];
@@ -24,6 +23,9 @@ type Props = {
 export default function ObjectvoorstellenPanel({
   relatie,objecten,zoekprofielen,criteria,besluiten,loading,fout,onBesluit,onWis,
 }:Props) {
+  const {getPipelineVoorRelatie,addPipelineKandidaat} = useDataStore();
+  const gekoppeldeKandidaten = getPipelineVoorRelatie(relatie.id);
+  const inPipeline = new Set(gekoppeldeKandidaten.map(k=>k.objectId));
   const [toonControle,setToonControle]=useState(false);
   const [toonOverig,setToonOverig]=useState(false);
   const [toonAfgewezen,setToonAfgewezen]=useState(false);
@@ -50,7 +52,7 @@ export default function ObjectvoorstellenPanel({
     return beste?{...x,...beste,besluit:byObject.get(x.object.id)}:null;
   }).filter((x):x is NonNullable<typeof x>=>x!==null),[matches,criteria,byObject]);
 
-  const nieuw=beoordeeld.filter(x=>!x.besluit);
+  const nieuw=beoordeeld.filter(x=>!x.besluit && !inPipeline.has(x.object.id));
   const kansrijk=nieuw.filter(x=>x.prioriteit==='kansrijk');
   const controle=nieuw.filter(x=>x.prioriteit==='controleren');
   const overige=nieuw.filter(x=>x.prioriteit==='niet_aanbevolen');
@@ -58,7 +60,7 @@ export default function ObjectvoorstellenPanel({
   // Eerdere handmatige keuzes blijven altijd zichtbaar, ook als matching
   // later wijzigt of een object niet meer proactief wordt aangeboden.
   const objectById=useMemo(()=>new Map(objecten.map(o=>[o.id,o])),[objecten]);
-  const interessant=besluiten.filter(b=>b.status==='interessant')
+  const interessant=besluiten.filter(b=>b.status==='interessant' && !inPipeline.has(b.objectId))
     .map(b=>({besluit:b,object:objectById.get(b.objectId)}))
     .filter((x):x is {besluit:RelatieObjectBesluit;object:ObjectVastgoed}=>!!x.object);
   const afgewezen=besluiten.filter(b=>b.status==='afgewezen')
@@ -73,6 +75,27 @@ export default function ObjectvoorstellenPanel({
       toast.success(status==='interessant'?'Op je shortlist geplaatst':'Voorstel afgewezen');
     } catch(e) {
       toast.error(e instanceof Error?e.message:'Beoordeling niet opgeslagen');
+    } finally {setBusy(null);}
+  }
+  async function voegAlsKandidaatToe(objectId:string) {
+    if (inPipeline.has(objectId)) {
+      toast.error('Deze partij is al kandidaat bij dit object.');
+      return;
+    }
+    const object = objectById.get(objectId);
+    if (!object || object.status!=='beschikbaar' || object.isArchived || object.softDeletedAt) {
+      toast.error('Dit object is niet beschikbaar voor een nieuwe kandidaat.');
+      return;
+    }
+    const match=beoordeeld.find(v=>v.object.id===objectId);
+    setBusy(objectId);
+    try {
+      await addPipelineKandidaat(maakBasisKandidaat({
+        objectId,relatieId:relatie.id,zoekprofielId:match?.route.zoekprofielId,
+      }));
+      toast.success('Kandidaat toegevoegd aan het dealtraject. Er is nog geen aanbieding geregistreerd.');
+    } catch(e) {
+      toast.error(e instanceof Error?e.message:'Kandidaat toevoegen mislukt');
     } finally {setBusy(null);}
   }
   async function reset(id:string) {
@@ -174,11 +197,20 @@ export default function ObjectvoorstellenPanel({
           </Link>
           <p className="text-xs text-muted-foreground mt-1">Door jou interessant bevonden</p>
         </div>
-        <button type="button" disabled={busy===object.id} onClick={()=>void reset(object.id)}
-          aria-label="Beoordeling terugzetten" title="Beoordeling terugzetten"
-          className="rounded border border-border p-2 text-muted-foreground disabled:opacity-50">
-          <RotateCcw className="h-3.5 w-3.5"/>
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {object.status==='beschikbaar' && !object.isArchived && !object.softDeletedAt && (
+            <button type="button" disabled={busy===object.id}
+              onClick={()=>void voegAlsKandidaatToe(object.id)}
+              className="rounded border border-border px-2.5 py-1.5 inline-flex gap-1 items-center text-xs hover:bg-muted disabled:opacity-50">
+              <UserPlus className="h-3.5 w-3.5"/> Kandidaat toevoegen
+            </button>
+          )}
+          <button type="button" disabled={busy===object.id} onClick={()=>void reset(object.id)}
+            aria-label="Beoordeling terugzetten" title="Beoordeling terugzetten"
+            className="rounded border border-border p-2 text-muted-foreground disabled:opacity-50">
+            <RotateCcw className="h-3.5 w-3.5"/>
+          </button>
+        </div>
       </div>)}
       {kansrijk.slice(0,8).map(x=><VoorstelRij key={x.object.id} item={x}/>)}
       {interessant.length===0&&kansrijk.length===0&&

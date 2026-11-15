@@ -23,6 +23,9 @@ import {
   type KandidaatResultaat,
 } from '@/lib/pipeline/kandidaatFouten';
 import { kiesBesteZoekprofielMatch } from '@/lib/pipeline/zoekprofielKeuze';
+import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
+import { useObjectMatchBesluiten } from '@/hooks/useObjectMatchBesluiten';
+import { supabase } from '@/integrations/supabase/client';
 import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstellenR2';
 import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
 import { isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen } from '@/lib/matching/rolMandaatAdapter';
@@ -98,11 +101,16 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [bezig, setBezig] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [toonR2, setToonR2] = useState(false);
+  const [toonR2, setToonR2] = useState(MATCH_R2_PREVIEW_ENABLED);
   type R2Concept = Extract<ReturnType<typeof maakKandidaatConcept>, { ok: true }>['concept'];
   const [r2Concept, setR2Concept] = useState<R2Concept | null>(null);
   const r2Actief = MATCH_R2_PREVIEW_ENABLED && toonR2;
   const zoekRef = useRef<HTMLInputElement>(null);
+  const matchingBesluiten = useObjectMatchBesluiten(objectId,open);
+  const afgewezenRelaties = useMemo(()=>new Set(
+    Object.entries(matchingBesluiten.besluiten)
+      .filter(([,b])=>b.status==='afgewezen').map(([id])=>id),
+  ),[matchingBesluiten.besluiten]);
 
   // Reset bij open
   useEffect(() => {
@@ -111,14 +119,14 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       setFilterPlaats(''); setBudgetMinFilter(''); setBudgetMaxFilter('');
       setAlleenActief(false); setGeselecteerd(new Set()); setQuickOpen(false);
       setSortKey('match'); setSortDir('desc');
-      setToonR2(false); setR2Concept(null);
+      setToonR2(MATCH_R2_PREVIEW_ENABLED); setR2Concept(null);
     }
   }, [open]);
 
   // Verrijk relaties met match score + contactpersoon-naam
   const verrijkt = useMemo(() => {
     return relaties
-      .filter(r => !reedsGekoppeld.has(r.id))
+      .filter(r => !reedsGekoppeld.has(r.id) && !afgewezenRelaties.has(r.id))
       .map(r => {
         const cps = contactpersonen.filter(c => c.relatieId === r.id);
         const primair = cps.find(c => c.isPrimair) ?? cps[0];
@@ -148,7 +156,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           score,
         };
       });
-  }, [relaties, contactpersonen, reedsGekoppeld, object, getZoekprofielenByRelatie]);
+  }, [relaties, contactpersonen, reedsGekoppeld, object, getZoekprofielenByRelatie, afgewezenRelaties]);
 
   // Filter
   const gefilterd = useMemo(() => {
@@ -254,7 +262,23 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
 
   const handleToevoegen = async () => {
     if (geselecteerd.size === 0 || !object) return;
+    if(matchingBesluiten.loading || matchingBesluiten.fout) {
+      toast.error('Eerdere beoordelingen konden niet worden gecontroleerd.');
+      return;
+    }
     setBezig(true);
+    // Een handmatige zoekactie mag geen eerder afgewezen partij omzeilen.
+    const {data:actueleAfwijzingen,error:controleError}=await supabase
+      .from('relatie_object_matchbesluiten' as any).select('relatie_id')
+      .eq('object_id',objectId).eq('status','afgewezen')
+      .in('relatie_id',[...geselecteerd]);
+    if(controleError || (actueleAfwijzingen??[]).length>0) {
+      setBezig(false);
+      toast.error(controleError
+        ? 'Afwijzingen konden niet worden gecontroleerd.'
+        : 'Een geselecteerde partij is eerder afgewezen. Herstel die beoordeling eerst bij de voorstellen.');
+      return;
+    }
     const resultaten: KandidaatResultaat[] = [];
     for (const id of geselecteerd) {
       const item = verrijkt.find(v => v.relatie.id === id);
@@ -262,19 +286,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         ? getRelatieDropdownLabel(item.relatie, contactpersonen)
         : 'Onbekende relatie';
       try {
-        await addPipelineKandidaat({
-          objectId,
-          relatieId: id,
-          zoekprofielId: item?.zoekprofielId,
-          pipelineFase: 'match_gevonden',
-          interesseNiveau: 'lauw',
-          matchscore: item?.score,
-          teaserVerstuurd: false,
-          ndaVerstuurd: false,
-          ndaGetekend: false,
-          informatieGedeeld: false,
-          feeAkkoord: false,
-        });
+        await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId:id,zoekprofielId:item?.zoekprofielId,matchscore:item?.score}));
         resultaten.push({ relatieId: id, naam });
       } catch (err) {
         // Technisch detail alleen naar console; UI krijgt een veilige reden.
@@ -301,6 +313,24 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const handleR2Toevoegen = async () => {
     if(bezig || !r2Concept || !object || r2Concept.objectId!==objectId) return;
     const relatieId=r2Concept.contactRelatieId;
+    if(matchingBesluiten.loading || matchingBesluiten.fout) {
+      toast.error('Eerdere beoordelingen zijn niet beschikbaar.');
+      return;
+    }
+    if(matchingBesluiten.besluiten[relatieId]?.status==='afgewezen') {
+      setR2Concept(null);
+      toast.error('Deze partij is afgewezen. Herstel eerst de beoordeling.');
+      return;
+    }
+    const {data:actueleAfwijzing,error:afwijsControleFout}=await supabase
+      .from('relatie_object_matchbesluiten' as any).select('relatie_id')
+      .eq('object_id',objectId).eq('relatie_id',relatieId)
+      .eq('status','afgewezen').maybeSingle();
+    if(afwijsControleFout || actueleAfwijzing) {
+      setR2Concept(null);
+      toast.error('De actuele beoordeling staat deze koppeling niet toe.');
+      return;
+    }
     if(!isAanbiedbaar(object)) {
       toast.error('Object is niet meer beschikbaar voor nieuwe suggesties.');
       return;
@@ -324,18 +354,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     }
     setBezig(true);
     try {
-      await addPipelineKandidaat({
-        objectId,
-        relatieId,
-        zoekprofielId:route.zoekprofielId??undefined,
-        pipelineFase:'match_gevonden',
-        interesseNiveau:'lauw',
-        teaserVerstuurd:false,
-        ndaVerstuurd:false,
-        ndaGetekend:false,
-        informatieGedeeld:false,
-        feeAkkoord:false,
-      });
+      await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId,zoekprofielId:route.zoekprofielId}));
       toast.success('Kandidaat aan object gekoppeld');
       setR2Concept(null);
       onToegevoegd?.();
@@ -383,23 +402,23 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         </DialogHeader>
 
         {MATCH_R2_PREVIEW_ENABLED && (
-          <nav className="px-5 py-2 flex flex-wrap gap-2 border-b border-border" aria-label="Wijze van kandidaatselectie">
-            <button type="button" aria-pressed={!r2Actief}
-              onClick={() => { setToonR2(false); setR2Concept(null); }}
-              className={`rounded-md px-3 py-2 text-sm border ${!r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
-              Bestaande selectie
-            </button>
+          <nav className="px-5 py-2 flex flex-wrap gap-2 border-b border-border" aria-label="Kandidaatselectie">
             <button type="button" aria-pressed={r2Actief}
-              onClick={() => { setToonR2(true); setR2Concept(null); }}
-              className={`rounded-md px-3 py-2 text-sm border ${r2Actief ? 'bg-accent/10 border-accent' : 'border-border'}`}>
-              Matches op zoekprofiel
+              onClick={() => {setToonR2(true);setR2Concept(null);setGeselecteerd(new Set());}}
+              className={`rounded-md px-3 py-2 text-sm border ${r2Actief?'bg-accent/10 border-accent':'border-border'}`}>
+              Voorstellen
+            </button>
+            <button type="button" aria-pressed={!r2Actief}
+              onClick={() => {setToonR2(false);setR2Concept(null);}}
+              className={`rounded-md px-3 py-2 text-sm border ${!r2Actief?'bg-accent/10 border-accent':'border-border'}`}>
+              Alle relaties
             </button>
           </nav>
         )}
 
         {r2Actief && (
           <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 space-y-4">
-            <p className="text-xs text-muted-foreground">Bekijk passende partijen, kies een zoekroute en voeg de kandidaat na controle zelf toe. Er worden geen berichten, biedingen of contactmomenten automatisch aangemaakt.</p>
+            <p className="text-xs text-muted-foreground">Beoordeel een voorstel of kies expliciet een kandidaat. Er worden geen aanbiedingen of berichten automatisch verstuurd.</p>
             {object ? <KandidaatVoorstellenR2
               object={object} relaties={relaties} zoekprofielen={zoekprofielen}
               reedsGekoppeld={reedsGekoppeld}
@@ -408,6 +427,14 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
               }}
               onConceptGekozen={setR2Concept}
+              besluiten={matchingBesluiten.besluiten}
+              besluitenGeladen={!matchingBesluiten.loading && !matchingBesluiten.fout}
+              beoordelingenFout={matchingBesluiten.fout}
+              onBeoordeel={async(relatieId,status,reden)=>{
+                await matchingBesluiten.beoordeel(relatieId,status,reden);
+                if(status==='afgewezen' && r2Concept?.contactRelatieId===relatieId) setR2Concept(null);
+              }}
+              onHerstel={matchingBesluiten.herstel}
             /> : <p className="text-sm text-muted-foreground">Object wordt geladen.</p>}
             {r2Concept && <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1" role="status">
               <p className="font-medium text-sm">Kandidaat geselecteerd — nog niet toegevoegd</p>
@@ -418,7 +445,12 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         )}
 
         {/* Zoek + filters */}
-        {!r2Actief && <div className="px-5 py-3 border-b border-border bg-muted/20 space-y-2.5 shrink-0">
+        {!r2Actief && (matchingBesluiten.loading || matchingBesluiten.fout) && (
+          <p className="px-5 py-6 text-sm text-muted-foreground" role={matchingBesluiten.fout?'alert':'status'}>
+            {matchingBesluiten.fout??'Eerdere beoordelingen controleren…'}
+          </p>
+        )}
+        {!r2Actief && !matchingBesluiten.loading && !matchingBesluiten.fout && <div className="px-5 py-3 border-b border-border bg-muted/20 space-y-2.5 shrink-0">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -536,7 +568,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         </div>}
 
         {/* Lijst */}
-        {!r2Actief && <div className="flex-1 overflow-y-auto min-h-[200px]">
+        {!r2Actief && !matchingBesluiten.loading && !matchingBesluiten.fout && <div className="flex-1 overflow-y-auto min-h-[200px]">
           {gesorteerd.length === 0 ? (
             <div className="p-8 text-sm text-muted-foreground text-center space-y-3">
               <p>{filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}</p>
@@ -638,7 +670,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-              <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig}>
+              <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig || matchingBesluiten.loading || !!matchingBesluiten.fout}>
                 {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
               </Button>
             </>
