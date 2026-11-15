@@ -22,10 +22,12 @@ describe('Bulkbewerkingen en sortering als veilige browserproef',()=>{
     const u=userEvent.setup();setup();
     await u.click(screen.getByLabelText('Selecteer Belegger A'));
     await u.click(screen.getByLabelText('Selecteer Belegger C'));
-    await u.click(screen.getByRole('button',{name:'Toepassen op 2 kandidaten'}));
-    expect(screen.getByRole('alert')).toHaveTextContent('Kies eerst één afwijzingscategorie');
+    await u.click(screen.getByRole('button',{name:'Wijziging controleren'}));
+    expect(screen.getByRole('alert')).toHaveTextContent('Kies eerst één geldige afwijzingscategorie');
     await u.selectOptions(screen.getByLabelText('Afwijzingscategorie'),'locatie');
-    await u.click(screen.getByRole('button',{name:'Toepassen op 2 kandidaten'}));
+    await u.click(screen.getByRole('button',{name:'Wijziging controleren'}));
+    expect(screen.getByLabelText('Controle bulkwijziging')).toHaveTextContent('Interne uitsluiting');
+    await u.click(screen.getByRole('button',{name:'Bevestig wijziging voor 2 kandidaten'}));
     expect(screen.getByRole('status')).toHaveTextContent('2 kandidaten afgewezen');
     await u.selectOptions(screen.getByLabelText('Filter kandidaten'),'afgevallen');
     expect(within(screen.getByLabelText('Fictieve kandidaatlijst')).getAllByRole('checkbox')).toHaveLength(4);
@@ -36,7 +38,8 @@ describe('Bulkbewerkingen en sortering als veilige browserproef',()=>{
     await u.click(screen.getByLabelText('Selecteer alle zichtbare kandidaten'));
     await u.selectOptions(screen.getByLabelText('Bulkactie'),'fase');
     await u.selectOptions(screen.getByLabelText('Nieuwe pipelinefase'),'nda_verstuurd');
-    await u.click(screen.getByRole('button',{name:'Toepassen op 6 kandidaten'}));
+    await u.click(screen.getByRole('button',{name:'Wijziging controleren'}));
+    await u.click(screen.getByRole('button',{name:'Bevestig wijziging voor 6 kandidaten'}));
     expect(screen.getByRole('status')).toHaveTextContent('6 kandidaten naar een andere fase gezet');
     expect(screen.getAllByText(/NDA verstuurd/).length).toBeGreaterThanOrEqual(6);
   });
@@ -51,5 +54,32 @@ describe('Bulkbewerkingen en sortering als veilige browserproef',()=>{
     expect(names[1]).toHaveTextContent('Belegger G');
     await u.selectOptions(screen.getByLabelText('Filter kandidaten'),'actief');
     expect(screen.getByText(/6 zichtbaar · 0 geselecteerd/)).toBeInTheDocument();
+  });
+  it('vraagt om hercontrole bij een gewijzigde afwijzingsreden',async()=>{
+    const u=userEvent.setup();setup();
+    await u.click(screen.getByLabelText('Selecteer Belegger A'));
+    await u.selectOptions(screen.getByLabelText('Afwijzingscategorie'),'locatie');
+    await u.click(screen.getByRole('button',{name:'Wijziging controleren'}));
+    expect(screen.getByRole('button',{name:'Bevestig wijziging voor 1 kandidaten'})).toBeInTheDocument();
+    await u.selectOptions(screen.getByLabelText('Afwijzingscategorie'),'prijs');
+    expect(screen.queryByRole('button',{name:'Bevestig wijziging voor 1 kandidaten'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Wijziging controleren'})).toBeInTheDocument();
+  });
+  it('laat de laatste lokale bulkactie ongedaan maken zonder een kopersreactie te maken',async()=>{
+    const u=userEvent.setup();setup();
+    await u.click(screen.getByLabelText('Selecteer Belegger A'));
+    await u.selectOptions(screen.getByLabelText('Afwijzingscategorie'),'locatie');
+    await u.click(screen.getByRole('button',{name:'Wijziging controleren'}));
+    await u.click(screen.getByRole('button',{name:'Bevestig wijziging voor 1 kandidaten'}));
+    expect(screen.getByText(/5 zichtbaar · 0 geselecteerd/)).toBeInTheDocument();
+    await u.click(screen.getByRole('button',{name:'Ongedaan maken'}));
+    expect(screen.getByText(/6 zichtbaar · 0 geselecteerd/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('ongedaan gemaakt');
+  });
+  it('laat geen bulkoptie toe om ontvangen kopersreacties te creëren',async()=>{
+    const u=userEvent.setup();setup();
+    await u.click(screen.getByLabelText('Selecteer Belegger A'));
+    expect(screen.queryByLabelText('Herkomst afwijzing')).not.toBeInTheDocument();
+    expect(screen.getByText(/Een echte afwijzing van een belegger registreer je afzonderlijk/)).toBeInTheDocument();
   });
 });

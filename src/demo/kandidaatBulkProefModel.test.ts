@@ -21,11 +21,14 @@ describe('Bulkacties zonder dubbele administratie',()=>{
     });
     expect(r.kandidaten[0].afwijzing?.bron).toBe('intern');
   });
-  it('ontvangen afwijzing behoudt bron en categorie apart',()=>{
-    const r=pasFictieveBulkActieToe(fictieveKandidaten(),new Set(['a']),{
+  it('kopersafwijzingen kunnen niet in bulk tot fictieve reacties leiden',()=>{
+    const current=fictieveKandidaten();
+    const r=pasFictieveBulkActieToe(current,new Set(['a','b']),{
       type:'afwijzen',bron:'koper',categorie:'rendement',
-    });
-    expect(r.kandidaten[0].afwijzing).toEqual({bron:'koper',categorie:'rendement'});
+    } as never);
+    expect(r.fout).toMatch(/afzonderlijk/);
+    expect(r.kandidaten).toEqual(current);
+    expect(r.aangepast).toBe(0);
   });
   it('een ontbrekende reden of ongeldige selectie wijzigt niets',()=>{
     const current=fictieveKandidaten();
@@ -57,5 +60,33 @@ describe('Bulkacties zonder dubbele administratie',()=>{
       type:'interesse',niveau:'warm',
     });
     expect(r.fout).toMatch(/opnieuw activeren/);
+  });
+  it('alleen werkelijk gewijzigde kandidaten tellen mee',()=>{
+    const huidige=fictieveKandidaten();
+    const r=pasFictieveBulkActieToe(huidige,new Set(['a','b']),{
+      type:'fase',fase:'informatie_gedeeld',
+    });
+    expect(r.aangepast).toBe(1);
+    expect(r.ongewijzigd).toBe(1);
+    expect(r.gewijzigdeIds).toEqual(['a']);
+    expect(r.kandidaten[1]).toBe(huidige[1]);
+  });
+  it('één afgevallen kandidaat blokkeert de héle bulkactie',()=>{
+    const huidige=fictieveKandidaten();
+    const r=pasFictieveBulkActieToe(huidige,new Set(['a','g']),{
+      type:'afwijzen',bron:'intern',categorie:'locatie',
+    });
+    expect(r.fout).toMatch(/afgevallen/);
+    expect(r.kandidaten).toEqual(huidige);
+    expect(r.gewijzigdeIds).toEqual([]);
+  });
+  it('ongeldige categorie en onbekende fase voeren nooit wijzigingen uit',()=>{
+    const huidige=fictieveKandidaten();
+    expect(pasFictieveBulkActieToe(huidige,new Set(['a']),{
+      type:'afwijzen',bron:'intern',categorie:'fout',
+    } as never).fout).toMatch(/geldige afwijzingscategorie/);
+    expect(pasFictieveBulkActieToe(huidige,new Set(['a']),{
+      type:'fase',fase:'bogus',
+    } as never).aangepast).toBe(0);
   });
 });

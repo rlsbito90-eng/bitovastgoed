@@ -7,7 +7,7 @@ import {
 import { INTERESSE_LABELS, PIPELINE_FASES, type InteresseNiveau, type PipelineFase } from '@/data/mock-data';
 import { REACTIE_REDEN_LABELS, type ReactieReden } from '@/lib/relaties/aanbiedingsReacties';
 import {
-  fictieveKandidaten,pasFictieveBulkActieToe,type BulkProefActie,
+  fictieveKandidaten,pasFictieveBulkActieToe,type BulkProefActie,type ProefKandidaat,
 } from './kandidaatBulkProefModel';
 
 type Actie = 'toevoegen' | 'aanbieding' | 'reactie' | null;
@@ -32,11 +32,12 @@ export default function SandboxKandidatenPage(){
   const [bulkType,setBulkType]=useState<BulkType>('afwijzen');
   const [reden,setReden]=useState<ReactieReden|''>('');
   const [anders,setAnders]=useState('');
-  const [bron,setBron]=useState<'intern'|'koper'>('intern');
   const [fase,setFase]=useState<PipelineFase>('informatie_gedeeld');
   const [interesse,setInteresse]=useState<InteresseNiveau>('warm');
   const [melding,setMelding]=useState('');
   const [fout,setFout]=useState('');
+  const [voorbeeldSleutel,setVoorbeeldSleutel]=useState<string|null>(null);
+  const [laatsteSnapshot,setLaatsteSnapshot]=useState<ProefKandidaat[]|null>(null);
 
   const gefilterd=useMemo(()=>kandidaten.filter(k=>getFilter(k.pipelineFase,filter)),[kandidaten,filter]);
   const zichtbaar=useMemo(()=>sorteerObjectKandidaten(gefilterd,sortering,k=>k.naam),[gefilterd,sortering]);
@@ -50,19 +51,47 @@ export default function SandboxKandidatenPage(){
     // Bij wisselen van filter nooit onzichtbare kandidaten per ongeluk in bulk bewerken.
     setSelectie(new Set());setFout('');setMelding('');
   };
-  const pasToe=()=>{
-    const wijziging:BulkProefActie=bulkType==='afwijzen'
-      ?{type:'afwijzen',bron,categorie:reden as ReactieReden,anders}
-      :bulkType==='fase'
-        ?{type:'fase',fase:fase as Exclude<PipelineFase,'afgevallen'|'afgerond'>}
-        :{type:'interesse',niveau:interesse};
-    const result=pasFictieveBulkActieToe(kandidaten,selectie,wijziging);
-    if(result.fout){setFout(result.fout);return;}
+  const getActie=():BulkProefActie=>bulkType==='afwijzen'
+    ?{type:'afwijzen',bron:'intern',categorie:reden as ReactieReden,anders}
+    :bulkType==='fase'
+      ?{type:'fase',fase:fase as Exclude<PipelineFase,'afgevallen'|'afgerond'>}
+      :{type:'interesse',niveau:interesse};
+  // Voorkomt dat een gewijzigde selectie of invoer ongemerkt onder een oud
+  // bevestigingsscherm wordt verwerkt.
+  const selectieSleutel=JSON.stringify({
+    ids:[...selectie].sort(),bulkType,reden,anders,fase,interesse,
+    versies:kandidaten.map(k=>[k.id,k.pipelineFase,k.interesseNiveau,
+      k.afwijzing?.bron,k.afwijzing?.categorie,k.afwijzing?.anders]),
+  });
+  const voorbeeld=selectie.size>0&&voorbeeldSleutel===selectieSleutel
+    ?pasFictieveBulkActieToe(kandidaten,selectie,getActie()):null;
+  const controleerWijziging=()=>{
+    const result=pasFictieveBulkActieToe(kandidaten,selectie,getActie());
+    if(result.fout){setFout(result.fout);setVoorbeeldSleutel(null);return;}
+    setFout('');setMelding('');
+    setVoorbeeldSleutel(selectieSleutel);
+  };
+  const bevestigWijziging=()=>{
+    if(voorbeeldSleutel!==selectieSleutel){
+      setFout('Je selectie is gewijzigd. Controleer de wijziging opnieuw.');return;
+    }
+    const result=pasFictieveBulkActieToe(kandidaten,selectie,getActie());
+    if(result.fout){setFout(result.fout);setVoorbeeldSleutel(null);return;}
+    if(result.aangepast===0){setFout('Deze waarden zijn al gelijk. Er is niets gewijzigd.');return;}
+    setLaatsteSnapshot([...kandidaten]);
     setKandidaten(result.kandidaten);
-    setSelectie(new Set());
-    setFout('');
-    const werkwoord=bulkType==='afwijzen'?'afgewezen':bulkType==='fase'?'naar een andere fase gezet':'bijgewerkt';
-    setMelding(String(result.aangepast)+' kandidaten '+werkwoord+' in de fictieve proef.');
+    setSelectie(new Set());setVoorbeeldSleutel(null);setFout('');
+    const werkwoord=bulkType==='afwijzen'?'afgewezen'
+      :bulkType==='fase'?'naar een andere fase gezet':'bijgewerkt';
+    setMelding(result.aangepast+' kandidaten '+werkwoord+
+      ' in de fictieve proef.'+(result.ongewijzigd
+        ?' '+result.ongewijzigd+' kandidaat/kandidaten waren al ongewijzigd.':''));
+  };
+  const maakOngedaan=()=>{
+    if(!laatsteSnapshot)return;
+    setKandidaten(laatsteSnapshot);setLaatsteSnapshot(null);
+    setSelectie(new Set());setVoorbeeldSleutel(null);setFout('');
+    setMelding('Laatste bulkwijziging ongedaan gemaakt in de fictieve proef.');
   };
 
   return <div className="space-y-5">
@@ -173,6 +202,10 @@ export default function SandboxKandidatenPage(){
           </select>
         </label>
         {bulkType==='afwijzen'&&<>
+          <p className="text-xs text-muted-foreground">
+            Dit is jouw interne selectie, geen ontvangen kopersreactie.
+            Een echte afwijzing van een belegger registreer je afzonderlijk via Meer → Reactie registreren.
+          </p>
           <label className="block space-y-1 text-xs">
             <span>Herkomst van de afwijzing</span>
             <select aria-label="Herkomst afwijzing" value={bron}
@@ -218,20 +251,50 @@ export default function SandboxKandidatenPage(){
           </select>
         </label>}
         {fout&&<p role="alert" className="text-xs text-destructive">{fout}</p>}
+        {voorbeeld&&<div className="border border-border rounded-lg bg-muted/30 p-3 space-y-2"
+          aria-label="Controle bulkwijziging">
+          <h4 className="text-sm font-semibold">Controleer vóór je toepast</h4>
+          <p className="text-xs">
+            {voorbeeld.aangepast} werkelijke wijzigingen · {voorbeeld.ongewijzigd} al gelijk.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Geselecteerd: {kandidaten.filter(k=>selectie.has(k.id)).map(k=>k.naam).join(', ')}.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {bulkType==='afwijzen'
+              ?'Interne uitsluiting · '+(REACTIE_REDEN_LABELS[reden as ReactieReden]??'Geen reden')
+              :bulkType==='fase'?'Pipelinefase → '+faseLabel(fase)
+              :'Interesseniveau → '+INTERESSE_LABELS[interesse]}.
+            Er wordt geen bericht verzonden en geen kopersreactie aangemaakt.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={bevestigWijziging} disabled={voorbeeld.aangepast===0}
+              className="rounded-md bg-accent text-accent-foreground px-3 py-2 text-sm font-medium disabled:opacity-50">
+              Bevestig wijziging voor {voorbeeld.aangepast} kandidaten
+            </button>
+            <button type="button" onClick={()=>setVoorbeeldSleutel(null)}
+              className="rounded-md border border-border px-3 py-2 text-sm">Terug</button>
+          </div>
+        </div>}
         <div className="flex gap-2 flex-wrap">
-          <button type="button" onClick={pasToe}
+          {!voorbeeld&&<button type="button" onClick={controleerWijziging}
             className="rounded-md bg-accent text-accent-foreground px-3 py-2 text-sm font-medium">
-            Toepassen op {selectie.size} kandidaten
-          </button>
-          <button type="button" onClick={()=>{setSelectie(new Set());setFout('');}}
+            Wijziging controleren
+          </button>}
+          <button type="button" onClick={()=>{setSelectie(new Set());setFout('');setVoorbeeldSleutel(null);}}
             className="rounded-md border border-border px-3 py-2 text-sm">Selectie wissen</button>
         </div>
         <p className="text-xs text-muted-foreground">
           Gebruik één gedeelde reden alleen als die voor alle geselecteerden klopt.
-          Dit is uitsluitend een lokale simulatie: er wordt geen contactmoment gecreëerd.
+          Ongeldige selecties worden geheel tegengehouden: geen gedeeltelijke wijzigingen.
+          Alleen deze fictieve proef wordt gewijzigd.
         </p>
       </div>}
-      {melding&&<p role="status" className="text-sm font-medium">{melding}</p>}
+      {melding&&<div role="status" className="text-sm font-medium flex items-center flex-wrap gap-3">
+        <span>{melding}</span>
+        {laatsteSnapshot&&<button type="button" onClick={maakOngedaan}
+          className="underline text-accent font-medium">Ongedaan maken</button>}
+      </div>
     </section>
     <div className="flex items-start gap-2 text-xs text-muted-foreground">
       <ShieldCheck className="h-4 w-4 shrink-0"/>
