@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Pencil, ExternalLink, Send, MessageSquareText } from 'lucide-react';
+import { Trash2, Pencil, ExternalLink, Send, MessageSquareText } from 'lucide-react';
+import ObjectPipelineActies from './ObjectPipelineActies';
 import { PipelineFaseBadge, InteresseNiveauBadge } from './PipelineBadges';
 import PipelineKandidaatDialog from './PipelineKandidaatDialog';
 import KandidaatSelectieDialog from './KandidaatSelectieDialog';
@@ -65,17 +66,12 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
             {kandidaten.length === 0 ? 'Nog geen kandidaten in de pipeline.' : `${kandidaten.length} kandida${kandidaten.length === 1 ? 'at' : 'ten'} in pipeline`}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={()=>openReactie()}>
-            <MessageSquareText className="h-4 w-4 mr-1"/> Reactie registreren
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={()=>openAanbieding()}>
-            <Send className="h-4 w-4 mr-1"/> Aanbieding registreren
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)} disabled={relaties.length === reedsGekoppeld.size}>
-            <Plus className="h-4 w-4 mr-1" /> Kandidaat toevoegen
-          </Button>
-        </div>
+        <ObjectPipelineActies
+          canAdd={relaties.length !== reedsGekoppeld.size}
+          onAdd={() => setAdding(true)}
+          onOffer={() => openAanbieding()}
+          onReply={() => openReactie()}
+        />
       </div>
 
       {marktsignaal.reacties>0&&<div className="border-t border-border/70 pt-3 text-xs text-muted-foreground space-y-1">
