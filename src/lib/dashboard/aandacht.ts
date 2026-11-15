@@ -124,6 +124,32 @@ const AFGESLOTEN_FASES = new Set(['afgerond', 'afgevallen']);
 const AFGESLOTEN_TAAKSTATUSSEN = new Set(['afgerond', 'geannuleerd']);
 const OPEN_STATUSSEN = new Set<BiedingStatus>(OPEN_BIEDING_STATUSSEN);
 
+/**
+ * Eerste, conservatieve fasebewuste stiltesignalering.
+ * Eén actieve kandidaat is eenduidig; bij meerdere kandidaten kan een contactmoment
+ * van kandidaat B het dossier van kandidaat A bijwerken. Zonder per-kandidaat
+ * activiteitenlijn houden we daarom de vertrouwde objectdrempel aan.
+ * Geplande acties en expliciet uitgestelde opvolging worden elders afgehandeld.
+ */
+const FASE_DREMPEL_DAGEN: Record<string, number> = {
+  interesse_ontvangen: 7,
+  bezichtiging_geweest: 7,
+  indicatieve_bieding: 3,
+  onderhandeling: 3,
+  loi_ontvangen: 3,
+  due_diligence: 7,
+  koopovereenkomst_concept: 3,
+};
+
+export function bepaalDrempelGeenActiviteit(
+  actieveKandidaten: Pick<AandachtKandidaat, 'pipelineFase'>[],
+  heeftOpenBod: boolean,
+): number {
+  const basis = heeftOpenBod ? DREMPEL_GEEN_ACTIVITEIT_MET_BOD_DAGEN : DREMPEL_GEEN_ACTIVITEIT_DAGEN;
+  if (actieveKandidaten.length !== 1) return basis;
+  return Math.min(basis, FASE_DREMPEL_DAGEN[actieveKandidaten[0].pipelineFase] ?? basis);
+}
+
 /** Normaliseert een datum of tijdstempel naar een lokale YYYY-MM-DD, of null. */
 export function dagSleutel(waarde: string | null | undefined): string | null {
   if (!waarde) return null;
@@ -277,7 +303,7 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
       .sort((a, b) => (dagSleutel(b.bieddatum) ?? '').localeCompare(dagSleutel(a.bieddatum) ?? '') || b.createdAt.localeCompare(a.createdAt));
     const heeftOpenBod = openBiedingen.length > 0;
 
-    const drempel = heeftOpenBod ? DREMPEL_GEEN_ACTIVITEIT_MET_BOD_DAGEN : DREMPEL_GEEN_ACTIVITEIT_DAGEN;
+    const drempel = bepaalDrempelGeenActiviteit(actieveKandidaten, heeftOpenBod);
     const stil = dagenStil != null && dagenStil > drempel && !opgevolgd;
     const geenKandidaat = KANDIDAAT_ZOEKEN_STATUSSEN.has(object.status)
       && actieveKandidaten.length === 0
