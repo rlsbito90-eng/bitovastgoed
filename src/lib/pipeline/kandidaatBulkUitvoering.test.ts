@@ -76,4 +76,39 @@ describe('Aansluiten bulkopslag met veilige herhaalstrategie',()=>{
    });
    expect(interestVerkeerd.status).toBe('onzeker');
  });
+ it('vereist bevestigde objectfase-refresh voordat een fase-bulk volledig afgerond is',async()=>{
+   const faseVerzoek={...p,p_actie:{type:'fase' as const,fase:'bezichtiging_gepland' as const}};
+   const resultaat={
+     ...r,object_fase_wijziging:{
+       object_id:p.p_object_id,
+       oude_stage_id:'b6000000-0000-4000-8000-000000000040',
+       nieuwe_stage_id:'b6000000-0000-4000-8000-000000000070',
+       nieuwe_slug:'bezichtigingen',
+     },
+   };
+   const zonderRefresh=await voerBulkUit(faseVerzoek,{
+     opslaan:async()=>resultaat,
+     ververs:async()=>[],
+   });
+   expect(zonderRefresh.status).toBe('opgeslagen_niet_ververst');
+   const objectFase={
+     objectId:p.p_object_id,
+     pipelineId:'b5000000-0000-4000-8000-000000000001',
+     stageId:'b6000000-0000-4000-8000-000000000070',
+     locked:false,updatedAt:'2026-11-15T13:40:00Z',
+   };
+   const metRefresh=await voerBulkUit(faseVerzoek,{
+     opslaan:async()=>resultaat,
+     ververs:async()=>[],
+     verversObjectFase:async()=>objectFase,
+   });
+   expect(metRefresh.status).toBe('opgeslagen');
+   if(metRefresh.status==='opgeslagen')expect(metRefresh.objectFase).toEqual(objectFase);
+   const fouteObjectFase=await voerBulkUit(faseVerzoek,{
+     opslaan:async()=>resultaat,
+     ververs:async()=>[],
+     verversObjectFase:async()=>({...objectFase,objectId:'b1000000-0000-4000-8000-000000000099'}),
+   });
+   expect(fouteObjectFase.status).toBe('opgeslagen_niet_ververst');
+ });
 });

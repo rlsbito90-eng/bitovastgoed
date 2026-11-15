@@ -32,12 +32,18 @@ function fakeClient(){
     id:pipelineId,object_id:objectId,pipeline_fase:'match_gevonden',
     interesse_niveau:'lauw',updated_at:'2026-11-15T08:00:00.000001+00:00',
   }],error:null});
-  const eq=vi.fn().mockReturnValue({is});
+  const single=vi.fn().mockResolvedValue({data:{
+    id:objectId,pipeline_id:'b5000000-0000-4000-8000-000000000001',
+    pipeline_stage_id:'b6000000-0000-4000-8000-000000000070',
+    pipeline_stage_locked:false,
+    pipeline_updated_at:'2026-11-15T13:30:00Z',
+  },error:null});
+  const eq=vi.fn().mockReturnValue({is,single});
   const select=vi.fn().mockReturnValue({eq});
   const from=vi.fn().mockReturnValue({select});
   const mock={auth:{getUser},rpc,from};
   const factory=vi.fn().mockReturnValue(mock) as unknown as typeof createClient;
-  return {mock,factory,getUser,rpc,from,select,eq,is};
+  return {mock,factory,getUser,rpc,from,select,eq,is,single};
 }
 describe('Supabase transport: uitsluitend afzonderlijk testproject, niet actief zonder configuratie',()=>{
   it('maakt zelfs geen client aan als projectref of host naar productie wijst',()=>{
@@ -90,7 +96,12 @@ describe('Supabase transport: uitsluitend afzonderlijk testproject, niet actief 
     expect(a.from).toHaveBeenCalledWith('object_pipeline');
     expect(a.eq).toHaveBeenCalledWith('object_id',objectId);
     expect(a.is).toHaveBeenCalledWith('soft_deleted_at',null);
-    expect(a.getUser).toHaveBeenCalledTimes(3);
+    const objectFase=await p.bulk.verversObjectFase!(objectId);
+    expect(objectFase).toMatchObject({
+      objectId,stageId:'b6000000-0000-4000-8000-000000000070',locked:false,
+    });
+    expect(a.from).toHaveBeenCalledWith('objecten');
+    expect(a.getUser).toHaveBeenCalledTimes(4);
   });
   it('zonder ingelogde testgebruiker geen RPC en geen query',async()=>{
     const a=fakeClient();

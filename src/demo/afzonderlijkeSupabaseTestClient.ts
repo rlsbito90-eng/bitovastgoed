@@ -48,6 +48,23 @@ export function maakGescheidenSupabaseTestClient(
       if(error)throw error;
       return data as KandidaatBulkHerstelResultaat;
     },
+    async objectFaseLezen(objectId:string){
+      const {data,error}=await client.from('objecten')
+        .select('id,pipeline_id,pipeline_stage_id,pipeline_stage_locked,pipeline_updated_at')
+        .eq('id',objectId)
+        .single();
+      if(error)throw error;
+      if(!data || typeof data.id!=='string' ||
+         data.id.toLowerCase()!==objectId.toLowerCase())
+        throw Error('Testproject gaf geen verifieerbare objectfase terug.');
+      return {
+        objectId:data.id,
+        pipelineId:data.pipeline_id??null,
+        stageId:data.pipeline_stage_id??null,
+        locked:!!data.pipeline_stage_locked,
+        updatedAt:data.pipeline_updated_at??null,
+      };
+    },
     async kandidatenLezen(objectId:string){
       const {data,error}=await client.from('object_pipeline')
         .select('id,object_id,pipeline_fase,interesse_niveau,updated_at')

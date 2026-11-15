@@ -4,13 +4,23 @@ import { verwachteObjectFaseBijBulk, type KandidaatBulkVerzoek, type KandidaatBu
  * Testbare adapter. De toekomstige CRM-client moet een expliciete poort aanleveren.
  * Deze module importeert bewust géén Supabase-client en voert zelf geen queries uit.
  */
+export interface ActueleObjectPipelineFase {
+  objectId: string;
+  pipelineId: string | null;
+  stageId: string | null;
+  locked: boolean;
+  updatedAt: string | null;
+}
+
 export interface KandidaatBulkPoort<T> {
   opslaan(verzoek: KandidaatBulkVerzoek): Promise<KandidaatBulkOpslagResultaat>;
   ververs(objectId: string): Promise<T[]>;
+  /** Verplicht wanneer de RPC ook de Objectfase vooruit heeft gezet. */
+  verversObjectFase?(objectId: string): Promise<ActueleObjectPipelineFase>;
 }
 
 export type BulkUitkomst<T> =
-  | { status: 'opgeslagen'; resultaat: KandidaatBulkOpslagResultaat; kandidaten: T[] }
+  | { status: 'opgeslagen'; resultaat: KandidaatBulkOpslagResultaat; kandidaten: T[]; objectFase?: ActueleObjectPipelineFase }
   | { status: 'opgeslagen_niet_ververst'; resultaat: KandidaatBulkOpslagResultaat; melding: string }
   | { status: 'conflict'; melding: string }
   | { status: 'geweigerd'; melding: string }
@@ -83,11 +93,21 @@ export async function voerBulkUit<T>(
   }
   try {
     const kandidaten=await poort.ververs(verzoek.p_object_id);
-    return {status:'opgeslagen',resultaat,kandidaten};
+    let objectFase: ActueleObjectPipelineFase | undefined;
+    if(resultaat.object_fase_wijziging){
+      if(!poort.verversObjectFase)
+        throw Error('Een objectfaseverversing is na deze wijziging verplicht.');
+      objectFase=await poort.verversObjectFase(verzoek.p_object_id);
+      const u=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+      if(objectFase.objectId.toLowerCase()!==verzoek.p_object_id.toLowerCase() ||
+         !objectFase.stageId || !u.test(objectFase.stageId))
+        throw Error('De actuele objectfase kon niet betrouwbaar worden opgehaald.');
+    }
+    return {status:'opgeslagen',resultaat,kandidaten,...(objectFase?{objectFase}:{})};
   }catch{
     return {
       status:'opgeslagen_niet_ververst',resultaat,
-      melding:'De wijziging is opgeslagen, maar het overzicht kon niet worden vernieuwd. Ververs de lijst; druk niet opnieuw op Opslaan.',
+      melding:'De wijziging is opgeslagen, maar de kandidaten of objectfase konden niet volledig worden vernieuwd. Ververs de gegevens; druk niet opnieuw op Opslaan.',
     };
   }
 }

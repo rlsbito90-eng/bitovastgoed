@@ -26,6 +26,11 @@ const maakTransport=()=>({
   rpcOpslaan:vi.fn().mockResolvedValue({verzoek_id:verzoek.p_request_id,aangepast:0,ongewijzigd:0,wijzigingen:[]}),
   rpcHerstellen:vi.fn().mockResolvedValue({herstel_request_id:herstel.p_herstel_request_id,bron_request_id:herstel.p_bron_request_id,hersteld:1,wijzigingen:[]}),
   kandidatenLezen:vi.fn().mockResolvedValue([]),
+  objectFaseLezen:vi.fn().mockResolvedValue({
+    objectId,pipelineId:'b5000000-0000-4000-8000-000000000001',
+    stageId:'b6000000-0000-4000-8000-000000000070',
+    locked:false,updatedAt:'2026-11-15T13:30:00Z',
+  }),
 });
 describe('CRM testproject: blokkeren tenzij een werkelijk gescheiden Auth + DB expliciet klaarstaat',()=>{
   it('weigert een uitgeschakelde testconfiguratie vóór client- of querygebruik',()=>{
@@ -83,7 +88,10 @@ describe('CRM testproject: blokkeren tenzij een werkelijk gescheiden Auth + DB e
     expect(transport.rpcOpslaan).toHaveBeenCalledWith(verzoek);
     expect(transport.rpcHerstellen).toHaveBeenCalledWith(herstel);
     expect(transport.kandidatenLezen).toHaveBeenCalledWith(objectId);
-    expect(transport.identiteit).toHaveBeenCalledTimes(3);
+    const objectFase=await poort.bulk.verversObjectFase!(objectId);
+    expect(objectFase.stageId).toBe('b6000000-0000-4000-8000-000000000070');
+    expect(transport.objectFaseLezen).toHaveBeenCalledWith(objectId);
+    expect(transport.identiteit).toHaveBeenCalledTimes(4);
   });
   it('blokkeert cross-object kandidaten in een leesrespons',async()=>{
     const transport=maakTransport();
@@ -104,5 +112,14 @@ describe('CRM testproject: blokkeren tenzij een werkelijk gescheiden Auth + DB e
     expect(()=>valideerAparteTestDatabase({
       ...config,productieProjectUrl:'http://'+productieRef+'.supabase.co',
     })).toThrow(/productieproject-URL/);
+  });
+  it('weigert objectinformatie van een afwijkend object',async()=>{
+    const t=maakTransport();
+    t.objectFaseLezen.mockResolvedValue({
+      objectId:'b1000000-0000-4000-8000-000000000099',
+      pipelineId:null,stageId:null,locked:false,updatedAt:null,
+    });
+    const p=maakAparteTestDatabasePoort(config,t);
+    await expect(p.bulk.verversObjectFase!(objectId)).rejects.toThrow(/ander object/);
   });
 });

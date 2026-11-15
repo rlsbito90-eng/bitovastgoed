@@ -2,7 +2,7 @@ import type {PipelineFase, InteresseNiveau} from '@/data/mock-data';
 import {CRM_SANDBOX_HOST} from '@/demo/demoHost';
 import type {KandidaatBulkVerzoek,KandidaatBulkOpslagResultaat} from './kandidaatBulkContract';
 import type {KandidaatBulkHerstelVerzoek,KandidaatBulkHerstelResultaat} from './kandidaatBulkHerstel';
-import type {KandidaatBulkPoort} from './kandidaatBulkUitvoering';
+import type {KandidaatBulkPoort,ActueleObjectPipelineFase} from './kandidaatBulkUitvoering';
 import type {KandidaatBulkHerstelPoort} from './kandidaatBulkHerstel';
 
 /**
@@ -34,6 +34,7 @@ export interface TestDatabaseTransport {
   rpcOpslaan(verzoek:KandidaatBulkVerzoek):Promise<KandidaatBulkOpslagResultaat>;
   rpcHerstellen(verzoek:KandidaatBulkHerstelVerzoek):Promise<KandidaatBulkHerstelResultaat>;
   kandidatenLezen(objectId:string):Promise<TestPipelineKandidaat[]>;
+  objectFaseLezen(objectId:string):Promise<ActueleObjectPipelineFase>;
 }
 
 const verbodenRefs=new Set([
@@ -93,6 +94,15 @@ export function maakAparteTestDatabasePoort(
       throw Error('Testproject antwoordde met kandidaten van een ander object.');
     return kandidaten;
   };
+  const verversObjectFase=async(objectId:string)=>{
+    await beveilig();
+    if(!uuid.test(objectId))
+      throw Object.assign(new Error('Ongeldig object-ID'),{code:'22023'});
+    const fase=await transport.objectFaseLezen(objectId);
+    if(!fase || fase.objectId.toLowerCase()!==objectId.toLowerCase())
+      throw Error('Testproject antwoordde met objectgegevens van een ander object.');
+    return fase;
+  };
   return{
     bulk:{
       async opslaan(v){
@@ -102,6 +112,7 @@ export function maakAparteTestDatabasePoort(
         return transport.rpcOpslaan(v);
       },
       ververs,
+      verversObjectFase,
     },
     herstel:{
       async herstellen(v){
