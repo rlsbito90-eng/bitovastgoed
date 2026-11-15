@@ -7,8 +7,7 @@ import { Search, ArrowUpDown, ArrowUp, ArrowDown, X, UserPlus } from 'lucide-rea
 import { useDataStore } from '@/hooks/useDataStore';
 import {
   ASSET_CLASS_LABELS,
-  berekenMatchScore,
-  type AssetClass, type LeadStatus, type PartijType, type Relatie, type ObjectVastgoed,
+  type AssetClass, type LeadStatus, type PartijType, type Relatie,
 } from '@/data/mock-data';
 import { LeadStatusBadge } from '@/components/StatusBadges';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
@@ -22,7 +21,6 @@ import {
   vatKandidaatResultatenSamen,
   type KandidaatResultaat,
 } from '@/lib/pipeline/kandidaatFouten';
-import { kiesBesteZoekprofielMatch } from '@/lib/pipeline/zoekprofielKeuze';
 import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
 import { useObjectMatchBesluiten } from '@/hooks/useObjectMatchBesluiten';
 import { supabase } from '@/integrations/supabase/client';
@@ -83,7 +81,7 @@ const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale:
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
   const {
     relaties, contactpersonen, getObjectById,
-    getZoekprofielenByRelatie, addPipelineKandidaat, getPipelineVoorObject, zoekprofielen,
+    addPipelineKandidaat, getPipelineVoorObject, zoekprofielen,
   } = useDataStore();
 
   const object = getObjectById(objectId);
@@ -123,7 +121,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     }
   }, [open]);
 
-  // Zoekprofielkeuze kan legacy matching intern gebruiken; presenteer de ruwe score niet als betrouwbaarheid.
+  // Handmatige selectie kent geen automatisch berekende matchscore of zoekroute.
   const verrijkt = useMemo(() => {
     return relaties
       .filter(r => !reedsGekoppeld.has(r.id) && !afgewezenRelaties.has(r.id))
@@ -135,15 +133,9 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         const telefoon = r.telefoon?.trim() || primair?.telefoon?.trim() || primair?.telefoonMobiel?.trim() || '';
         const plaats = r.vestigingsplaats?.trim() || (r.regio?.[0] ?? '');
 
-        const zps = getZoekprofielenByRelatie(r.id);
-        // Een relatie kan meerdere actieve zoekprofielen hebben: kies het profiel
-        // met de hoogste geldige matchscore; zonder geldige match geen koppeling.
-        const keuze = object
-          ? kiesBesteZoekprofielMatch(zps, zp => berekenMatchScore(object as ObjectVastgoed, zp)?.score)
-          : null;
-        const score: number | undefined = keuze?.score;
-        const zpId: string | undefined = keuze?.zoekprofielId;
-
+        // 'Alle relaties' is een bewuste handmatige selectie zonder
+        // automatische routekeuze op basis van de oude matchscore.
+        // Via 'Voorstellen' kan een specifieke zoekroute worden gekozen.
 
         return {
           relatie: r,
@@ -152,11 +144,9 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           telefoon,
           plaats,
           alleContacten: cps,
-          zoekprofielId: zpId,
-          score,
         };
       });
-  }, [relaties, contactpersonen, reedsGekoppeld, object, getZoekprofielenByRelatie, afgewezenRelaties]);
+  }, [relaties, contactpersonen, reedsGekoppeld, afgewezenRelaties]);
 
   // Filter
   const gefilterd = useMemo(() => {
@@ -285,7 +275,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         ? getRelatieDropdownLabel(item.relatie, contactpersonen)
         : 'Onbekende relatie';
       try {
-        await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId:id,zoekprofielId:item?.zoekprofielId}));
+        await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId:id}));
         resultaten.push({ relatieId: id, naam });
       } catch (err) {
         // Technisch detail alleen naar console; UI krijgt een veilige reden.
