@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bepaalVoorstelPrioriteit, bepaalInhoudelijkeVoorstelPrioriteit, VOORSTEL_LABELS } from './voorstelPrioriteit';
+import { bepaalVoorstelPrioriteit } from './voorstelPrioriteit';
 import { maakKandidaatVoorstellen, type CrmObjectInput, type CrmRelatieInput } from './rolMandaatAdapter';
 import type { RendementsOordeel } from './rendementsOordeel';
 
@@ -61,16 +61,22 @@ describe('bewijsgerichte prioritering van objectvoorstellen',()=>{
     const v=route(r({propertyTypeIds:[],regio:['Heel Nederland']}));
     expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('niet_aanbevolen');
   });
-  it('beide richtingen herkennen alleen budget als zwak onderbouwd',()=>{
-    const v=route(r({propertyTypeIds:[],regio:[]}));
-    expect(bepaalInhoudelijkeVoorstelPrioriteit(v)).toBe('niet_aanbevolen');
-    expect(VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(v)]).toBe('Zwak onderbouwd');
+  it('passend vastgoedtype met uitsluitend landelijk zoekgebied is niet direct kansrijk',()=>{
+    const v=route(r({regio:['Heel Nederland']}));
+    expect(v.kwalificatie).toBe('passend');
+    expect(v.bewijs?.vastgoedtype).toBe(true);
+    expect(v.bewijs?.locatie).toBe(false);
+    expect(v.toelichting.matcht).toContain('Landelijk zoekgebied: objectlocatie niet uitgesloten');
+    expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('controleren');
   });
-  it('een passende type- en locatiecombinatie is alleen indicatief kansrijk',()=>{
-    const v=route(r());
-    expect(bepaalInhoudelijkeVoorstelPrioriteit(v)).toBe('kansrijk');
-    expect(VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(v)]).toBe('Kansrijk (indicatief)');
-    expect(bepaalVoorstelPrioriteit(v,{status:'controle',uitleg:'Methode onbekend',hardKnockout:false}))
-      .toBe('controleren');
+  it('een specifiek passende provincie blijft kansrijk naast landelijke scope',()=>{
+    const v=route(r({regio:['Heel Nederland','Noord-Holland']}));
+    expect(v.bewijs?.locatie).toBe(true);
+    expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('kansrijk');
+  });
+  it('alleen landelijk zoekgebied en budget levert geen vastgoedaanbeveling',()=>{
+    const v=route(r({propertyTypeIds:[],regio:['Nederland']}));
+    expect(v.bewijs?.locatie).toBe(false);
+    expect(bepaalVoorstelPrioriteit(v,neutraal)).toBe('niet_aanbevolen');
   });
 });
