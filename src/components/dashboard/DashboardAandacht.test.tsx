@@ -46,6 +46,20 @@ describe('DashboardAandacht', () => {
     expect(bodRegel({ bedrag: null, relatieId: null, partij: null, bieddatum: null, geldigTot: null })).toBeNull();
   });
 
+
+  it('toont een bod met verstreken geldigheid duidelijk, zonder de geldigheid te interpreteren als definitieve afwijzing', () => {
+    renderA({ overzicht: { items: [item('A', {
+      signaal: 'bieding_geldigheid_verstreken',
+      label: 'Geldigheid bod verstreken',
+      toelichting: 'Geldigheidsdatum verstreken op 3 nov; bod staat nog open in CRM',
+      volgendeActie: 'geldigheid bod en actuele status bevestigen',
+      bod: { bedrag: 950_000, relatieId: 'r', partij: 'Bieder', bieddatum: '2026-11-01', geldigTot: '2026-11-03' },
+    })], onHold: [] } });
+    expect(screen.getByText('Geldigheid bod verstreken')).toBeTruthy();
+    expect(screen.getByText('geldigheid bod en actuele status bevestigen')).toBeTruthy();
+    expect(screen.getByTestId('aandacht-bod').textContent).toContain('geldig tot 3 nov');
+  });
+
   it('toont er maximaal 5 en kan de rest uitklappen', () => {
     renderA({ overzicht: { items: Array.from({ length: 7 }, (_, i) => item(`O${i}`)), onHold: [] } });
     expect(screen.getAllByTestId('aandacht-regel')).toHaveLength(5);

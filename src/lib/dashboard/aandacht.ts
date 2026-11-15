@@ -19,7 +19,7 @@ import { localDateKey } from '@/lib/tasks/workView';
 export const DREMPEL_GEEN_ACTIVITEIT_DAGEN = 14;
 export const DREMPEL_GEEN_ACTIVITEIT_MET_BOD_DAGEN = 7;
 
-export type AandachtSignaal = 'open_bieding' | 'geen_activiteit' | 'geen_kandidaat' | 'on_hold';
+export type AandachtSignaal = 'bieding_geldigheid_verstreken' | 'open_bieding' | 'geen_activiteit' | 'geen_kandidaat' | 'on_hold';
 
 export interface AandachtObject {
   id: string;
@@ -109,7 +109,7 @@ export interface AandachtItem {
   overigeSignalen: string[];
   /** Dagen sinds de laatste betekenisvolle activiteit (null = geen datum bekend). */
   dagenStil: number | null;
-  /** Alleen bij signaal open_bieding. */
+  /** Bij een bod met open status, ook wanneer de geregistreerde geldigheid verstreken is. */
   bod?: AandachtBod;
 }
 
@@ -298,9 +298,14 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
       continue;
     }
 
+    // 'Open' is een CRM-status; een verstreken geldig-tot-datum sluit het bod niet
+    // automatisch af. Verberg zo'n bod dus niet, maar vraag om statuscontrole.
     const openBiedingen = biedingen
-      .filter(b => OPEN_STATUSSEN.has(b.status) && !bodIsVerlopen(b, vandaag))
-      .sort((a, b) => (dagSleutel(b.bieddatum) ?? '').localeCompare(dagSleutel(a.bieddatum) ?? '') || b.createdAt.localeCompare(a.createdAt));
+      .filter(b => OPEN_STATUSSEN.has(b.status))
+      .sort((a, b) => Number(bodIsVerlopen(b, vandaag)) - Number(bodIsVerlopen(a, vandaag))
+        || (dagSleutel(b.bieddatum) ?? '').localeCompare(dagSleutel(a.bieddatum) ?? '')
+        || b.createdAt.localeCompare(a.createdAt));
+    const verlopenBiedingen = openBiedingen.filter(b => bodIsVerlopen(b, vandaag));
     const heeftOpenBod = openBiedingen.length > 0;
 
     const drempel = bepaalDrempelGeenActiviteit(actieveKandidaten, heeftOpenBod);
@@ -316,15 +321,24 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
       const bod = openBiedingen[0];
       const { label, volgendeActie } = biedingSignaal(bod);
       const extraBoden = openBiedingen.length - 1;
-      const delen = [label];
+      const geldigheidVerstreken = bodIsVerlopen(bod, vandaag);
+      const delen = geldigheidVerstreken
+        ? [`Geldigheidsdatum verstreken op ${korteDatum(dagSleutel(bod.geldigTot)!)}; bod staat nog open in CRM`]
+        : [label];
       if (extraBoden > 0) delen.push(`${meervoud(extraBoden, 'andere open bieding', 'andere open biedingen')}`);
       signalen.push({
         objectId: object.id,
         titel: object.titel,
-        signaal: 'open_bieding',
-        label: openBiedingen.length > 1 ? `${openBiedingen.length} open biedingen` : 'Open bieding',
+        signaal: geldigheidVerstreken ? 'bieding_geldigheid_verstreken' : 'open_bieding',
+        label: geldigheidVerstreken
+          ? (verlopenBiedingen.length > 1
+            ? `${verlopenBiedingen.length} biedingen met verstreken geldigheid`
+            : 'Geldigheid bod verstreken')
+          : openBiedingen.length > 1 ? `${openBiedingen.length} open biedingen` : 'Open bieding',
         toelichting: delen.join(' · '),
-        volgendeActie: eersteStap ? stapTekst(eersteStap) : volgendeActie,
+        volgendeActie: geldigheidVerstreken
+          ? (achterstallig ? stapTekst(achterstallig) : 'geldigheid bod en actuele status bevestigen')
+          : eersteStap ? stapTekst(eersteStap) : volgendeActie,
         extraSignalen: 0,
         overigeSignalen: [],
         dagenStil,
@@ -388,7 +402,7 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
     items.push({ ...signalen[0], extraSignalen: signalen.length - 1, overigeSignalen: signalen.slice(1).map(x => x.label) });
   }
 
-  const rang: Record<AandachtSignaal, number> = { open_bieding: 0, geen_activiteit: 1, geen_kandidaat: 2, on_hold: 3 };
+  const rang: Record<AandachtSignaal, number> = { bieding_geldigheid_verstreken: 0, open_bieding: 1, geen_activiteit: 2, geen_kandidaat: 3, on_hold: 4 };
   const opStilte = (a: AandachtItem, b: AandachtItem) => (b.dagenStil ?? -1) - (a.dagenStil ?? -1) || a.titel.localeCompare(b.titel, 'nl');
   items.sort((a, b) => rang[a.signaal] - rang[b.signaal] || opStilte(a, b));
   onHold.sort(opStilte);
