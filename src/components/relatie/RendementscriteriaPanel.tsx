@@ -23,11 +23,12 @@ const nieuw:Draft={strategie:'belegging',methode:'onbekend',percentage:'',
   criteriumType:'doel',methodeBevestigd:false,zoekprofielId:null,toelichting:null,bron:null};
 
 export default function RendementscriteriaPanel({
-  criteria,zoekprofielen,loading,onSave,onDelete,
+  criteria,zoekprofielen,loading,fout,onSave,onDelete,
 }:{
   criteria: Rendementscriterium[];
   zoekprofielen: Zoekprofiel[];
   loading:boolean;
+  fout:string|null;
   onSave:(input:Rendementsinvoer,id?:string)=>Promise<Rendementscriterium>;
   onDelete:(id:string)=>Promise<void>;
 }){
@@ -76,6 +77,10 @@ export default function RendementscriteriaPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[editing,draft,dirty,busy]);
 
+  if(fout) return <section className="section-card px-5 py-4">
+    <h2 className="section-title mb-2">Rendementscriteria</h2>
+    <p className="text-sm text-destructive">Rendementscriteria konden niet worden geladen. Wijzigen is tijdelijk uitgeschakeld.</p>
+  </section>;
   return <section className="section-card">
     <header className="section-header">
       <h2 className="section-title">Rendementscriteria</h2>

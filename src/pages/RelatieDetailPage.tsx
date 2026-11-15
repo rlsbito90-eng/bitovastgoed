@@ -377,6 +377,7 @@ export default function RelatieDetailPage() {
             criteria={matchingData.criteria}
             zoekprofielen={zoekprofielen}
             loading={matchingData.loading}
+            fout={matchingData.fout}
             onSave={matchingData.bewaarCriterium}
             onDelete={matchingData.verwijderCriterium}
           />
@@ -424,6 +425,7 @@ export default function RelatieDetailPage() {
             criteria={matchingData.criteria}
             besluiten={matchingData.besluiten}
             loading={matchingData.loading}
+            fout={matchingData.fout}
             onBesluit={matchingData.beoordeelObject}
             onWis={matchingData.wisObjectBeoordeling}
           />

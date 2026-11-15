@@ -14,12 +14,12 @@ const REDENEN:Record<string,string>={
 };
 type Props={
   relatie:Relatie;objecten:readonly ObjectVastgoed[];zoekprofielen:readonly Zoekprofiel[];
-  criteria:Rendementscriterium[];besluiten:RelatieObjectBesluit[];loading:boolean;
+  criteria:Rendementscriterium[];besluiten:RelatieObjectBesluit[];loading:boolean;fout:string|null;
   onBesluit:(objectId:string,status:'interessant'|'afgewezen',reden?:string|null)=>Promise<void>;
   onWis:(objectId:string)=>Promise<void>;
 };
 export default function ObjectvoorstellenPanel({
-  relatie,objecten,zoekprofielen,criteria,besluiten,loading,onBesluit,onWis,
+  relatie,objecten,zoekprofielen,criteria,besluiten,loading,fout,onBesluit,onWis,
 }:Props){
   const [toonControle,setToonControle]=useState(false);
   const [toonAfgewezen,setToonAfgewezen]=useState(false);
@@ -97,6 +97,10 @@ export default function ObjectvoorstellenPanel({
     </div>;
   }
 
+  if(fout) return <section className="section-card px-5 py-4">
+    <h2 className="section-title mb-2">Objectvoorstellen</h2>
+    <p className="text-sm text-destructive">Eerdere beoordelingen kunnen niet worden opgehaald. Voorstellen blijven verborgen om afwijzingen niet opnieuw te tonen.</p>
+  </section>;
   return <section className="section-card">
     <header className="section-header">
       <h2 className="section-title">Objectvoorstellen</h2>
