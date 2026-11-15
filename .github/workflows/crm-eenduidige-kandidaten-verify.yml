@@ -33,3 +33,5 @@ jobs:
         run: npx vitest run src/lib/pipeline/basisKandidaat.test.ts src/lib/matching/relatieObjectBesluiten.test.ts src/lib/matching/rolMandaatAdapter.test.ts src/lib/matching/relatieObjectVoorstellenR2.test.ts src/lib/matching/voorstelPrioriteit.test.ts src/lib/matching/rendementsOordeel.test.ts src/test/pipeline/kandidaatToevoegen.test.ts
       - name: Production build
         run: npm run build
+
+# Verifieer na samenvoegen met de actuele productiecode.
