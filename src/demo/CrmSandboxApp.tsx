@@ -6,6 +6,7 @@ import { SandboxStoreProvider, useSandboxStore } from './sandboxStore';
 import { VOORBEELDEN } from './sandboxModel';
 import { beoordeelSandboxBelegger } from './sandboxAssessment';
 import TestMatchingPage from './TestMatchingPage';
+import SandboxKandidatenPage from './SandboxKandidatenPage';
 
 /**
  * Dit is bewust NIET de productie-CRM: geen App, AuthProvider,
@@ -44,6 +45,14 @@ function ProefObjecten() {
           in en laat de CRM automatisch controleren wat vergelijkbaar is.</p>
         <p className="text-xs font-medium text-accent">Open samenstellingsproef</p>
       </Link>
+      <Link to="/objecten/kandidatenproef" className="section-card p-5 space-y-2 hover:border-accent block">
+        <Users className="h-5 w-5 text-accent" />
+        <h2 className="font-semibold">Kandidaten / dealtraject</h2>
+        <p className="text-sm text-muted-foreground">
+          Bekijk het vereenvoudigde knoppenmenu op je telefoon, zonder echte kandidaatregistratie.
+        </p>
+        <p className="text-xs font-medium text-accent">Open interfaceproef</p>
+      </Link>
     </div>
   </div>;
 }
@@ -54,6 +63,7 @@ function Shell() {
     { to:'/objecten', label:'Objecten', icon:Building2 },
     { to:'/objecten/adresproef', label:'Adressen', icon:MapPinned },
     { to:'/objecten/samenstellingproef', label:'Ruimteverdeling', icon:ClipboardCheck },
+    { to:'/objecten/kandidatenproef', label:'Kandidaten', icon:Users },
   ];
   return <div className="min-h-screen">
     <header className="border-b border-border/70 bg-card/95">
@@ -82,6 +92,7 @@ function Shell() {
           <Route path="/objecten" element={<ProefObjecten />} />
           <Route path="/objecten/adresproef" element={<AdresModelProefPage />} />
           <Route path="/objecten/samenstellingproef" element={<SandboxObjectPartsPage />} />
+          <Route path="/objecten/kandidatenproef" element={<SandboxKandidatenPage />} />
           <Route path="*" element={<Navigate replace to="/relaties" />} />
         </Routes>
       </main>
