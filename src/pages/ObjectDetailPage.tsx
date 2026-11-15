@@ -7,7 +7,6 @@ import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
-  getMatchesForObjectFromData,
   formatCurrency,
   formatCurrencyCompact,
   formatDate,
@@ -34,12 +33,10 @@ import {
   calculateFactor,
   calculateRentPerM2,
   deriveVerhuurMetrics,
-  isStrongMatch,
-  countKandidaten,
 
 } from '@/lib/derivations';
 
-import { ObjectStatusBadge, MatchScoreBadge } from '@/components/StatusBadges';
+import { ObjectStatusBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, MapPin, Pencil, Trash2, EyeOff, Star,
   FileText, Download, Building2, Phone, Mail,
@@ -63,7 +60,6 @@ import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieA
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
 import FocusPointDialog from '@/components/object/FocusPointDialog';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
-import MatchUitleg from '@/components/MatchUitleg';
 import ObjectPipelineSectie from '@/components/pipeline/ObjectPipelineSectie';
 import ObjectPipelineFaseSectie from '@/components/pipeline/ObjectPipelineFaseSectie';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
@@ -964,19 +960,13 @@ export default function ObjectDetailPage() {
   // Centrale verhuur-derivation (Prompt 3.3): huurdersregels leidend, object fallback.
   const verhuur = deriveVerhuurMetrics(object, huurders);
   const deals = store.getDealsByObject(object.id);
-  const matches = getMatchesForObjectFromData(object, store.zoekprofielen);
-  // Top kandidaten = sterke matches (score ≥ STRONG_MATCH_THRESHOLD, 0–100).
-  const sterkeMatches = matches.filter(m => isStrongMatch(m.score));
   const objectTaken = store.getTakenByObject(object.id);
   const kandidatenPipeline = store.getPipelineVoorObject(object.id);
   const parentObject = object.parentObjectId ? store.getObjectById(object.parentObjectId) : null;
   const reedsGekoppeldRelaties = new Set<string>(kandidatenPipeline.map(k => k.relatieId));
-  // Totaal aantal kandidaten voor dit object — unieke union van sterke matches en pipeline-relaties.
-  const kandidatenTotaal = countKandidaten({
-    matches,
-    pipelineRows: kandidatenPipeline,
-    objectId: object.id,
-  }).total;
+  // 'Kandidaten' telt uitsluitend daadwerkelijk gekoppelde partijen.
+  // Automatische suggesties horen bij Kandidaat toevoegen, niet bij de pipeline-KPI.
+  const kandidatenTotaal = new Set(kandidatenPipeline.map(k=>k.relatieId)).size;
   const volgendeTaak = (() => {
     const open = objectTaken
       .filter(t => t.status === 'open')
@@ -2105,53 +2095,8 @@ export default function ObjectDetailPage() {
             eyebrow={eyebrowFor("kandidaten", "Candidates")}
             title={`Kandidaten · ${kandidatenTotaal}`}
           >
-            <div className="section-card overflow-hidden">
-              <header className="section-header">
-                <h3 className="section-title">Top kandidaten</h3>
-              </header>
-              {sterkeMatches.length === 0 ? (
-                <p className="px-5 py-8 text-sm text-muted-foreground text-center">
-                  {matches.length === 0
-                    ? 'Geen matches gevonden.'
-                    : 'Geen sterke matches (score ≥ 70/100).'}
-                </p>
-              ) : (
-                <div className="divide-y divide-border/60">
-                  {sterkeMatches.slice(0, 10).map((m, i) => {
-                    const rel = store.getRelatieById(m.relatieId);
-                    const zp = store.zoekprofielen.find(z => z.id === m.zoekprofielId);
-                    return (
-                      <details key={i} className="group">
-                        <summary className="row-hover block px-5 py-4 cursor-pointer list-none">
-                          <div className="flex items-center justify-between gap-3 mb-1">
-                            <Link
-                              to={`/relaties/${m.relatieId}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-sm font-medium text-foreground truncate hover:text-accent inline-flex items-center gap-1"
-                            >
-                              {rel?.bedrijfsnaam}
-                              <ArrowUpRight className="h-3 w-3 opacity-50" />
-                            </Link>
-                            <MatchScoreBadge score={m.score} />
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {zp?.naam ?? 'Zoekprofiel'} · {m.redenen.slice(0, 2).join(' · ')}
-                          </p>
-                        </summary>
-                        <div className="px-5 pb-4 bg-muted/20">
-                          <MatchUitleg match={m} object={object} compact />
-                        </div>
-                      </details>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
             {/* Kandidaten / dealtraject (pipeline + toevoegen-knop) */}
-            <div className="mt-4">
-              <ObjectPipelineSectie objectId={object.id} />
-            </div>
+            <ObjectPipelineSectie objectId={object.id} />
           </SectionAnchor>
           )}
 
