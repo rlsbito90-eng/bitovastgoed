@@ -1,0 +1,44 @@
+name: CRM Rendementscriteria en Matching Verify
+
+on:
+  push:
+    branches:
+      - feat/rendement-match-opschoning-20261115
+    paths:
+      - 'src/components/relatie/**'
+      - 'src/hooks/useRelatieMatchingData.ts'
+      - 'src/lib/matching/rendementsOordeel.ts'
+      - 'src/components/pipeline/KandidaatVoorstellenR2.tsx'
+      - 'src/pages/RelatieDetailPage.tsx'
+      - 'src/components/forms/RelatieFormDialog.tsx'
+      - 'src/components/forms/ZoekprofielFormDialog.tsx'
+      - '.github/workflows/crm-rendement-matching-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crm-rendement-matching-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-package-lock
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Matching unit tests
+        run: npx vitest run src/lib/matching/rolMandaatAdapter.test.ts src/lib/matching/relatieObjectVoorstellenR2.test.ts
+      - name: Build
+        run: npm run build
