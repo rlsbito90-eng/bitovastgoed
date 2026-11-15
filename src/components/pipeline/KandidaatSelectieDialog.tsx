@@ -23,6 +23,7 @@ import {
   type KandidaatResultaat,
 } from '@/lib/pipeline/kandidaatFouten';
 import { kiesBesteZoekprofielMatch } from '@/lib/pipeline/zoekprofielKeuze';
+import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
 import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstellenR2';
 import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
 import { isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen } from '@/lib/matching/rolMandaatAdapter';
@@ -262,19 +263,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         ? getRelatieDropdownLabel(item.relatie, contactpersonen)
         : 'Onbekende relatie';
       try {
-        await addPipelineKandidaat({
-          objectId,
-          relatieId: id,
-          zoekprofielId: item?.zoekprofielId,
-          pipelineFase: 'match_gevonden',
-          interesseNiveau: 'lauw',
-          matchscore: item?.score,
-          teaserVerstuurd: false,
-          ndaVerstuurd: false,
-          ndaGetekend: false,
-          informatieGedeeld: false,
-          feeAkkoord: false,
-        });
+        await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId:id,zoekprofielId:item?.zoekprofielId,matchscore:item?.score}));
         resultaten.push({ relatieId: id, naam });
       } catch (err) {
         // Technisch detail alleen naar console; UI krijgt een veilige reden.
@@ -324,18 +313,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
     }
     setBezig(true);
     try {
-      await addPipelineKandidaat({
-        objectId,
-        relatieId,
-        zoekprofielId:route.zoekprofielId??undefined,
-        pipelineFase:'match_gevonden',
-        interesseNiveau:'lauw',
-        teaserVerstuurd:false,
-        ndaVerstuurd:false,
-        ndaGetekend:false,
-        informatieGedeeld:false,
-        feeAkkoord:false,
-      });
+      await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId,zoekprofielId:route.zoekprofielId}));
       toast.success('Kandidaat aan object gekoppeld');
       setR2Concept(null);
       onToegevoegd?.();
