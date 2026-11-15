@@ -54,7 +54,7 @@ const LEAD_LABELS: Record<LeadStatus, string> = {
   koud: 'Koud', lauw: 'Lauw', warm: 'Warm', actief: 'Actief',
 };
 
-type SortKey = 'naam' | 'contact' | 'type' | 'status' | 'plaats' | 'budget' | 'laatsteContact' | 'match';
+type SortKey = 'naam' | 'contact' | 'type' | 'status' | 'plaats' | 'budget' | 'laatsteContact';
 type SortDir = 'asc' | 'desc';
 
 const fmtBedrag = (n?: number) =>
@@ -97,7 +97,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [budgetMaxFilter, setBudgetMaxFilter] = useState('');
   const [alleenActief, setAlleenActief] = useState(false);
   const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
-  const [sortKey, setSortKey] = useState<SortKey>('match');
+  const [sortKey, setSortKey] = useState<SortKey>('naam');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [bezig, setBezig] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -118,12 +118,12 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       setZoek(''); setFilterType(''); setFilterStatus(''); setFilterAssetClass('');
       setFilterPlaats(''); setBudgetMinFilter(''); setBudgetMaxFilter('');
       setAlleenActief(false); setGeselecteerd(new Set()); setQuickOpen(false);
-      setSortKey('match'); setSortDir('desc');
+      setSortKey('naam'); setSortDir('asc');
       setToonR2(MATCH_R2_PREVIEW_ENABLED); setR2Concept(null);
     }
   }, [open]);
 
-  // Verrijk relaties met match score + contactpersoon-naam
+  // Zoekprofielkeuze kan legacy matching intern gebruiken; presenteer de ruwe score niet als betrouwbaarheid.
   const verrijkt = useMemo(() => {
     return relaties
       .filter(r => !reedsGekoppeld.has(r.id) && !afgewezenRelaties.has(r.id))
@@ -216,7 +216,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         case 'plaats': va = a.plaats; vb = b.plaats; break;
         case 'budget': va = ra.budgetMax ?? ra.budgetMin ?? -Infinity; vb = rb.budgetMax ?? rb.budgetMin ?? -Infinity; break;
         case 'laatsteContact': va = ra.laatsteContact ?? ''; vb = rb.laatsteContact ?? ''; break;
-        case 'match': va = a.score ?? -1; vb = b.score ?? -1; break;
       }
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
       return String(va).localeCompare(String(vb), 'nl', { sensitivity: 'base' }) * dir;
@@ -226,7 +225,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
 
   const sorteerToggle = (k: SortKey) => {
     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(k); setSortDir(k === 'match' || k === 'budget' || k === 'laatsteContact' ? 'desc' : 'asc'); }
+    else { setSortKey(k); setSortDir(k === 'budget' || k === 'laatsteContact' ? 'desc' : 'asc'); }
   };
 
   const SortKop = ({ k, children, align = 'left' }: { k: SortKey; children: React.ReactNode; align?: 'left' | 'right' }) => (
@@ -286,7 +285,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         ? getRelatieDropdownLabel(item.relatie, contactpersonen)
         : 'Onbekende relatie';
       try {
-        await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId:id,zoekprofielId:item?.zoekprofielId,matchscore:item?.score}));
+        await addPipelineKandidaat(maakBasisKandidaat({objectId,relatieId:id,zoekprofielId:item?.zoekprofielId}));
         resultaten.push({ relatieId: id, naam });
       } catch (err) {
         // Technisch detail alleen naar console; UI krijgt een veilige reden.
@@ -592,7 +591,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                     <SortKop k="budget" align="right">Budget</SortKop>
                     <SortKop k="laatsteContact">Laatste contact</SortKop>
                     <th className="text-left font-medium py-2 px-2">Bron</th>
-                    <SortKop k="match" align="right">Match</SortKop>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -618,7 +616,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                         <td className="py-2 px-2 text-right font-mono-data text-xs whitespace-nowrap">{fmtBudgetRange(r.budgetMin, r.budgetMax)}</td>
                         <td className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">{fmtDatum(r.laatsteContact)}</td>
                         <td className="py-2 px-2 text-xs text-muted-foreground max-w-[100px] truncate" title={r.bronRelatie ?? ''}>{r.bronRelatie || '—'}</td>
-                        <td className="py-2 px-2 text-right font-mono-data text-xs">{item.score != null ? `${item.score}%` : '—'}</td>
                       </tr>
                     );
                   })}
@@ -647,7 +644,6 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                         {/* Privacy-regel: geen e-mail/telefoon als secundair label. */}
                         <div className="text-xs text-muted-foreground mt-0.5 font-mono-data">
                           Budget: {fmtBudgetRange(r.budgetMin, r.budgetMax)}
-                          {item.score != null && <span className="ml-2">Match: {item.score}%</span>}
                         </div>
                       </div>
                     </label>
