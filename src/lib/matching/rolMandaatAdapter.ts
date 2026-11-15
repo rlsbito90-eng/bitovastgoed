@@ -84,6 +84,7 @@ export interface MatchToelichting {
   controleer: string[];
   afwijkend: string[];
 }
+export interface MatchBewijs { vastgoedtype: boolean; subcategorie: boolean; dealtype: boolean; locatie: boolean; budget: boolean }
 export interface ProfielRoute {
   /** Stable key in read model. For relation virtual profile do not persist as UUID. */
   key: string;
@@ -96,6 +97,8 @@ export interface ProfielRoute {
   koperRelatieId: string | null;
   redenVanRoute: string;
   toelichting: MatchToelichting;
+  /** Feitelijke positieve criteria, zonder de vraagprijs als inhoudelijke match te presenteren. */
+  bewijs?: MatchBewijs;
 }
 export interface KandidaatVoorstel {
   /** One row for every contact relation, never a fabricated buyer relation. */
@@ -163,6 +166,7 @@ const LANDELIJK=new Set(['nederland','heel nederland','landelijk','heel nl']);
 function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmRelatieInput[], p?:CrmMandaatInput,beleid:MatchingBeleid='bestaand'):ProfielRoute|null {
   const route = routeType(r,p,beleid); if(!route) return null;
   const matcht:string[]=[],controleer:string[]=[],afwijkend:string[]=[];
+  const bewijs:MatchBewijs={vastgoedtype:false,subcategorie:false,dealtype:false,locatie:false,budget:false};
   const types = p ? p.propertyTypeIds : r.propertyTypeIds;
   const legacy = p ? p.typeVastgoed : r.assetClasses;
   const subtypes = p ? p.propertySubtypeIds : r.propertySubtypeIds;
@@ -177,25 +181,25 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   let geverifieerd=0,controleNodig=false;
   if(gevuld(types)){
     if(o.propertyTypeId){
-      if(types.includes(o.propertyTypeId)){matcht.push('Vastgoedtype komt overeen');geverifieerd++}
+      if(types.includes(o.propertyTypeId)){matcht.push('Vastgoedtype komt overeen');geverifieerd++;bewijs.vastgoedtype=true;}
       else afwijkend.push('Vastgoedtype wijkt af');
     }else{controleer.push('Objecttype in nieuwe taxonomie ontbreekt');controleNodig=true}
   }else if(gevuld(legacy)){
     if(o.type){
-      if(legacy.includes(o.type)){matcht.push('Vastgoedtype komt overeen');geverifieerd++}
+      if(legacy.includes(o.type)){matcht.push('Vastgoedtype komt overeen');geverifieerd++;bewijs.vastgoedtype=true;}
       else afwijkend.push('Vastgoedtype wijkt af');
     }else{controleer.push('Vastgoedtype object ontbreekt');controleNodig=true}
   }
   // Niet ingevuld = brede zoekcriteria, dus geen kunstmatige mismatch.
   if(gevuld(subtypes)){
     if(gevuld(o.propertySubtypeIds)){
-      if(overlap(subtypes,o.propertySubtypeIds)){matcht.push('Subcategorie komt overeen');geverifieerd++}
+      if(overlap(subtypes,o.propertySubtypeIds)){matcht.push('Subcategorie komt overeen');geverifieerd++;bewijs.subcategorie=true;}
       else{controleer.push('Subcategorieën verschillen; handmatig beoordelen');controleNodig=true}
     }else{controleer.push('Subcategorie object ontbreekt');controleNodig=true}
   }
   if(gevuld(dealTypes)){
     if(gevuld(o.dealTypeIds)){
-      if(overlap(dealTypes,o.dealTypeIds)){matcht.push('Dealtype of strategie overlapt');geverifieerd++}
+      if(overlap(dealTypes,o.dealTypeIds)){matcht.push('Dealtype of strategie overlapt');geverifieerd++;bewijs.dealtype=true;}
       else{controleer.push('Dealtype of strategie verschilt; handmatig beoordelen');controleNodig=true}
     }else{controleer.push('Dealtype object ontbreekt');controleNodig=true}
   }
@@ -210,9 +214,9 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   if(gekozenGemeenten.length){
     if(o.gemeente){
       if(gekozenGemeenten.some(g=>normaliseerGemeenteNaam(g)===normaliseerGemeenteNaam(o.gemeente!))){
-        matcht.push('Bestuurlijke gemeente komt overeen');geverifieerd++;
+        matcht.push('Bestuurlijke gemeente komt overeen');geverifieerd++;bewijs.locatie=true;
       }else if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
-        matcht.push('Plaats komt overeen');geverifieerd++;
+        matcht.push('Plaats komt overeen');geverifieerd++;bewijs.locatie=true;bewijs.locatie=true;
       }else afwijkend.push('Gemeente buiten het gekozen zoekgebied');
     }else{
       controleer.push('Gemeente van object onbekend; bestuurlijke gemeente eerst verifiëren');
@@ -220,7 +224,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
     }
   }else if(gekozenPlaatsen.length){
     if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
-      matcht.push('Plaats komt overeen');geverifieerd++;
+      matcht.push('Plaats komt overeen');geverifieerd++;bewijs.locatie=true;
     }else{
       controleer.push('Plaats buiten gekozen locatie of handmatige controle nodig');
       controleNodig=true;
@@ -229,7 +233,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
     if(rawRegion!.some(x=>{
       const r=normaliseerRegio(x);
       return LANDELIJK.has(r)||objectLocaties.includes(r);
-    })){matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++}
+    })){matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++;bewijs.locatie=true;}
     else{controleer.push('Zoekregio is niet automatisch te verifiëren');controleNodig=true}
   }
   if(radius){
@@ -254,14 +258,14 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
         {lat:o.geoLat,lon:o.geoLon},
       );
       if(km==null){controleer.push('Radiuslocatie bevat ongeldige coördinaten');controleNodig=true;}
-      else if(km<=waarde){matcht.push(`Radius komt overeen: ${km.toFixed(1)} km hemelsbreed vanaf ${centrum}`);geverifieerd++;}
+      else if(km<=waarde){matcht.push(`Radius komt overeen: ${km.toFixed(1)} km hemelsbreed vanaf ${centrum}`);geverifieerd++;bewijs.locatie=true;}
       else afwijkend.push(`Buiten radius: ${km.toFixed(1)} km hemelsbreed, maximaal ${waarde} km vanaf ${centrum}`);
     }
   }
   if(min!=null||max!=null){
     if(typeof o.vraagprijs==='number'&&Number.isFinite(o.vraagprijs)){
       if((min!=null&&o.vraagprijs<min)||(max!=null&&o.vraagprijs>max))afwijkend.push('Vraagprijs buiten opgegeven budgetgrenzen');
-      else{matcht.push('Vraagprijs binnen budget');geverifieerd++}
+      else{matcht.push('Vraagprijs binnen budget');geverifieerd++;bewijs.budget=true;}
     }else{controleer.push('Vraagprijs van object ontbreekt');controleNodig=true}
   }
   let koperRelatieId:string|null=null;
@@ -279,7 +283,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   return {key:p?`zoekprofiel:${p.id}`:`relatie:${r.id}:basis`,zoekprofielId:p?.id??null,
     bron:p?'zoekprofiel':'relatie_basis',naam:p?.naam??'Algemene zoekcriteria',route:route.route,
     kwalificatie,bevestiging:routeConfirmed?'bevestigd':'te_verifieren',
-    koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend}};
+    koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend},bewijs};
 }
 
 const rang:Record<MatchKwalificatie,number>={passend:4,te_verifieren:3,onvoldoende:2,afwijkend:1};
