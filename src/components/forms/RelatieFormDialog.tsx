@@ -701,7 +701,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                 </Veld>
               </Sectie>
 
-              <Sectie titel="Budget & rendement">
+              <Sectie titel="Budget">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Veld label="Budget minimum (€)">
                     <NumberField value={form.budgetMin}
@@ -711,23 +711,15 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     <NumberField value={form.budgetMax}
                       onChange={v => set('budgetMax', v)} />
                   </Veld>
-                  <Veld label="Harde rendementseis (%)">
-                    <NumberField decimals={2} value={form.rendementseis}
-                      onChange={v => set('rendementseis', v)}
-                      placeholder="bv. 6,5; alleen bij expliciete ondergrens" />
-                  </Veld>
                   <Veld label="Budgetkeuze(n) volgens formulier" span={2}>
                     <Textarea rows={2} value={form.budgetVoorkeurToelichting ?? ''}
                       onChange={e => set('budgetVoorkeurToelichting',e.target.value || undefined)}
                       placeholder="Bijv. €500.000 – €1.000.000; meerdere banden letterlijk overnemen" />
                   </Veld>
-                  <Veld label="Rendementsdoel / BAR volgens formulier" span={2}>
-                    <Textarea rows={2} value={form.rendementsdoelToelichting ?? ''}
-                      onChange={e => set('rendementsdoelToelichting',e.target.value || undefined)}
-                      placeholder="Bijv. 6–8%; geen harde minimumrendementseis" />
-                  </Veld>
                 </div>
               </Sectie>
+
+              <p className="text-xs text-muted-foreground mt-2">Rendementscriteria voeg je toe en bewerk je op de relatiekaart, per investeringsstrategie. Historische rendementgegevens blijven behouden.</p>
 
               <Sectie titel="Kapitaalsituatie">
                 <div className="grid sm:grid-cols-2 gap-4">
