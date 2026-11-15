@@ -1,0 +1,27 @@
+name: CRM commerciële opvolging — PR check
+on:
+  pull_request:
+    branches: [crm-test]
+    paths:
+      - 'src/lib/dashboard/**'
+      - 'docs/crm/commerciele-opvolging-en-pipedrive-leerplan-2026-11-15.md'
+      - '.github/workflows/crm-commerciele-opvolging-pr.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Dashboard regressietests
+        run: npx vitest run src/lib/dashboard/aandacht.test.ts src/components/dashboard/DashboardAandacht.test.tsx
