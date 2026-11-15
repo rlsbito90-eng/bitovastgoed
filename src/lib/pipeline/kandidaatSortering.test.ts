@@ -7,20 +7,30 @@ const mk=(id:string,extra:Partial<K>={}):K=>({
 });
 const sort=(rows:K[],s:Parameters<typeof sorteerObjectKandidaten<K>>[1])=>
   sorteerObjectKandidaten(rows,s,k=>k.naam).map(k=>k.id);
-describe('Sorteervolgorde bestaande kandidaatpipeline',()=>{
-  it('toont actieve kandidaten eerst op aflopende matchscore; afgevallen blijft aanwezig',()=>{
+describe('Kandidaatpipeline ordent op actie in plaats van historische matchpercentages',()=>{
+  it('geeft actieve kandidaten en vroegste opvolging prioriteit; afgevallen blijft zichtbaar',()=>{
     const arr=[
       mk('afgevallen',{pipelineFase:'afgevallen',matchscore:99}),
-      mk('actief2',{matchscore:76}),
+      mk('actief2',{matchscore:76,volgendeActieDatum:'2026-11-20'}),
       mk('afgerond',{pipelineFase:'afgerond',matchscore:98}),
-      mk('actief1',{matchscore:93}),
+      mk('actief1',{matchscore:3,volgendeActieDatum:'2026-11-18'}),
     ];
     expect(sort(arr,'aanbevolen')).toEqual(['actief1','actief2','afgerond','afgevallen']);
-    expect(sort(arr,'match')).toEqual(['afgevallen','afgerond','actief1','actief2']);
   });
-  it('laat onbekende score achteraan en behoudt invoer bij gelijke score',()=>{
-    expect(sort([mk('geen'),mk('twee',{matchscore:90}),mk('een',{matchscore:90})],'match'))
-      .toEqual(['twee','een','geen']);
+  it('hoge historische matchscore overrulet geen concrete vervolgstap',()=>{
+    const arr=[
+      mk('hoog',{matchscore:99,volgendeActieDatum:'2026-12-04'}),
+      mk('laag',{matchscore:12,volgendeActieDatum:'2026-11-16'}),
+      mk('onbekend',{volgendeActieDatum:'2026-11-19'}),
+    ];
+    expect(sort(arr,'aanbevolen')).toEqual(['laag','onbekend','hoog']);
+  });
+  it('zonder opvolgdatum is actieve interesse relevant, niet de oude score',()=>{
+    const arr=[
+      mk('koel',{matchscore:100,interesseNiveau:'koud'}),
+      mk('warm',{matchscore:1,interesseNiveau:'zeer_warm'}),
+    ];
+    expect(sort(arr,'aanbevolen')).toEqual(['warm','koel']);
   });
   it('sorteert interesse, naam, fase, activiteit en actie zonder opslag te muteren',()=>{
     const rows=[
