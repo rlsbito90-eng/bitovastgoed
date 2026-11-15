@@ -41,3 +41,6 @@ CREATE TABLE public.crm_bulk_test_contact_moments (
   kandidaat_id uuid NOT NULL,
   richting text NOT NULL
 );
+
+-- De testgebruiker mag alleen tellen of er fictieve reacties zijn aangemaakt.
+GRANT SELECT ON public.crm_bulk_test_contact_moments TO authenticated;
