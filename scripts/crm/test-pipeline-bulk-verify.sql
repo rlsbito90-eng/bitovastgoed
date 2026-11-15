@@ -250,6 +250,28 @@ BEGIN
     WHERE id='b4000000-0000-4000-8000-000000000001';
   EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
   IF NOT v_denied THEN RAISE EXCEPTION 'Client kon payload hash na afloop wijzigen'; END IF;
+
+  v_denied:=false;
+  BEGIN
+    UPDATE public.crm_pipeline_bulk_requests
+       SET result='{"aangepast":999,"ongewijzigd":0,"wijzigingen":[]}'::jsonb
+     WHERE id='b4000000-0000-4000-8000-000000000001';
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Client kon bestaand opgeslagen resultaat vervalsen'; END IF;
+
+  v_denied:=false;
+  BEGIN
+    INSERT INTO public.crm_pipeline_bulk_audit(
+      request_id,object_id,kandidaat_id,actor_id,actie,voor,na
+    ) VALUES (
+      'b4000000-0000-4000-8000-000000000001',
+      'b1000000-0000-4000-8000-000000000001',
+      'b2000000-0000-4000-8000-000000000001',
+      '11111111-1111-1111-1111-111111111111',
+      'fase','{}'::jsonb,'{}'::jsonb
+    );
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Client kon auditregel zelf schrijven'; END IF;
 END $request_integrity$;
 RESET ROLE;
 

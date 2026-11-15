@@ -2,7 +2,8 @@
 -- Alleen gebruikt door de volledig tijdelijke PostgreSQL-service in GitHub Actions.
 -- Geen Supabase migratie; geen API-koppeling vanuit de CRM UI.
 -- Doel: één atomische batch, idempotentie, optimistische concurrency en auditspoor.
--- SECURITY INVOKER houdt bestaande object_pipeline-RLS van de aanroeper actief.
+-- SECURITY DEFINER: alleen de RPC schrijft. Alle parameters en auth.uid() worden expliciet geautoriseerd.
+-- In dit single-tenant CRM betekent is_intern_gebruiker een interne beheerder.
 
 CREATE TABLE IF NOT EXISTS public.crm_pipeline_bulk_requests (
   id uuid PRIMARY KEY,
@@ -14,9 +15,9 @@ CREATE TABLE IF NOT EXISTS public.crm_pipeline_bulk_requests (
 );
 ALTER TABLE public.crm_pipeline_bulk_requests ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.crm_pipeline_bulk_requests FROM PUBLIC, anon, authenticated;
--- Updates blijven beperkt tot het resultaat; actor, payload_hash en object_id zijn immutable.
-GRANT SELECT, INSERT ON public.crm_pipeline_bulk_requests TO authenticated;
-GRANT UPDATE(result) ON public.crm_pipeline_bulk_requests TO authenticated;
+-- Rechtstreekse INSERT/UPDATE op verzoeken is ook voor interne CRM-clients verboden.
+-- Uitsluitend de RPC mag de idempotentie- en resultaatregistratie wijzigen.
+GRANT SELECT ON public.crm_pipeline_bulk_requests TO authenticated;
 CREATE POLICY crm_bulk_requests_read ON public.crm_pipeline_bulk_requests
   FOR SELECT TO authenticated USING (
     public.is_intern_gebruiker((SELECT auth.uid()))
@@ -50,8 +51,8 @@ CREATE INDEX IF NOT EXISTS crm_pipeline_bulk_audit_candidate_idx
   ON public.crm_pipeline_bulk_audit(kandidaat_id,created_at);
 ALTER TABLE public.crm_pipeline_bulk_audit ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.crm_pipeline_bulk_audit FROM PUBLIC, anon, authenticated;
--- Append-only voor gewone ingelogde gebruikers: geen UPDATE of DELETE.
-GRANT SELECT, INSERT ON public.crm_pipeline_bulk_audit TO authenticated;
+-- Auditregels zijn alleen via de RPC te schrijven, nooit via losse Data API-mutaties.
+GRANT SELECT ON public.crm_pipeline_bulk_audit TO authenticated;
 CREATE POLICY crm_bulk_audit_read ON public.crm_pipeline_bulk_audit
   FOR SELECT TO authenticated USING (public.is_intern_gebruiker((SELECT auth.uid())));
 CREATE POLICY crm_bulk_audit_insert ON public.crm_pipeline_bulk_audit
@@ -65,7 +66,7 @@ CREATE OR REPLACE FUNCTION public.crm_pipeline_bulk_opslaan(
   p_items jsonb,
   p_actie jsonb
 ) RETURNS jsonb
-LANGUAGE plpgsql VOLATILE SECURITY INVOKER
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $fn$
 DECLARE
