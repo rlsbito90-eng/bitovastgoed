@@ -113,6 +113,43 @@ describe('Aandacht nodig — geen activiteit', () => {
   });
 });
 
+describe('Aandacht nodig — fasebewuste stilte (eenduidige kandidaat)', () => {
+  it('signaleert na 3 dagen in onderhandeling, zonder nieuwe taak of schema', () => {
+    const [item] = items({
+      objecten: [obj('F')],
+      kandidaten: [kandidaat('F', { pipelineFase: 'onderhandeling', createdAt: '2026-11-03T09:00:00Z' })],
+    });
+    expect(item?.signaal).toBe('geen_activiteit');
+    expect(item.label).toBe('4 dagen geen activiteit');
+  });
+
+  it('houdt bij vroege fases de bestaande 14 dagen aan', () => {
+    expect(items({
+      objecten: [obj('F')],
+      kandidaten: [kandidaat('F', { pipelineFase: 'teaser_verstuurd', createdAt: '2026-11-03T09:00:00Z' })],
+    })).toEqual([]);
+  });
+
+  it('verkort bij due diligence pas na 7 dagen; een ingeplande actie voorkomt ruis', () => {
+    const kandidaatDossier = kandidaat('F', { pipelineFase: 'due_diligence', createdAt: '2026-10-30T09:00:00Z' });
+    expect(items({ objecten: [obj('F')], kandidaten: [kandidaatDossier] })[0]?.signaal).toBe('geen_activiteit');
+    expect(items({
+      objecten: [obj('F')],
+      kandidaten: [{ ...kandidaatDossier, volgendeActieDatum: '2026-11-12' }],
+    })).toEqual([]);
+  });
+
+  it('maakt geen schijnzekerheid bij meerdere actieve kandidaten', () => {
+    expect(items({
+      objecten: [obj('F')],
+      kandidaten: [
+        kandidaat('F', { relatieId: 'r1', pipelineFase: 'onderhandeling', createdAt: '2026-11-03T09:00:00Z' }),
+        kandidaat('F', { relatieId: 'r2', pipelineFase: 'teaser_verstuurd', createdAt: '2026-11-03T09:00:00Z' }),
+      ],
+    })).toEqual([]);
+  });
+});
+
 describe('Aandacht nodig — geen kandidaat', () => {
   it('met passende geregistreerde zoekprofielen', () => {
     const [item] = items({ objecten: [obj('C', { datumToegevoegd: '2026-11-01' })], matches: [{ objectId: 'C', relatieId: 'r1' }, { objectId: 'C', relatieId: 'r2' }, { objectId: 'C', relatieId: 'r2' }] });
