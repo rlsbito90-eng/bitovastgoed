@@ -216,7 +216,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       if(gekozenGemeenten.some(g=>normaliseerGemeenteNaam(g)===normaliseerGemeenteNaam(o.gemeente!))){
         matcht.push('Bestuurlijke gemeente komt overeen');geverifieerd++;bewijs.locatie=true;
       }else if(gekozenPlaatsen.some(p=>normaliseerRegio(p)===normaliseerRegio(o.plaats??''))){
-        matcht.push('Plaats komt overeen');geverifieerd++;bewijs.locatie=true;bewijs.locatie=true;
+        matcht.push('Plaats komt overeen');geverifieerd++;bewijs.locatie=true;
       }else afwijkend.push('Gemeente buiten het gekozen zoekgebied');
     }else{
       controleer.push('Gemeente van object onbekend; bestuurlijke gemeente eerst verifiëren');
