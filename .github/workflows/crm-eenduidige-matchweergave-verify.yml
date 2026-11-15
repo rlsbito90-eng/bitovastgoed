@@ -1,0 +1,37 @@
+name: CRM Eenduidige Matching UI Verify
+on:
+  push:
+    branches: [feat/crm-eenduidige-matchweergave-20261115]
+    paths:
+      - 'src/pages/ObjectDetailPage.tsx'
+      - 'src/components/pipeline/KandidaatSelectieDialog.tsx'
+      - 'src/components/pipeline/KandidaatVoorstellenR2.tsx'
+      - 'src/components/pipeline/ObjectPipelineSectie.tsx'
+      - 'src/components/pipeline/KandidatenKanban.tsx'
+      - 'src/components/relatie/ObjectvoorstellenPanel.tsx'
+      - 'src/lib/pipeline/kandidaatSortering*'
+      - 'src/lib/matching/voorstelPrioriteit*'
+      - '.github/workflows/crm-eenduidige-matchweergave-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-eenduidige-matchweergave-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Matching en kandidaatpipeline
+        run: npx vitest run src/lib/matching/rolMandaatAdapter.test.ts src/lib/matching/relatieObjectVoorstellenR2.test.ts src/lib/matching/voorstelPrioriteit.test.ts src/lib/matching/rendementsOordeel.test.ts src/lib/matching/relatieObjectBesluiten.test.ts src/lib/pipeline/kandidaatSortering.test.ts src/lib/pipeline/basisKandidaat.test.ts src/test/pipeline/kandidaatToevoegen.test.ts
+      - name: Build
+        run: npm run build
