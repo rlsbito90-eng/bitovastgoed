@@ -29,6 +29,7 @@ export default function ObjectvoorstellenPanel({
   const [toonControle,setToonControle]=useState(false);
   const [toonOverig,setToonOverig]=useState(false);
   const [toonAfgewezen,setToonAfgewezen]=useState(false);
+  const [kansrijkLimiet,setKansrijkLimiet]=useState(8);
   const [redenKiezen,setRedenKiezen]=useState<string|null>(null);
   const [redenen,setRedenen]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState<string|null>(null);
@@ -41,7 +42,7 @@ export default function ObjectvoorstellenPanel({
     // gebruiken we die inhoudelijke zoekroute voor de presentatie.
     const routes=x.voorstel.alleRoutes.map(route=>{
       const rendement=beoordeelObjectRendement(x.object,criteria,route.zoekprofielId);
-      const prioriteit=bepaalVoorstelPrioriteit(route,rendement);
+      const prioriteit=bepaalVoorstelPrioriteit(route,rendement,x.object);
       const bewijs=route.bewijs;
       const sterkte=Number(!!bewijs?.vastgoedtype)+Number(!!bewijs?.subcategorie)+
         Number(!!bewijs?.dealtype)+Number(!!bewijs?.locatie);
@@ -107,7 +108,9 @@ export default function ObjectvoorstellenPanel({
   type Voorstel = typeof beoordeeld[number];
   function VoorstelRij({item}:{item:Voorstel}) {
     const id=item.object.id;
-    const omschrijving=VOORSTEL_LABELS[item.prioriteit];
+    const omschrijving=item.object.isPortefeuille && item.prioriteit==='controleren'
+      ? 'Portefeuille: samenstelling en locaties per adres controleren'
+      : VOORSTEL_LABELS[item.prioriteit];
     return <div className="px-5 py-3 space-y-2" key={id}>
       <div className="flex justify-between items-start gap-2">
         <div className="min-w-0">
@@ -208,15 +211,21 @@ export default function ObjectvoorstellenPanel({
           </button>
         </div>
       </div>)}
-      {kansrijk.slice(0,8).map(x=><VoorstelRij key={x.object.id} item={x}/>)}
+      {kansrijk.slice(0,kansrijkLimiet).map(x=><VoorstelRij key={x.object.id} item={x}/>)}
       {interessant.length===0&&kansrijk.length===0&&
         <p className="px-5 py-4 text-sm text-muted-foreground">
           Geen nieuwe kansrijke voorstellen op basis van de beschikbare zoekcriteria.
         </p>}
     </div>}
-    {!loading&&kansrijk.length>8&&<p className="px-5 py-2 text-xs text-muted-foreground">
-      Nog {kansrijk.length-8} kansrijke indicaties: verfijn de criteria om gerichter te werken.
-    </p>}
+    {!loading&&kansrijk.length>kansrijkLimiet&&
+      <button type="button" data-testid="meer-kansrijke-voorstellen"
+        onClick={()=>setKansrijkLimiet(n=>n+8)}
+        className="w-full px-5 py-3 text-left text-xs font-medium text-accent hover:bg-muted/40 border-t border-border/70">
+        Toon volgende {Math.min(8,kansrijk.length-kansrijkLimiet)} kansrijke voorstellen
+        <span className="ml-2 text-muted-foreground font-normal">
+          ({Math.min(kansrijkLimiet,kansrijk.length)} van {kansrijk.length} zichtbaar)
+        </span>
+      </button>
     {!loading&&controle.length>0&&<Inklapgroep open={toonControle} setOpen={setToonControle}
       titel="Nog inhoudelijk beoordelen" rows={controle}/>}
     {!loading&&overige.length>0&&<Inklapgroep open={toonOverig} setOpen={setToonOverig}

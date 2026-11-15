@@ -1,4 +1,4 @@
-import type { ProfielRoute } from './rolMandaatAdapter';
+import type { CrmObjectInput, ProfielRoute } from './rolMandaatAdapter';
 import type { RendementsOordeel } from './rendementsOordeel';
 
 /** De zichtbare status is een indicatie, geen kanspercentage of automatische knock-out. */
@@ -14,7 +14,10 @@ export const VOORSTEL_LABELS:Record<VoorstelPrioriteit,string>={
  * Vastgoedtype, dealtype/strategie en locatie zijn bewijs; een passende
  * vraagprijs alléén maakt nooit een relevante aanbeveling.
  */
-export function bepaalInhoudelijkeVoorstelPrioriteit(route:ProfielRoute):VoorstelPrioriteit {
+export function bepaalInhoudelijkeVoorstelPrioriteit(
+  route:ProfielRoute,
+  object?:Pick<CrmObjectInput,'isPortefeuille'>,
+):VoorstelPrioriteit {
   if(route.kwalificatie==='afwijkend')return 'niet_aanbevolen';
   const bewijs=route.bewijs;
   if(!bewijs)return 'niet_aanbevolen';
@@ -22,6 +25,9 @@ export function bepaalInhoudelijkeVoorstelPrioriteit(route:ProfielRoute):Voorste
   const strategie=bewijs.dealtype;
   const locatie=bewijs.locatie;
   if(!vastgoed && !(strategie&&locatie))return 'niet_aanbevolen';
+  // Eén geregistreerde locatie bij een portefeuille bewijst niet dat alle
+  // afzonderlijke adressen passen. Maak hiervan een controle, geen afwijzing.
+  if(object?.isPortefeuille)return 'controleren';
   if(vastgoed&&locatie&&route.kwalificatie==='passend')return 'kansrijk';
   return 'controleren';
 }
@@ -32,8 +38,9 @@ export function bepaalInhoudelijkeVoorstelPrioriteit(route:ProfielRoute):Voorste
 export function bepaalVoorstelPrioriteit(
   route:ProfielRoute,
   rendement:RendementsOordeel,
+  object?:Pick<CrmObjectInput,'isPortefeuille'>,
 ):VoorstelPrioriteit {
-  const inhoudelijk=bepaalInhoudelijkeVoorstelPrioriteit(route);
+  const inhoudelijk=bepaalInhoudelijkeVoorstelPrioriteit(route,object);
   if(inhoudelijk==='kansrijk' &&
     (rendement.status==='controle'||rendement.status==='indicatief_lager')){
     return 'controleren';
