@@ -1,0 +1,30 @@
+name: CRM kandidaten UX releasecontrole
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/pipeline/**'
+      - 'src/lib/pipeline/**'
+      - '.github/workflows/crm-kandidaten-ux-release.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Kandidaten UX regressietests
+        run: npx vitest run src/components/pipeline/ObjectPipelineActies.test.tsx src/lib/pipeline/kandidaatSortering.test.ts
+      - name: Productiebuild
+        run: npm run build
