@@ -3,8 +3,8 @@
  * "Interessant" is een selectie, geen aanbieding en geen pipelinekandidaat.
  * Alleen de expliciete actie "Kandidaat toevoegen" start het dealtraject.
  */
-import { useMemo, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useMemo, useState } from 'react';
+import type { ObjectBesluiten } from '@/hooks/useObjectMatchBesluiten';
 import { MATCH_AFWIJSREDENEN, sorteerVoorstellenOpBesluit, type MatchBesluitStatus } from '@/lib/matching/relatieObjectBesluiten';
 import {
   isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen,
@@ -13,7 +13,6 @@ import {
 } from '../../lib/matching/rolMandaatAdapter';
 
 type Concept = Extract<ReturnType<typeof maakKandidaatConcept>, { ok: true }>['concept'];
-type Besluit = {status:MatchBesluitStatus;redenCode:string|null};
 
 export interface KandidaatVoorstellenProps {
   object: CrmObjectInput;
@@ -23,6 +22,11 @@ export interface KandidaatVoorstellenProps {
   relatieNaam: (relatieId: string) => string;
   /** Selectie is een concept; pas het bovenliggende dialoog kan koppelen. */
   onConceptGekozen?: (concept: Concept) => void;
+  besluiten:ObjectBesluiten;
+  besluitenGeladen:boolean;
+  beoordelingenFout:string|null;
+  onBeoordeel:(relatieId:string,status:MatchBesluitStatus,redenCode?:string|null)=>Promise<void>;
+  onHerstel:(relatieId:string)=>Promise<void>;
 }
 const kwalificatieLabel:Record<ProfielRoute['kwalificatie'],string>={
   passend:'Indicatief passend',te_verifieren:'Controle nodig',
@@ -35,47 +39,23 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
   const [redenVoor,setRedenVoor]=useState<string|null>(null);
   const [redenen,setRedenen]=useState<Record<string,string>>({});
   const [fout,setFout]=useState<string|null>(null);
-  const [besluiten,setBesluiten]=useState<Record<string,Besluit>>({});
-  const [besluitenGeladen,setBesluitenGeladen]=useState(false);
   const [bezig,setBezig]=useState<string|null>(null);
-
-  useEffect(()=>{
-    let actief=true;
-    setBesluitenGeladen(false);
-    setFout(null);
-    void supabase.from('relatie_object_matchbesluiten' as any)
-      .select('relatie_id,status,reden_code').eq('object_id',props.object.id)
-      .then(({data,error})=>{
-        if(!actief)return;
-        if(error){
-          setFout('Beoordelingen konden niet worden geladen; kandidaatvoorstellen blijven afgeschermd.');
-          return;
-        }
-        const gevonden:Record<string,Besluit>={};
-        for(const row of (data??[]) as any[]) {
-          gevonden[row.relatie_id]={status:row.status,redenCode:row.reden_code??null};
-        }
-        setBesluiten(gevonden);
-        setBesluitenGeladen(true);
-      });
-    return ()=>{actief=false;};
-  },[props.object.id]);
 
   const voorgesteld=useMemo(()=>{
     const berekend=maakKandidaatVoorstellen(props.object,props.relaties,props.zoekprofielen,
       {reedsGekoppeld:props.reedsGekoppeld,toonAfwijkende:toonAfwijkend});
-    const handmatigeBesluiten=Object.entries(besluiten).map(([relatieId,b])=>({
+    const handmatigeBesluiten=Object.entries(props.besluiten).map(([relatieId,b])=>({
       relatieId,status:b.status,
     }));
     return sorteerVoorstellenOpBesluit(berekend,handmatigeBesluiten,props.reedsGekoppeld);
   },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,toonAfwijkend,besluiten]);
 
-  const afgewezen=Object.entries(besluiten)
+  const afgewezen=Object.entries(props.besluiten)
     .filter(([relatieId,b])=>b.status==='afgewezen'&&!props.reedsGekoppeld.has(relatieId));
 
   function kiesKandidaat(p:KandidaatVoorstel,route:ProfielRoute) {
     if(!props.onConceptGekozen)return;
-    if(besluiten[p.relatieId]?.status==='afgewezen'){
+    if(props.besluiten[p.relatieId]?.status==='afgewezen'){
       setFout('Deze partij is al afgewezen. Herstel eerst de beoordeling.');
       return;
     }
@@ -87,41 +67,31 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
 
   async function beoordeel(relatieId:string,status:MatchBesluitStatus) {
     setBezig(relatieId);
-    const redenCode=status==='afgewezen'?(redenen[relatieId]??'overig'):null;
-    const {error}=await supabase.from('relatie_object_matchbesluiten' as any)
-      .upsert({object_id:props.object.id,relatie_id:relatieId,status,
-        reden_code:redenCode,updated_at:new Date().toISOString()},
-        {onConflict:'relatie_id,object_id'});
-    if(error){setFout('Beoordeling kon niet worden opgeslagen.');}
-    else{
-      setBesluiten(prev=>({...prev,[relatieId]:{status,redenCode}}));
+    try {
+      await props.onBeoordeel(relatieId,status,
+        status==='afgewezen'?(redenen[relatieId]??'overig'):null);
       setRedenVoor(null);
       setFout(null);
-    }
-    setBezig(null);
+    } catch {
+      setFout('Beoordeling kon niet worden opgeslagen.');
+    } finally {setBezig(null);}
   }
   async function herstel(relatieId:string) {
     setBezig(relatieId);
-    const {error}=await supabase.from('relatie_object_matchbesluiten' as any)
-      .delete().eq('object_id',props.object.id).eq('relatie_id',relatieId);
-    if(error){setFout('Beoordeling kon niet worden hersteld.');}
-    else{
-      setBesluiten(prev=>{
-        const next={...prev};
-        delete next[relatieId];
-        return next;
-      });
+    try {
+      await props.onHerstel(relatieId);
       setFout(null);
-    }
-    setBezig(null);
+    } catch {
+      setFout('Beoordeling kon niet worden hersteld.');
+    } finally {setBezig(null);}
   }
 
   if(!isAanbiedbaar(props.object))return (
     <p className="text-sm text-muted-foreground">Dit object is niet beschikbaar voor nieuwe kandidaatsuggesties. De bestaande kandidaathistorie blijft behouden.</p>
   );
-  if(!besluitenGeladen)return (
-    <p className={fout?'text-sm text-destructive':'text-sm text-muted-foreground'} role={fout?'alert':'status'}>
-      {fout??'Eerdere beoordelingen laden…'}
+  if(!props.besluitenGeladen)return (
+    <p className={props.beoordelingenFout?'text-sm text-destructive':'text-sm text-muted-foreground'} role={props.beoordelingenFout?'alert':'status'}>
+      {props.beoordelingenFout??'Eerdere beoordelingen laden…'}
     </p>
   );
 
@@ -138,7 +108,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       Geen nieuwe voorstellen. Gebruik ‘Alle relaties’ om handmatig een partij te kiezen.
     </p>}
     {voorgesteld.map(p=>{
-      const besluit=besluiten[p.relatieId];
+      const besluit=props.besluiten[p.relatieId];
       const voorkeursroute=p.besteRoute;
       return <article key={p.relatieId} className="rounded-lg border border-border bg-card px-3 py-3 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
