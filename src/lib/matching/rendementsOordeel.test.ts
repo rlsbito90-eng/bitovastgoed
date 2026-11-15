@@ -30,6 +30,29 @@ describe('rendementsmatching blijft voorzichtig',()=>{
     expect(r.status).toBe('indicatief_lager');
     expect(r.hardKnockout).toBe(false);
   });
+  it('gemiddeld ontwikkelrendement is geen voorwaarde voor de shortlist',()=>{
+    const r=beoordeelObjectRendement(object,[{
+      ...basis,strategie:'ontwikkeling',percentage:20,criteriumType:'gemiddeld',
+    } as Rendementscriterium]);
+    expect(r.status).toBe('niet_van_toepassing');
+    expect(r.hardKnockout).toBe(false);
+  });
+  it('een bevestigd NAR-doel compenseert geen onbekende BAR-eis',()=>{
+    const r=beoordeelObjectRendement(object,[
+      {...basis,id:'nar',methode:'nar',methodeBevestigd:true,percentage:6},
+      {...basis,id:'bar',methode:'bar',methodeBevestigd:false,percentage:8},
+    ]);
+    expect(r.status).toBe('controle');
+    expect(r.hardKnockout).toBe(false);
+  });
+  it('verschillende strategische rendementen worden niet met elkaar uitgewisseld',()=>{
+    const r=beoordeelObjectRendement(object,[
+      {...basis,id:'nar',methode:'nar',methodeBevestigd:true,percentage:6},
+      {...basis,id:'dev',strategie:'ontwikkeling',methode:'projectkosten',
+        methodeBevestigd:true,percentage:20},
+    ]);
+    expect(r.status).toBe('controle');
+  });
   it('een 20% ontwikkelgemiddelde wordt niet stilzwijgend als projectminimum gebruikt',()=>{
     const r=beoordeelObjectRendement(object,[{...basis,strategie:'ontwikkeling'} as Rendementscriterium]);
     expect(r.hardKnockout).toBe(false);
