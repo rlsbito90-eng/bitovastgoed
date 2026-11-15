@@ -25,14 +25,51 @@ describe('Aandacht nodig — open bieding', () => {
     expect(item.volgendeActie).toBe('verkoper opvolgen');
   });
 
-  it('telt alle vier actieve statussen mee, maar niet concept, afgewezen of verlopen', () => {
+  it('telt alle vier actieve statussen mee; sluit een bod niet uit vanwege verstreken geldigheid', () => {
     for (const status of ['ontvangen', 'in_behandeling', 'tegenvoorstel_gedaan', 'aangepast_bod_gevraagd'] as const) {
       expect(items({ objecten: [obj('A')], kandidaten: [kandidaat('A')], biedingen: [bod('A', { status })] })[0]?.signaal).toBe('open_bieding');
     }
     for (const status of ['concept', 'afgewezen', 'geaccepteerd', 'ingetrokken'] as const) {
       expect(items({ objecten: [obj('A')], kandidaten: [kandidaat('A')], biedingen: [bod('A', { status: status as Bod['status'] })] })).toEqual([]);
     }
-    expect(items({ objecten: [obj('A')], kandidaten: [kandidaat('A')], biedingen: [bod('A', { geldigTot: '2026-11-01' })] })).toEqual([]);
+    const [verstreken] = items({ objecten: [obj('A')], kandidaten: [kandidaat('A')], biedingen: [bod('A', { geldigTot: '2026-11-01' })] });
+    expect(verstreken.signaal).toBe('bieding_geldigheid_verstreken');
+    expect(verstreken.label).toBe('Geldigheid bod verstreken');
+    expect(verstreken.toelichting).toContain('bod staat nog open in CRM');
+    expect(verstreken.volgendeActie).toBe('geldigheid bod en actuele status bevestigen');
+  });
+
+
+  it('verstreken bod blijft zichtbaar naast een latere geplande taak, maar verloopt niet op de einddatum zelf', () => {
+    const aanbod = { objecten: [obj('A')], kandidaten: [kandidaat('A')],
+      taken: [{ id: 't', titel: 'Later nabellen', objectId: 'A', deadline: '2026-11-20', status: 'open' }] };
+    const [verstreken] = items({ ...aanbod, biedingen: [bod('A', { geldigTot: '2026-11-06' })] });
+    expect(verstreken.signaal).toBe('bieding_geldigheid_verstreken');
+    expect(verstreken.volgendeActie).toBe('geldigheid bod en actuele status bevestigen');
+    const [vandaag] = items({ ...aanbod, biedingen: [bod('A', { geldigTot: '2026-11-07' })] });
+    expect(vandaag.signaal).toBe('open_bieding');
+    expect(vandaag.volgendeActie).toMatch(/^Later nabellen/);
+  });
+
+  it('verstreken bod krijgt voorrang op andere open biedingen en gewone stiltesignalen', () => {
+    const [verstreken] = items({
+      objecten: [obj('A')],
+      kandidaten: [kandidaat('A', { createdAt: '2026-10-01T09:00:00Z' })],
+      biedingen: [
+        bod('A', { id: 'b-live', geldigTot: '2026-11-20' }),
+        bod('A', { id: 'b-expired', geldigTot: '2026-11-03', bedrag: 950_000 }),
+      ],
+    });
+    expect(verstreken.signaal).toBe('bieding_geldigheid_verstreken');
+    expect(verstreken.bod?.bedrag).toBe(950_000);
+    expect(verstreken.extraSignalen).toBeGreaterThanOrEqual(0);
+  });
+
+  it('een beëindigd bod wordt ook bij verstreken geldigheid niet heropend', () => {
+    for (const status of ['concept', 'geaccepteerd', 'afgewezen', 'ingetrokken'] as const) {
+      expect(items({ objecten: [obj('A')], kandidaten: [kandidaat('A')],
+        biedingen: [bod('A', { status, geldigTot: '2026-11-01' })] })).toEqual([]);
+    }
   });
 
   it('noemt een tegenvoorstel zonder bedrag', () => {

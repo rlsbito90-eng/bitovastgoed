@@ -15,6 +15,7 @@ interface Props {
 }
 
 const SIGNAAL_KLEUR: Record<AandachtSignaal, string> = {
+  bieding_geldigheid_verstreken: 'text-warning',
   open_bieding: 'text-accent',
   geen_activiteit: 'text-warning',
   geen_kandidaat: 'text-muted-foreground',
