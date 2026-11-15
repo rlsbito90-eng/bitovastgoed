@@ -1,5 +1,5 @@
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
-import { Building2, ClipboardCheck, MapPinned, ShieldCheck, Users } from 'lucide-react';
+import { Building2, ClipboardCheck, Database, MapPinned, ShieldCheck, Users } from 'lucide-react';
 import AdresModelProefPage from '@/pages/AdresModelProefPage';
 import SandboxObjectPartsPage from './SandboxObjectPartsPage';
 import { SandboxStoreProvider, useSandboxStore } from './sandboxStore';
@@ -7,6 +7,7 @@ import { VOORBEELDEN } from './sandboxModel';
 import { beoordeelSandboxBelegger } from './sandboxAssessment';
 import TestMatchingPage from './TestMatchingPage';
 import SandboxKandidatenPage from './SandboxKandidatenPage';
+import SandboxBulkOpslagPage from './SandboxBulkOpslagPage';
 
 /**
  * Dit is bewust NIET de productie-CRM: geen App, AuthProvider,
@@ -53,6 +54,14 @@ function ProefObjecten() {
         </p>
         <p className="text-xs font-medium text-accent">Open interfaceproef</p>
       </Link>
+      <Link to="/objecten/kandidaten-opslagproef" className="section-card p-5 space-y-2 hover:border-accent block">
+        <Database className="h-5 w-5 text-accent" />
+        <h2 className="font-semibold">Veilige kandidatenbulk</h2>
+        <p className="text-sm text-muted-foreground">
+          Test het opslagproces inclusief versieconflicten, herhalen na netwerkuitval en auditgeschiedenis.
+        </p>
+        <p className="text-xs font-medium text-accent">Open opslagproef</p>
+      </Link>
     </div>
   </div>;
 }
@@ -64,6 +73,7 @@ function Shell() {
     { to:'/objecten/adresproef', label:'Adressen', icon:MapPinned },
     { to:'/objecten/samenstellingproef', label:'Ruimteverdeling', icon:ClipboardCheck },
     { to:'/objecten/kandidatenproef', label:'Kandidaten', icon:Users },
+    { to:'/objecten/kandidaten-opslagproef', label:'Bulktopslag', icon:Database },
   ];
   return <div className="min-h-screen">
     <header className="border-b border-border/70 bg-card/95">
@@ -93,6 +103,7 @@ function Shell() {
           <Route path="/objecten/adresproef" element={<AdresModelProefPage />} />
           <Route path="/objecten/samenstellingproef" element={<SandboxObjectPartsPage />} />
           <Route path="/objecten/kandidatenproef" element={<SandboxKandidatenPage />} />
+          <Route path="/objecten/kandidaten-opslagproef" element={<SandboxBulkOpslagPage />} />
           <Route path="*" element={<Navigate replace to="/relaties" />} />
         </Routes>
       </main>
