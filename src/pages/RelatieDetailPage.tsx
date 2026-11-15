@@ -30,7 +30,9 @@ import InlineVastgoedVoorkeuren from '@/components/relatie/InlineVastgoedVoorkeu
 import WebsiteProfielHerkomst from '@/components/relatie/WebsiteProfielHerkomst';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
-import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVoorstellenR2';
+import RendementscriteriaPanel from '@/components/relatie/RendementscriteriaPanel';
+import ObjectvoorstellenPanel from '@/components/relatie/ObjectvoorstellenPanel';
+import { useRelatieMatchingData } from '@/hooks/useRelatieMatchingData';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
 import OffMarketSignalenSectie from '@/components/offmarket/OffMarketSignalenSectie';
 import {
@@ -100,9 +102,6 @@ const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'budgetMax',label:'Budget maximum (€)',kind:'number'},
   {key:'budgetVoorkeurToelichting',label:'Budgetkeuze(n) volgens formulier',kind:'textarea',
     note:'Letterlijke budgetbanden, ook bij meerdere keuzes. Minimum en maximum worden afzonderlijk voor matching gebruikt.'},
-  {key:'rendementseis',label:'Harde rendementseis (%)',kind:'number'},
-  {key:'rendementsdoelToelichting',label:'Rendementsdoel / BAR volgens formulier',kind:'textarea',
-    note:'Een bandbreedte zoals 6–8% of meerdere keuzes is geen harde minimumrendementseis.'},
   {key:'kapitaalsituatie',label:'Kapitaalsituatie',kind:'select',
     options:Object.entries(KAPITAAL_SITUATIE_LABELS).map(([value,label])=>({value,label}))},
   {key:'eigenVermogenPct',label:'Eigen vermogen (%)',kind:'number'},
@@ -141,6 +140,7 @@ export default function RelatieDetailPage() {
   const navigate = useNavigate();
   const store = useDataStore();
   const relatie = store.getRelatieById(id!);
+  const matchingData = useRelatieMatchingData(id ?? '');
   const [editOpen, setEditOpen] = useState(false);
   const [zpOpen, setZpOpen] = useState(false);
   const [zpBewerken, setZpBewerken] = useState<Zoekprofiel | null>(null);
@@ -173,7 +173,6 @@ export default function RelatieDetailPage() {
     return isConcreteTransactionPosition(stage, preferredBidderStage);
   });
   const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
-  const matches = maakObjectVoorstellenVoorRelatie(relatie, store.objecten, store.zoekprofielen);
   const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
   const laatsteActiviteitDatum = getLaatsteActiviteitDatum(relatie.id, store.contactMoments);
   const volgendeOpenTaak = getVolgendeOpenTaak(relatie.id, store.taken);
@@ -374,6 +373,13 @@ export default function RelatieDetailPage() {
         </div>
 
         <div className="space-y-4 lg:space-y-6 min-w-0">
+          <RendementscriteriaPanel
+            criteria={matchingData.criteria}
+            zoekprofielen={zoekprofielen}
+            loading={matchingData.loading}
+            onSave={matchingData.bewaarCriterium}
+            onDelete={matchingData.verwijderCriterium}
+          />
           <section className="section-card">
             <header className="section-header">
               <h2 className="section-title">Aanvullende zoekprofielen ({zoekprofielen.length})</h2>
@@ -411,51 +417,16 @@ export default function RelatieDetailPage() {
             </div>
           </section>
 
-          <section className="section-card">
-            <header className="section-header">
-              <h2 className="section-title">Mogelijke objecten — R2 ({matches.length})</h2>
-            </header>
-            <p className="px-5 pt-3 text-xs text-muted-foreground">
-              Dezelfde directe-contactmatching als bij Objecten. Een makelaar of bemiddelaar is een
-              contactkandidaat, niet automatisch de uiteindelijke koper. Gemeenten zonder geverifieerde
-              objectgemeente, zoekradius, rendement en aanvullende voorwaarden moet je zelf controleren.
-            </p>
-            <div className="divide-y divide-border/70">
-              {matches.length===0&&<p className="px-5 py-4 text-sm text-muted-foreground">
-                Nog geen mogelijke objecten gevonden. Controleer de beschikbare criteria in Relaties.
-              </p>}
-              {matches.slice(0,5).map(({object,voorstel})=>{
-                const route=voorstel.besteRoute;
-                const labels={passend:'Indicatief passend',te_verifieren:'Te verifiëren',onvoldoende:'Onvoldoende gegevens',afwijkend:'Afwijkend'} as const;
-                return <details key={object.id} className="group">
-                  <summary className="flex justify-between items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-muted/40">
-                    <div className="min-w-0">
-                      <Link to={`/objecten/${object.id}`} onClick={e=>e.stopPropagation()}
-                        className="text-sm font-medium hover:text-accent break-words">{object.titel}</Link>
-                      <p className="text-xs text-muted-foreground">
-                        {object.plaats} · {route.bron==='relatie_basis'?'Algemene criteria (Relaties)':'Aanvullend zoekprofiel'}
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded border border-border px-2 py-1 text-xs">
-                      {labels[route.kwalificatie]}
-                    </span>
-                  </summary>
-                  <div className="px-5 pb-4 space-y-1 text-xs">
-                    {route.toelichting.matcht.map((tekst,i)=><p key={i}>✓ {tekst}</p>)}
-                    {route.toelichting.controleer.map((tekst,i)=><p key={i} className="text-muted-foreground">
-                      Te controleren: {tekst}
-                    </p>)}
-                    {route.toelichting.afwijkend.map((tekst,i)=><p key={i} className="text-destructive">
-                      Afwijking: {tekst}
-                    </p>)}
-                    <p className="pt-2 text-muted-foreground">
-                      Geen automatische aanbieding of aankoopbeslissing. Eventuele aanvullende zoekrichtingen blijven behouden.
-                    </p>
-                  </div>
-                </details>;
-              })}
-            </div>
-          </section>
+          <ObjectvoorstellenPanel
+            relatie={relatie}
+            objecten={store.objecten}
+            zoekprofielen={store.zoekprofielen}
+            criteria={matchingData.criteria}
+            besluiten={matchingData.besluiten}
+            loading={matchingData.loading}
+            onBesluit={matchingData.beoordeelObject}
+            onWis={matchingData.wisObjectBeoordeling}
+          />
 
           <Timeline relatieId={relatie.id} />
         </div>
