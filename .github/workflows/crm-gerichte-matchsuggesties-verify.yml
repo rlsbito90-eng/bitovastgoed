@@ -6,6 +6,7 @@ on:
       - feat/gerichte-matchsuggesties-20261115
     paths:
       - 'src/lib/matching/rolMandaatAdapter.ts'
+      - 'src/lib/matching/rendementsOordeel*'
       - 'src/lib/matching/voorstelPrioriteit*'
       - 'src/components/relatie/ObjectvoorstellenPanel.tsx'
       - '.github/workflows/crm-gerichte-matchsuggesties-verify.yml'
