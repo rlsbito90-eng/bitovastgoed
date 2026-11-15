@@ -33,7 +33,7 @@ describe('Bulkacties zonder dubbele administratie',()=>{
   it('een ontbrekende reden of ongeldige selectie wijzigt niets',()=>{
     const current=fictieveKandidaten();
     const failed=pasFictieveBulkActieToe(current,new Set(['a']),{
-      type:'afwijzen',bron:'koper',categorie:'' as never,
+      type:'afwijzen',bron:'intern',categorie:'' as never,
     });
     expect(failed.fout).toMatch(/categorie/);
     expect(failed.kandidaten).toEqual(current);
@@ -51,7 +51,8 @@ describe('Bulkacties zonder dubbele administratie',()=>{
     const r=pasFictieveBulkActieToe(current,new Set(['a','b']),{
       type:'fase',fase:'informatie_gedeeld',
     });
-    expect(r.aangepast).toBe(2);
+    expect(r.aangepast).toBe(1);
+    expect(r.ongewijzigd).toBe(1);
     expect(r.kandidaten[0].pipelineFase).toBe('informatie_gedeeld');
     expect(r.kandidaten[0].afwijzing).toBeUndefined();
   });

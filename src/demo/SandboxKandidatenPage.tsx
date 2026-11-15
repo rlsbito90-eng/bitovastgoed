@@ -207,15 +207,6 @@ export default function SandboxKandidatenPage(){
             Een echte afwijzing van een belegger registreer je afzonderlijk via Meer → Reactie registreren.
           </p>
           <label className="block space-y-1 text-xs">
-            <span>Herkomst van de afwijzing</span>
-            <select aria-label="Herkomst afwijzing" value={bron}
-              onChange={e=>setBron(e.target.value as 'intern'|'koper')}
-              className="block w-full h-10 rounded-md bg-background border border-input px-3 text-sm">
-              <option value="intern">Mijn eigen selectie (geen kopersreactie)</option>
-              <option value="koper">Koper heeft afgewezen</option>
-            </select>
-          </label>
-          <label className="block space-y-1 text-xs">
             <span>Afwijzingscategorie voor alle geselecteerden</span>
             <select aria-label="Afwijzingscategorie" value={reden}
               onChange={e=>{setReden(e.target.value as ReactieReden|'');setFout('');}}
@@ -294,7 +285,7 @@ export default function SandboxKandidatenPage(){
         <span>{melding}</span>
         {laatsteSnapshot&&<button type="button" onClick={maakOngedaan}
           className="underline text-accent font-medium">Ongedaan maken</button>}
-      </div>
+      </div>}
     </section>
     <div className="flex items-start gap-2 text-xs text-muted-foreground">
       <ShieldCheck className="h-4 w-4 shrink-0"/>
