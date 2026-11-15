@@ -1,0 +1,326 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+import { lovable } from '@/integrations/lovable';
+import { AUTH_UI_ENABLED, AUTH_SOCIAL_ENABLED, AUTH_SIGNUP_ENABLED } from '@/lib/authConfig';
+
+function sanitizeNext(raw: string | null): string {
+  if (!raw) return '/';
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/';
+  return raw;
+}
+
+function useNextPath() {
+  const [params] = useSearchParams();
+  return useMemo(() => sanitizeNext(params.get('next')), [params]);
+}
+
+async function handleGoogleSignIn(next: string) {
+  const result = await lovable.auth.signInWithOAuth('google', {
+    redirect_uri: `${window.location.origin}${next}`,
+  });
+  if (result.error) {
+    toast.error('Inloggen met Google mislukt');
+  }
+}
+
+const GoogleButton = ({ next }: { next: string }) => (
+  <Button type="button" variant="outline" className="w-full" onClick={() => handleGoogleSignIn(next)}>
+    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.76h3.56c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.76c-.99.66-2.25 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.11A6.6 6.6 0 0 1 5.48 12c0-.73.13-1.44.36-2.11V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.05l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
+    </svg>
+    Doorgaan met Google
+  </Button>
+);
+
+async function handleAppleSignIn(next: string) {
+  const result = await lovable.auth.signInWithOAuth('apple', {
+    redirect_uri: `${window.location.origin}${next}`,
+  });
+  if (result.error) {
+    toast.error('Inloggen met Apple mislukt');
+  }
+}
+
+const AppleButton = ({ next }: { next: string }) => (
+  <Button type="button" variant="outline" className="w-full" onClick={() => handleAppleSignIn(next)}>
+    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M16.365 1.43c0 1.14-.46 2.23-1.2 3.02-.8.86-2.1 1.52-3.18 1.43-.14-1.1.43-2.24 1.15-3.02.8-.87 2.18-1.52 3.23-1.43zM20.5 17.27c-.55 1.27-.82 1.84-1.53 2.97-1 1.57-2.4 3.53-4.14 3.55-1.55.02-1.95-1.01-4.05-1-2.1.01-2.54 1.02-4.09 1-1.74-.02-3.07-1.79-4.07-3.36-2.8-4.4-3.1-9.56-1.37-12.3 1.23-1.96 3.17-3.1 5-3.1 1.86 0 3.03 1.02 4.56 1.02 1.49 0 2.4-1.02 4.55-1.02 1.62 0 3.34.88 4.56 2.4-4.01 2.2-3.36 7.93.58 9.84z"/>
+    </svg>
+    Doorgaan met Apple
+  </Button>
+);
+
+export default function AuthRecoveryPage() {
+  const { user, loading, signIn, signUp } = useAuth();
+  const navigate = useNavigate();
+  const next = useNextPath();
+  const [bezig, setBezig] = useState(false);
+  const [linkBezig, setLinkBezig] = useState(false);
+  const [linkVerzonden, setLinkVerzonden] = useState(false);
+
+  // Login state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginWw, setLoginWw] = useState('');
+
+  // Signup state
+  const [naam, setNaam] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupWw, setSignupWw] = useState('');
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(next, { replace: true });
+    }
+  }, [user, loading, navigate, next]);
+
+  // Passkey is niet verplicht. Alleen bestaande accounts ontvangen een eenmalige link.
+  // AuthProvider en ProtectedRoute blijven de echte rollen en sessie verifiëren.
+  const stuurToegangslink = async () => {
+    const email = loginEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Vul een geldig e-mailadres in.');
+      return;
+    }
+    setLinkBezig(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: window.location.origin + next,
+        },
+      });
+      if (error) {
+        toast.error('Toegangslink kon niet worden verstuurd. Probeer de wachtwoordoptie.');
+        return;
+      }
+      setLinkVerzonden(true);
+    } catch {
+      toast.error('Toegangslink kon niet worden verstuurd. Probeer de wachtwoordoptie.');
+    } finally {
+      setLinkBezig(false);
+    }
+  };
+
+  const onLogin = async (e: React.FormEvent) => {
+    if (!loginEmail.trim()) {
+      e.preventDefault();
+      toast.error('Vul eerst je e-mailadres in.');
+      return;
+    }
+    e.preventDefault();
+    setBezig(true);
+    const { error } = await signIn(loginEmail, loginWw);
+    setBezig(false);
+    if (error) {
+      toast.error(error.message === 'Invalid login credentials' ? 'Ongeldige inloggegevens' : 'Inloggen mislukt. Controleer je gegevens.');
+    } else {
+      toast.success('Welkom terug');
+      navigate(next, { replace: true });
+    }
+  };
+
+  const onSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signupWw.length < 6) {
+      toast.error('Wachtwoord moet minimaal 6 tekens zijn');
+      return;
+    }
+    setBezig(true);
+    const { error } = await signUp(signupEmail, signupWw, naam);
+    setBezig(false);
+    if (error) {
+      if (error.message.includes('already registered')) {
+        toast.error('Dit e-mailadres is al geregistreerd');
+      } else {
+        toast.error('Account aanmaken mislukt. Probeer het opnieuw of neem contact op met een beheerder.');
+      }
+    } else {
+      toast.success('Account aangemaakt. Wacht op activatie door een beheerder.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden">
+      {/* Brand ambient backdrop — same family als de app */}
+      <div aria-hidden className="absolute inset-0 -z-10 bg-background" />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 opacity-90"
+        style={{
+          backgroundImage:
+            'radial-gradient(900px 600px at 0% -10%, hsl(var(--accent) / 0.18), transparent 60%),' +
+            'radial-gradient(800px 600px at 100% 0%, hsl(var(--secondary) / 0.18), transparent 65%),' +
+            'radial-gradient(1000px 700px at 50% 110%, hsl(var(--primary) / 0.18), transparent 65%)',
+        }}
+      />
+
+      <div className="w-full max-w-md">
+        <div className="text-center mb-7">
+          <img
+            src="/logo-bito-vastgoed.png"
+            alt="Bito Vastgoed"
+            className="mx-auto h-20 w-auto max-w-[160px] object-contain drop-shadow-sm"
+          />
+          <p className="text-[13px] text-muted-foreground mt-2 tracking-wide">
+            Interne dealflow &amp; CRM
+          </p>
+        </div>
+
+        {!AUTH_UI_ENABLED ? (
+          <div
+            data-testid="auth-tijdelijke-statuspagina"
+            className="glass-card p-7 sm:p-8 rounded-2xl text-center space-y-3"
+          >
+            <h1 className="text-lg font-semibold text-foreground">Bito Vastgoed CRM</h1>
+            <p className="text-sm text-muted-foreground">
+              De applicatie is tijdelijk niet beschikbaar.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              De CRM wordt technisch bijgewerkt. Probeer het later opnieuw.
+            </p>
+          </div>
+        ) : (
+        <div className="glass-card p-6 sm:p-7 space-y-4 rounded-2xl">
+          {AUTH_SOCIAL_ENABLED && (
+            <>
+              <div className="grid grid-cols-1 gap-2.5">
+                <GoogleButton next={next} />
+                <AppleButton next={next} />
+              </div>
+
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/70" /></div>
+                <div className="relative flex justify-center text-[10px] uppercase tracking-[0.18em]">
+                  <span className="bg-card/80 backdrop-blur px-3 text-muted-foreground rounded-full">of</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          <Tabs defaultValue="login" className="w-full">
+            {AUTH_SIGNUP_ENABLED && (
+              <TabsList className="grid w-full grid-cols-2 mb-6 h-auto p-1 gap-1 glass-card rounded-full bg-transparent">
+                <TabsTrigger value="login" className="dossier-tab-pill data-[state=active]:shadow-none">Inloggen</TabsTrigger>
+                <TabsTrigger value="signup" className="dossier-tab-pill data-[state=active]:shadow-none">Account aanvragen</TabsTrigger>
+              </TabsList>
+            )}
+
+            <TabsContent value="login">
+              <div className="space-y-4">
+                <div className="space-y-1 text-center">
+                  <h1 className="text-lg font-semibold text-foreground">Bito CRM</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Eenmaal aanmelden op dit apparaat. Daarna opent het CRM direct zolang je sessie geldig is.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="login-email">E-mailadres</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    value={loginEmail}
+                    onChange={e => { setLoginEmail(e.target.value); setLinkVerzonden(false); }}
+                    placeholder="Je bestaande CRM-e-mailadres"
+                  />
+                </div>
+                {linkVerzonden ? (
+                  <p className="rounded-md border border-border bg-muted/40 px-3 py-3 text-sm text-foreground" role="status">
+                    Als dit e-mailadres toegang heeft, ontvang je een eenmalige aanmeldlink.
+                    Open die bij voorkeur in Safari. Je hoeft geen passkey te gebruiken.
+                  </p>
+                ) : (
+                  <Button type="button" className="w-full" disabled={linkBezig || bezig}
+                    onClick={() => void stuurToegangslink()}>
+                    {linkBezig && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {linkBezig ? 'Toegangslink versturen…' : 'Stuur een toegangslink'}
+                  </Button>
+                )}
+                <details className="rounded-md border border-border p-3">
+                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                    Liever met wachtwoord aanmelden?
+                  </summary>
+                  <form onSubmit={onLogin} className="mt-4 space-y-3">
+                    <Label htmlFor="login-ww">Wachtwoord</Label>
+                    <Input id="login-ww" type="password" autoComplete="current-password"
+                      required value={loginWw} onChange={e => setLoginWw(e.target.value)} />
+                    <Button type="submit" variant="outline" className="w-full" disabled={bezig || linkBezig}>
+                      {bezig && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Inloggen met wachtwoord
+                    </Button>
+                  </form>
+                </details>
+                <p className="text-xs text-center text-muted-foreground">
+                  Geen nieuwe accounts of openbare toegang. Alleen bestaande CRM-gebruikers met een geldige rol.
+                </p>
+              </div>
+            </TabsContent>
+
+            {AUTH_SIGNUP_ENABLED && (
+            <TabsContent value="signup">
+              <form onSubmit={onSignup} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="signup-naam">Volledige naam</Label>
+                  <Input
+                    id="signup-naam"
+                    type="text"
+                    required
+                    value={naam}
+                    onChange={e => setNaam(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="signup-email">E-mailadres</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={signupEmail}
+                    onChange={e => setSignupEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="signup-ww">Wachtwoord</Label>
+                  <Input
+                    id="signup-ww"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={6}
+                    value={signupWw}
+                    onChange={e => setSignupWw(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Minimaal 6 tekens.</p>
+                </div>
+                <Button type="submit" className="w-full" disabled={bezig}>
+                  {bezig && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Account aanvragen
+                </Button>
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  Nieuwe accounts worden handmatig geactiveerd door een beheerder.
+                </p>
+              </form>
+            </TabsContent>
+            )}
+          </Tabs>
+        </div>
+
+        )}
+
+      </div>
+    </div>
+  );
+}
