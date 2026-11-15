@@ -19,7 +19,7 @@ import { localDateKey } from '@/lib/tasks/workView';
 export const DREMPEL_GEEN_ACTIVITEIT_DAGEN = 14;
 export const DREMPEL_GEEN_ACTIVITEIT_MET_BOD_DAGEN = 7;
 
-export type AandachtSignaal = 'bieding_geldigheid_verstreken' | 'open_bieding' | 'geen_activiteit' | 'geen_kandidaat' | 'on_hold';
+export type AandachtSignaal = 'bieding_geldigheid_verstreken' | 'open_bieding' | 'opvolging_kandidaat_achterstallig' | 'geen_activiteit' | 'geen_kandidaat' | 'on_hold';
 
 export interface AandachtObject {
   id: string;
@@ -51,6 +51,8 @@ export interface AandachtTaak {
   id: string;
   titel: string;
   objectId?: string | null;
+  /** Nodig om een door de kandidaat gegenereerde opvolgtaak niet dubbel te tonen. */
+  relatieId?: string | null;
   deadline?: string | null;
   status: string;
   softDeletedAt?: string | null;
@@ -315,6 +317,22 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
       && (dealsPer.get(object.id) ?? []).length === 0
       && !opgevolgd;
 
+    // Een verlopen kandidaatopvolging mag niet onder de stilte-drempel verdwijnen.
+    // Dezelfde actie staat soms al als centrale taak in 'Mijn werkzaamheden':
+    // dan toont die werklijst de opvolging, niet nogmaals 'Aandacht nodig'.
+    const kandidaatActiesAchterstallig = actieveKandidaten
+      .map(k => ({ kandidaat: k, datum: dagSleutel(k.volgendeActieDatum) }))
+      .filter((x): x is { kandidaat: AandachtKandidaat; datum: string } =>
+        x.datum != null && x.datum < vandaag)
+      .filter(({ kandidaat, datum }) => !(takenPer.get(object.id) ?? []).some(t =>
+        t.status !== 'wacht_op_reactie' &&
+        t.relatieId === kandidaat.relatieId &&
+        (dagSleutel(t.deadline) === datum || dagSleutel(planDatum(t)) === datum)
+      ))
+      .sort((a, b) => a.datum.localeCompare(b.datum) ||
+        a.kandidaat.relatieId.localeCompare(b.kandidaat.relatieId));
+    const kandidaatActieAchterstallig = kandidaatActiesAchterstallig[0] ?? null;
+
     const signalen: AandachtItem[] = [];
 
     if (heeftOpenBod) {
@@ -349,6 +367,27 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
           bieddatum: dagSleutel(bod.bieddatum),
           geldigTot: dagSleutel(bod.geldigTot),
         },
+      });
+    }
+
+    if (kandidaatActieAchterstallig) {
+      const { kandidaat, datum } = kandidaatActieAchterstallig;
+      const partij = invoer.relatieNaam?.(kandidaat.relatieId);
+      const kandidaatLabel = partij?.trim() || 'kandidaat';
+      const stap = kandidaat.volgendeActieOmschrijving?.trim() || 'kandidaat opvolgen';
+      signalen.push({
+        objectId: object.id,
+        titel: object.titel,
+        signaal: 'opvolging_kandidaat_achterstallig',
+        label: 'Opvolging kandidaat achterstallig',
+        toelichting: `Openstaande vervolgactie voor ${kandidaatLabel} sinds ${korteDatum(datum)}` +
+          (kandidaatActiesAchterstallig.length > 1
+            ? ` · ${kandidaatActiesAchterstallig.length - 1} andere achterstallige kandidaatopvolging(en)`
+            : ''),
+        volgendeActie: stapTekst({ titel: stap, datum, soort: 'plan' }),
+        extraSignalen: 0,
+        overigeSignalen: [],
+        dagenStil,
       });
     }
 
@@ -402,7 +441,7 @@ export function bepaalAandacht(invoer: AandachtInvoer, now: Date): AandachtOverz
     items.push({ ...signalen[0], extraSignalen: signalen.length - 1, overigeSignalen: signalen.slice(1).map(x => x.label) });
   }
 
-  const rang: Record<AandachtSignaal, number> = { bieding_geldigheid_verstreken: 0, open_bieding: 1, geen_activiteit: 2, geen_kandidaat: 3, on_hold: 4 };
+  const rang: Record<AandachtSignaal, number> = { bieding_geldigheid_verstreken: 0, open_bieding: 1, opvolging_kandidaat_achterstallig: 2, geen_activiteit: 3, geen_kandidaat: 4, on_hold: 5 };
   const opStilte = (a: AandachtItem, b: AandachtItem) => (b.dagenStil ?? -1) - (a.dagenStil ?? -1) || a.titel.localeCompare(b.titel, 'nl');
   items.sort((a, b) => rang[a.signaal] - rang[b.signaal] || opStilte(a, b));
   onHold.sort(opStilte);

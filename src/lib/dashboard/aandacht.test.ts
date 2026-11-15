@@ -187,6 +187,77 @@ describe('Aandacht nodig — fasebewuste stilte (eenduidige kandidaat)', () => {
   });
 });
 
+describe('Aandacht nodig — kandidaatopvolging zonder dubbele taak', () => {
+  it('toont recente objecten toch wanneer een volgende actie bij een actieve kandidaat verstreken is', () => {
+    const [item] = items({
+      objecten: [obj('O', { datumToegevoegd: '2026-11-04' })],
+      kandidaten: [kandidaat('O', {
+        createdAt: '2026-11-06T09:00:00Z',
+        volgendeActieDatum: '2026-11-05', volgendeActieOmschrijving: 'Terugbellen',
+      })],
+      relatieNaam: id => id === 'r1' ? 'Investeerder A' : null,
+    });
+    expect(item.signaal).toBe('opvolging_kandidaat_achterstallig');
+    expect(item.label).toBe('Opvolging kandidaat achterstallig');
+    expect(item.toelichting).toContain('Investeerder A');
+    expect(item.volgendeActie).toMatch(/^Terugbellen \(achterstallig sinds /);
+  });
+
+  it('vermijdt duplicatie wanneer dezelfde actie al als open taak in Mijn werkzaamheden staat', () => {
+    const kandidaten = [kandidaat('O', {
+      volgendeActieDatum: '2026-11-05', volgendeActieOmschrijving: 'Opvolgen',
+    })];
+    const taken: AandachtInvoer['taken'] = [{
+      id: 't', objectId: 'O', relatieId: 'r1', titel: 'Opvolgen',
+      deadline: '2026-11-05', status: 'open',
+    }];
+    expect(items({ objecten: [obj('O', { datumToegevoegd: '2026-11-06' })],
+      kandidaten, taken })).toEqual([]);
+  });
+
+  it('een actie van een andere kandidaat mag een achterstallige kandidaat niet verbergen', () => {
+    const [item] = items({
+      objecten: [obj('O', { datumToegevoegd: '2026-11-06' })],
+      kandidaten: [kandidaat('O', {
+        volgendeActieDatum: '2026-11-05', volgendeActieOmschrijving: 'Mailen',
+      })],
+      taken: [{ id: 'andere', objectId: 'O', relatieId: 'r2', titel: 'Andere partij',
+        deadline: '2026-11-05', status: 'open' }],
+    });
+    expect(item.signaal).toBe('opvolging_kandidaat_achterstallig');
+  });
+
+  it('wachten op reactie is geen afgeronde of actieve taak die de kandidaatmelding afdekt', () => {
+    const [item] = items({
+      objecten: [obj('O', { datumToegevoegd: '2026-11-06' })],
+      kandidaten: [kandidaat('O', { volgendeActieDatum: '2026-11-05' })],
+      taken: [{ id: 'wachten', objectId: 'O', relatieId: 'r1', titel: 'Wacht op reactie',
+        deadline: '2026-11-05', status: 'wacht_op_reactie' }],
+    });
+    expect(item.signaal).toBe('opvolging_kandidaat_achterstallig');
+  });
+
+  it('vandaag of later geplande actie is niet achterstallig; afgevallen kandidaten worden overgeslagen', () => {
+    for (const datum of ['2026-11-07', '2026-11-08']) {
+      expect(items({ objecten: [obj('O', { datumToegevoegd: '2026-11-06' })],
+        kandidaten: [kandidaat('O', { volgendeActieDatum: datum })] })).toEqual([]);
+    }
+    expect(items({ objecten: [obj('O', { datumToegevoegd: '2026-11-06' })],
+      kandidaten: [kandidaat('O', { pipelineFase: 'afgevallen', volgendeActieDatum: '2026-11-04' })] })[0]?.signaal)
+      .toBe('geen_kandidaat');
+  });
+
+  it('open bieding blijft belangrijker, met de verlopen kandidaatopvolging als extra signaal', () => {
+    const [item] = items({
+      objecten: [obj('O')],
+      kandidaten: [kandidaat('O', { volgendeActieDatum: '2026-11-05' })],
+      biedingen: [bod('O')],
+    });
+    expect(item.signaal).toBe('open_bieding');
+    expect(item.overigeSignalen).toContain('Opvolging kandidaat achterstallig');
+  });
+});
+
 describe('Aandacht nodig — geen kandidaat', () => {
   it('met passende geregistreerde zoekprofielen', () => {
     const [item] = items({ objecten: [obj('C', { datumToegevoegd: '2026-11-01' })], matches: [{ objectId: 'C', relatieId: 'r1' }, { objectId: 'C', relatieId: 'r2' }, { objectId: 'C', relatieId: 'r2' }] });

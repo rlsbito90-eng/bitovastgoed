@@ -60,6 +60,18 @@ describe('DashboardAandacht', () => {
     expect(screen.getByTestId('aandacht-bod').textContent).toContain('geldig tot 3 nov');
   });
 
+  it('toont achterstallige kandidaatopvolging met concrete vervolgstap en objectlink', () => {
+    renderA({ overzicht: { items: [item('A', {
+      signaal: 'opvolging_kandidaat_achterstallig',
+      label: 'Opvolging kandidaat achterstallig',
+      toelichting: 'Openstaande vervolgactie voor Investeerder A sinds 5 nov',
+      volgendeActie: 'Terugbellen (achterstallig sinds 5 nov)',
+    })], onHold: [] } });
+    expect(screen.getByText('Opvolging kandidaat achterstallig')).toBeTruthy();
+    expect(screen.getByText('Terugbellen (achterstallig sinds 5 nov)')).toBeTruthy();
+    expect(screen.getByText('Object A').closest('a')?.getAttribute('href')).toBe('/objecten/A');
+  });
+
   it('toont er maximaal 5 en kan de rest uitklappen', () => {
     renderA({ overzicht: { items: Array.from({ length: 7 }, (_, i) => item(`O${i}`)), onHold: [] } });
     expect(screen.getAllByTestId('aandacht-regel')).toHaveLength(5);
