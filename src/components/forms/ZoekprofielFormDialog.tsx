@@ -438,10 +438,9 @@ export default function ZoekprofielFormDialog({
                       <option value="leeg">Leeg</option>
                     </select>
                   </Veld>
-                  <Veld label="Rendementseis min (%)">
-                    <NumberField decimals={2} value={form.rendementseis}
-                      onChange={v => set('rendementseis', v)} />
-                  </Veld>
+                  <div className="text-xs text-muted-foreground self-end pb-1">
+                    Rendementseisen beheer je centraal bij de relatie; desgewenst gekoppeld aan dit zoekprofiel.
+                  </div>
                   <Veld label="WALT minimum (jaren)">
                     <NumberField decimals={1} value={form.waltMin}
                       onChange={v => set('waltMin', v)}
