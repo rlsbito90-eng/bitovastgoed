@@ -225,7 +225,7 @@ export default function ObjectvoorstellenPanel({
         <span className="ml-2 text-muted-foreground font-normal">
           ({Math.min(kansrijkLimiet,kansrijk.length)} van {kansrijk.length} zichtbaar)
         </span>
-      </button>
+      </button>}
     {!loading&&controle.length>0&&<Inklapgroep open={toonControle} setOpen={setToonControle}
       titel="Nog inhoudelijk beoordelen" rows={controle}/>}
     {!loading&&overige.length>0&&<Inklapgroep open={toonOverig} setOpen={setToonOverig}
