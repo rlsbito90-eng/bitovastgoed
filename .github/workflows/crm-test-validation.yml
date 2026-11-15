@@ -60,6 +60,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-opslaan-ONTWERP-NIET-UITVOEREN.sql
           psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-herstel-ONTWERP-NIET-UITVOEREN.sql
           psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-real-schema-verify.sql
+          psql -v ON_ERROR_STOP=1 -f docs/crm/sql/pipeline-bulk-afwijsrapportage-ONTWERP-NIET-UITVOEREN.sql
+          psql -v ON_ERROR_STOP=1 -f scripts/crm/test-pipeline-bulk-reporting-verify.sql
       - name: Node.js 24
         uses: actions/setup-node@v4
         with:
