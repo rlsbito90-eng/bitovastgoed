@@ -1,11 +1,10 @@
 import { PIPELINE_FASES, type InteresseNiveau, type PipelineFase } from '@/data/mock-data';
 
 export type KandidaatSorteerwijze =
-  | 'aanbevolen' | 'match' | 'recent' | 'interesse' | 'fase' | 'vervolg' | 'naam';
+  | 'aanbevolen' | 'recent' | 'interesse' | 'fase' | 'vervolg' | 'naam';
 
 export const KANDIDAAT_SORTEEROPTIES: readonly {value:KandidaatSorteerwijze;label:string}[]=[
-  {value:'aanbevolen',label:'Actief eerst · beste match'},
-  {value:'match',label:'Matchscore · hoog naar laag'},
+  {value:'aanbevolen',label:'Actief eerst · opvolging'},
   {value:'recent',label:'Laatste activiteit · nieuwste eerst'},
   {value:'interesse',label:'Interesse · hoogste eerst'},
   {value:'fase',label:'Pipelinefase · verst gevorderd eerst'},
@@ -28,10 +27,6 @@ const interesses:Record<InteresseNiveau,number>={
 const faseRang=new Map(PIPELINE_FASES.map((fase,i)=>[fase.key,i]));
 const actiefRang=(fase:PipelineFase)=>
   fase==='afgevallen'?2:fase==='afgerond'?1:0;
-const getScore=(s:number|null|undefined):number|null=>
-  typeof s==='number'&&Number.isFinite(s)&&s>=0&&s<=100?s:null;
-const scoreSort=(a:number|null|undefined,b:number|null|undefined)=>
-  (getScore(b)??Number.NEGATIVE_INFINITY)-(getScore(a)??Number.NEGATIVE_INFINITY);
 const geldigeDatum=(d:string|null|undefined)=>
   typeof d==='string'&&/^\d{4}-\d{2}-\d{2}/.test(d)?d:null;
 const nieuwsteEerst=(a:string|null|undefined,b:string|null|undefined)=>{
@@ -59,10 +54,9 @@ export function sorteerObjectKandidaten<T extends SorteerbareKandidaat>(
     switch(sortering){
       case 'aanbevolen':
         verschil=actiefRang(x.pipelineFase)-actiefRang(y.pipelineFase)
-          ||scoreSort(x.matchscore,y.matchscore);
-        break;
-      case 'match':
-        verschil=scoreSort(x.matchscore,y.matchscore);
+          ||eerstvolgend(x.volgendeActieDatum,y.volgendeActieDatum)
+          ||interesses[y.interesseNiveau]-interesses[x.interesseNiveau]
+          ||nieuwsteEerst(x.laatsteContactdatum,y.laatsteContactdatum);
         break;
       case 'recent':
         verschil=nieuwsteEerst(x.laatsteContactdatum,y.laatsteContactdatum);
@@ -82,7 +76,7 @@ export function sorteerObjectKandidaten<T extends SorteerbareKandidaat>(
         verschil=byNaam();
         break;
     }
-    // Gelijke scores: stabiel op oorspronkelijke volgorde.
+    // Gelijke opvolgingscriteria: stabiel op oorspronkelijke volgorde.
     return verschil || a.index-b.index;
   }).map(({k})=>k);
 }
