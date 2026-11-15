@@ -13,6 +13,7 @@ import { laatsteReactie, marktsignaalVoorObject, REACTIE_STATUS_LABELS } from '@
 import { VOLGENDE_ACTIE_LABELS, type PipelineKandidaat } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
+import { KANDIDAAT_SORTEEROPTIES, sorteerObjectKandidaten, type KandidaatSorteerwijze } from '@/lib/pipeline/kandidaatSortering';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
 
@@ -27,6 +28,14 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
   } = useDataStore();
 
   const kandidaten = getPipelineVoorObject(objectId);
+  const [sortering,setSortering] = useState<KandidaatSorteerwijze>('aanbevolen');
+  const gesorteerdeKandidaten = useMemo(
+    ()=>sorteerObjectKandidaten(kandidaten,sortering,k=>{
+      const rel=relaties.find(r=>r.id===k.relatieId);
+      return rel?getRelatieDropdownLabel(rel,contactpersonen):'';
+    }),
+    [kandidaten,sortering,relaties,contactpersonen],
+  );
   const [adding, setAdding] = useState(false);
   const [bewerken, setBewerken] = useState<PipelineKandidaat | null>(null);
   const [aanbiedOpen,setAanbiedOpen]=useState(false);
@@ -97,9 +106,22 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
 
       {kandidaten.length > 0 && (
         <>
+          <div className="flex justify-between items-end gap-2 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              {kandidaten.length} kandidaten · afgevallen blijft in de lijst
+            </p>
+            <label className="text-xs text-muted-foreground space-y-1 min-w-[180px]">
+              <span>Sorteer kandidaten</span>
+              <select aria-label="Sorteer kandidaten" value={sortering}
+                onChange={e=>setSortering(e.target.value as KandidaatSorteerwijze)}
+                className="block w-full h-9 border border-input rounded-md bg-background px-2 text-sm text-foreground">
+                {KANDIDAAT_SORTEEROPTIES.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+          </div>
           {/* Mobiele lijstweergave */}
           <div className="lg:hidden space-y-3">
-            {kandidaten.map(k => {
+            {gesorteerdeKandidaten.map(k => {
               const rel = relaties.find(r => r.id === k.relatieId);
               return (
                 <div
@@ -186,7 +208,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
-                {kandidaten.map(k => {
+                {gesorteerdeKandidaten.map(k => {
                   const rel = relaties.find(r => r.id === k.relatieId);
                   return (
                     <tr
