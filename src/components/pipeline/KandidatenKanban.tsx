@@ -239,9 +239,6 @@ export default function KandidatenKanban() {
                               <Building2 className="h-3.5 w-3.5 shrink-0 opacity-60" />
                               <span className="truncate">{obj?.titel ?? '—'}</span>
                             </Link>
-                            {k.matchscore != null && (
-                              <span className="text-[10px] font-mono-data text-muted-foreground shrink-0">{k.matchscore}%</span>
-                            )}
                           </div>
                           <Link
                             to={`/relaties/${k.relatieId}`}
