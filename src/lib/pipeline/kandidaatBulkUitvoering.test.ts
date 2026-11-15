@@ -56,6 +56,12 @@ describe('Aansluiten bulkopslag met veilige herhaalstrategie',()=>{
    const succes=await voerBulkUit(faseVerzoek,{
      opslaan:async()=>({...r,object_fase_wijziging:objectFase}),
      ververs:async()=>[],
+     verversObjectFase:async()=>({
+       objectId:p.p_object_id,
+       pipelineId:'b5000000-0000-4000-8000-000000000001',
+       stageId:objectFase.nieuwe_stage_id,
+       locked:false,updatedAt:'2026-11-15T13:40:00Z',
+     }),
    });
    expect(succes.status).toBe('opgeslagen');
 
