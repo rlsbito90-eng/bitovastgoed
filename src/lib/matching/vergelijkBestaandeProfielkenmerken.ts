@@ -1,12 +1,11 @@
 import type { ObjectVastgoed, Zoekprofiel } from '@/data/mock-data';
 import type { ProfielRoute } from './rolMandaatAdapter';
+import {
+  beoordeelKoperscriteria,
+  type Koperscriterium,
+  type CriteriumOverzicht,
+} from './criteriumMotor';
 
-/**
- * Read-only vergelijking tussen bestaande gestructureerde zoekprofielvelden
- * en hetzelfde fysieke object. Dit stelt GEEN harde eis vast, verandert
- * GEEN R2-kwalificatie, matchscore, aanbieding of pipeline en schrijft niets.
- * Alle positieve/negatieve conclusies zijn uitsluitend 'volgens registratie'.
- */
 export interface VergelijkingProfielkenmerk {
   sleutel: 'bouwjaar' | 'energielabel' | 'verhuurStatus' | 'leegstand';
   label: string;
@@ -20,97 +19,66 @@ type ObjectBron = Pick<ObjectVastgoed, 'isPortefeuille' | 'bouwjaar' |
   'energielabelV2' | 'energielabel' | 'verhuurStatus' | 'leegstandPct'>;
 type RouteBron = Pick<ProfielRoute, 'bron' | 'zoekprofielId'>;
 
-const labelVolgorde = ['A++++', 'A+++', 'A++', 'A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
-const verhuurLabel: Record<'verhuurd' | 'leeg' | 'gedeeltelijk', string> = {
-  verhuurd: 'Verhuurd', leeg: 'Leeg', gedeeltelijk: 'Gedeeltelijk verhuurd',
-};
-const geldigGetal = (n: number | null | undefined): n is number =>
-  typeof n === 'number' && Number.isFinite(n);
+/**
+ * Hergebruik uitsluitend gestructureerde, bestaande profielvelden. Omdat de
+ * sterkte historisch NIET apart is geregistreerd, gelden deze criteria in de
+ * aanvullende leesweergave als voorkeuren. Geen nieuwe invulvelden.
+ */
+export function maakGeregistreerdeProfielcriteria(
+  route: RouteBron,
+  profielen: readonly ProfielBron[],
+): Koperscriterium[] {
+  if (route.bron !== 'zoekprofiel' || !route.zoekprofielId) return [];
+  const p = profielen.find(x => x.id === route.zoekprofielId);
+  if (!p) return [];
+  const regels: Koperscriterium[]=[];
+  if (p.bouwjaarMin != null || p.bouwjaarMax != null) {
+    regels.push({id:'bouwjaar',label:'Bouwjaar',soort:'getal',veld:'bouwjaar',
+      min:p.bouwjaarMin,max:p.bouwjaarMax,sterkte:'voorkeur'});
+  }
+  if (p.energielabelMin && p.energielabelMin !== 'onbekend') {
+    regels.push({id:'energielabel',label:'Energielabel',soort:'energielabel',
+      minimaal:p.energielabelMin,sterkte:'voorkeur'});
+  }
+  if (p.verhuurStatus) {
+    regels.push({id:'verhuurStatus',label:'Verhuursituatie',soort:'keuze',
+      veld:'verhuurStatus',waarde:p.verhuurStatus,sterkte:'voorkeur'});
+  }
+  if (p.leegstandMaxPct != null) {
+    regels.push({id:'leegstand',label:'Leegstand',soort:'getal',veld:'leegstandPct',
+      max:p.leegstandMaxPct,sterkte:'voorkeur'});
+  }
+  return regels;
+}
 
+/** Nieuwe generieke onderlaag, zonder de bestaande R2-matching te wijzigen. */
+export function toetsBestaandeProfielcriteria(
+  object: ObjectBron,
+  route: RouteBron,
+  profielen: readonly ProfielBron[],
+): CriteriumOverzicht {
+  const regels=maakGeregistreerdeProfielcriteria(route,profielen);
+  return beoordeelKoperscriteria(regels,{
+    isPortefeuille:object.isPortefeuille,
+    bouwjaar:object.bouwjaar,
+    leegstandPct:object.leegstandPct,
+    verhuurStatus:object.verhuurStatus,
+    energielabel:object.energielabelV2 && object.energielabelV2!=='onbekend'
+      ? object.energielabelV2 : object.energielabel,
+  });
+}
+
+/** Compatibele read-only uitvoer voor de huidige relatie-detailpagina. */
 export function vergelijkBestaandeProfielkenmerken(
   object: ObjectBron,
   route: RouteBron,
   profielen: readonly ProfielBron[],
 ): VergelijkingProfielkenmerk[] {
-  if (route.bron !== 'zoekprofiel' || !route.zoekprofielId) return [];
-  const profiel = profielen.find(p => p.id === route.zoekprofielId);
-  if (!profiel) return [];
-
-  const regels: VergelijkingProfielkenmerk[] = [];
-  const voegToe = (sleutel: VergelijkingProfielkenmerk['sleutel'],
-    label: string, uitkomst: VergelijkingProfielkenmerk['uitkomst'], reden: string) =>
-    regels.push({ sleutel, label, uitkomst, reden });
-
-  // Eén objectveld vertegenwoordigt niet automatisch alle panden in een pakket.
-  const pakket = object.isPortefeuille;
-
-  if (profiel.bouwjaarMin != null || profiel.bouwjaarMax != null) {
-    const min = profiel.bouwjaarMin;
-    const max = profiel.bouwjaarMax;
-    const jaar = object.bouwjaar;
-    if (pakket) {
-      voegToe('bouwjaar', 'Bouwjaar', 'controle_nodig',
-        'Portefeuille: bouwjaar per afzonderlijk pand beoordelen.');
-    } else if (!geldigGetal(jaar) || !Number.isInteger(jaar) || jaar <= 0) {
-      voegToe('bouwjaar', 'Bouwjaar', 'controle_nodig', 'Bouwjaar object ontbreekt.');
-    } else if ((min != null && jaar < min) || (max != null && jaar > max)) {
-      voegToe('bouwjaar', 'Bouwjaar', 'afwijking',
-        `Geregistreerd bouwjaar ${jaar} valt buiten het opgegeven bereik.`);
-    } else {
-      voegToe('bouwjaar', 'Bouwjaar', 'overeenkomst',
-        `Geregistreerd bouwjaar ${jaar} valt binnen het opgegeven bereik.`);
-    }
-  }
-
-  if (profiel.energielabelMin && profiel.energielabelMin !== 'onbekend') {
-    const minimaal = labelVolgorde.indexOf(profiel.energielabelMin as typeof labelVolgorde[number]);
-    const v2 = object.energielabelV2 && object.energielabelV2 !== 'onbekend'
-      ? object.energielabelV2 : null;
-    const label = v2 ?? object.energielabel?.trim() ?? '';
-    const werkelijk = labelVolgorde.indexOf(label as typeof labelVolgorde[number]);
-    if (pakket) {
-      voegToe('energielabel', 'Energielabel', 'controle_nodig',
-        'Portefeuille: energielabel per pand of verblijfsobject controleren.');
-    } else if (minimaal < 0 || werkelijk < 0) {
-      voegToe('energielabel', 'Energielabel', 'controle_nodig',
-        'Geen vergelijkbaar energielabel in het objectdossier.');
-    } else {
-      const bron = v2 ? 'energielabelveld' : 'oud energielabelveld';
-      const uitkomst = werkelijk <= minimaal ? 'overeenkomst' : 'afwijking';
-      voegToe('energielabel', 'Energielabel', uitkomst,
-        `Geregistreerd ${label} (${bron}); gevraagd minimaal ${profiel.energielabelMin}. Geldigheid nog niet geverifieerd.`);
-    }
-  }
-
-  if (profiel.verhuurStatus) {
-    const waarde = object.verhuurStatus;
-    if (pakket) {
-      voegToe('verhuurStatus', 'Verhuursituatie', 'controle_nodig',
-        'Portefeuille: verhuurstatus van alle relevante onderdelen controleren.');
-    } else if (!(waarde in verhuurLabel)) {
-      voegToe('verhuurStatus', 'Verhuursituatie', 'controle_nodig',
-        'Verhuursituatie object ontbreekt of is onbekend.');
-    } else {
-      const akkoord = waarde === profiel.verhuurStatus;
-      voegToe('verhuurStatus', 'Verhuursituatie', akkoord ? 'overeenkomst' : 'afwijking',
-        `Geregistreerd: ${verhuurLabel[waarde]}; gewenst: ${verhuurLabel[profiel.verhuurStatus]}.`);
-    }
-  }
-
-  if (profiel.leegstandMaxPct != null) {
-    const leegstand = object.leegstandPct;
-    if (pakket) {
-      voegToe('leegstand', 'Leegstand', 'controle_nodig',
-        'Portefeuille: leegstandspercentage op dezelfde scope controleren.');
-    } else if (!geldigGetal(leegstand) || leegstand < 0 || leegstand > 100) {
-      voegToe('leegstand', 'Leegstand', 'controle_nodig',
-        'Geen bruikbaar leegstandspercentage in het objectdossier.');
-    } else {
-      const akkoord = leegstand <= profiel.leegstandMaxPct;
-      voegToe('leegstand', 'Leegstand', akkoord ? 'overeenkomst' : 'afwijking',
-        `Geregistreerd ${leegstand}%; gewenst maximaal ${profiel.leegstandMaxPct}%. Registratie nog niet onafhankelijk geverifieerd.`);
-    }
-  }
-
-  return regels;
+  return toetsBestaandeProfielcriteria(object,route,profielen).beoordelingen.map(x=>({
+    sleutel:x.id as VergelijkingProfielkenmerk['sleutel'],
+    label:x.label,
+    uitkomst:x.status==='voldoet'?'overeenkomst':
+      x.status==='wijkt_af'?'afwijking':'controle_nodig',
+    reden:x.toelichting,
+  }));
 }
