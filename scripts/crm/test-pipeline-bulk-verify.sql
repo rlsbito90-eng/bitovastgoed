@@ -228,6 +228,29 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN v_error:=true; END;
   IF NOT v_error THEN RAISE EXCEPTION 'Audit kon achteraf worden gewijzigd'; END IF;
 END $verify$;
+
+-- Directe bewerking van request-identiteit of het vervalsen van een cached
+-- resultaat bij INSERT mag niet kunnen, ook niet als ingelogde interne gebruiker.
+DO $request_integrity$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    INSERT INTO public.crm_pipeline_bulk_requests(id,object_id,actor_id,payload_hash,result)
+    VALUES(
+      'b4000000-0000-4000-8000-000000000010',
+      'b1000000-0000-4000-8000-000000000001',
+      '11111111-1111-1111-1111-111111111111',
+      repeat('0',32), '{"aangepast":100}'::jsonb);
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Vervalste cached response in INSERT geaccepteerd'; END IF;
+
+  v_denied:=false;
+  BEGIN
+    UPDATE public.crm_pipeline_bulk_requests SET payload_hash=repeat('1',32)
+    WHERE id='b4000000-0000-4000-8000-000000000001';
+  EXCEPTION WHEN insufficient_privilege THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Client kon payload hash na afloop wijzigen'; END IF;
+END $request_integrity$;
 RESET ROLE;
 
 -- Niet-interne ingelogde persoon: noch lezen noch functie uitvoeren.
