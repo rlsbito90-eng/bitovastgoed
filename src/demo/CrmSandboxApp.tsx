@@ -1,7 +1,10 @@
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { Building2, ClipboardCheck, MapPinned, ShieldCheck, Users } from 'lucide-react';
 import AdresModelProefPage from '@/pages/AdresModelProefPage';
-import SamenstellingProefPage from '@/pages/SamenstellingProefPage';
+import SandboxObjectPartsPage from './SandboxObjectPartsPage';
+import { SandboxStoreProvider, useSandboxStore } from './sandboxStore';
+import { VOORBEELDEN } from './sandboxModel';
+import { beoordeelSandboxBelegger } from './sandboxAssessment';
 import TestMatchingPage from './TestMatchingPage';
 
 /**
@@ -10,11 +13,21 @@ import TestMatchingPage from './TestMatchingPage';
  * Alleen fictieve voorbeelden en lokale browsergegevens.
  */
 function ProefObjecten() {
+  const {staat}=useSandboxStore();
+  const actieve=staat.beleggers.find(x=>x.id===staat.geselecteerdeBeleggerId)??staat.beleggers[0];
+  const resultaat=beoordeelSandboxBelegger(staat,actieve);
   return <div className="space-y-5">
     <div>
       <h1 className="text-2xl font-semibold">Objecten in de proefomgeving</h1>
       <p className="mt-2 text-sm text-muted-foreground">Alle objecten hieronder zijn fictief. Je kunt de
         adresinvoer en de samenstellingscontrole testen zonder echte CRM-gegevens.</p>
+    </div>
+    <div className="rounded-lg bg-muted/30 p-4 space-y-1">
+      <p className="font-semibold text-sm">{VOORBEELDEN[staat.scenario].naam}</p>
+      <p className="text-xs text-muted-foreground">
+        {staat.onderdelen[staat.scenario].length} onderdelen · {actieve.naam}: {resultaat.statusLabel}
+      </p>
+      <p className="text-xs text-muted-foreground">Eén set objectgegevens voor alle investeringsprofielen.</p>
     </div>
     <div className="grid gap-3 sm:grid-cols-2">
       <Link to="/objecten/adresproef" className="section-card p-5 space-y-2 hover:border-accent block">
@@ -68,7 +81,7 @@ function Shell() {
           <Route path="/relaties" element={<TestMatchingPage />} />
           <Route path="/objecten" element={<ProefObjecten />} />
           <Route path="/objecten/adresproef" element={<AdresModelProefPage />} />
-          <Route path="/objecten/samenstellingproef" element={<SamenstellingProefPage />} />
+          <Route path="/objecten/samenstellingproef" element={<SandboxObjectPartsPage />} />
           <Route path="*" element={<Navigate replace to="/relaties" />} />
         </Routes>
       </main>
@@ -81,5 +94,5 @@ function Shell() {
 }
 
 export default function CrmSandboxApp(){
-  return <BrowserRouter><Shell /></BrowserRouter>;
+  return <SandboxStoreProvider><BrowserRouter><Shell /></BrowserRouter></SandboxStoreProvider>;
 }
