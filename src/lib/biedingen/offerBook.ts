@@ -81,10 +81,14 @@ export function bouwBiedboekMomenten(rondes: Bieding[]): BiedboekMoment[] {
     });
 
     const status = effectieveStatus(bieding);
+    const isKoper = bieding.richting === 'van_koper';
     const gebeurtenis =
-      status === 'afgewezen' ? { soort: 'afwijzing' as const, datum: bieding.rejectedAt, label: 'Voorstel afgewezen' } :
-      status === 'geaccepteerd' ? { soort: 'acceptatie' as const, datum: bieding.acceptedAt, label: 'Bod geaccepteerd' } :
-      status === 'ingetrokken' ? { soort: 'intrekking' as const, datum: bieding.withdrawnAt, label: 'Bod ingetrokken' } :
+      status === 'afgewezen' ? { soort: 'afwijzing' as const, datum: bieding.rejectedAt,
+        label: isKoper ? 'Kopersbod afgewezen door verkoper' : 'Verkopersvoorstel afgewezen' } :
+      status === 'geaccepteerd' ? { soort: 'acceptatie' as const, datum: bieding.acceptedAt,
+        label: 'Bod geaccepteerd door verkoper' } :
+      status === 'ingetrokken' ? { soort: 'intrekking' as const, datum: bieding.withdrawnAt,
+        label: isKoper ? 'Kopersbod ingetrokken' : 'Verkopersvoorstel ingetrokken' } :
       status === 'verlopen' ? { soort: 'verloop' as const, datum: bieding.expiredAt ?? bieding.geldigTot, label: 'Geldigheid verlopen' } :
       null;
 
