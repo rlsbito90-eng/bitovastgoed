@@ -103,7 +103,7 @@ export default function OfferFormDialog({
   const scopeObjectId = bieding?.objectId ?? defaultObjectId ?? '';
   const { create, update } = useBiedingen(scopeObjectId ? { objectId: scopeObjectId } : { all: true });
 
-  const objectPipelineId = bieding?.objectPipelineId ?? defaultObjectPipelineId ?? null;
+  const objectPipelineId = bieding?.objectPipelineId ?? counterTo?.objectPipelineId ?? defaultObjectPipelineId ?? null;
   const counterOfferToId = bieding?.counterOfferToId ?? counterTo?.id ?? null;
 
   useEffect(() => {
@@ -187,20 +187,27 @@ export default function OfferFormDialog({
     e?.preventDefault();
     if (!form.objectId) { toast.error('Object is verplicht.'); return; }
     if (!form.relatieId) { toast.error('Relatie/kandidaat is verplicht.'); return; }
+    const ingevoerdBedrag = parseDutchNumber(form.bedrag);
+    if (counterTo && (ingevoerdBedrag == null || ingevoerdBedrag <= 0)) {
+      toast.error('Vul een geldig tegenvoorstelbedrag groter dan € 0 in.');
+      return;
+    }
     setBezig(true);
     try {
       const payload: Partial<Bieding> = {
-        objectId: form.objectId,
-        relatieId: form.relatieId,
-        dealId: form.dealId || null,
+        objectId: counterTo?.objectId ?? form.objectId,
+        relatieId: counterTo?.relatieId ?? form.relatieId,
+        dealId: (counterTo ? counterTo.dealId : form.dealId) || null,
         objectPipelineId: objectPipelineId,
         counterOfferToId: counterOfferToId,
-        bedrag: (() => { const n = parseDutchNumber(form.bedrag); return n == null ? null : Math.round(n); })(),
+        bedrag: ingevoerdBedrag == null ? null : Math.round(ingevoerdBedrag),
         bieddatum: form.bieddatum || today(),
         geldigTot: form.geldigTot || null,
-        status: form.status,
+        // Definitieve beslissingen lopen uitsluitend via de aparte accepteren/afwijzen-acties.
+        ...(!isEdit || !['geaccepteerd', 'afgewezen', 'ingetrokken', 'verlopen'].includes(bieding?.status ?? '')
+          ? { status: form.status } : {}),
         offerType: form.offerType,
-        richting: form.richting,
+        richting: counterTo ? antwoordRichtingVoorBod(counterTo) : form.richting,
         financieringsvoorbehoud: form.financieringsvoorbehoud,
         ddVoorbehoud: form.ddVoorbehoud,
         gewensteLevering: form.gewensteLevering || null,
@@ -240,10 +247,14 @@ export default function OfferFormDialog({
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Bieding bewerken' : counterTo ? 'Tegenvoorstel toevoegen' : 'Bieding toevoegen'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Bieding bewerken' : counterTo
+            ? antwoordRichtingVoorBod(counterTo) === 'van_koper'
+              ? 'Nieuw kopersbod registreren' : 'Tegenvoorstel verkoper registreren'
+            : 'Bieding toevoegen'}</DialogTitle>
           {counterTo && (
             <DialogDescription>
-              Tegenvoorstel op eerder bod van {new Date(counterTo.bieddatum).toLocaleDateString('nl-NL')}.
+              Registratie als antwoord op het bod van {new Date(counterTo.bieddatum).toLocaleDateString('nl-NL')}.
+              Leg uitsluitend een voorstel vast dat daadwerkelijk door de betreffende partij is uitgebracht of gecommuniceerd.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -252,22 +263,32 @@ export default function OfferFormDialog({
           {/* 1 — Koppeling */}
           <SectionTitle>Koppeling</SectionTitle>
           <div className="grid grid-cols-1 gap-3">
-            <EntityPicker
-              label="Object" pickerTitle="Kies object"
-              value={form.objectId} onChange={v => set('objectId', v)}
-              items={objectItems}
-            />
-            <EntityPicker
-              label="Kandidaat / kopertraject" pickerTitle="Kies kandidaat"
-              value={form.relatieId} onChange={v => set('relatieId', v)}
-              items={relatieItems}
-            />
-            <EntityPicker
-              label="Deal (optioneel)" pickerTitle="Kies deal"
-              value={form.dealId} onChange={v => set('dealId', v)}
-              items={dealItems}
-              emptyLabel="Geen gekoppelde deal"
-            />
+            {counterTo ? (
+              <div className="rounded-lg border border-border/60 bg-muted/25 p-3 text-sm space-y-1">
+                <p><span className="text-muted-foreground">Object:</span> {objectItems.find(o => o.id === counterTo.objectId)?.primair ?? 'Bestaand object'}</p>
+                <p><span className="text-muted-foreground">Koper:</span> {relatieItems.find(r => r.id === counterTo.relatieId)?.primair ?? 'Bestaande kandidaat'}</p>
+                <p className="text-xs text-muted-foreground">Deze koppeling ligt vast om het onderhandelingsverloop intact te houden.</p>
+              </div>
+            ) : (
+              <>
+                <EntityPicker
+                  label="Object" pickerTitle="Kies object"
+                  value={form.objectId} onChange={v => set('objectId', v)}
+                  items={objectItems}
+                />
+                <EntityPicker
+                  label="Kandidaat / kopertraject" pickerTitle="Kies kandidaat"
+                  value={form.relatieId} onChange={v => set('relatieId', v)}
+                  items={relatieItems}
+                />
+                <EntityPicker
+                  label="Deal (optioneel)" pickerTitle="Kies deal"
+                  value={form.dealId} onChange={v => set('dealId', v)}
+                  items={dealItems}
+                  emptyLabel="Geen gekoppelde deal"
+                />
+              </>
+            )}
           </div>
 
           {/* 2 — Bod */}
@@ -296,25 +317,38 @@ export default function OfferFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={v => set('status', v as BiedingStatus)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(BIEDING_STATUS_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isEdit && bieding && ['geaccepteerd', 'afgewezen', 'ingetrokken', 'verlopen'].includes(bieding.status) ? (
+                <div className="rounded-md border px-3 py-2 text-sm bg-muted/30">{BIEDING_STATUS_LABELS[bieding.status]}</div>
+              ) : counterTo ? (
+                <div className="rounded-md border px-3 py-2 text-sm bg-muted/30">{BIEDING_STATUS_LABELS[form.status]}</div>
+              ) : (
+                <Select value={form.status} onValueChange={v => set('status', v as BiedingStatus)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(BIEDING_STATUS_LABELS)
+                      .filter(([k]) => !['geaccepteerd', 'afgewezen', 'ingetrokken', 'verlopen'].includes(k))
+                      .map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+              {!isEdit && !counterTo && <p className="text-[11px] text-muted-foreground">Accepteren of afwijzen kan via de beslisknoppen in het biedboek.</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Richting / afzender</Label>
-              <Select value={form.richting} onValueChange={v => set('richting', v as BiedingRichting)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(BIEDING_RICHTING_LABELS_LONG).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {counterTo ? (
+                <div className="rounded-md border px-3 py-2 text-sm bg-muted/30">
+                  {BIEDING_RICHTING_LABELS_LONG[form.richting]}
+                </div>
+              ) : (
+                <Select value={form.richting} onValueChange={v => set('richting', v as BiedingRichting)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(BIEDING_RICHTING_LABELS_LONG).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="geldigTot">Geldig tot</Label>
