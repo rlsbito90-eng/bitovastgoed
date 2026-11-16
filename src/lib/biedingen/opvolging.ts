@@ -6,6 +6,7 @@ export function standaardOpvolgTitel(
   relatieNaam: string,
   objectNaam: string,
 ): string {
-  const partij = traject.fase === 'wacht_op_koper' ? 'Koper' : 'Verkoper';
-  return `${partij} opvolgen · ${relatieNaam} · ${objectNaam}`;
+  return traject.fase === 'wacht_op_koper'
+    ? `Koper opvolgen · ${relatieNaam} · ${objectNaam}`
+    : `Verkoper opvolgen over bod van ${relatieNaam} · ${objectNaam}`;
 }
