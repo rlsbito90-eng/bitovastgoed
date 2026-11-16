@@ -1,4 +1,4 @@
-import type { Bieding, BiedingType } from './types';
+import type { Bieding } from './types';
 import type { BiedboekTraject } from './offerBook';
 
 /** Aard van het voorstel: staat los van verzending, voorbehouden en het type biedronde. */
@@ -57,6 +57,13 @@ export function actueleBiedpositie(
         toelichting: 'Een concept is nog geen uitgebracht of ontvangen bod.',
       };
     case 'wacht_op_koper':
+      if (laatste.status === 'in_behandeling') {
+        return {
+          titel: 'Bij koper in behandeling',
+          vervolgstap: 'Reactie koper opvolgen en vastleggen',
+          toelichting: 'Het verkopersvoorstel is in beoordeling; er is nog geen kopersbesluit geregistreerd.',
+        };
+      }
       if (laatste.status === 'aangepast_bod_gevraagd') {
         return {
           titel: 'Aangepast kopersbod gevraagd',
@@ -90,9 +97,4 @@ export function actueleBiedpositie(
         toelichting: 'Controleer de laatste biedronde en bijbehorende voorwaarden.',
       };
   }
-}
-
-/** Het type 'schriftelijk' is géén bewijs van een formeel bod. */
-export function magFormeelAfleidenVanType(_type: BiedingType): boolean {
-  return false;
 }
