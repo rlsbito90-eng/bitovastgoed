@@ -36,6 +36,12 @@ export function nextCounterDirection(richting: BiedingRichting): BiedingRichting
   return 'van_koper';
 }
 
+/** Bij een gevraagd aangepast bod blijft de koper aan zet. */
+export function antwoordRichtingVoorBod(bieding: Pick<Bieding, 'richting' | 'status'>): BiedingRichting {
+  if (bieding.status === 'aangepast_bod_gevraagd' && bieding.richting === 'van_koper') return 'van_koper';
+  return nextCounterDirection(bieding.richting);
+}
+
 export function counterStatusForDirection(richting: BiedingRichting): BiedingStatus {
   return richting === 'van_koper' ? 'ontvangen' : 'tegenvoorstel_gedaan';
 }
