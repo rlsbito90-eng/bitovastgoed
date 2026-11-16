@@ -1,419 +1,309 @@
 import { useMemo, useState } from 'react';
-import { Plus, MoreHorizontal, Pencil, Trash2, CornerDownRight, Check, X, Eye, EyeOff, Filter, ArrowDown, ArrowUp, History } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, CornerDownRight, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { useBiedingen } from '@/hooks/useBiedingen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieNamen } from '@/lib/relatieNaam';
-import { fmtEur, vraagprijsDelta, isVerlopen, dagenTotVerval, effectieveStatus } from '@/lib/biedingen/format';
-import { OfferStatusBadge, OfferTypeBadge, OfferDirectionBadge } from './OfferBadges';
+import { fmtDate, fmtEur, vraagprijsDelta } from '@/lib/biedingen/format';
+import { BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, type Bieding } from '@/lib/biedingen/types';
+import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase } from '@/lib/biedingen/offerBook';
+import { nextCounterDirection } from '@/lib/biedingen/progression';
+import { OfferStatusBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
-import type { Bieding, BiedingStatus } from '@/lib/biedingen/types';
-import { ACTIEVE_BIEDING_STATUSSEN } from '@/lib/biedingen/status';
-import { getNegotiationPositions, nextCounterDirection } from '@/lib/biedingen/progression';
 
 type Scope = { objectId: string } | { dealId: string } | { relatieId: string };
-const ACTIEF: BiedingStatus[] = ACTIEVE_BIEDING_STATUSSEN;
 
 interface Props {
   scope: Scope;
-  /** Vraagprijs voor delta-berekening (alleen object-scope) */
   vraagprijs?: number | null;
-  /** Default voorvulwaarden voor "Nieuw" knop */
   defaults?: {
     objectId?: string;
     relatieId?: string;
     dealId?: string;
     objectPipelineId?: string;
   };
-  /** Toon koppelingskolommen (object/relatie). Default: alles tonen behalve de eigen scope */
   toonObject?: boolean;
   toonRelatie?: boolean;
   title?: string;
   compact?: boolean;
 }
 
+const faseKleur: Record<BiedboekFase, string> = {
+  concept: 'bg-muted text-muted-foreground',
+  wacht_op_verkoper: 'bg-primary/10 text-primary',
+  wacht_op_koper: 'bg-warning/10 text-warning',
+  geaccepteerd: 'bg-success/10 text-success',
+  afgewezen: 'bg-destructive/10 text-destructive',
+  ingetrokken: 'bg-muted text-muted-foreground',
+  verlopen: 'bg-muted text-muted-foreground',
+};
+
 export default function BiedingenSection({
-  scope, vraagprijs, defaults, toonObject, toonRelatie,
-  title = 'Biedingen', compact,
+  scope, vraagprijs, defaults, toonObject, toonRelatie, title = 'Biedingen', compact,
 }: Props) {
   const { items, loading, error, remove, refresh } = useBiedingen(scope);
   const { relaties, contactpersonen, getObjectById } = useDataStore();
-
-  const [showHistory, setShowHistory] = useState(false);
+  const trajecten = useMemo(() => bouwBiedboek(items), [items]);
+  const [uitgeklapt, setUitgeklapt] = useState<Record<string, boolean>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Bieding | null>(null);
   const [counterTo, setCounterTo] = useState<Bieding | null>(null);
+  const [newContext, setNewContext] = useState<{ objectId: string; relatieId: string } | null>(null);
   const [acceptTarget, setAcceptTarget] = useState<Bieding | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Bieding | null>(null);
 
-  const showObjectCol = toonObject ?? !('objectId' in scope);
-  const showRelatieCol = toonRelatie ?? !('relatieId' in scope);
+  const showObject = toonObject ?? !('objectId' in scope);
+  const showRelatie = toonRelatie ?? !('relatieId' in scope);
+  const aantalOpen = trajecten.filter(t => t.isOpen).length;
+  const aantalGeaccepteerd = trajecten.filter(t => t.fase === 'geaccepteerd').length;
 
-  const visible = useMemo(
-    () => showHistory ? items : items.filter(b => ACTIEF.includes(effectieveStatus(b))),
-    [items, showHistory],
-  );
+  const handleNew = (context?: { objectId: string; relatieId: string }) => {
+    setNewContext(context ?? null);
+    setEditTarget(null);
+    setCounterTo(null);
+    setFormOpen(true);
+  };
+  const handleEdit = (bieding: Bieding) => {
+    setEditTarget(bieding);
+    setCounterTo(null);
+    setNewContext(null);
+    setFormOpen(true);
+  };
+  const handleCounter = (bieding: Bieding) => {
+    setCounterTo(bieding);
+    setEditTarget(null);
+    setNewContext(null);
+    setFormOpen(true);
+  };
 
-  const positions = useMemo(() => getNegotiationPositions(items), [items]);
-
-  const stats = useMemo(() => {
-    const actief = items.filter(b => ACTIEF.includes(effectieveStatus(b)));
-    const geaccepteerd = items.find(b => b.status === 'geaccepteerd') ?? null;
-    const kopersbiedingen = actief.filter(b => b.richting === 'van_koper' && b.bedrag != null);
-    const verkopersvoorstellen = actief.filter(b => (b.richting === 'van_verkoper' || b.richting === 'namens_verkoper') && b.bedrag != null);
-    const hoogsteKopersbod = kopersbiedingen.reduce<Bieding | null>(
-      (best, b) => (!best || (best.bedrag ?? 0) < (b.bedrag ?? 0) ? b : best), null);
-    const laatsteVerkopersvoorstel = [...verkopersvoorstellen].sort((a, b) =>
-      new Date(b.createdAt || b.bieddatum).getTime() - new Date(a.createdAt || a.bieddatum).getTime()
-    )[0] ?? null;
-    const openTrajecten = new Set(actief.map(b => b.relatieId)).size;
-    return { aantalActief: actief.length, openTrajecten, totaalAantal: items.length, hoogsteKopersbod, laatsteVerkopersvoorstel, geaccepteerd };
-  }, [items]);
-
-  const handleNew = () => { setEditTarget(null); setCounterTo(null); setFormOpen(true); };
-  const handleEdit = (b: Bieding) => { setEditTarget(b); setCounterTo(null); setFormOpen(true); };
-  const handleCounter = (b: Bieding) => { setEditTarget(null); setCounterTo(b); setFormOpen(true); };
-
-  const renderRelatieLabel = (relatieId: string) => {
-    const r = relaties.find(x => x.id === relatieId);
-    if (!r) return '—';
-    const { primair, secundair } = getRelatieNamen(r, contactpersonen);
+  const renderRelatie = (relatieId: string) => {
+    const relatie = relaties.find(r => r.id === relatieId);
+    if (!relatie) return 'Onbekende kandidaat';
+    const naam = getRelatieNamen(relatie, contactpersonen);
     return (
       <div className="min-w-0">
-        <div className="font-medium truncate">{primair}</div>
-        {secundair && <div className="text-xs text-muted-foreground truncate">{secundair}</div>}
+        <div className="font-semibold truncate">{naam.primair}</div>
+        {naam.secundair && <div className="text-xs text-muted-foreground truncate">{naam.secundair}</div>}
       </div>
     );
   };
 
-  const renderObjectLabel = (objectId: string) => {
-    const o = getObjectById(objectId);
-    if (!o) return '—';
-    return (
-      <div className="min-w-0">
-        <div className="font-medium truncate">{o.titel || o.adres || '(object)'}</div>
-        <div className="text-xs text-muted-foreground truncate">{[o.plaats, o.status].filter(Boolean).join(' · ')}</div>
-      </div>
-    );
+  const renderObject = (objectId: string) => {
+    const object = getObjectById(objectId);
+    if (!object) return 'Onbekend object';
+    return <span>{object.titel || object.adres || '(object)'}{object.plaats ? ' · ' + object.plaats : ''}</span>;
+  };
+
+  const handleDelete = async (bieding: Bieding) => {
+    try {
+      await remove(bieding.id);
+      toast.success('Bieding verwijderd');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Verwijderen mislukt');
+    }
   };
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <Card className="section-card">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3">
-          <div className="min-w-0 flex items-center justify-between gap-2 sm:block">
-            <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-              {title}
-              <span className="text-xs font-normal text-muted-foreground">
-                {stats.openTrajecten} open traject{stats.openTrajecten === 1 ? '' : 'en'} · {stats.totaalAantal} voorstel{stats.totaalAantal === 1 ? '' : 'len'}
-              </span>
-            </CardTitle>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-            <Button variant="ghost" size="sm" onClick={() => setShowHistory(s => !s)} className="text-xs">
-              {showHistory ? <><EyeOff className="h-3.5 w-3.5 mr-1" />Verberg historie</> : <><History className="h-3.5 w-3.5 mr-1" />Toon historie</>}
-            </Button>
-            <Button size="sm" onClick={handleNew}><Plus className="h-4 w-4 mr-1" />Nieuw bod</Button>
-          </div>
-        </CardHeader>
+    <Card className="section-card">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3">
+        <div className="min-w-0 space-y-1">
+          <CardTitle className="text-base">{title}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {aantalOpen} lopend · {trajecten.length} traject{trajecten.length === 1 ? '' : 'en'} · {items.length} onderhandelingsstap{items.length === 1 ? '' : 'pen'}
+          </p>
+        </div>
+        <Button size="sm" onClick={() => handleNew()} className="self-start sm:self-auto">
+          <Plus className="h-4 w-4 mr-1" />Nieuw bod
+        </Button>
+      </CardHeader>
 
-        <CardContent className="space-y-4">
-          {/* KPI strip */}
-          {!compact && items.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <KpiTile label="Open biedingsreeksen" value={String(stats.openTrajecten)} />
-              <KpiTile
-                label="Hoogste kopersbod"
-                value={stats.hoogsteKopersbod?.bedrag != null ? fmtEur(stats.hoogsteKopersbod.bedrag) : '—'}
-                sub={vraagprijs && stats.hoogsteKopersbod?.bedrag
-                  ? vraagprijsDelta(stats.hoogsteKopersbod.bedrag, vraagprijs)?.label ?? undefined
-                  : undefined}
-                subTone={vraagprijs && stats.hoogsteKopersbod?.bedrag
-                  ? vraagprijsDelta(stats.hoogsteKopersbod.bedrag, vraagprijs)?.tone : undefined}
-                icon={<ArrowUp className="h-3.5 w-3.5" />}
-              />
-              <KpiTile
-                label="Laatste verkopersvoorstel"
-                value={stats.laatsteVerkopersvoorstel?.bedrag != null ? fmtEur(stats.laatsteVerkopersvoorstel.bedrag) : '—'}
-                icon={<ArrowDown className="h-3.5 w-3.5" />}
-              />
-              <KpiTile
-                label="Geaccepteerd"
-                value={stats.geaccepteerd?.bedrag != null ? fmtEur(stats.geaccepteerd.bedrag) : '—'}
-                icon={<Check className="h-3.5 w-3.5" />}
-                tone={stats.geaccepteerd ? 'emerald' : 'neutral'}
-              />
-            </div>
-          )}
+      <CardContent className="space-y-3">
+        {!compact && aantalGeaccepteerd > 0 && (
+          <p className="text-xs text-success">{aantalGeaccepteerd} geaccepteerd traject{aantalGeaccepteerd === 1 ? '' : 'en'}</p>
+        )}
+        {loading && <p className="text-sm text-muted-foreground">Biedboek laden…</p>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {!loading && !error && trajecten.length === 0 && (
+          <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground text-center">
+            Er zijn nog geen biedingen vastgelegd.
+          </div>
+        )}
 
-          {!compact && positions.some(p => p.latestSeller) && (
-            <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Actuele onderhandelingspositie</div>
-              {positions.filter(p => p.latestBuyer || p.latestSeller).map(p => (
-                <div key={p.relatieId} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 sm:items-center text-sm">
-                  <div className="min-w-0">{renderRelatieLabel(p.relatieId)}</div>
-                  <div><span className="text-xs text-muted-foreground">Koper</span> <span className="font-medium">{p.latestBuyer?.bedrag != null ? fmtEur(p.latestBuyer.bedrag) : '—'}</span></div>
-                  <div><span className="text-xs text-muted-foreground">Verkoper</span> <span className="font-medium">{p.latestSeller?.bedrag != null ? fmtEur(p.latestSeller.bedrag) : '—'}</span></div>
-                  <div><span className="text-xs text-muted-foreground">Gap</span> <span className="font-medium">{p.gap != null ? fmtEur(Math.abs(p.gap)) : '—'}</span></div>
+        {trajecten.map(traject => {
+          const open = uitgeklapt[traject.key] ?? trajecten.length === 1;
+          const laatste = traject.laatste;
+          const isKopersbod = laatste.richting === 'van_koper';
+          const delta = vraagprijs && traject.laatsteKopersbod?.bedrag != null
+            ? vraagprijsDelta(traject.laatsteKopersbod.bedrag, vraagprijs) : null;
+
+          return (
+            <section key={traject.key} className="rounded-xl border border-border/70 bg-card overflow-hidden">
+              <div className="p-3 sm:p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 text-sm">
+                    {showRelatie && renderRelatie(traject.relatieId)}
+                    {showObject && <div className="text-xs text-muted-foreground mt-1">{renderObject(traject.objectId)}</div>}
+                    {!showRelatie && !showObject && <div className="font-semibold">Onderhandeling</div>}
+                  </div>
+                  <span className={['rounded-full px-2.5 py-1 text-[11px] font-medium text-center shrink-0', faseKleur[traject.fase]].join(' ')}>
+                    {BIEDBOEK_FASE_LABELS[traject.fase]}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
 
-          {loading && <p className="text-sm text-muted-foreground">Laden…</p>}
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          {!loading && visible.length === 0 && (
-            <div className="text-sm text-muted-foreground border border-dashed rounded-md py-8 text-center">
-              {items.length === 0 ? 'Nog geen biedingen vastgelegd.' : 'Geen actieve biedingen. Toon historie om alles te zien.'}
-            </div>
-          )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-muted/30 p-3 min-w-0">
+                    <div className="text-[11px] text-muted-foreground">Laatste kopersbod</div>
+                    <div className="text-base font-semibold tabular-nums mt-1">{fmtEur(traject.laatsteKopersbod?.bedrag)}</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 p-3 min-w-0">
+                    <div className="text-[11px] text-muted-foreground">Laatste verkopersvoorstel</div>
+                    <div className="text-base font-semibold tabular-nums mt-1">{fmtEur(traject.laatsteVerkopersvoorstel?.bedrag)}</div>
+                  </div>
+                </div>
 
-          {visible.length > 0 && (
-            <>
-              {/* Desktop tabel */}
-              <div className="hidden md:block overflow-x-auto rounded-md border border-border/60">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40 text-xs text-muted-foreground">
-                    <tr>
-                      <th className="text-left font-medium px-3 py-2">Datum</th>
-                      {showObjectCol && <th className="text-left font-medium px-3 py-2">Object</th>}
-                      {showRelatieCol && <th className="text-left font-medium px-3 py-2">Kandidaat / traject</th>}
-                      <th className="text-left font-medium px-3 py-2">Type</th>
-                      <th className="text-right font-medium px-3 py-2">Bedrag</th>
-                      {vraagprijs && <th className="text-right font-medium px-3 py-2">Δ vraagprijs</th>}
-                      <th className="text-left font-medium px-3 py-2">Status</th>
-                      <th className="text-left font-medium px-3 py-2">Voorwaarden</th>
-                      <th className="px-3 py-2 w-10" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visible.map(b => {
-                      const delta = vraagprijs && b.bedrag ? vraagprijsDelta(b.bedrag, vraagprijs) : null;
-                      const verlopen = isVerlopen(b);
-                      const dagen = dagenTotVerval(b);
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>Laatste stap: <span className="font-medium text-foreground">{biedRondeLabel(laatste)}</span> · {fmtDate(laatste.bieddatum)}</span>
+                  {traject.verschil != null && <span>Verschil: <span className="font-semibold text-foreground">{fmtEur(Math.abs(traject.verschil))}</span></span>}
+                  {delta && <span>Laatste kopersbod t.o.v. vraagprijs: {delta.label}</span>}
+                  {traject.fase === 'afgewezen' && laatste.rejectedReason && <span className="text-destructive">Reden: {laatste.rejectedReason}</span>}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setUitgeklapt(s => ({ ...s, [traject.key]: !open }))}>
+                    {open ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
+                    {open ? 'Verberg verloop' : 'Bekijk verloop'} ({traject.rondes.length})
+                  </Button>
+                  {traject.isOpen && laatste.richting !== 'intern' && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => handleCounter(laatste)}>
+                        <CornerDownRight className="h-4 w-4 mr-1" />
+                        {nextCounterDirection(laatste.richting) === 'van_koper' ? 'Tegenbod koper' : 'Tegenvoorstel verkoper'}
+                      </Button>
+                      {isKopersbod && (
+                        <Button variant="outline" size="sm" onClick={() => setAcceptTarget(laatste)}>
+                          <Check className="h-4 w-4 mr-1" />Accepteren
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => setRejectTarget(laatste)}>
+                        <X className="h-4 w-4 mr-1" />Afwijzen
+                      </Button>
+                    </>
+                  )}
+                  {!traject.isOpen && (
+                    <Button variant="ghost" size="sm" onClick={() => handleNew({ objectId: traject.objectId, relatieId: traject.relatieId })}>
+                      <Plus className="h-4 w-4 mr-1" />Nieuw bod in traject
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {open && (
+                <div className="border-t border-border/60 bg-muted/10 p-3 sm:p-4">
+                  <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-3">
+                    Onderhandelingsverloop · oudste eerst
+                  </div>
+                  <ol className="space-y-2" aria-label="Onderhandelingsverloop">
+                    {traject.rondes.map((bieding, index) => {
+                      const vanVerkoper = bieding.richting === 'van_verkoper' || bieding.richting === 'namens_verkoper';
+                      const parent = traject.rondes.find(r => r.id === bieding.counterOfferToId);
                       return (
-                        <tr
-                          key={b.id}
-                          className="border-t border-border/40 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => handleEdit(b)}
-                        >
-                          <td className="px-3 py-2 whitespace-nowrap">
-                            <div>{new Date(b.bieddatum).toLocaleDateString('nl-NL')}</div>
-                            {b.geldigTot && (
-                              <div className={`text-[11px] ${verlopen ? 'text-destructive' : dagen != null && dagen <= 3 ? 'text-warning' : 'text-muted-foreground'}`}>
-                                Geldig t/m {new Date(b.geldigTot).toLocaleDateString('nl-NL')}
-                              </div>
-                            )}
-                          </td>
-                          {showObjectCol && <td className="px-3 py-2 max-w-[220px]">{renderObjectLabel(b.objectId)}</td>}
-                          {showRelatieCol && <td className="px-3 py-2 max-w-[220px]">{renderRelatieLabel(b.relatieId)}</td>}
-                          <td className="px-3 py-2"><div className="flex flex-wrap gap-1"><OfferTypeBadge type={b.offerType} /><OfferDirectionBadge richting={b.richting} /></div></td>
-                          <td className="px-3 py-2 text-right font-medium whitespace-nowrap">
-                            {b.bedrag != null ? fmtEur(b.bedrag) : '—'}
-                            {b.counterOfferToId && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <CornerDownRight className="inline-block ml-1 h-3 w-3 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>Tegenvoorstel</TooltipContent>
-                              </Tooltip>
-                            )}
-                          </td>
-                          {vraagprijs && (
-                            <td className={`px-3 py-2 text-right whitespace-nowrap text-xs ${
-                              delta?.tone === 'positive' ? 'text-success' :
-                              delta?.tone === 'negative' ? 'text-destructive' : 'text-muted-foreground'
-                            }`}>
-                              {delta?.label ?? '—'}
-                            </td>
-                          )}
-                          <td className="px-3 py-2"><OfferStatusBadge bieding={b} /></td>
-                          <td className="px-3 py-2 max-w-[200px]">
-                            <VoorwaardenSummary b={b} />
-                          </td>
-                          <td className="px-3 py-2 text-right" onClick={e => e.stopPropagation()}>
-                            <RowActions
-                              b={b}
-                              onEdit={() => handleEdit(b)}
-                              onCounter={() => handleCounter(b)}
-                              onAccept={() => setAcceptTarget(b)}
-                              onReject={() => setRejectTarget(b)}
-                              onDelete={async () => { await remove(b.id); }}
-                            />
-                          </td>
-                        </tr>
+                        <li key={bieding.id} className={['rounded-lg border-l-[3px] p-3 bg-card shadow-sm', vanVerkoper ? 'border-l-accent' : 'border-l-primary'].join(' ')}>
+                          <div className="flex items-start gap-2 justify-between">
+                            <div className="min-w-0">
+                              <div className="text-[11px] text-muted-foreground">Stap {index + 1} · {fmtDate(bieding.bieddatum)}</div>
+                              <div className="font-semibold text-sm mt-0.5">{biedRondeLabel(bieding)}</div>
+                            </div>
+                            <div className="flex items-start gap-1 shrink-0">
+                              <div className="text-base font-semibold tabular-nums">{fmtEur(bieding.bedrag)}</div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Acties voor deze biedingsstap">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEdit(bieding)}>
+                                    <Pencil className="h-3.5 w-3.5 mr-2" />Bewerken
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">
+                                        <Trash2 className="h-3.5 w-3.5 mr-2" />Verwijderen
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Biedingsstap verwijderen?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Dit verwijdert een deel van de onderhandelingshistorie. Doe dit alleen bij een foutieve registratie.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => void handleDelete(bieding)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <OfferStatusBadge bieding={bieding} />
+                            <span className="text-[11px] text-muted-foreground">{BIEDING_TYPE_LABELS[bieding.offerType]}</span>
+                            {parent && <span className="text-[11px] text-muted-foreground">Reactie op {fmtEur(parent.bedrag)}</span>}
+                            {bieding.geldigTot && <span className="text-[11px] text-muted-foreground">Geldig t/m {fmtDate(bieding.geldigTot)}</span>}
+                          </div>
+                          {bieding.rejectedReason && <p className="text-xs text-destructive mt-2">Afwijzingsreden: {bieding.rejectedReason}</p>}
+                          {bieding.voorwaarden && <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{bieding.voorwaarden}</p>}
+                          {bieding.notities && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{bieding.notities}</p>}
+                          <VoorwaardenSummary b={bieding} />
+                        </li>
                       );
-
                     })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-2">
-                {visible.map(b => {
-                  const delta = vraagprijs && b.bedrag ? vraagprijsDelta(b.bedrag, vraagprijs) : null;
-                  return (
-                    <div
-                      key={b.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => handleEdit(b)}
-                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEdit(b); } }}
-                      className="rounded-md border border-border/60 p-3 space-y-2 bg-card cursor-pointer hover:bg-muted/40 active:bg-muted/60 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          {showRelatieCol && <div className="text-sm">{renderRelatieLabel(b.relatieId)}</div>}
-                          {showObjectCol && <div className="mt-1 text-xs text-muted-foreground">{renderObjectLabel(b.objectId)}</div>}
-                        </div>
-                        <div onClick={e => e.stopPropagation()}>
-                          <RowActions
-                            b={b}
-                            onEdit={() => handleEdit(b)}
-                            onCounter={() => handleCounter(b)}
-                            onAccept={() => setAcceptTarget(b)}
-                            onReject={() => setRejectTarget(b)}
-                            onDelete={async () => { await remove(b.id); }}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                        <div className="text-lg font-semibold">{b.bedrag != null ? fmtEur(b.bedrag) : '—'}</div>
-                        {delta && (
-                          <div className={`text-xs ${
-                            delta.tone === 'positive' ? 'text-success' :
-                            delta.tone === 'negative' ? 'text-destructive' : 'text-muted-foreground'
-                          }`}>{delta.label}</div>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        <OfferStatusBadge bieding={b} />
-                        <OfferTypeBadge type={b.offerType} />
-                        <OfferDirectionBadge richting={b.richting} />
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {new Date(b.bieddatum).toLocaleDateString('nl-NL')}
-                        {b.geldigTot && ` · geldig t/m ${new Date(b.geldigTot).toLocaleDateString('nl-NL')}`}
-                      </div>
-                      <VoorwaardenSummary b={b} className="text-xs" />
-                    </div>
-                  );
-
-                })}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+                  </ol>
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </CardContent>
 
       <OfferFormDialog
-        open={formOpen} onOpenChange={setFormOpen}
-        bieding={editTarget}
-        counterTo={counterTo}
-        defaultObjectId={defaults?.objectId}
-        defaultRelatieId={defaults?.relatieId}
+        open={formOpen} onOpenChange={setFormOpen} bieding={editTarget} counterTo={counterTo}
+        defaultObjectId={newContext?.objectId ?? defaults?.objectId}
+        defaultRelatieId={newContext?.relatieId ?? defaults?.relatieId}
         defaultDealId={defaults?.dealId}
         defaultObjectPipelineId={defaults?.objectPipelineId}
         onSaved={refresh}
       />
-
-      <OfferAcceptDialog open={!!acceptTarget} onOpenChange={o => !o && setAcceptTarget(null)} bieding={acceptTarget} />
-      <OfferRejectDialog open={!!rejectTarget} onOpenChange={o => !o && setRejectTarget(null)} bieding={rejectTarget} />
-    </TooltipProvider>
+      <OfferAcceptDialog open={!!acceptTarget} onOpenChange={open => !open && setAcceptTarget(null)}
+        bieding={acceptTarget} onSaved={refresh} />
+      <OfferRejectDialog open={!!rejectTarget} onOpenChange={open => !open && setRejectTarget(null)}
+        bieding={rejectTarget} onSaved={refresh} />
+    </Card>
   );
 }
 
-function VoorwaardenSummary({ b, className = '' }: { b: Bieding; className?: string }) {
-  const parts: string[] = [];
-  if (b.financieringsvoorbehoud === 'ja') parts.push('Financiering: ja');
-  if (b.financieringsvoorbehoud === 'geen') parts.push('Geen financ.voorb.');
-  if (b.ddVoorbehoud === 'ja') parts.push('DD: ja');
-  if (b.ddVoorbehoud === 'geen') parts.push('Geen DD-voorb.');
-  if (b.gewensteLeveringTekst) parts.push(`Levering: ${b.gewensteLeveringTekst}`);
-  else if (b.gewensteLevering) parts.push(`Levering: ${new Date(b.gewensteLevering).toLocaleDateString('nl-NL')}`);
-  if (b.kostenType === 'kk') parts.push('k.k.');
-  if (b.kostenType === 'von') parts.push('v.o.n.');
-
-  if (parts.length === 0) return <span className={`text-muted-foreground ${className}`}>—</span>;
-  return <span className={`text-muted-foreground line-clamp-2 ${className}`}>{parts.join(' · ')}</span>;
-}
-
-function RowActions({ b, onEdit, onCounter, onAccept, onReject, onDelete }: {
-  b: Bieding;
-  onEdit: () => void; onCounter: () => void;
-  onAccept: () => void; onReject: () => void;
-  onDelete: () => Promise<void>;
-}) {
-  const isActief = ACTIEF.includes(effectieveStatus(b));
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" />Bewerken</DropdownMenuItem>
-        {isActief && (
-          <>
-            <DropdownMenuItem onClick={onCounter}><CornerDownRight className="h-3.5 w-3.5 mr-2" />{nextCounterDirection(b.richting) === 'van_koper' ? 'Nieuw tegenbod koper' : 'Tegenvoorstel verkoper'}</DropdownMenuItem>
-            <DropdownMenuItem onClick={onAccept}><Check className="h-3.5 w-3.5 mr-2 text-success" />Accepteren</DropdownMenuItem>
-            <DropdownMenuItem onClick={onReject}><X className="h-3.5 w-3.5 mr-2 text-destructive" />Afwijzen</DropdownMenuItem>
-          </>
-        )}
-        <DropdownMenuSeparator />
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">
-              <Trash2 className="h-3.5 w-3.5 mr-2" />Verwijderen
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Bieding verwijderen?</AlertDialogTitle>
-              <AlertDialogDescription>Deze actie is onomkeerbaar.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuleren</AlertDialogCancel>
-              <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-// Tiny helper to avoid duplicate AlertDialogTitle typo in JSX above
-function AlertingDialogTitleSafe() {
-  return <>Bieding verwijderen?</>;
-}
-
-function KpiTile({ label, value, sub, subTone, icon, tone = 'neutral' }: {
-  label: string; value: string; sub?: string;
-  subTone?: 'positive' | 'negative' | 'neutral';
-  icon?: React.ReactNode;
-  tone?: 'neutral' | 'emerald';
-}) {
-  const subClass =
-    subTone === 'positive' ? 'text-success' :
-    subTone === 'negative' ? 'text-destructive' : 'text-muted-foreground';
-  return (
-    <div className={`rounded-md border border-border/60 p-3 ${tone === 'emerald' ? 'bg-success/5' : 'bg-muted/20'}`}>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-        {icon}{label}
-      </div>
-      <div className="text-base font-semibold mt-1 truncate">{value}</div>
-      {sub && <div className={`text-[11px] mt-0.5 ${subClass}`}>{sub}</div>}
-    </div>
-  );
+function VoorwaardenSummary({ b }: { b: Bieding }) {
+  const voorwaarden: string[] = [];
+  if (b.financieringsvoorbehoud === 'ja') voorwaarden.push('Met financieringsvoorbehoud');
+  if (b.financieringsvoorbehoud === 'geen') voorwaarden.push('Geen financieringsvoorbehoud');
+  if (b.ddVoorbehoud === 'ja') voorwaarden.push('Met DD-voorbehoud');
+  if (b.ddVoorbehoud === 'geen') voorwaarden.push('Geen DD-voorbehoud');
+  if (b.gewensteLeveringTekst) voorwaarden.push('Levering: ' + b.gewensteLeveringTekst);
+  else if (b.gewensteLevering) voorwaarden.push('Levering: ' + fmtDate(b.gewensteLevering));
+  if (b.kostenType === 'kk') voorwaarden.push('k.k.');
+  if (b.kostenType === 'von') voorwaarden.push('v.o.n.');
+  if (voorwaarden.length === 0) return null;
+  return <p className="text-xs text-muted-foreground mt-2">{voorwaarden.join(' · ')}</p>;
 }
