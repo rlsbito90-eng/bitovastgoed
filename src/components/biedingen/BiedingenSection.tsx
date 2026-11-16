@@ -270,7 +270,9 @@ export default function BiedingenSection({
                           {!beslissing ? (
                             <>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <OfferStatusBadge bieding={bieding} />
+                                {['afgewezen', 'ingetrokken', 'verlopen', 'geaccepteerd'].includes(bieding.status)
+                                  ? <span className="text-[11px] text-muted-foreground">Voorstel geregistreerd</span>
+                                  : <OfferStatusBadge bieding={bieding} />}
                                 <span className="text-[11px] text-muted-foreground">{BIEDING_TYPE_LABELS[bieding.offerType]}</span>
                                 {parent && <span className="text-[11px] text-muted-foreground">Reactie op {fmtEur(parent.bedrag)}</span>}
                                 {bieding.geldigTot && <span className="text-[11px] text-muted-foreground">Geldig t/m {fmtDate(bieding.geldigTot)}</span>}
