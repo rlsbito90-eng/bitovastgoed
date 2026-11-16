@@ -142,6 +142,7 @@ export function bouwBiedboek(items: Bieding[]): BiedboekTraject[] {
     else if (laatsteMoment.soort === 'intrekking') fase = 'ingetrokken';
     else if (laatsteMoment.soort === 'verloop') fase = 'verlopen';
     else if (status === 'concept') fase = 'concept';
+    else if (status === 'aangepast_bod_gevraagd') fase = 'wacht_op_koper';
     else if (laatste.richting === 'van_verkoper' || laatste.richting === 'namens_verkoper') fase = 'wacht_op_koper';
     else fase = 'wacht_op_verkoper';
 
