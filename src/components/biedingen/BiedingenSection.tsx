@@ -12,7 +12,7 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { fmtDate, fmtEur, vraagprijsDelta } from '@/lib/biedingen/format';
-import { BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, type Bieding } from '@/lib/biedingen/types';
+import { BIEDING_TYPE_LABELS, type Bieding } from '@/lib/biedingen/types';
 import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase } from '@/lib/biedingen/offerBook';
 import { nextCounterDirection } from '@/lib/biedingen/progression';
 import { OfferStatusBadge } from './OfferBadges';
