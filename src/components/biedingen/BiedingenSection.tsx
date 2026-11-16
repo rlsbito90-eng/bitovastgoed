@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, Clock3, CornerDownRight, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { CalendarPlus2, Check, ChevronDown, ChevronUp, Clock3, CornerDownRight, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -13,11 +13,13 @@ import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { fmtDate, fmtEur, vraagprijsDelta } from '@/lib/biedingen/format';
 import { BIEDING_TYPE_LABELS, type Bieding } from '@/lib/biedingen/types';
-import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase } from '@/lib/biedingen/offerBook';
+import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase, type BiedboekTraject } from '@/lib/biedingen/offerBook';
 import { antwoordRichtingVoorBod } from '@/lib/biedingen/progression';
 import { OfferStatusBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
 import BiedboekAuditPanel from './BiedboekAuditPanel';
+import BiedboekOpvolgingDialog from './BiedboekOpvolgingDialog';
+import BiedboekAangepastBodDialog from './BiedboekAangepastBodDialog';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
 
 type Scope = { objectId: string } | { dealId: string } | { relatieId: string };
@@ -50,7 +52,7 @@ const faseKleur: Record<BiedboekFase, string> = {
 export default function BiedingenSection({
   scope, vraagprijs, defaults, toonObject, toonRelatie, title = 'Biedingen', compact,
 }: Props) {
-  const { items, loading, error, remove, refresh } = useBiedingen(scope);
+  const { items, loading, error, remove, update, refresh } = useBiedingen(scope);
   const { relaties, contactpersonen, getObjectById } = useDataStore();
   const trajecten = useMemo(() => bouwBiedboek(items), [items]);
   const [uitgeklapt, setUitgeklapt] = useState<Record<string, boolean>>({});
@@ -60,6 +62,8 @@ export default function BiedingenSection({
   const [newContext, setNewContext] = useState<{ objectId: string; relatieId: string } | null>(null);
   const [acceptTarget, setAcceptTarget] = useState<Bieding | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Bieding | null>(null);
+  const [revisionTarget, setRevisionTarget] = useState<Bieding | null>(null);
+  const [opvolgingVoor, setOpvolgingVoor] = useState<BiedboekTraject | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditVersie, setAuditVersie] = useState(0);
   const refreshMetAudit = async () => {
@@ -89,6 +93,26 @@ export default function BiedingenSection({
     setEditTarget(null);
     setNewContext(null);
     setFormOpen(true);
+  };
+
+  const handleAangepastBodGevraagd = async (bieding: Bieding, toelichting: string) => {
+    if (bieding.richting !== 'van_koper') throw new Error('Alleen voor een kopersbod kan een aangepast kopersbod worden gevraagd.');
+    const datum = new Date().toLocaleDateString('nl-NL');
+    const extra = toelichting ? `${datum} · Aangepast bod gevraagd: ${toelichting}` : '';
+    await update(bieding.id, {
+      status: 'aangepast_bod_gevraagd',
+      ...(extra ? { interneNotities: [bieding.interneNotities, extra].filter(Boolean).join('\n\n') } : {}),
+    });
+    setAuditVersie(v => v + 1);
+  };
+
+  const relatieNaam = (relatieId: string) => {
+    const r = relaties.find(x => x.id === relatieId);
+    return r ? getRelatieNamen(r, contactpersonen).primair : 'Onbekende kandidaat';
+  };
+  const objectNaam = (objectId: string) => {
+    const o = getObjectById(objectId);
+    return o?.titel || o?.adres || 'Onbekend object';
   };
 
   const renderRelatie = (relatieId: string) => {
@@ -201,17 +225,28 @@ export default function BiedingenSection({
                     <>
                       <Button variant="outline" size="sm" onClick={() => handleCounter(laatste)}>
                         <CornerDownRight className="h-4 w-4 mr-1" />
-                        {antwoordRichtingVoorBod(laatste) === 'van_koper' ? 'Tegenbod koper' : 'Tegenvoorstel verkoper'}
+                        {antwoordRichtingVoorBod(laatste) === 'van_koper'
+                          ? 'Tegenbod koper registreren' : 'Tegenvoorstel verkoper'}
                       </Button>
-                      {isKopersbod && (
+                      {isKopersbod && laatste.status !== 'aangepast_bod_gevraagd' && (
+                        <Button variant="outline" size="sm" onClick={() => setRevisionTarget(laatste)}>
+                          <RefreshCw className="h-4 w-4 mr-1" />Aangepast bod gevraagd
+                        </Button>
+                      )}
+                      {isKopersbod && laatste.bedrag != null && laatste.bedrag > 0 && (
                         <Button variant="outline" size="sm" onClick={() => setAcceptTarget(laatste)}>
                           <Check className="h-4 w-4 mr-1" />Accepteren
                         </Button>
                       )}
                       <Button variant="ghost" size="sm" onClick={() => setRejectTarget(laatste)}>
-                        <X className="h-4 w-4 mr-1" />Afwijzen
+                        <X className="h-4 w-4 mr-1" />{isKopersbod ? 'Bod afwijzen' : 'Afwijzing koper'}
                       </Button>
                     </>
+                  )}
+                  {traject.isOpen && (
+                    <Button variant="ghost" size="sm" onClick={() => setOpvolgingVoor(traject)}>
+                      <CalendarPlus2 className="h-4 w-4 mr-1" />Opvolging plannen
+                    </Button>
                   )}
                   {!traject.isOpen && (
                     <Button variant="ghost" size="sm" onClick={() => handleNew({ objectId: traject.objectId, relatieId: traject.relatieId })}>
@@ -334,6 +369,20 @@ export default function BiedingenSection({
       {rejectTarget && (
         <OfferRejectDialog open onOpenChange={open => !open && setRejectTarget(null)}
           bieding={rejectTarget} onSaved={refreshMetAudit} />
+      )}
+      {revisionTarget && (
+        <BiedboekAangepastBodDialog
+          bieding={revisionTarget} onOpenChange={open => !open && setRevisionTarget(null)}
+          onConfirm={toelichting => handleAangepastBodGevraagd(revisionTarget, toelichting)}
+        />
+      )}
+      {opvolgingVoor && (
+        <BiedboekOpvolgingDialog
+          traject={opvolgingVoor}
+          relatieNaam={relatieNaam(opvolgingVoor.relatieId)}
+          objectNaam={objectNaam(opvolgingVoor.objectId)}
+          onOpenChange={open => !open && setOpvolgingVoor(null)}
+        />
       )}
     </Card>
   );
