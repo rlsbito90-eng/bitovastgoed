@@ -12,9 +12,9 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
 import {
-  BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, VOORBEHOUD_LABELS,
+  BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, BOD_KARAKTER_LABELS, VOORBEHOUD_LABELS,
   KOSTEN_LABELS, BRON_LABELS, BIEDING_RICHTING_LABELS_LONG,
-  type Bieding, type BiedingStatus, type BiedingType,
+  type Bieding, type BiedingStatus, type BiedingType, type BodKarakter,
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
 import { parseDutchNumber } from '@/lib/format/nl';
@@ -49,6 +49,7 @@ interface FormState {
   geldigTot: string;
   status: BiedingStatus;
   offerType: BiedingType;
+  bodKarakter: BodKarakter | '';
   richting: BiedingRichting;
   financieringsvoorbehoud: VoorbehoudStatus;
   ddVoorbehoud: VoorbehoudStatus;
@@ -74,6 +75,7 @@ const emptyForm = (): FormState => ({
   geldigTot: '',
   status: 'ontvangen',
   offerType: 'indicatief',
+  bodKarakter: '',
   richting: 'van_koper',
   financieringsvoorbehoud: 'onbekend',
   ddVoorbehoud: 'onbekend',
@@ -118,6 +120,7 @@ export default function OfferFormDialog({
         geldigTot: bieding.geldigTot ?? '',
         status: bieding.status,
         offerType: bieding.offerType,
+        bodKarakter: bieding.bodKarakter ?? '',
         richting: bieding.richting ?? 'van_koper',
         financieringsvoorbehoud: bieding.financieringsvoorbehoud,
         ddVoorbehoud: bieding.ddVoorbehoud,
@@ -188,6 +191,14 @@ export default function OfferFormDialog({
     if (!form.objectId) { toast.error('Object is verplicht.'); return; }
     if (!form.relatieId) { toast.error('Relatie/kandidaat is verplicht.'); return; }
     const ingevoerdBedrag = parseDutchNumber(form.bedrag);
+    if (!isEdit && (counterTo ? antwoordRichtingVoorBod(counterTo) : form.richting) === 'van_koper' && !form.bodKarakter) {
+      toast.error('Geef aan of het kopersbod indicatief of formeel is.');
+      return;
+    }
+    if (form.offerType === 'indicatief' && form.bodKarakter === 'formeel') {
+      toast.error('Een bod met type Indicatief kan niet tegelijk als Formeel worden vastgelegd. Kies een ander type bod.');
+      return;
+    }
     if (counterTo && (ingevoerdBedrag == null || ingevoerdBedrag <= 0)) {
       toast.error('Vul een geldig tegenvoorstelbedrag groter dan € 0 in.');
       return;
@@ -207,6 +218,7 @@ export default function OfferFormDialog({
         ...(!isEdit || !['geaccepteerd', 'afgewezen', 'ingetrokken', 'verlopen'].includes(bieding?.status ?? '')
           ? { status: form.status } : {}),
         offerType: form.offerType,
+        bodKarakter: form.bodKarakter || null,
         richting: counterTo ? antwoordRichtingVoorBod(counterTo) : form.richting,
         financieringsvoorbehoud: form.financieringsvoorbehoud,
         ddVoorbehoud: form.ddVoorbehoud,
@@ -314,6 +326,22 @@ export default function OfferFormDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Karakter van het bod{!isEdit && (counterTo ? antwoordRichtingVoorBod(counterTo) : form.richting) === 'van_koper' ? ' *' : ''}</Label>
+              <Select value={form.bodKarakter || 'leeg'}
+                onValueChange={value => set('bodKarakter', value === 'leeg' ? '' : value as BodKarakter)}>
+                <SelectTrigger><SelectValue placeholder="Kies indicatief of formeel" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="leeg">Niet vastgelegd</SelectItem>
+                  {Object.entries(BOD_KARAKTER_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Formeel betekent expliciet als zodanig uitgebracht; schriftelijk of zonder voorbehoud is niet automatisch formeel.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>

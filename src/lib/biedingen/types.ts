@@ -11,6 +11,8 @@ export type BiedingStatus =
   | 'ingetrokken'
   | 'verlopen';
 
+export type BodKarakter = 'indicatief' | 'formeel';
+
 export type BiedingType =
   | 'indicatief'
   | 'openingsbod'
@@ -59,6 +61,8 @@ export interface Bieding {
   geldigTot?: string | null;
   status: BiedingStatus;
   offerType: BiedingType;
+  /** Indicatief of formeel, expliciet vastgelegd; null is onbekend voor historische biedingen. */
+  bodKarakter?: BodKarakter | null;
   financieringsvoorbehoud: VoorbehoudStatus;
   ddVoorbehoud: VoorbehoudStatus;
   gewensteLevering?: string | null;
@@ -93,6 +97,11 @@ export const BIEDING_STATUS_LABELS: Record<BiedingStatus, string> = {
   afgewezen: 'Afgewezen',
   ingetrokken: 'Ingetrokken',
   verlopen: 'Verlopen',
+};
+
+export const BOD_KARAKTER_LABELS: Record<BodKarakter, string> = {
+  indicatief: 'Indicatief',
+  formeel: 'Formeel',
 };
 
 export const BIEDING_TYPE_LABELS: Record<BiedingType, string> = {

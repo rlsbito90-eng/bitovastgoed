@@ -15,6 +15,7 @@ import { fmtDate, fmtEur, vraagprijsDelta } from '@/lib/biedingen/format';
 import { BIEDING_TYPE_LABELS, type Bieding } from '@/lib/biedingen/types';
 import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase, type BiedboekTraject } from '@/lib/biedingen/offerBook';
 import { antwoordRichtingVoorBod } from '@/lib/biedingen/progression';
+import { actueleBiedpositie, bodKarakterLabel } from '@/lib/biedingen/actuelePositie';
 import { OfferStatusBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
 import BiedboekAuditPanel from './BiedboekAuditPanel';
@@ -65,6 +66,7 @@ export default function BiedingenSection({
   const [revisionTarget, setRevisionTarget] = useState<Bieding | null>(null);
   const [opvolgingVoor, setOpvolgingVoor] = useState<BiedboekTraject | null>(null);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [behandelingBezigId, setBehandelingBezigId] = useState<string | null>(null);
   const [auditVersie, setAuditVersie] = useState(0);
   const refreshMetAudit = async () => {
     await refresh();
@@ -104,6 +106,20 @@ export default function BiedingenSection({
       ...(extra ? { interneNotities: [bieding.interneNotities, extra].filter(Boolean).join('\n\n') } : {}),
     });
     setAuditVersie(v => v + 1);
+  };
+
+  const markeerInBehandeling = async (bieding: Bieding) => {
+    if (behandelingBezigId || bieding.status !== 'ontvangen' || bieding.richting !== 'van_koper') return;
+    setBehandelingBezigId(bieding.id);
+    try {
+      await update(bieding.id, { status: 'in_behandeling' });
+      setAuditVersie(v => v + 1);
+      toast.success('Kopersbod staat nu op In behandeling');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Status aanpassen mislukt');
+    } finally {
+      setBehandelingBezigId(null);
+    }
   };
 
   const relatieNaam = (relatieId: string) => {
@@ -180,6 +196,7 @@ export default function BiedingenSection({
           const open = uitgeklapt[traject.key] ?? trajecten.length === 1;
           const laatste = traject.laatste;
           const laatsteMoment = traject.momenten[traject.momenten.length - 1];
+          const positie = actueleBiedpositie(traject);
           const isKopersbod = laatste.richting === 'van_koper';
           const delta = vraagprijs && traject.laatsteKopersbod?.bedrag != null
             ? vraagprijsDelta(traject.laatsteKopersbod.bedrag, vraagprijs) : null;
@@ -194,18 +211,29 @@ export default function BiedingenSection({
                     {!showRelatie && !showObject && <div className="font-semibold">Onderhandeling</div>}
                   </div>
                   <span className={['rounded-full px-2.5 py-1 text-[11px] font-medium text-center shrink-0', faseKleur[traject.fase]].join(' ')}>
-                    {BIEDBOEK_FASE_LABELS[traject.fase]}
+                    {traject.isOpen && laatste.status === 'in_behandeling'
+                      ? 'In behandeling'
+                      : BIEDBOEK_FASE_LABELS[traject.fase]}
                   </span>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-1" aria-label="Actuele onderhandelingspositie">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">Actuele stand</div>
+                  <div className="text-sm font-semibold">{positie.titel}</div>
+                  <p className="text-xs text-foreground/80"><span className="font-semibold">Volgende stap:</span> {positie.vervolgstap}</p>
+                  <p className="text-[11px] text-muted-foreground">{positie.toelichting}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-lg bg-muted/30 p-3 min-w-0">
                     <div className="text-[11px] text-muted-foreground">Laatste kopersbod</div>
                     <div className="text-base font-semibold tabular-nums mt-1">{fmtEur(traject.laatsteKopersbod?.bedrag)}</div>
+                    <div className="text-[11px] mt-1 text-muted-foreground">Karakter: {bodKarakterLabel(traject.laatsteKopersbod)}</div>
                   </div>
                   <div className="rounded-lg bg-muted/30 p-3 min-w-0">
                     <div className="text-[11px] text-muted-foreground">Laatste verkopersvoorstel</div>
                     <div className="text-base font-semibold tabular-nums mt-1">{fmtEur(traject.laatsteVerkopersvoorstel?.bedrag)}</div>
+                    <div className="text-[11px] mt-1 text-muted-foreground">Karakter: {bodKarakterLabel(traject.laatsteVerkopersvoorstel)}</div>
                   </div>
                 </div>
 
@@ -221,6 +249,13 @@ export default function BiedingenSection({
                     {open ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
                     {open ? 'Verberg verloop' : 'Bekijk verloop'} ({traject.momenten.length})
                   </Button>
+                  {traject.isOpen && laatste.richting === 'van_koper' && laatste.status === 'ontvangen' && (
+                    <Button variant="outline" size="sm"
+                      disabled={behandelingBezigId !== null}
+                      onClick={() => void markeerInBehandeling(laatste)}>
+                      {behandelingBezigId === laatste.id ? 'Opslaan…' : 'In behandeling zetten'}
+                    </Button>
+                  )}
                   {traject.isOpen && laatste.richting !== 'intern' && (
                     <>
                       <Button variant="outline" size="sm" onClick={() => handleCounter(laatste)}>
@@ -324,6 +359,9 @@ export default function BiedingenSection({
                                   ? <span className="text-[11px] text-muted-foreground">Voorstel geregistreerd</span>
                                   : <OfferStatusBadge bieding={bieding} />}
                                 <span className="text-[11px] text-muted-foreground">{BIEDING_TYPE_LABELS[bieding.offerType]}</span>
+                                {!(bieding.offerType === 'indicatief' && bodKarakterLabel(bieding) === 'Indicatief') && (
+                                  <span className="text-[11px] text-muted-foreground">Karakter: {bodKarakterLabel(bieding)}</span>
+                                )}
                                 {parent && <span className="text-[11px] text-muted-foreground">Reactie op {fmtEur(parent.bedrag)}</span>}
                                 {bieding.geldigTot && <span className="text-[11px] text-muted-foreground">Geldig t/m {fmtDate(bieding.geldigTot)}</span>}
                               </div>

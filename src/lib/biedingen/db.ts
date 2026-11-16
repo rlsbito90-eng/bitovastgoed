@@ -13,6 +13,7 @@ export const biedingFromDb = (r: any): Bieding => ({
   geldigTot: r.geldig_tot ?? null,
   status: r.status,
   offerType: r.offer_type,
+  bodKarakter: r.bod_karakter ?? null,
   financieringsvoorbehoud: r.financieringsvoorbehoud,
   ddVoorbehoud: r.dd_voorbehoud,
   gewensteLevering: r.gewenste_levering ?? null,
@@ -50,6 +51,7 @@ export const biedingToDb = (b: Partial<Bieding>) => {
   if (b.geldigTot !== undefined) o.geldig_tot = b.geldigTot || null;
   if (b.status !== undefined) o.status = b.status;
   if (b.offerType !== undefined) o.offer_type = b.offerType;
+  if (b.bodKarakter !== undefined) o.bod_karakter = b.bodKarakter ?? null;
   if (b.financieringsvoorbehoud !== undefined) o.financieringsvoorbehoud = b.financieringsvoorbehoud;
   if (b.ddVoorbehoud !== undefined) o.dd_voorbehoud = b.ddVoorbehoud;
   if (b.gewensteLevering !== undefined) o.gewenste_levering = b.gewensteLevering || null;
