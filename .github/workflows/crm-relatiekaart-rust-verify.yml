@@ -37,3 +37,5 @@ jobs:
         run: npx vitest run src/components/relatie/InlineRelatieSectie.test.tsx src/components/relatie/ZoekprofielDetails.test.tsx src/components/relatie/InlineVastgoedVoorkeuren.test.tsx src/test/unifiedVisibleTrajectory.test.ts src/test/crmCompactCards.test.ts
       - name: Production build
         run: npm run build
+
+# Controle na samenvoeging met de nieuwste matchingcode.
