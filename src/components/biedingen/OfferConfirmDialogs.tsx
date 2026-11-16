@@ -89,7 +89,12 @@ export function OfferRejectDialog({ open, onOpenChange, bieding, onSaved }: {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{bieding.richting === 'van_koper' ? 'Kopersbod afwijzen' : 'Verkopersvoorstel afwijzen'}</AlertDialogTitle>
-          <AlertDialogDescription>Leg vast waarom dit voorstel is afgewezen. De reden blijft zichtbaar in het onderhandelingsverloop.</AlertDialogDescription>
+          <AlertDialogDescription>
+            {bieding.richting === 'van_koper'
+              ? 'Leg vast dat de verkoper dit kopersbod afwijst. De huidige onderhandeling wordt afgesloten. Wil de verkoper verder onderhandelen, gebruik dan Tegenvoorstel of Aangepast bod gevraagd.'
+              : 'Leg vast dat de koper het verkopersvoorstel heeft afgewezen. De huidige onderhandeling wordt afgesloten. Bij een nieuw bod kun je het traject opnieuw openen.'}
+            De afwijzingsreden blijft bewaard in het biedboek.
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <Textarea value={reden} onChange={e => setReden(e.target.value)} placeholder="Bv. te laag, voorwaarden onaanvaardbaar…" rows={3} />
         <AlertDialogFooter>
