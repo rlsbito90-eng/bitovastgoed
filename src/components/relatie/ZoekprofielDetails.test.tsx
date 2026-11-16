@@ -38,10 +38,19 @@ describe('Volledig zoekprofiel op relatiepagina',()=>{
   expect(screen.getByText('Alleen hoogwaardige objecten')).toBeTruthy();
   expect(screen.getByText('Alleen off-market')).toBeTruthy();
  });
- it('toont onbekende optionele criteria als leeg, zonder aanname',()=>{
+ it('toont details standaard ingeklapt en laat ingevulde criteria intact',()=>{
+  const {container}=render(<ZoekprofielDetails profiel={profiel}/>);
+  expect(container.querySelector('details')?.open).toBe(false);
+  expect(screen.getByText('Bekijk zoekcriteria')).toBeTruthy();
+  expect(screen.getByText('Appartement')).toBeTruthy();
+  expect(screen.getByText('Historisch rendementveld (methode onbekend)')).toBeTruthy();
+ });
+ it('verbergt lege criteria en voorkomt een ongekwalificeerd rendementslabel',()=>{
   const leeg={...profiel,waltMin:undefined,prijsMin:undefined,rendementseis:undefined};
   render(<ZoekprofielDetails profiel={leeg}/>);
-  expect(screen.getByText('WALT vanaf')).toBeTruthy();
-  expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  expect(screen.queryByText('WALT vanaf')).toBeNull();
+  expect(screen.queryByText('Budget vanaf')).toBeNull();
+  expect(screen.queryByText('Historisch rendementveld (methode onbekend)')).toBeNull();
+  expect(screen.queryByText('Niet opgegeven')).toBeNull();
  });
 });
