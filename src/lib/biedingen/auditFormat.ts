@@ -17,6 +17,7 @@ export interface BiedAuditEvent {
 
 const veldLabels: Record<string, string> = {
   bedrag: 'Bedrag',
+  bod_karakter: 'Karakter bod',
   status: 'Status',
   bieddatum: 'Bieddatum',
   richting: 'Afzender',
@@ -45,6 +46,9 @@ function toonWaarde(veld: string, waarde: unknown): string {
   if (veld === 'bedrag' || veld === 'waarborgsom_bedrag') {
     const nummer = Number(waarde);
     return Number.isFinite(nummer) ? fmtEur(nummer) : String(waarde);
+  }
+  if (veld === 'bod_karakter') {
+    return waarde === 'indicatief' ? 'Indicatief' : waarde === 'formeel' ? 'Formeel' : 'Niet vastgelegd';
   }
   if (veld === 'status') return BIEDING_STATUS_LABELS[waarde as keyof typeof BIEDING_STATUS_LABELS] ?? String(waarde);
   if (veld === 'richting') {
