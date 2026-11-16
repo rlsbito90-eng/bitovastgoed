@@ -27,6 +27,15 @@ describe('biedboek-auditweergave', () => {
     expect(biedAuditDetails(x)).toEqual(['Interne notities gewijzigd']);
   });
 
+  it('laat aanpassing van karakter indicatief naar formeel expliciet zien', () => {
+    const wijziging = event({
+      changed_fields: ['bod_karakter'],
+      old_snapshot: { bod_karakter: 'indicatief' },
+      new_snapshot: { bod_karakter: 'formeel' },
+    });
+    expect(biedAuditDetails(wijziging)).toEqual(['Karakter bod: Indicatief → Formeel']);
+  });
+
   it('houdt verwijderde biedingen inzichtelijk', () => {
     const x = event({ operation: 'DELETE', old_snapshot: { bedrag: 475000 }, new_snapshot: null });
     expect(biedAuditTitel(x)).toBe('Bieding verwijderd');
