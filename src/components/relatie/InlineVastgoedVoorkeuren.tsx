@@ -98,13 +98,13 @@ export default function InlineVastgoedVoorkeuren({relatie,onSave}:Props){
     <ClassificatieRij propertyTypeIds={relatie.propertyTypeIds}
       fallbackAssetClasses={relatie.assetClasses}
       subtypeIds={relatie.propertySubtypeIds} dealTypeIds={relatie.dealTypeIds} mode="multi"/>
-    {relatie.assetClasses?.length>0&&<p className="text-xs text-muted-foreground">
-      Historische vastgoedklassen: {relatie.assetClasses.map(x=>ASSET_CLASS_LABELS[x]||x).join(', ')}
+    {relatie.assetClasses?.length>0&&<details className="text-xs text-muted-foreground">
+      <summary className="cursor-pointer hover:text-foreground">Historische vastgoedklassen</summary>
+      <p className="mt-2">{relatie.assetClasses.map(x=>ASSET_CLASS_LABELS[x]||x).join(', ')}</p>
+    </details>}
+    {editing&&<p className="text-xs text-muted-foreground">
+      Dit zijn de algemene vastgoedvoorkeuren. Gebruik een aanvullend zoekprofiel voor een afwijkende zoekrichting.
     </p>}
-    <p className="text-xs text-muted-foreground">
-      De algemene vastgoedvoorkeuren onder Relaties zijn leidend voor matching.
-      Een extra zoekprofiel is alleen nodig voor een afzonderlijke zoekrichting; er wordt niets automatisch gekopieerd.
-    </p>
     {editing&&<div className="space-y-4">
       {([
         {key:'propertyTypeIds' as const,label:'Vastgoedtypen',options:types},
