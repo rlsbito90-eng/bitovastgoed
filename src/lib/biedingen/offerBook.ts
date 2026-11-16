@@ -128,11 +128,15 @@ export function bouwBiedboek(items: Bieding[]): BiedboekTraject[] {
     const laatsteVerkopersvoorstel = [...rondes].reverse().find(b =>
       (b.richting === 'van_verkoper' || b.richting === 'namens_verkoper') && b.bedrag != null,
     ) ?? null;
+    const momenten = bouwBiedboekMomenten(rondes);
+    const laatsteMoment = momenten[momenten.length - 1];
     const geaccepteerd = rondes.some(b => b.status === 'geaccepteerd');
     const status = effectieveStatus(laatste);
     let fase: BiedboekFase;
     if (geaccepteerd) fase = 'geaccepteerd';
-    else if (status === 'afgewezen' || status === 'ingetrokken' || status === 'verlopen') fase = status;
+    else if (laatsteMoment.soort === 'afwijzing') fase = 'afgewezen';
+    else if (laatsteMoment.soort === 'intrekking') fase = 'ingetrokken';
+    else if (laatsteMoment.soort === 'verloop') fase = 'verlopen';
     else if (status === 'concept') fase = 'concept';
     else if (laatste.richting === 'van_verkoper' || laatste.richting === 'namens_verkoper') fase = 'wacht_op_koper';
     else fase = 'wacht_op_verkoper';
@@ -144,12 +148,12 @@ export function bouwBiedboek(items: Bieding[]): BiedboekTraject[] {
 
     return {
       key, objectId: laatste.objectId, relatieId: laatste.relatieId,
-      rondes, momenten: bouwBiedboekMomenten(rondes), laatste, laatsteKopersbod, laatsteVerkopersvoorstel,
+      rondes, momenten, laatste, laatsteKopersbod, laatsteVerkopersvoorstel,
       verschil, fase, isOpen,
     };
   }).sort((a, b) => {
     // Lopende gesprekken eerst; daarna meest recente onderhandelingsstap.
     if (a.isOpen !== b.isOpen) return a.isOpen ? -1 : 1;
-    return vergelijkBiedRondes(b.laatste, a.laatste);
+    return b.momenten[b.momenten.length - 1].sorteertijd - a.momenten[a.momenten.length - 1].sorteertijd;
   });
 }
