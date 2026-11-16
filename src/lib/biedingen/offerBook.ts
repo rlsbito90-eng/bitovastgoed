@@ -16,12 +16,24 @@ export interface BiedboekTraject {
   relatieId: string;
   /** Alle rondes, oudste eerst. Inclusief afgewezen en ingetrokken biedingen. */
   rondes: Bieding[];
+  /** Biedingen én de latere beslissingen, op werkelijke datum gesorteerd. */
+  momenten: BiedboekMoment[];
   laatste: Bieding;
   laatsteKopersbod: Bieding | null;
   laatsteVerkopersvoorstel: Bieding | null;
   verschil: number | null;
   fase: BiedboekFase;
   isOpen: boolean;
+}
+
+export interface BiedboekMoment {
+  key: string;
+  bieding: Bieding;
+  soort: 'bod' | 'afwijzing' | 'acceptatie' | 'intrekking' | 'verloop';
+  /** Datum van de gebeurtenis, of null als historische bron die niet bevat. */
+  datum: string | null;
+  label: string;
+  sorteertijd: number;
 }
 
 const datumWaarde = (waarde?: string | null) => {
@@ -52,6 +64,48 @@ export const BIEDBOEK_FASE_LABELS: Record<BiedboekFase, string> = {
   ingetrokken: 'Ingetrokken',
   verlopen: 'Verlopen',
 };
+
+/** Een statuswijziging is een afzonderlijke gebeurtenis, geen nieuw prijsvoorstel. */
+export function bouwBiedboekMomenten(rondes: Bieding[]): BiedboekMoment[] {
+  const momenten: BiedboekMoment[] = [];
+
+  for (const bieding of rondes) {
+    const basisdatum = datumWaarde(bieding.bieddatum);
+    const aanmaakdatum = datumWaarde(bieding.createdAt);
+    const bodtijd = bieding.createdAt?.slice(0, 10) === bieding.bieddatum ? aanmaakdatum : basisdatum;
+
+    momenten.push({
+      key: bieding.id + ':bod',
+      bieding, soort: 'bod', datum: bieding.bieddatum,
+      label: biedRondeLabel(bieding), sorteertijd: bodtijd,
+    });
+
+    const status = effectieveStatus(bieding);
+    const gebeurtenis =
+      status === 'afgewezen' ? { soort: 'afwijzing' as const, datum: bieding.rejectedAt, label: 'Voorstel afgewezen' } :
+      status === 'geaccepteerd' ? { soort: 'acceptatie' as const, datum: bieding.acceptedAt, label: 'Bod geaccepteerd' } :
+      status === 'ingetrokken' ? { soort: 'intrekking' as const, datum: bieding.withdrawnAt, label: 'Bod ingetrokken' } :
+      status === 'verlopen' ? { soort: 'verloop' as const, datum: bieding.expiredAt ?? bieding.geldigTot, label: 'Geldigheid verlopen' } :
+      null;
+
+    if (gebeurtenis) {
+      // Ontbreekt de werkelijke beslisdatum in oude data? Verzín die niet.
+      // Plaats de gebeurtenis dan direct na de bijbehorende biedronde.
+      momenten.push({
+        key: bieding.id + ':' + gebeurtenis.soort,
+        bieding, soort: gebeurtenis.soort,
+        datum: gebeurtenis.datum ?? null, label: gebeurtenis.label,
+        sorteertijd: gebeurtenis.datum ? datumWaarde(gebeurtenis.datum) : bodtijd + 1,
+      });
+    }
+  }
+
+  return momenten.sort((a, b) =>
+    a.sorteertijd - b.sorteertijd ||
+    (a.soort === 'bod' ? -1 : 1) - (b.soort === 'bod' ? -1 : 1) ||
+    a.key.localeCompare(b.key),
+  );
+}
 
 /**
  * Één gesprek per object én koper. Geen schemawijziging nodig:
@@ -90,7 +144,7 @@ export function bouwBiedboek(items: Bieding[]): BiedboekTraject[] {
 
     return {
       key, objectId: laatste.objectId, relatieId: laatste.relatieId,
-      rondes, laatste, laatsteKopersbod, laatsteVerkopersvoorstel,
+      rondes, momenten: bouwBiedboekMomenten(rondes), laatste, laatsteKopersbod, laatsteVerkopersvoorstel,
       verschil, fase, isOpen,
     };
   }).sort((a, b) => {
