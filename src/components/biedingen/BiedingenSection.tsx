@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp, CornerDownRight, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Clock3, CornerDownRight, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,6 +17,7 @@ import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase }
 import { antwoordRichtingVoorBod } from '@/lib/biedingen/progression';
 import { OfferStatusBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
+import BiedboekAuditPanel from './BiedboekAuditPanel';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
 
 type Scope = { objectId: string } | { dealId: string } | { relatieId: string };
@@ -59,6 +60,12 @@ export default function BiedingenSection({
   const [newContext, setNewContext] = useState<{ objectId: string; relatieId: string } | null>(null);
   const [acceptTarget, setAcceptTarget] = useState<Bieding | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Bieding | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditVersie, setAuditVersie] = useState(0);
+  const refreshMetAudit = async () => {
+    await refresh();
+    setAuditVersie(v => v + 1);
+  };
 
   const showObject = toonObject ?? !('objectId' in scope);
   const showRelatie = toonRelatie ?? !('relatieId' in scope);
@@ -105,6 +112,7 @@ export default function BiedingenSection({
   const handleDelete = async (bieding: Bieding) => {
     try {
       await remove(bieding.id);
+      setAuditVersie(v => v + 1);
       toast.success('Bieding verwijderd');
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Verwijderen mislukt');
@@ -120,9 +128,14 @@ export default function BiedingenSection({
             {aantalOpen} lopend · {trajecten.length} traject{trajecten.length === 1 ? '' : 'en'} · {items.length} onderhandelingsstap{items.length === 1 ? '' : 'pen'}
           </p>
         </div>
-        <Button size="sm" onClick={() => handleNew()} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4 mr-1" />Nieuw bod
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAuditOpen(v => !v)} aria-expanded={auditOpen}>
+            <Clock3 className="h-4 w-4 mr-1" />{auditOpen ? 'Verberg logboek' : 'Wijzigingslogboek'}
+          </Button>
+          <Button size="sm" onClick={() => handleNew()}>
+            <Plus className="h-4 w-4 mr-1" />Nieuw bod
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
@@ -137,6 +150,8 @@ export default function BiedingenSection({
           </div>
         )}
 
+        {auditOpen && <BiedboekAuditPanel key={auditVersie} scope={scope} />}
+        
         {trajecten.map(traject => {
           const open = uitgeklapt[traject.key] ?? trajecten.length === 1;
           const laatste = traject.laatste;
@@ -309,16 +324,16 @@ export default function BiedingenSection({
           defaultRelatieId={newContext?.relatieId ?? defaults?.relatieId}
           defaultDealId={defaults?.dealId}
           defaultObjectPipelineId={defaults?.objectPipelineId}
-          onSaved={refresh}
+          onSaved={refreshMetAudit}
         />
       )}
       {acceptTarget && (
         <OfferAcceptDialog open onOpenChange={open => !open && setAcceptTarget(null)}
-          bieding={acceptTarget} onSaved={refresh} />
+          bieding={acceptTarget} onSaved={refreshMetAudit} />
       )}
       {rejectTarget && (
         <OfferRejectDialog open onOpenChange={open => !open && setRejectTarget(null)}
-          bieding={rejectTarget} onSaved={refresh} />
+          bieding={rejectTarget} onSaved={refreshMetAudit} />
       )}
     </Card>
   );
