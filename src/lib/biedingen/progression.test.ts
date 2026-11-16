@@ -6,6 +6,7 @@ import {
   getNegotiationPositions,
   getOfferProgressTarget,
   nextCounterDirection,
+  antwoordRichtingVoorBod,
   shouldAdvanceCandidate,
 } from './progression';
 
@@ -46,6 +47,11 @@ describe('tegenvoorstellen', () => {
     expect(nextCounterDirection('van_verkoper')).toBe('van_koper');
     expect(counterStatusForDirection('van_koper')).toBe('ontvangen');
     expect(counterStatusForDirection('van_verkoper')).toBe('tegenvoorstel_gedaan');
+  });
+
+  it('laat een gevraagd aangepast bod opnieuw door koper registreren', () => {
+    expect(antwoordRichtingVoorBod(offer({ status: 'aangepast_bod_gevraagd' }))).toBe('van_koper');
+    expect(antwoordRichtingVoorBod(offer())).toBe('van_verkoper');
   });
 
   it('bewaart laatste koper- en verkoperspositie als één onderhandelingstraject', () => {

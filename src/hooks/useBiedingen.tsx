@@ -174,6 +174,9 @@ export function useBiedingen(scope: Scope) {
   ): Promise<AcceptOfferResult> => {
     const bieding = items.find(b => b.id === id);
     if (!bieding) throw new Error('Bieding niet gevonden');
+    if (bieding.richting !== 'van_koper') {
+      throw new Error('Alleen een kopersbod kan als aankoopbod worden geaccepteerd. Registreer een akkoord op het verkopersvoorstel als nieuw kopersbod.');
+    }
 
     const { data, error } = await (supabase as any).rpc('accept_bieding_en_start_deal', {
       p_bieding_id: id,

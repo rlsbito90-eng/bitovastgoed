@@ -18,7 +18,7 @@ import {
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
 import { parseDutchNumber } from '@/lib/format/nl';
-import { nextCounterDirection, counterStatusForDirection } from '@/lib/biedingen/progression';
+import { antwoordRichtingVoorBod, counterStatusForDirection } from '@/lib/biedingen/progression';
 
 interface Props {
   open: boolean;
@@ -143,8 +143,8 @@ export default function OfferFormDialog({
               relatieId: counterTo.relatieId,
               dealId: counterTo.dealId ?? '',
               offerType: 'tegenvoorstel' as BiedingType,
-              status: counterStatusForDirection(nextCounterDirection(counterTo.richting)),
-              richting: nextCounterDirection(counterTo.richting),
+              status: counterStatusForDirection(antwoordRichtingVoorBod(counterTo)),
+              richting: antwoordRichtingVoorBod(counterTo),
               bedrag: '',
               voorwaarden: counterTo.voorwaarden ?? '',
               gewensteLevering: counterTo.gewensteLevering ?? '',
