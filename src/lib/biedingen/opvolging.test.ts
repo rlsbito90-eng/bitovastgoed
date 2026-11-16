@@ -9,6 +9,6 @@ describe('biedboek-opvolging', () => {
 
   it('richt opvolging na een kopersbod aan de verkoper', () => {
     expect(standaardOpvolgTitel({ fase: 'wacht_op_verkoper' }, 'Jasper', 'Amsterdam'))
-      .toBe('Verkoper opvolgen · Jasper · Amsterdam');
+      .toBe('Verkoper opvolgen over bod van Jasper · Amsterdam');
   });
 });
