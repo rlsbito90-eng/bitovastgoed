@@ -14,7 +14,7 @@ import { getRelatieNamen } from '@/lib/relatieNaam';
 import { fmtDate, fmtEur, vraagprijsDelta } from '@/lib/biedingen/format';
 import { BIEDING_TYPE_LABELS, type Bieding } from '@/lib/biedingen/types';
 import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase } from '@/lib/biedingen/offerBook';
-import { nextCounterDirection } from '@/lib/biedingen/progression';
+import { antwoordRichtingVoorBod } from '@/lib/biedingen/progression';
 import { OfferStatusBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
 import { OfferAcceptDialog, OfferRejectDialog } from './OfferConfirmDialogs';
@@ -186,7 +186,7 @@ export default function BiedingenSection({
                     <>
                       <Button variant="outline" size="sm" onClick={() => handleCounter(laatste)}>
                         <CornerDownRight className="h-4 w-4 mr-1" />
-                        {nextCounterDirection(laatste.richting) === 'van_koper' ? 'Tegenbod koper' : 'Tegenvoorstel verkoper'}
+                        {antwoordRichtingVoorBod(laatste) === 'van_koper' ? 'Tegenbod koper' : 'Tegenvoorstel verkoper'}
                       </Button>
                       {isKopersbod && (
                         <Button variant="outline" size="sm" onClick={() => setAcceptTarget(laatste)}>
