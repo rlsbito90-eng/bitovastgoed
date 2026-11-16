@@ -17,11 +17,28 @@ const company=[{key:'bedrijfsnaam',label:'Bedrijfsnaam'},{key:'website',label:'W
 const finance=[{key:'budgetMin',label:'Budget minimum',kind:'number'},{key:'budgetMax',label:'Budget maximum',kind:'number'}] as const;
 
 describe('Direct bewerken relatiegegevens — geïsoleerde patch',()=>{
-  it('toont ook lege velden in het volledige profiel',()=>{
+  it('toont alleen ingevulde velden, met lege velden op aanvraag',()=>{
     render(<InlineRelatieSectie titel="Bedrijf" relatie={relatie} velden={company} onSave={vi.fn()}/>);
     expect(screen.getByText('Bedrijfsnaam')).toBeTruthy();
+    expect(screen.queryByText('Website')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Toon alle velden (1 leeg)'}));
     expect(screen.getByText('Website')).toBeTruthy();
     expect(screen.getByText('—')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Verberg lege velden'}));
+    expect(screen.queryByText('Website')).toBeNull();
+  });
+  it('laat het hele bewerkformulier zien, ook wanneer gegevens ontbreken',()=>{
+    render(<InlineRelatieSectie titel="Bedrijf" relatie={relatie} velden={company} onSave={vi.fn()}/>);
+    fireEvent.click(screen.getByRole('button',{name:'Bedrijf bewerken'}));
+    expect(screen.getByLabelText('Bedrijfsnaam')).toBeTruthy();
+    expect(screen.getByLabelText('Website')).toBeTruthy();
+  });
+  it('laat een lege sectie bewerkbaar, maar presenteert geen twaalf lege regels',()=>{
+    const empty={...relatie,bedrijfsnaam:'',website:null} as Relatie;
+    render(<InlineRelatieSectie titel="Bedrijf" relatie={empty} velden={company} onSave={vi.fn()}/>);
+    expect(screen.getByText('Nog geen gegevens vastgelegd.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Bedrijf bewerken'}));
+    expect(screen.getByLabelText('Website')).toBeTruthy();
   });
   it('wijzigt alleen bedrijf zonder budgets of rollen opnieuw op te slaan',async()=>{
     const save=vi.fn().mockResolvedValue(undefined);
