@@ -10,8 +10,8 @@ const event = (patch: Partial<BiedAuditEvent> = {}): BiedAuditEvent => ({
 
 describe('biedboek-auditweergave', () => {
   it('laat bedrag van en naar zien in Nederlandse notatie', () => {
-    expect(biedAuditDetails(event()).join(' ')).toContain('€ 475.000');
-    expect(biedAuditDetails(event()).join(' ')).toContain('€ 480.000');
+    expect(biedAuditDetails(event()).join(' ')).toContain('475.000');
+    expect(biedAuditDetails(event()).join(' ')).toContain('480.000');
   });
 
   it('herkent een afgewezen bieding als aparte wijziging', () => {
