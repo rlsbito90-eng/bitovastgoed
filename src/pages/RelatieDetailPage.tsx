@@ -414,9 +414,9 @@ export default function RelatieDetailPage() {
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium text-foreground truncate flex-1">{zp.naam}</p>
                     <div className="shrink-0 flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                        {zp.status === 'actief' ? 'Actief' : zp.status === 'pauze' ? 'Pauze' : 'Gearchiveerd'} · P{zp.prioriteit}
-                      </span>
+                      {zp.status !== 'actief'&&<span className="text-[10px] text-muted-foreground">
+                        {zp.status === 'pauze' ? 'Gepauzeerd' : 'Gearchiveerd'}
+                      </span>}
                       <button type="button" aria-label={`Bewerk zoekprofiel ${zp.naam}`}
                         onClick={() => { setZpBewerken(zp); setZpOpen(true); }}
                         className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-border text-muted-foreground hover:text-accent hover:bg-muted/40"
