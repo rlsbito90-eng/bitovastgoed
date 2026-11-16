@@ -57,6 +57,11 @@ describe('biedboek als onderhandelingsgesprek', () => {
     expect(traject.fase).toBe('afgewezen');
   });
 
+  it('herkent verzoek om aangepast kopersbod als actie voor koper', () => {
+    const [traject] = bouwBiedboek([bod({ status: 'aangepast_bod_gevraagd' })]);
+    expect(traject.fase).toBe('wacht_op_koper');
+  });
+
   it('scheidt kopers per object en objecten per koper', () => {
     const trajecten = bouwBiedboek([bod(), bod({ id: 'b2', relatieId: 'r2' }), bod({ id: 'b3', objectId: 'o2' })]);
     expect(trajecten).toHaveLength(3);
