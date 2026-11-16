@@ -43,7 +43,8 @@ export default function BiedboekOpvolgingDialog({ traject, relatieNaam, objectNa
         createdTask.current = await createManualTaskWithReminder({
           titel: titel.trim(),
           objectId: traject.objectId,
-          relatieId: traject.relatieId,
+          // Een verkopersopvolging hoort niet onder de koper-relatie thuis.
+          relatieId: traject.fase === 'wacht_op_koper' ? traject.relatieId : undefined,
           dealId: traject.laatste.dealId || undefined,
           type: 'Algemeen',
           status: 'open',
@@ -75,7 +76,8 @@ export default function BiedboekOpvolgingDialog({ traject, relatieNaam, objectNa
         <DialogHeader>
           <DialogTitle>Opvolging plannen</DialogTitle>
           <DialogDescription>
-            Maak een taak bij {relatieNaam} en {objectNaam}. Een plandatum is het moment waarop je wilt opvolgen, geen harde deadline.
+            Maak een taak voor {objectNaam}. Bij kopersopvolging koppelen we ook {relatieNaam};
+            bij verkopersopvolging blijft de taak op het object. Een plandatum is geen harde deadline.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
