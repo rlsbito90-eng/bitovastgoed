@@ -10,11 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { BiedboekTraject } from '@/lib/biedingen/offerBook';
-
-export function standaardOpvolgTitel(traject: Pick<BiedboekTraject, 'fase'>, relatieNaam: string, objectNaam: string): string {
-  const partij = traject.fase === 'wacht_op_koper' ? 'Koper' : 'Verkoper';
-  return `${partij} opvolgen · ${relatieNaam} · ${objectNaam}`;
-}
+import { standaardOpvolgTitel } from '@/lib/biedingen/opvolging';
 
 function plusDagen(dagen: number) {
   const datum = new Date();
