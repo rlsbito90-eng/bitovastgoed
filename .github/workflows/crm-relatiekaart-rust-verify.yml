@@ -5,6 +5,8 @@ on:
     branches: [feat/crm-rustige-relatiekaart-20261116]
     paths:
       - 'src/pages/RelatieDetailPage.tsx'
+      - 'src/pages/ObjectDetailPage.tsx'
+      - 'src/test/crmCompactCards.test.ts'
       - 'src/components/relatie/InlineRelatieSectie*'
       - 'src/components/relatie/ZoekprofielDetails*'
       - 'src/components/relatie/InlineVastgoedVoorkeuren*'
@@ -32,6 +34,6 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
       - name: Relatievelden en invoerbehoud
-        run: npx vitest run src/components/relatie/InlineRelatieSectie.test.tsx src/components/relatie/ZoekprofielDetails.test.tsx src/components/relatie/InlineVastgoedVoorkeuren.test.tsx src/test/unifiedVisibleTrajectory.test.ts
+        run: npx vitest run src/components/relatie/InlineRelatieSectie.test.tsx src/components/relatie/ZoekprofielDetails.test.tsx src/components/relatie/InlineVastgoedVoorkeuren.test.tsx src/test/unifiedVisibleTrajectory.test.ts src/test/crmCompactCards.test.ts
       - name: Production build
         run: npm run build
