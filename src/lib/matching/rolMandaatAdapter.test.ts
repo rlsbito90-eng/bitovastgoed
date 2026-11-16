@@ -107,6 +107,35 @@ test('regio string wordt niet als nauwkeurige codevergelijking behandeld',()=>{
  const rows=voorstel(object(),[relatie({regio:['Randstad']})]);
  assert.ok(rows[0].besteRoute.toelichting.controleer.some(x=>x.includes('Zoekregio')));
 });
+test('expliciete provincie buiten het objectzoekgebied geeft geen automatisch voorstel',()=>{
+ const r=relatie({regio:['Utrecht']});
+ assert.equal(voorstel(object(),[r]).length,0);
+ const overige=maakKandidaatVoorstellen(object(),[r],[],{toonAfwijkende:true});
+ assert.equal(overige.length,1);
+ assert.equal(overige[0].besteRoute.kwalificatie,'afwijkend');
+ assert.ok(overige[0].besteRoute.toelichting.afwijkend.some(x=>x.includes('buiten de geselecteerde provincies')));
+});
+test('meerdere provincies en eigen locatie van zoekprofiel blijven correct',()=>{
+ const r=relatie({regio:['Utrecht','Noord-Brabant']});
+ const binnen=voorstel(object(),[r]);
+ assert.equal(binnen.length,1);
+ assert.equal(binnen[0].besteRoute.kwalificatie,'passend');
+ const base=relatie({regio:['Utrecht']});
+ const zp=profiel({regio:['Noord-Brabant']});
+ const profielMatch=voorstel(object(),[base],[zp]);
+ assert.equal(profielMatch.length,1);
+ assert.equal(profielMatch[0].besteRoute.zoekprofielId,'z1');
+});
+test('onzekere regio, landelijke scope en onbekende provincie blijven beoordeelbaar',()=>{
+ for(const regio of [['Randstad'],['Utrecht','Randstad'],['Heel Nederland','Utrecht']]){
+   const rows=voorstel(object(),[relatie({regio})]);
+   assert.equal(rows.length,1,regio.join(', '));
+   assert.notEqual(rows[0].besteRoute.kwalificatie,'afwijkend');
+ }
+ const zonderProvincie=voorstel(object({provincie:null}),[relatie({regio:['Utrecht']})]);
+ assert.equal(zonderProvincie.length,1);
+ assert.equal(zonderProvincie[0].besteRoute.kwalificatie,'te_verifieren');
+});
 test('reeds gekoppelde relatie krijgt geen dubbel voorstel',()=>{
  assert.equal(maakKandidaatVoorstellen(object(),[relatie()],[],{reedsGekoppeld:new Set(['r1'])}).length,0);
 });

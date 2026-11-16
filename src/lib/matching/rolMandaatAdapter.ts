@@ -162,6 +162,13 @@ function normaliseerRegio(s:string):string{
     .trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
 }
 const LANDELIJK=new Set(['nederland','heel nederland','landelijk','heel nl']);
+/** Alleen ondubbelzinnige Nederlandse provincien: vrije regiobenamingen
+ * (bijv. Randstad, Brabant, 35 km Amersfoort) blijven handmatig te beoordelen. */
+const PROVINCIES=new Set([
+  'drenthe','flevoland','friesland','gelderland','groningen','limburg',
+  'noord brabant','noord holland','overijssel','utrecht','zeeland','zuid holland',
+]);
+
 
 function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmRelatieInput[], p?:CrmMandaatInput,beleid:MatchingBeleid='bestaand'):ProfielRoute|null {
   const route = routeType(r,p,beleid); if(!route) return null;
@@ -238,6 +245,13 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       matcht.push('Locatie voldoet aan zoekgebied');geverifieerd++;bewijs.locatie=true;
     }else if(landelijkeScope){
       matcht.push('Landelijk zoekgebied: objectlocatie niet uitgesloten');geverifieerd++;
+    }else if(o.provincie &&
+      PROVINCIES.has(normaliseerRegio(o.provincie)) &&
+      rawRegion!.every(x=>PROVINCIES.has(normaliseerRegio(x)))){
+      // Bij uitsluitend expliciet geselecteerde provincies en een bekende
+      // objectprovincie is buiten het zoekgebied een aantoonbare afwijking.
+      // Geen databasewijziging: handmatig koppelen blijft mogelijk.
+      afwijkend.push('Object ligt buiten de geselecteerde provincies');
     }else{controleer.push('Zoekregio is niet automatisch te verifiëren');controleNodig=true}
   }
   if(radius){
