@@ -172,7 +172,7 @@ export default function BiedingenSection({
 
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>Laatste stap: <span className="font-medium text-foreground">{laatsteMoment.label}</span> · {laatsteMoment.datum ? fmtDate(laatsteMoment.datum) : 'datum onbekend'}</span>
-                  {traject.verschil != null && <span>Verschil: <span className="font-semibold text-foreground">{fmtEur(Math.abs(traject.verschil))}</span></span>}
+                  {traject.verschil != null && <span>Verschil laatste voorstellen: <span className="font-semibold text-foreground">{fmtEur(Math.abs(traject.verschil))}</span></span>}
                   {delta && <span>Laatste kopersbod t.o.v. vraagprijs: {delta.label}</span>}
                   {traject.fase === 'afgewezen' && laatste.rejectedReason && <span className="text-destructive">Reden: {laatste.rejectedReason}</span>}
                 </div>
