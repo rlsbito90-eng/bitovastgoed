@@ -140,6 +140,7 @@ export default function BiedingenSection({
         {trajecten.map(traject => {
           const open = uitgeklapt[traject.key] ?? trajecten.length === 1;
           const laatste = traject.laatste;
+          const laatsteMoment = traject.momenten[traject.momenten.length - 1];
           const isKopersbod = laatste.richting === 'van_koper';
           const delta = vraagprijs && traject.laatsteKopersbod?.bedrag != null
             ? vraagprijsDelta(traject.laatsteKopersbod.bedrag, vraagprijs) : null;
@@ -170,7 +171,7 @@ export default function BiedingenSection({
                 </div>
 
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <span>Laatste stap: <span className="font-medium text-foreground">{biedRondeLabel(laatste)}</span> · {fmtDate(laatste.bieddatum)}</span>
+                  <span>Laatste stap: <span className="font-medium text-foreground">{laatsteMoment.label}</span> · {laatsteMoment.datum ? fmtDate(laatsteMoment.datum) : 'datum onbekend'}</span>
                   {traject.verschil != null && <span>Verschil: <span className="font-semibold text-foreground">{fmtEur(Math.abs(traject.verschil))}</span></span>}
                   {delta && <span>Laatste kopersbod t.o.v. vraagprijs: {delta.label}</span>}
                   {traject.fase === 'afgewezen' && laatste.rejectedReason && <span className="text-destructive">Reden: {laatste.rejectedReason}</span>}
@@ -179,7 +180,7 @@ export default function BiedingenSection({
                 <div className="flex flex-wrap items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setUitgeklapt(s => ({ ...s, [traject.key]: !open }))}>
                     {open ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
-                    {open ? 'Verberg verloop' : 'Bekijk verloop'} ({traject.rondes.length})
+                    {open ? 'Verberg verloop' : 'Bekijk verloop'} ({traject.momenten.length})
                   </Button>
                   {traject.isOpen && laatste.richting !== 'intern' && (
                     <>
@@ -211,62 +212,83 @@ export default function BiedingenSection({
                     Onderhandelingsverloop · oudste eerst
                   </div>
                   <ol className="space-y-2" aria-label="Onderhandelingsverloop">
-                    {traject.rondes.map((bieding, index) => {
+                    {traject.momenten.map((moment, index) => {
+                      const bieding = moment.bieding;
+                      const beslissing = moment.soort !== 'bod';
                       const vanVerkoper = bieding.richting === 'van_verkoper' || bieding.richting === 'namens_verkoper';
                       const parent = traject.rondes.find(r => r.id === bieding.counterOfferToId);
                       return (
-                        <li key={bieding.id} className={['rounded-lg border-l-[3px] p-3 bg-card shadow-sm', vanVerkoper ? 'border-l-accent' : 'border-l-primary'].join(' ')}>
+                        <li key={moment.key} className={[
+                          'rounded-lg border-l-[3px] p-3 shadow-sm',
+                          beslissing ? 'border-l-muted-foreground/50 bg-muted/30' : vanVerkoper ? 'border-l-accent bg-card' : 'border-l-primary bg-card',
+                        ].join(' ')}>
                           <div className="flex items-start gap-2 justify-between">
                             <div className="min-w-0">
-                              <div className="text-[11px] text-muted-foreground">Stap {index + 1} · {fmtDate(bieding.bieddatum)}</div>
-                              <div className="font-semibold text-sm mt-0.5">{biedRondeLabel(bieding)}</div>
+                              <div className="text-[11px] text-muted-foreground">
+                                Stap {index + 1} · {moment.datum ? fmtDate(moment.datum) : 'Datum niet vastgelegd'}
+                              </div>
+                              <div className="font-semibold text-sm mt-0.5">{moment.label}</div>
                             </div>
-                            <div className="flex items-start gap-1 shrink-0">
-                              <div className="text-base font-semibold tabular-nums">{fmtEur(bieding.bedrag)}</div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Acties voor deze biedingsstap">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleEdit(bieding)}>
-                                    <Pencil className="h-3.5 w-3.5 mr-2" />Bewerken
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">
-                                        <Trash2 className="h-3.5 w-3.5 mr-2" />Verwijderen
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Biedingsstap verwijderen?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Dit verwijdert een deel van de onderhandelingshistorie. Doe dit alleen bij een foutieve registratie.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => void handleDelete(bieding)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
+                            {!beslissing && (
+                              <div className="flex items-start gap-1 shrink-0">
+                                <div className="text-base font-semibold tabular-nums">{fmtEur(bieding.bedrag)}</div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Acties voor deze biedingsstap">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleEdit(bieding)}>
+                                      <Pencil className="h-3.5 w-3.5 mr-2" />Bewerken
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive">
+                                          <Trash2 className="h-3.5 w-3.5 mr-2" />Verwijderen
+                                        </DropdownMenuItem>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Biedingsstap verwijderen?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Dit verwijdert een deel van de onderhandelingshistorie. Doe dit alleen bij een foutieve registratie.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => void handleDelete(bieding)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
                           </div>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <OfferStatusBadge bieding={bieding} />
-                            <span className="text-[11px] text-muted-foreground">{BIEDING_TYPE_LABELS[bieding.offerType]}</span>
-                            {parent && <span className="text-[11px] text-muted-foreground">Reactie op {fmtEur(parent.bedrag)}</span>}
-                            {bieding.geldigTot && <span className="text-[11px] text-muted-foreground">Geldig t/m {fmtDate(bieding.geldigTot)}</span>}
-                          </div>
-                          {bieding.rejectedReason && <p className="text-xs text-destructive mt-2">Afwijzingsreden: {bieding.rejectedReason}</p>}
-                          {bieding.voorwaarden && <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{bieding.voorwaarden}</p>}
-                          {bieding.notities && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{bieding.notities}</p>}
-                          <VoorwaardenSummary b={bieding} />
+                          {!beslissing ? (
+                            <>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <OfferStatusBadge bieding={bieding} />
+                                <span className="text-[11px] text-muted-foreground">{BIEDING_TYPE_LABELS[bieding.offerType]}</span>
+                                {parent && <span className="text-[11px] text-muted-foreground">Reactie op {fmtEur(parent.bedrag)}</span>}
+                                {bieding.geldigTot && <span className="text-[11px] text-muted-foreground">Geldig t/m {fmtDate(bieding.geldigTot)}</span>}
+                              </div>
+                              {bieding.voorwaarden && <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{bieding.voorwaarden}</p>}
+                              {bieding.notities && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{bieding.notities}</p>}
+                              <VoorwaardenSummary b={bieding} />
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Betreft {biedRondeLabel(bieding).toLowerCase()} van {fmtEur(bieding.bedrag)}.
+                              </p>
+                              {moment.soort === 'afwijzing' && bieding.rejectedReason && (
+                                <p className="text-xs text-destructive mt-1">Reden: {bieding.rejectedReason}</p>
+                              )}
+                            </>
+                          )}
                         </li>
                       );
                     })}
