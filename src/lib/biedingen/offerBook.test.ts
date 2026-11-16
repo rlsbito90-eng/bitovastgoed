@@ -31,6 +31,8 @@ describe('biedboek als onderhandelingsgesprek', () => {
     expect(traject.isOpen).toBe(false);
     expect(traject.fase).toBe('afgewezen');
     expect(traject.rondes[0].rejectedReason).toBe('Te laag');
+    expect(traject.momenten.map(m => m.soort)).toEqual(['bod', 'afwijzing']);
+    expect(traject.momenten[1].datum).toBeNull();
   });
 
   it('verbergt historische biedingen niet wanneer een nieuw bod na afwijzing binnenkomt', () => {
@@ -41,6 +43,18 @@ describe('biedboek als onderhandelingsgesprek', () => {
     expect(traject.rondes).toHaveLength(2);
     expect(traject.isOpen).toBe(true);
     expect(traject.laatsteKopersbod?.bedrag).toBe(480000);
+  });
+
+
+  it('registreert een afwijzing op de beslisdatum, ná het oorspronkelijke bod', () => {
+    const [traject] = bouwBiedboek([
+      bod({ status: 'afgewezen', rejectedReason: 'Te laag', rejectedAt: '2026-11-06T13:45:00Z' }),
+      bod({ id: 'b2', richting: 'van_verkoper', bedrag: 500000, status: 'tegenvoorstel_gedaan',
+        counterOfferToId: 'b1', bieddatum: '2026-11-04', createdAt: '2026-11-04T11:00:00Z' }),
+    ]);
+    expect(traject.momenten.map(m => m.soort)).toEqual(['bod', 'bod', 'afwijzing']);
+    expect(traject.momenten[2].datum).toBe('2026-11-06T13:45:00Z');
+    expect(traject.fase).toBe('afgewezen');
   });
 
   it('scheidt kopers per object en objecten per koper', () => {
