@@ -302,18 +302,24 @@ export default function BiedingenSection({
         })}
       </CardContent>
 
-      <OfferFormDialog
-        open={formOpen} onOpenChange={setFormOpen} bieding={editTarget} counterTo={counterTo}
-        defaultObjectId={newContext?.objectId ?? defaults?.objectId}
-        defaultRelatieId={newContext?.relatieId ?? defaults?.relatieId}
-        defaultDealId={defaults?.dealId}
-        defaultObjectPipelineId={defaults?.objectPipelineId}
-        onSaved={refresh}
-      />
-      <OfferAcceptDialog open={!!acceptTarget} onOpenChange={open => !open && setAcceptTarget(null)}
-        bieding={acceptTarget} onSaved={refresh} />
-      <OfferRejectDialog open={!!rejectTarget} onOpenChange={open => !open && setRejectTarget(null)}
-        bieding={rejectTarget} onSaved={refresh} />
+      {formOpen && (
+        <OfferFormDialog
+          open={formOpen} onOpenChange={setFormOpen} bieding={editTarget} counterTo={counterTo}
+          defaultObjectId={newContext?.objectId ?? defaults?.objectId}
+          defaultRelatieId={newContext?.relatieId ?? defaults?.relatieId}
+          defaultDealId={defaults?.dealId}
+          defaultObjectPipelineId={defaults?.objectPipelineId}
+          onSaved={refresh}
+        />
+      )}
+      {acceptTarget && (
+        <OfferAcceptDialog open onOpenChange={open => !open && setAcceptTarget(null)}
+          bieding={acceptTarget} onSaved={refresh} />
+      )}
+      {rejectTarget && (
+        <OfferRejectDialog open onOpenChange={open => !open && setRejectTarget(null)}
+          bieding={rejectTarget} onSaved={refresh} />
+      )}
     </Card>
   );
 }
