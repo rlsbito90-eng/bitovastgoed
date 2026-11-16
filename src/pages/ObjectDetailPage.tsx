@@ -1501,12 +1501,12 @@ export default function ObjectDetailPage() {
                       />
                     </div>}
                 </div>
-                <div className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Info className="h-4 w-4 text-accent" />
-                    <h3 className="section-title">Identificatie</h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-5 gap-y-3">
+                <details className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">
+                  <summary className="cursor-pointer flex items-center gap-2 text-foreground hover:text-accent">
+                    <Info className="h-4 w-4 text-accent shrink-0" />
+                    <h3 className="section-title">Identificatie en bron</h3>
+                  </summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-5 gap-y-3 mt-3 border-t border-border/60 pt-3">
                     {object.crmObjectnummer && <Field label="CRM-object-ID">{object.crmObjectnummer}</Field>}
                     {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
                     <Field label="Objectstatus">{OBJECT_STATUS_LABELS[object.status] ?? object.status}</Field>
@@ -1524,7 +1524,7 @@ export default function ObjectDetailPage() {
                       </Field>
                     )}
                   </div>
-                </div>
+                </details>
               </div>
 
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 hairline pt-5">

@@ -38,7 +38,9 @@ describe('A14 vastgoedtaxonomie rechtstreeks op relatiepagina',()=>{
  it('toont bestaande voorkeuren zonder ze direct te wijzigen',()=>{
   render(<InlineVastgoedVoorkeuren relatie={relatie} onSave={vi.fn()}/>);
   expect(screen.getByText('Overzicht bestaande vastgoedvoorkeuren')).toBeTruthy();
-  expect(screen.getByText(/Historische vastgoedklassen: Wonen/)).toBeTruthy();
+  const historisch=screen.getByText('Historische vastgoedklassen');
+  expect(historisch.closest('details')?.open).toBe(false);
+  expect(screen.getByText('Wonen')).toBeTruthy();
  });
  it('wijzigt alleen gekozen vastgoed- of dealtype en laat legacy plus budget onaangeroerd',async()=>{
   const onSave=vi.fn().mockResolvedValue(undefined);

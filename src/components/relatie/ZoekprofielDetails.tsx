@@ -17,6 +17,8 @@ const LIJST=(items:readonly string[]|undefined, label:(value:string)=>string)=>i
   ? items.map(label).join(', '):'—';
 
 function Veld({titel,children}: {titel:string;children:ReactNode}){
+  // Een volledig dossier moet beschikbaar blijven, zonder tientallen lege regels.
+  if(children==='—'||children==='Niet opgegeven')return null;
   return <div className="min-w-0">
     <dt className="field-label">{titel}</dt>
     <dd className="mt-0.5 text-xs text-foreground break-words whitespace-pre-wrap">{children}</dd>
@@ -31,9 +33,9 @@ export default function ZoekprofielDetails({profiel}:{profiel:Zoekprofiel}){
   const dealtypen=(profiel.dealTypeIds??[]).map(id=>tax.labelDealtype(id)||id);
   const gemeenten=(profiel.steden??[]).filter(isGemeenteToken).map(gemeenteUitToken);
   const steden=(profiel.steden??[]).filter(s=>!isGemeenteToken(s));
-  return <details className="group mt-3 rounded-md border border-border/70" open>
+  return <details className="group mt-3 rounded-md border border-border/70">
     <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-accent hover:bg-muted/30">
-      Alle zoekcriteria <span className="font-normal text-muted-foreground">(klik om in/uit te klappen)</span>
+      Bekijk zoekcriteria
     </summary>
     <dl className="grid sm:grid-cols-2 xl:grid-cols-1 gap-3 border-t border-border/70 px-3 py-3">
       <Veld titel="Status en prioriteit">{profiel.status} · prioriteit {profiel.prioriteit}</Veld>
@@ -53,7 +55,7 @@ export default function ZoekprofielDetails({profiel}:{profiel:Zoekprofiel}){
       <Veld titel="Bouwjaar tot">{TEKST(profiel.bouwjaarMax)}</Veld>
       <Veld titel="Minimaal energielabel">{TEKST(profiel.energielabelMin)}</Veld>
       <Veld titel="Verhuurstatus">{profiel.verhuurStatus?VERHUUR[profiel.verhuurStatus]??profiel.verhuurStatus:'—'}</Veld>
-      <Veld titel="Rendementseis">{profiel.rendementseis==null?'—':`${profiel.rendementseis}%`}</Veld>
+      <Veld titel="Historisch rendementveld (methode onbekend)">{profiel.rendementseis==null?'—':`${profiel.rendementseis}%`}</Veld>
       <Veld titel="WALT vanaf">{profiel.waltMin==null?'—':`${profiel.waltMin} jaar`}</Veld>
       <Veld titel="Maximale leegstand">{profiel.leegstandMaxPct==null?'—':`${profiel.leegstandMaxPct}%`}</Veld>
       <Veld titel="Ontwikkelpotentie">{profiel.ontwikkelPotentie?'Gewenst':'Niet opgegeven'}</Veld>

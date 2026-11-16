@@ -1,0 +1,39 @@
+name: CRM Relatiekaart Rust Verify
+
+on:
+  push:
+    branches: [feat/crm-rustige-relatiekaart-20261116]
+    paths:
+      - 'src/pages/RelatieDetailPage.tsx'
+      - 'src/pages/ObjectDetailPage.tsx'
+      - 'src/test/crmCompactCards.test.ts'
+      - 'src/components/relatie/InlineRelatieSectie*'
+      - 'src/components/relatie/ZoekprofielDetails*'
+      - 'src/components/relatie/InlineVastgoedVoorkeuren*'
+      - '.github/workflows/crm-relatiekaart-rust-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crm-relatiekaart-rust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Relatievelden en invoerbehoud
+        run: npx vitest run src/components/relatie/InlineRelatieSectie.test.tsx src/components/relatie/ZoekprofielDetails.test.tsx src/components/relatie/InlineVastgoedVoorkeuren.test.tsx src/test/unifiedVisibleTrajectory.test.ts src/test/crmCompactCards.test.ts
+      - name: Production build
+        run: npm run build

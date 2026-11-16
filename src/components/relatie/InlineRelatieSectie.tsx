@@ -23,6 +23,15 @@ const gelijk=(a:unknown,b:unknown):boolean=>{
   return a===b || (a==null&&b==null);
 };
 const alsString=(v:unknown):string=> v==null?'':String(v);
+/** Bestaande waarden blijven beschikbaar, maar lege CRM-velden voegen
+ * in de leesweergave geen informatie toe. 0 en false zijn expliciete waarden.
+ */
+export function relatieVeldIsIngevuld(waarde:unknown):boolean {
+  if(waarde==null)return false;
+  if(typeof waarde==='string')return waarde.trim().length>0;
+  if(Array.isArray(waarde))return waarde.length>0;
+  return true;
+}
 function leesbaar(veld:InlineRelatieVeld,waarde:unknown):string{
   if(veld.kind==='checkbox') return waarde==null?'—':waarde?'Ja':'Nee';
   if(Array.isArray(waarde)) {
@@ -39,6 +48,7 @@ function leesbaar(veld:InlineRelatieVeld,waarde:unknown):string{
  * waarden komen nooit in een UPDATE terecht. */
 export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props){
   const [bewerken,setBewerken]=useState(false);
+  const [toonAlleVelden,setToonAlleVelden]=useState(false);
   const [concept,setConcept]=useState<Partial<Relatie>>({});
   const [basis,setBasis]=useState<Partial<Relatie>>({});
   const [bezig,setBezig]=useState(false);
@@ -54,7 +64,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   }
   const vuil=bewerken&&Object.keys(patch).length>0;
   const {confirmDiscard}=useDirtyGuard(vuil);
-  useEffect(()=>{setBewerken(false);setConcept({});setBasis({});setFout(null);},[relatie.id]);
+  useEffect(()=>{setBewerken(false);setToonAlleVelden(false);setConcept({});setBasis({});setFout(null);},[relatie.id]);
 
   const begin=()=>{
     const snapshot:Record<string,unknown>={};
@@ -98,14 +108,24 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
     catch(e){setFout(e instanceof Error?e.message:'Opslaan is mislukt.');}
     finally{setBezig(false);}
   };
+  const legeVelden=velden.filter(v=>!relatieVeldIsIngevuld(relatie[v.key])).length;
+  const zichtbareVelden=velden.filter(v=>bewerken||toonAlleVelden||relatieVeldIsIngevuld(relatie[v.key]));
   return <section className="section-card p-5 sm:p-6 space-y-4" aria-label={titel}>
     <div className="flex items-center justify-between gap-3">
       <h2 className="section-title">{titel}</h2>
       {!bewerken&&<button type="button" className="text-sm text-accent hover:text-accent/80"
         aria-label={`${titel} bewerken`} onClick={begin}>Wijzig hier</button>}
     </div>
+    {!bewerken&&legeVelden>0&&<button type="button"
+      aria-expanded={toonAlleVelden}
+      onClick={()=>setToonAlleVelden(x=>!x)}
+      className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+      {toonAlleVelden?'Verberg lege velden':`Toon alle velden (${legeVelden} leeg)`}
+    </button>}
+    {!bewerken&&zichtbareVelden.length===0&&
+      <p className="text-sm text-muted-foreground">Nog geen gegevens vastgelegd.</p>}
     <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-      {velden.map(veld=>{
+      {zichtbareVelden.map(veld=>{
         const waarde=bewerken?concept[veld.key]:relatie[veld.key];
         const id=`relatie-${String(veld.key)}`;
         const kind=veld.kind??'text';
@@ -150,7 +170,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                       onChange={e=>wijzig(veld.key,kind==='number'?(e.target.value===''?undefined:Number(e.target.value)):e.target.value)}
                       className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"/>
             :<p className="field-value min-h-5 break-words whitespace-pre-wrap">{leesbaar(veld,relatie[veld.key])}</p>}
-          {veld.note&&<p className="text-xs text-muted-foreground">{veld.note}</p>}
+          {bewerken&&veld.note&&<p className="text-xs text-muted-foreground">{veld.note}</p>}
         </div>;
       })}
     </div>
