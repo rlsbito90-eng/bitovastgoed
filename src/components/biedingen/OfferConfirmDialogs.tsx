@@ -10,8 +10,9 @@ import { toast } from 'sonner';
 import { useBiedingen } from '@/hooks/useBiedingen';
 import type { Bieding } from '@/lib/biedingen/types';
 
-export function OfferAcceptDialog({ open, onOpenChange, bieding }: {
+export function OfferAcceptDialog({ open, onOpenChange, bieding, onSaved }: {
   open: boolean; onOpenChange: (o: boolean) => void; bieding: Bieding | null;
+  onSaved?: () => void | Promise<void>;
 }) {
   const { acceptOffer } = useBiedingen(bieding ? { objectId: bieding.objectId } : { all: true });
   const [wijsAndereAf, setWijsAndereAf] = useState(false);
@@ -23,6 +24,7 @@ export function OfferAcceptDialog({ open, onOpenChange, bieding }: {
     setBezig(true);
     try {
       await acceptOffer(bieding.id, { wijsAndereAf });
+      await onSaved?.();
       toast.success('Bieding geaccepteerd. De transactie-Deal is gestart en het object staat nu op Preferred bidder / exclusiviteit.');
       onOpenChange(false);
     } catch (err: any) {
@@ -58,8 +60,9 @@ export function OfferAcceptDialog({ open, onOpenChange, bieding }: {
   );
 }
 
-export function OfferRejectDialog({ open, onOpenChange, bieding }: {
+export function OfferRejectDialog({ open, onOpenChange, bieding, onSaved }: {
   open: boolean; onOpenChange: (o: boolean) => void; bieding: Bieding | null;
+  onSaved?: () => void | Promise<void>;
 }) {
   const { rejectOffer } = useBiedingen(bieding ? { objectId: bieding.objectId } : { all: true });
   const [reden, setReden] = useState('');
@@ -72,6 +75,7 @@ export function OfferRejectDialog({ open, onOpenChange, bieding }: {
     setBezig(true);
     try {
       await rejectOffer(bieding.id, reden.trim());
+      await onSaved?.();
       toast.success('Bieding afgewezen');
       setReden('');
       onOpenChange(false);
@@ -84,8 +88,8 @@ export function OfferRejectDialog({ open, onOpenChange, bieding }: {
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Bieding afwijzen</AlertDialogTitle>
-          <AlertDialogDescription>Geef kort aan waarom dit bod wordt afgewezen.</AlertDialogDescription>
+          <AlertDialogTitle>{bieding.richting === 'van_koper' ? 'Kopersbod afwijzen' : 'Verkopersvoorstel afwijzen'}</AlertDialogTitle>
+          <AlertDialogDescription>Leg vast waarom dit voorstel is afgewezen. De reden blijft zichtbaar in het onderhandelingsverloop.</AlertDialogDescription>
         </AlertDialogHeader>
         <Textarea value={reden} onChange={e => setReden(e.target.value)} placeholder="Bv. te laag, voorwaarden onaanvaardbaar…" rows={3} />
         <AlertDialogFooter>
