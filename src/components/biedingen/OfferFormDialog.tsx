@@ -288,7 +288,7 @@ export default function OfferFormDialog({
                   emptyLabel="Geen gekoppelde deal"
                 />
               </>
-            )
+            )}
           </div>
 
           {/* 2 — Bod */}
