@@ -283,10 +283,6 @@ export default function RelatieDetailPage() {
             <h2 className="section-title">Contactpersonen ({contactpersonen.length})</h2>
             <ContactpersonenPanel relatieId={relatie.id}/>
           </section>
-          <InlineRelatieSectie titel="Bedrijf en algemene contactgegevens" relatie={relatie}
-            velden={BEDRIJFSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
-          <InlineRelatieSectie titel="Vestigingsgegevens" relatie={relatie}
-            velden={VESTIGINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <InlineVastgoedVoorkeuren relatie={relatie}
             onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
           <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
@@ -306,9 +302,6 @@ export default function RelatieDetailPage() {
                   toast.success('Zoekcentrum bevestigd voor hemelsbrede matching');
                 }}/>
             </section>}
-          <WebsiteProfielHerkomst relatieId={relatie.id}/>
-          <InlineRelatieSectie titel="Communicatie en NDA" relatie={relatie}
-            velden={COMMUNICATIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <InlineRelatieSectie titel="Aankoop, verkoop en notities" relatie={relatie}
             velden={NOTITIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <section className="section-card p-5 sm:p-6 space-y-3">
@@ -321,11 +314,48 @@ export default function RelatieDetailPage() {
             </div>
           </section>
 
+          {/* TAKEN */}
+          {taken.length > 0 && (
+            <section className="section-card">
+              <header className="section-header"><h2 className="section-title">Open taken ({taken.length})</h2></header>
+              <div className="divide-y divide-border/70">
+                {taken.map(taak => (
+                  <div key={taak.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm text-foreground truncate">{taak.titel}</p>
+                      <p className={`text-xs mt-0.5 tabular-nums ${isTaakTeLaat(taak) ? 'text-destructive' : 'text-muted-foreground'}`}>{deadlineLabel(taak)}{isTaakTeLaat(taak) ? ' · te laat' : ''}</p>
+                    </div>
+                    <PrioriteitBadge prioriteit={taak.prioriteit} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* PIPELINE */}
           <RelatiePipelineSectie relatieId={relatie.id} />
 
           {/* OFF-MARKET SIGNALEN */}
           <OffMarketSignalenSectie relatieId={relatie.id} />
+
+          {/* Minder vaak benodigde administratie blijft volledig toegankelijk. */}
+          <details className="rounded-lg border border-border bg-card">
+            <summary className="cursor-pointer list-item px-5 py-4 text-sm font-medium text-foreground hover:bg-muted/30">
+              Administratie en overige gegevens
+              <span className="block mt-1 text-xs font-normal text-muted-foreground">
+                Bedrijf, vestiging, NDA en herkomst
+              </span>
+            </summary>
+            <div className="space-y-4 border-t border-border p-4">
+              <InlineRelatieSectie titel="Bedrijf en algemene contactgegevens" relatie={relatie}
+                velden={BEDRIJFSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+              <InlineRelatieSectie titel="Vestigingsgegevens" relatie={relatie}
+                velden={VESTIGINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+              <InlineRelatieSectie titel="Communicatie en NDA" relatie={relatie}
+                velden={COMMUNICATIEVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+              <WebsiteProfielHerkomst relatieId={relatie.id}/>
+            </div>
+          </details>
 
           {/* DEALS */}
           {deals.length > 0 && (
@@ -353,23 +383,7 @@ export default function RelatieDetailPage() {
             </section>
           )}
 
-          {/* TAKEN */}
-          {taken.length > 0 && (
-            <section className="section-card">
-              <header className="section-header"><h2 className="section-title">Open taken ({taken.length})</h2></header>
-              <div className="divide-y divide-border/70">
-                {taken.map(taak => (
-                  <div key={taak.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                      <p className={`text-xs mt-0.5 tabular-nums ${isTaakTeLaat(taak) ? 'text-destructive' : 'text-muted-foreground'}`}>{deadlineLabel(taak)}{isTaakTeLaat(taak) ? ' · te laat' : ''}</p>
-                    </div>
-                    <PrioriteitBadge prioriteit={taak.prioriteit} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+
         </div>
 
         <div className="space-y-4 lg:space-y-6 min-w-0">
@@ -392,8 +406,7 @@ export default function RelatieDetailPage() {
             <div className="divide-y divide-border/70">
               {zoekprofielen.length === 0 && (
                 <p className="px-5 py-6 text-xs text-muted-foreground">
-                  De aankoopcriteria onder Relaties zijn de basis voor matching.
-                  Voeg alleen een extra profiel toe voor een zelfstandige zoekrichting.
+                  Geen aanvullende zoekrichtingen.
                 </p>
               )}
               {zoekprofielen.map(zp => (
