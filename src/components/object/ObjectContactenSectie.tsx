@@ -35,8 +35,7 @@ export default function ObjectContactenSectie({object,gekoppeldeRelatie}:Props) 
   const overigeCount=Number(verkoperAanvullend)+Number(makelaarAanvullend);
 
   return <div className="space-y-3">
-    {(object.eigenaarRelatieId || !overigeCount)&&
-      <section className="section-card p-5 space-y-3" data-testid="object-gekoppelde-relatie">
+    <section className="section-card p-5 space-y-3" data-testid="object-gekoppelde-relatie">
         <h3 className="section-title">Gekoppelde verkoper / eigenaar</h3>
         {gekoppeldeRelatie?
           <Link to={`/relaties/${gekoppeldeRelatie.id}`}
@@ -45,8 +44,13 @@ export default function ObjectContactenSectie({object,gekoppeldeRelatie}:Props) 
           </Link>
           :object.eigenaarRelatieId?
           <p className="text-sm text-muted-foreground">Gekoppelde relatie niet gevonden. Controleer de koppeling.</p>
+          :object.verkoperNaam?.trim()?
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">{object.verkoperNaam}</p>
+            <p className="text-xs text-muted-foreground">Alleen in object vastgelegd; nog niet aan Relaties gekoppeld.</p>
+          </div>
           :<p className="text-sm text-muted-foreground">Nog geen verkoper of eigenaar gekoppeld.</p>}
-      </section>}
+      </section>
     {object.verkoopmotivatie?.trim()&&
       <section className="section-card p-5 space-y-2">
         <h3 className="section-title">Verkoopmotivatie</h3>
