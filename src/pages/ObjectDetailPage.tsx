@@ -3,7 +3,7 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
-import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
+import ObjectContactenSectie from '@/components/object/ObjectContactenSectie';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
@@ -17,7 +17,6 @@ import {
   
   ASSET_CLASS_LABELS,
   ONDERHOUDSSTAAT_LABELS,
-  VERKOPER_VIA_LABELS,
   DOCUMENT_TYPE_LABELS,
   INDEXATIE_BASIS_LABELS,
   AANBIEDINGSWIJZE_LABELS,
@@ -284,7 +283,8 @@ function hasJuridischData(o: any): boolean {
 }
 function hasContactenData(o: any): boolean {
   return !!(o && (o.eigenaarRelatieId || o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
-    o.contactNaam || o.contactEmail || o.contactTelefoon));
+    o.verkoperRol || o.verkoperVia || o.verkoopmotivatie ||
+    o.contactNaam || o.contactEmail || o.contactTelefoon || o.contactFunctie));
 }
 
 /** Centrale helper voor tab-zichtbaarheid — testbaar zonder React-render. */
@@ -1945,109 +1945,14 @@ export default function ObjectDetailPage() {
 
           {/* ============ EIGENDOM & RELATIES (conditioneel) ============ */}
           {activeTab === 'meer' && hasContactenData(object) && (
-            <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Seller")} title="Eigendom & relaties">
-
-              {/* Gekoppelde (primaire) relatie via eigenaar_relatie_id — privacy-safe label */}
-              {(() => {
-                const gekoppeldeRelatie = object.eigenaarRelatieId
-                  ? store.getRelatieById(object.eigenaarRelatieId)
-                  : null;
-                return (
-                  <div className="section-card p-5 space-y-3 mb-4" data-testid="object-gekoppelde-relatie">
-                    <h3 className="section-title">Gekoppelde relatie</h3>
-                    {gekoppeldeRelatie ? (
-                      <Link
-                        to={`/relaties/${gekoppeldeRelatie.id}`}
-                        className="block hover:opacity-80 transition-opacity"
-                      >
-                        <RelatieNaamDisplay
-                          relatie={gekoppeldeRelatie}
-                          variant="default"
-                        />
-                      </Link>
-                    ) : object.eigenaarRelatieId ? (
-                      <p className="text-sm text-muted-foreground italic">
-                        Gekoppelde relatie niet gevonden.
-                      </p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">
-                        Geen gekoppelde relatie vastgelegd.
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                {(object.verkoperNaam || object.verkoperEmail || object.verkoperTelefoon || object.verkoopmotivatie) && (
-                  <div className="section-card p-5 space-y-3">
-                    <h3 className="section-title">Aanvullend contact (vrije tekst) — verkoper</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Vrije tekst / fallback. De gekoppelde relatie blijft leidend waar beschikbaar.
-                    </p>
-                    <div className="space-y-3">
-                      {object.verkoperNaam && (
-                        <Field label="Naam">
-                          {object.verkoperNaam}
-                          {object.verkoperRol && <span className="text-muted-foreground"> · {object.verkoperRol}</span>}
-                        </Field>
-                      )}
-                      {object.verkoperVia && <Field label="Via">{VERKOPER_VIA_LABELS[object.verkoperVia] ?? object.verkoperVia}</Field>}
-                      {object.verkoperTelefoon && (
-                        <Field label="Telefoon">
-                          <a href={`tel:${object.verkoperTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
-                            <Phone className="h-3.5 w-3.5" />{object.verkoperTelefoon}
-                          </a>
-                        </Field>
-                      )}
-                      {object.verkoperEmail && (
-                        <Field label="E-mail">
-                          <a href={`mailto:${object.verkoperEmail}`} className="hover:text-accent inline-flex items-center gap-1">
-                            <Mail className="h-3.5 w-3.5" />{object.verkoperEmail}
-                          </a>
-                        </Field>
-                      )}
-                      {object.verkoopmotivatie && <Field label="Verkoopmotivatie">{object.verkoopmotivatie}</Field>}
-                    </div>
-                  </div>
-                )}
-                {(object.contactNaam || object.contactEmail || object.contactTelefoon) && (
-                  <div className="section-card p-5 space-y-3">
-                    <h3 className="section-title">Aanvullend contact (vrije tekst) — objectcontact / makelaar</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Vrije tekst / fallback. De gekoppelde relatie blijft leidend waar beschikbaar.
-                    </p>
-                    <div className="space-y-3">
-                      {object.contactNaam && (
-                        <Field label="Naam">
-                          {object.contactNaam}
-                          {object.contactFunctie && <span className="text-muted-foreground"> · {object.contactFunctie}</span>}
-                        </Field>
-                      )}
-                      {object.contactTelefoon && (
-                        <Field label="Telefoon">
-                          <a href={`tel:${object.contactTelefoon}`} className="hover:text-accent inline-flex items-center gap-1">
-                            <Phone className="h-3.5 w-3.5" />{object.contactTelefoon}
-                          </a>
-                        </Field>
-                      )}
-                      {object.contactEmail && (
-                        <Field label="E-mail">
-                          <a href={`mailto:${object.contactEmail}`} className="hover:text-accent inline-flex items-center gap-1">
-                            <Mail className="h-3.5 w-3.5" />{object.contactEmail}
-                          </a>
-                        </Field>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
+            <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Verkoper")} title="Eigendom & relaties">
+              <ObjectContactenSectie object={object}
+                gekoppeldeRelatie={object.eigenaarRelatieId?
+                  store.getRelatieById(object.eigenaarRelatieId)??null:null}/>
             </SectionAnchor>
-
           )}
 
-          {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
+                    {/* ============ JURIDISCH & KADASTRAAL (conditioneel) ============ */}
           {activeTab === 'meer' && hasJuridischData(object) && (
             <SectionAnchor id="juridisch" eyebrow={eyebrowFor("juridisch", "Legal")} title="Juridisch & kadastraal">
               <div className="section-card p-5 sm:p-6 space-y-3">
