@@ -38,7 +38,7 @@ import {
 import { ObjectStatusBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, MapPin, Pencil, Trash2, EyeOff, Star,
-  FileText, Download, Building2, Phone, Mail,
+  FileText, Download, Building2,
   Sparkles, Send, StickyNote, Upload, ChevronRight,
   Activity, Calculator, FolderOpen, Users, LineChart,
   Info, Calendar, Target, AlertCircle, AlertTriangle, ArrowUpRight, Coins, MoreHorizontal, ClipboardCheck, Scale, Contact as ContactIcon,
@@ -326,8 +326,8 @@ const BASE_SECTIONS: SectionDef[] = [
 /** Mobile-only sectiebar items — op desktop staan deze al in de rechter sidebar */
 const MOBILE_ONLY_SECTIONS: SectionDef[] = [
   { id: 'deal-cockpit', label: 'Cockpit', icon: Target },
-  { id: 'next-action', label: 'Next action', icon: Calendar },
-  { id: 'quick-actions', label: 'Quick actions', icon: Sparkles },
+  { id: 'next-action', label: 'Volgende actie', icon: Calendar },
+  { id: 'quick-actions', label: 'Acties', icon: Sparkles },
 ];
 
 /* ============================================================
@@ -2216,71 +2216,13 @@ export default function ObjectDetailPage() {
 
         {/* RIGHT — sticky deal cockpit */}
         <aside className={`${activeTab === 'vastgoedrekenen' ? 'hidden' : activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
-          {/* Deal status cockpit */}
-          <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Transactie cockpit
-              </p>
-              <TrajectoryStageBadge objectId={object.id} />
-            </div>
-
-            {leadDeal ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="field-label">Koper / preferred bidder</p>
-                  <Link
-                    to={`/deals/${leadDeal.id}`}
-                    className="text-sm font-medium text-foreground hover:text-accent inline-flex items-center gap-1 mt-0.5"
-                  >
-                    {getRelationDisplayName(store.getRelatieById(leadDeal.relatieId), store.contactpersonen)}
-                    <ArrowUpRight className="h-3 w-3" />
-                  </Link>
-                </div>
-                {leadDeal.commissieBedrag != null && (
-                  <div className="hairline pt-3 space-y-2">
-                    <div>
-                      <p className="field-label">Potentiële commissie</p>
-                      <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
-                        {formatCurrency(leadDeal.commissieBedrag)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="field-label">Verwachte fee (gewogen)</p>
-                      <p className="font-mono-data text-sm text-muted-foreground mt-0.5">
-                        {formatCurrency(leadDealVerwachteFee)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2 hairline pt-3">
-                  <div>
-                    <p className="field-label">Concrete deals</p>
-                    <p className="font-mono-data text-sm font-semibold mt-0.5">{leadDeal ? 1 : 0}</p>
-                  </div>
-                  <div>
-                    <p className="field-label">Kandidaten</p>
-                    <p className="font-mono-data text-sm font-semibold mt-0.5">{kandidatenTotaal}</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <Target className="h-7 w-7 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">Nog geen concrete Deal. Kandidaten en biedingen blijven op het Object tot Preferred bidder / exclusiviteit.</p>
-              </div>
-            )}
-          </div>
-
           {/* Volgende actie — uit Taken-module */}
           <div id="next-action" className="section-card p-5 space-y-3 scroll-mt-24">
 
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Next action
+                Volgende actie
               </p>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">from Taken</span>
             </div>
             {volgendeTaak ? (
               <button
@@ -2331,10 +2273,58 @@ export default function ObjectDetailPage() {
             )}
           </div>
 
+          {/* Deal status cockpit */}
+          <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
+                Transactie
+              </p>
+              <TrajectoryStageBadge objectId={object.id} />
+            </div>
+
+            {leadDeal ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="field-label">Koper / voorkeursbieder</p>
+                  <Link
+                    to={`/deals/${leadDeal.id}`}
+                    className="text-sm font-medium text-foreground hover:text-accent inline-flex items-center gap-1 mt-0.5"
+                  >
+                    {getRelationDisplayName(store.getRelatieById(leadDeal.relatieId), store.contactpersonen)}
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
+                {leadDeal.commissieBedrag != null && (
+                  <div className="hairline pt-3 space-y-2">
+                    <div>
+                      <p className="field-label">Potentiële commissie</p>
+                      <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
+                        {formatCurrency(leadDeal.commissieBedrag)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="field-label">Verwachte fee (gewogen)</p>
+                      <p className="font-mono-data text-sm text-muted-foreground mt-0.5">
+                        {formatCurrency(leadDealVerwachteFee)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <Target className="h-7 w-7 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">Nog geen concrete transactie. Kandidaten en biedingen blijven bij dit object.</p>
+              </div>
+            )}
+          </div>
+
           {/* Quick actions */}
           <div id="quick-actions" className="section-card p-5 space-y-1.5 scroll-mt-24">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent mb-2">
-              Quick actions
+              Acties
             </p>
             <button
               type="button"
@@ -2349,7 +2339,7 @@ export default function ObjectDetailPage() {
               onClick={() => openDossierTab('aanbieding')}
               className="row-hover w-full flex items-center gap-2.5 px-2.5 py-2.5 text-sm text-foreground rounded-md cursor-pointer"
             >
-              <Send className="h-3.5 w-3.5 text-muted-foreground" /> Teaser sturen
+              <Send className="h-3.5 w-3.5 text-muted-foreground" /> Aanbieding openen
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
             <button
