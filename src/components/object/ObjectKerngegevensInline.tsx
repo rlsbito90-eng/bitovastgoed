@@ -59,7 +59,7 @@ export default function ObjectKerngegevensInline({object,onSave}:Props){
     }finally{setBusy(false);}
   }
 
-  return <div className="rounded-lg border border-border/60 bg-card/50 p-4 space-y-4" data-testid="object-inline-kerngegevens">
+  return <div className="space-y-4 border-b border-border/60 pb-4" data-testid="object-inline-kerngegevens">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="section-title">Eigenaar en verkoopmotivatie</h3>
       {status==='saved'&&!busy&&<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
