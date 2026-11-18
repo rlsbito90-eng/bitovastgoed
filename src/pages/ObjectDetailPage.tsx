@@ -8,6 +8,8 @@ import ObjectKerngegevensInline from '@/components/object/ObjectKerngegevensInli
 import ObjectCommercieelInline from '@/components/object/ObjectCommercieelInline';
 import ObjectClassificatieInline from '@/components/object/ObjectClassificatieInline';
 import ObjectFysiekInline from '@/components/object/ObjectFysiekInline';
+import ObjectLocatieInline from '@/components/object/ObjectLocatieInline';
+import ObjectOnderhoudInline from '@/components/object/ObjectOnderhoudInline';
 import DossierTakenPanel from '@/components/tasks/DossierTakenPanel';
 import { verzamelOpenDossierTaken } from '@/lib/tasks/dossierTaken';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -22,10 +24,8 @@ import {
   formatHuurPerM2PerJaar,
   
   ASSET_CLASS_LABELS,
-  ONDERHOUDSSTAAT_LABELS,
   DOCUMENT_TYPE_LABELS,
   INDEXATIE_BASIS_LABELS,
-  AANBIEDINGSWIJZE_LABELS,
   OBJECT_STATUS_LABELS,
 } from '@/data/mock-data';
 import {
@@ -1474,31 +1474,25 @@ export default function ObjectDetailPage() {
                 <div className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">
                   <div className="flex items-center gap-2 mb-3">
                     <MapPin className="h-4 w-4 text-accent" />
-                    <h3 className="section-title">Locatie</h3>
                     {objectIntegriteit.heeftWaarschuwing && (
                       <span title={objectIntegriteit.label} className="ml-auto inline-flex text-amber-500/75">
-                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <AlertTriangle className="h-3.5 w-3.5"/>
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-3">
-                    {object.adres && <Field label="Adres">{object.adres}</Field>}
-                    {object.postcode && <Field label="Postcode">{object.postcode}</Field>}
-                    {object.plaats && <Field label="Plaats">{object.plaats}</Field>}
-                    {object.provincie && <Field label="Provincie">{object.provincie}</Field>}
-                    {object.publiekeRegio && <Field label="Publieke regio">{object.publiekeRegio}</Field>}
-                    {objectIntegriteit.ontbrekendeVelden.map((veld) => (
-                      <div key={veld} className="flex items-center gap-1.5 text-[11px] text-amber-600/80 dark:text-amber-400/80">
-                        <AlertTriangle className="h-3 w-3 shrink-0" />
-                        <span>{veld === 'adres' ? 'Adres ontbreekt' : veld === 'postcode' ? 'Postcode ontbreekt' : 'Plaats ontbreekt'}</span>
-                      </div>
-                    ))}
-                    {object.locatieOmschrijving && (
-                      <div className="sm:col-span-2">
-                        <Field label="Locatie-omschrijving"><pre className="whitespace-pre-wrap font-sans text-sm">{object.locatieOmschrijving}</pre></Field>
-                      </div>
-                    )}
-                  </div>
+                  <ObjectLocatieInline object={object}
+                    onSave={(patch)=>store.updateObject(object.id,patch)}/>
+                  {objectIntegriteit.ontbrekendeVelden.length>0&&
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-amber-600/80 dark:text-amber-400/80">
+                      {objectIntegriteit.ontbrekendeVelden.map(veld=>
+                        <span key={veld}>{veld==='adres'?'Adres':veld==='postcode'?'Postcode':'Plaats'} ontbreekt</span>)}
+                    </div>}
+                  {object.locatieOmschrijving&&
+                    <div className="mt-3">
+                      <Field label="Locatie-omschrijving">
+                        <pre className="whitespace-pre-wrap font-sans text-sm">{object.locatieOmschrijving}</pre>
+                      </Field>
+                    </div>}
                   {(object.adres||object.postcode)&&object.plaats&&
                     <div className="mt-4 border-t border-border/60 pt-4">
                       <PdokLocatieVerifier
@@ -1523,7 +1517,6 @@ export default function ObjectDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-5 gap-y-3 mt-3 border-t border-border/60 pt-3">
                     {object.crmObjectnummer && <Field label="CRM-object-ID">{object.crmObjectnummer}</Field>}
                     {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
-                    {object.aanbiedingswijze && <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>}
                     {object.anoniem && <Field label="Anonimiteit">Anoniem presenteren</Field>}
                     {object.publiekeNaam && <Field label="Publieke naam">{object.publiekeNaam}</Field>}
                     {object.bron && <Field label="Bron">{object.bron}</Field>}
@@ -1799,12 +1792,6 @@ export default function ObjectDetailPage() {
                 {(object.energielabelV2 || object.energielabel) && (
                   <Field label="Energielabel"><span className="font-semibold">{object.energielabelV2 ?? object.energielabel}</span></Field>
                 )}
-                {object.onderhoudsstaatNiveau && (
-                  <Field label="Onderhoudsstaat">{ONDERHOUDSSTAAT_LABELS[object.onderhoudsstaatNiveau]}</Field>
-                )}
-                {!object.onderhoudsstaatNiveau && object.onderhoudsstaat && (
-                  <Field label="Onderhoudsstaat">{object.onderhoudsstaat}</Field>
-                )}
                 {object.aantalVerdiepingen != null && (<Field label="Verdiepingen">{object.aantalVerdiepingen}</Field>)}
                 {object.aantalUnits != null && (<Field label="Units">{object.aantalUnits}</Field>)}
                 {object.asbestinventarisatieAanwezig && (<Field label="Asbest">Aanwezig</Field>)}
@@ -1860,20 +1847,8 @@ export default function ObjectDetailPage() {
                 </div>
               )}
 
-              {object.technischeStaatOmschrijving && (
-                <div className="hairline pt-5">
-                  <Field label="Technische staat">
-                    <pre className="whitespace-pre-wrap font-sans text-sm">{object.technischeStaatOmschrijving}</pre>
-                  </Field>
-                </div>
-              )}
-
-              {(object.recenteInvesteringen || object.achterstalligOnderhoud) && (
-                <div className="hairline pt-5 grid sm:grid-cols-2 gap-4">
-                  {object.recenteInvesteringen && <Field label="Recente investeringen"><pre className="whitespace-pre-wrap font-sans text-sm">{object.recenteInvesteringen}</pre></Field>}
-                  {object.achterstalligOnderhoud && <Field label="Achterstallig onderhoud"><pre className="whitespace-pre-wrap font-sans text-sm">{object.achterstalligOnderhoud}</pre></Field>}
-                </div>
-              )}
+              <ObjectOnderhoudInline object={object}
+                onSave={(patch)=>store.updateObject(object.id,patch)}/>
             </div>
           </SectionAnchor>
           )}
