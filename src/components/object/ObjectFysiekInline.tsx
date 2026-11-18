@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {Check,Pencil,Trash2} from 'lucide-react';
+import {Pencil,Trash2} from 'lucide-react';
 import {toast} from 'sonner';
 import type {ObjectVastgoed} from '@/data/mock-data';
 import {NumberField} from '@/components/ui/number-field';
