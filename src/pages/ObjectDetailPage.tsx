@@ -1466,8 +1466,25 @@ export default function ObjectDetailPage() {
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
               <ObjectCommercieelInline object={object} verhuur={verhuur}
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
-              <ObjectFysiekInline object={object}
-                onSave={(patch)=>store.updateObject(object.id,patch)}/>
+              <details className="rounded-lg border border-border/60 bg-card/30">
+                <summary className="cursor-pointer flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/30">
+                  <span>Oppervlakten en eigendom</span>
+                  <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                    {object.oppervlakteVvo!=null
+                      ?`VVO ${formatM2(object.oppervlakteVvo)}`
+                      :object.oppervlakteGbo!=null
+                        ?`GBO ${formatM2(object.oppervlakteGbo)}`
+                        :object.oppervlakteBvo!=null
+                          ?`BVO ${formatM2(object.oppervlakteBvo)}`
+                          :'Oppervlakten nog niet vastgelegd'}
+                    {object.eigendomssituatie?` · ${object.eigendomssituatie}`:''}
+                  </span>
+                </summary>
+                <div className="border-t border-border/60 p-3">
+                  <ObjectFysiekInline object={object}
+                    onSave={(patch)=>store.updateObject(object.id,patch)}/>
+                </div>
+              </details>
 
 
               <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-4 hairline pt-5">
