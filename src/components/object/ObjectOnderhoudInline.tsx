@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {Pencil} from 'lucide-react';
+import EditableValueButton from '@/components/ui/editable-value-button';
 import {toast} from 'sonner';
 import {
   ONDERHOUDSSTAAT_LABELS,
@@ -61,12 +61,7 @@ function InlineOnderhoudNotitie({
   return <div className="space-y-1.5">
     <div className="flex items-center justify-between gap-2">
       <span className="field-label">{labels[veld]}</span>
-      {!edit&&<button type="button" disabled={saving}
-        aria-label={`Wijzig ${labels[veld]}`}
-        onClick={()=>{cancelled.current=false;setEdit(true);}}
-        className="inline-flex gap-1 items-center text-xs text-accent hover:underline disabled:opacity-50">
-        <Pencil className="h-3.5 w-3.5"/> Wijzigen
-      </button>}
+
     </div>
     {edit?<textarea
       autoFocus aria-label={labels[veld]} rows={3}
@@ -78,10 +73,11 @@ function InlineOnderhoudNotitie({
         if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void save();}
       }}
       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"/>:
-      <p className="text-sm whitespace-pre-wrap break-words">
+      <EditableValueButton label={labels[veld]} multiline disabled={saving}
+        onClick={()=>{cancelled.current=false;setEdit(true);}}>
         {waarde?.trim()||<span className="text-muted-foreground">Niet vastgelegd</span>}
         {saving&&<span className="text-xs text-muted-foreground ml-2">Opslaan…</span>}
-      </p>}
+      </EditableValueButton>}
   </div>;
 }
 
