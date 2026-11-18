@@ -294,7 +294,6 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
           Handmatig wijzigen van de trajectfase vergrendelt alleen de commerciële voortgang. De Objectstatus blijft een afzonderlijke beschikbaarheidsstatus.
         </p>
       </section>
-      {eindstatusDialog}
     </>
   );
 }
