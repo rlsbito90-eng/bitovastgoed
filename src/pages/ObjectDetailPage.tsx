@@ -66,7 +66,6 @@ import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
 import OffMarketOorsprongChip from '@/components/object/OffMarketOorsprongChip';
 import FocusPointDialog from '@/components/object/FocusPointDialog';
-import { ClassificatieRij } from '@/components/TaxonomieBadges';
 import ObjectPipelineSectie from '@/components/pipeline/ObjectPipelineSectie';
 import ObjectPipelineFaseSectie from '@/components/pipeline/ObjectPipelineFaseSectie';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
