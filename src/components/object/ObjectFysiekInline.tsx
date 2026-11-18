@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
-import {Pencil,Trash2} from 'lucide-react';
+import {Trash2} from 'lucide-react';
+import EditableValueButton from '@/components/ui/editable-value-button';
 import {toast} from 'sonner';
 import type {ObjectVastgoed} from '@/data/mock-data';
 import {NumberField} from '@/components/ui/number-field';
@@ -70,20 +71,12 @@ function OppervlakteInline({
   return <div className="min-w-0 space-y-1.5">
     <div className="flex items-center justify-between gap-1.5">
       <label htmlFor={`inline-${veld}`} className="field-label" title={hulp}>{label}</label>
-      {!edit&&<div className="flex items-center gap-2">
-        <button type="button" disabled={busy}
-          aria-label={`Wijzig ${label}`}
-          onClick={()=>{cancelled.current=false;latest.current=waarde;setConcept(waarde);setEdit(true);}}
-          className="text-accent hover:underline disabled:opacity-50">
-          <Pencil className="h-3.5 w-3.5"/>
-        </button>
-        {waarde!==undefined&&<button type="button" disabled={busy}
-          aria-label={`Wis ${label}`} title="Waarde wissen"
-          onClick={()=>setConfirmWis(true)}
-          className="text-muted-foreground hover:text-destructive disabled:opacity-50">
-          <Trash2 className="h-3.5 w-3.5"/>
-        </button>}
-      </div>}
+      {!edit&&waarde!==undefined&&<button type="button" disabled={busy}
+        aria-label={`Wis ${label}`} title="Waarde wissen"
+        onClick={()=>setConfirmWis(true)}
+        className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-50">
+        <Trash2 className="h-3.5 w-3.5"/>
+      </button>}
     </div>
     {edit?<NumberField id={`inline-${veld}`} aria-label={label}
       autoFocus decimals={2} value={concept}
@@ -95,11 +88,13 @@ function OppervlakteInline({
         }
         if(e.key==='Enter'){e.preventDefault();void commit();}
       }}
-    />:<p className="text-sm font-medium tabular-nums">
+    />:<EditableValueButton label={label} disabled={busy}
+      onClick={()=>{cancelled.current=false;latest.current=waarde;setConcept(waarde);setEdit(true);}}
+      className="font-medium tabular-nums">
       {waarde===undefined?<span className="font-normal text-muted-foreground">—</span>
         :`${waarde.toLocaleString('nl-NL',{maximumFractionDigits:2})} m²`}
       {busy&&<span className="ml-2 text-xs font-normal text-muted-foreground">Opslaan…</span>}
-    </p>}
+    </EditableValueButton>}
     <AlertDialog open={confirmWis} onOpenChange={setConfirmWis}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -214,11 +209,7 @@ export default function ObjectFysiekInline({object,onSave}:Props){
       <div className="space-y-2">
         <div className="flex justify-between items-center gap-2">
           <span className="field-label">Erfpacht- / eigendomstoelichting</span>
-          {!editNote&&<button type="button" disabled={busy}
-            onClick={()=>{cancelled.current=false;setEditNote(true);}}
-            className="inline-flex items-center gap-1 text-xs text-accent hover:underline disabled:opacity-50">
-            <Pencil className="h-3.5 w-3.5"/> Wijzigen
-          </button>}
+
         </div>
         {editNote?<textarea aria-label="Erfpacht- / eigendomstoelichting"
           autoFocus rows={2} value={note}
@@ -232,9 +223,10 @@ export default function ObjectFysiekInline({object,onSave}:Props){
             if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void bewaarNotitie();}
           }}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />:<p className="text-sm whitespace-pre-wrap break-words">
+        />:<EditableValueButton label="Erfpacht- / eigendomstoelichting" multiline
+          onClick={()=>{cancelled.current=false;setEditNote(true);}} disabled={busy}>
           {object.erfpachtinformatie?.trim()||<span className="text-muted-foreground">Geen toelichting</span>}
-        </p>}
+        </EditableValueButton>}
       </div>
       <p className="text-xs text-muted-foreground">
         Deze gegevens zijn dossierinformatie; eigendom en rechten moeten juridisch of
