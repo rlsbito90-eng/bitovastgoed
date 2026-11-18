@@ -5,6 +5,7 @@ import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import ObjectContactenSectie from '@/components/object/ObjectContactenSectie';
 import ObjectKerngegevensInline from '@/components/object/ObjectKerngegevensInline';
+import ObjectCommercieelInline from '@/components/object/ObjectCommercieelInline';
 import DossierTakenPanel from '@/components/tasks/DossierTakenPanel';
 import { verzamelOpenDossierTaken } from '@/lib/tasks/dossierTaken';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -1467,6 +1468,8 @@ export default function ObjectDetailPage() {
 
               <ObjectKerngegevensInline object={object}
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
+              <ObjectCommercieelInline object={object} verhuur={verhuur}
+                onSave={(patch)=>store.updateObject(object.id,patch)}/>
 
 
               <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-4 hairline pt-5">
@@ -1522,7 +1525,6 @@ export default function ObjectDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-5 gap-y-3 mt-3 border-t border-border/60 pt-3">
                     {object.crmObjectnummer && <Field label="CRM-object-ID">{object.crmObjectnummer}</Field>}
                     {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
-                    <Field label="Objectstatus">{OBJECT_STATUS_LABELS[object.status] ?? object.status}</Field>
                     {object.aanbiedingswijze && <Field label="Aanbiedingswijze">{AANBIEDINGSWIJZE_LABELS[object.aanbiedingswijze]}</Field>}
                     {object.anoniem && <Field label="Anonimiteit">Anoniem presenteren</Field>}
                     {object.publiekeNaam && <Field label="Publieke naam">{object.publiekeNaam}</Field>}
@@ -1560,6 +1562,8 @@ export default function ObjectDetailPage() {
           {/* ============ FINANCIEEL ============ */}
           {activeTab === 'financieel' && (
           <SectionAnchor id="financieel" eyebrow={eyebrowFor("financieel", "Financials")} title="Financieel">
+            <ObjectCommercieelInline object={object} verhuur={verhuur} toonStatus={false}
+              onSave={(patch)=>store.updateObject(object.id,patch)}/>
             <div className="section-card p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 <MetricTile
