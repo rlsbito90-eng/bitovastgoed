@@ -53,7 +53,11 @@ import GemeentePicker from '@/components/forms/GemeentePicker';
 import { parseerSteden } from '@/lib/matching/zoekprofielCriteria';
 import { labelCommercieleRol } from '@/lib/relaties/commercieleRollen';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
-import { legacyTypeVoorNieuweRelatie } from '@/lib/relaties/partijprofiel';
+import {
+  STANDAARD_NIEUWE_RELATIE,
+  legacyTypeVoorNieuweRelatie,
+  partijprofielVanExplicietLegacyType,
+} from '@/lib/relaties/partijprofiel';
 
 interface Props {
   open: boolean;
@@ -100,9 +104,9 @@ const leegForm: FormState = {
   bedrijfsnaam: '',
   type: 'belegger',
   commercialRoles: null,
-  partijprofiel: null,
+  partijprofiel: STANDAARD_NIEUWE_RELATIE.partijprofiel,
   vastgoedStrategieen: null,
-  investeerderSubtype: undefined,
+  investeerderSubtype: STANDAARD_NIEUWE_RELATIE.rechtsvorm,
   telefoon: '',
   email: '',
   website: undefined,
@@ -156,6 +160,13 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   const [primaireContactpersoonId, setPrimaireContactpersoonId] = useState<string | undefined>();
   const [bezig, setBezig] = useState(false);
   const [tab, setTab] = useState('algemeen');
+  // Radix Tabs binnen één scrollcontainer hergebruiken anders de vorige
+  // scrollpositie. Elke geopende tab begint bewust bovenaan.
+  const tabScrollRef = useRef<HTMLDivElement|null>(null);
+  const wisselTab = (next:string) => {
+    setTab(next);
+    if(tabScrollRef.current)tabScrollRef.current.scrollTop=0;
+  };
   const [naamloosConfirmOpen, setNaamloosConfirmOpen] = useState(false);
   // Bewaak het volledige formulier, inclusief de primaire contactpersoon.
   // De basislijn wordt pas NA de hydratie vastgesteld, niet bij de lege eerste render.
@@ -184,7 +195,13 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     let beginContactpersoon: PrimaireContactpersoonInput;
     if (relatie) {
       const { id, laatsteContact, softDeletedAt, contactpersoon, ...rest } = relatie;
-      beginForm = { ...leegForm, ...rest };
+      // Defaults gelden alleen voor nieuwe relaties. Een bestaande relatie
+      // zonder partijprofiel of rechtsvorm blijft expliciet onbekend.
+      beginForm = {
+        ...leegForm,...rest,
+        partijprofiel:relatie.partijprofiel??null,
+        investeerderSubtype:relatie.investeerderSubtype,
+      };
       setGemaaktId(relatie.id);
 
       // Zoek de primaire contactpersoon in de store.
@@ -205,7 +222,17 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
         setPrimaireContactpersoonId(undefined);
       }
     } else {
-      beginForm = { ...leegForm, ...(initialValues ?? {}) };
+      const explicietProfiel=initialValues?.partijprofiel
+        ?? (initialValues?.type&&initialValues.type!=='belegger'
+          ?partijprofielVanExplicietLegacyType(initialValues.type)
+          :undefined);
+      beginForm = {
+        ...leegForm,...(initialValues ?? {}),
+        partijprofiel:explicietProfiel??initialValues?.partijprofiel
+          ??STANDAARD_NIEUWE_RELATIE.partijprofiel,
+        investeerderSubtype:initialValues?.investeerderSubtype
+          ??STANDAARD_NIEUWE_RELATIE.rechtsvorm,
+      };
       beginContactpersoon = { ...leegPrimaireContactpersoon, ...(initialPrimaireContactpersoon ?? {}) };
       setPrimaireContactpersoonId(undefined);
       setGemaaktId(undefined);
@@ -217,6 +244,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     setGedeeltelijkOpgeslagen(false);
     nieuwAangemaaktIdRef.current = undefined;
     setTab(initialTab);
+    if(tabScrollRef.current)tabScrollRef.current.scrollTop=0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relatie?.id, open]);
 
@@ -261,7 +289,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     // Primair contact verwijderen moet bewust in het Contactpersonenpaneel gebeuren.
     // Alleen een naam leegmaken mag niet stilzwijgend een bestaande rij verwijderen.
     if (primaireContactpersoonId && !cpNaam) {
-      setTab('algemeen');
+      wisselTab('algemeen');
       toast.error('Vul de naam van de primaire contactpersoon in. Verwijderen kan afzonderlijk via Contactpersonen.');
       return;
     }
@@ -369,7 +397,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
+        <Tabs value={tab} onValueChange={wisselTab} className="flex-1 flex flex-col min-h-0">
           <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
             <TabsList className="inline-flex">
               <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
@@ -382,7 +410,8 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
             </TabsList>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+          <div ref={tabScrollRef} data-testid="relatie-form-scroll"
+            className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
             {/* ALGEMEEN — nieuwe volgorde: Contactpersoon → Bedrijf → KVK */}
             <TabsContent value="algemeen" className="space-y-5 mt-0">
 
