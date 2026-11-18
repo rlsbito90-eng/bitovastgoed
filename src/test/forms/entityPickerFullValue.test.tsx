@@ -13,9 +13,9 @@ describe('Entiteitskoppelingen zonder zijknop',()=>{
      label="Eigenaar" pickerTitle="Kies eigenaar"/>);
    const waarde=screen.getByRole('button',{name:'Wijzig Eigenaar'});
    expect(waarde).toHaveTextContent('Voorbeeld Vastgoed BV');
+   expect(screen.getByRole('button',{name:'Ontkoppel Eigenaar'})).toBeInTheDocument();
    fireEvent.click(waarde);
    expect(screen.getByRole('dialog',{name:'Kies eigenaar'})).toBeInTheDocument();
-   expect(screen.getByRole('button',{name:'Ontkoppel Eigenaar'})).toBeInTheDocument();
  });
  it('heeft een volledig aanklikbaar leeg veld en ontkoppelt niet automatisch',()=>{
    const onChange=vi.fn();
