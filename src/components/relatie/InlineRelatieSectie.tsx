@@ -160,7 +160,10 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
             ?kind==='textarea'
               ?<textarea id={id} autoFocus rows={3} value={alsString(waarde)}
                 onChange={e=>wijzig(e.target.value)}
-                onBlur={()=>{void opslaan(veld);}}
+                onBlur={e=>{
+                  if((e.relatedTarget as HTMLElement|null)?.dataset.relatieCancel===String(veld.key))return;
+                  void opslaan(veld);
+                }}
                 onKeyDown={e=>{
                   if(e.key==='Escape'){e.preventDefault();annuleer();}
                   if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void opslaan(veld);}
@@ -184,7 +187,10 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                       setPlaatsenInvoer(e.target.value);
                       wijzig(parseerSteden(e.target.value));
                     }}
-                    onBlur={()=>{void opslaan(veld);}}
+                    onBlur={e=>{
+                  if((e.relatedTarget as HTMLElement|null)?.dataset.relatieCancel===String(veld.key))return;
+                  void opslaan(veld);
+                }}
                     onKeyDown={e=>{
                       if(e.key==='Escape'){e.preventDefault();annuleer();}
                       if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void opslaan(veld);}
@@ -210,7 +216,10 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                     min={kind==='number'?0:undefined} step={kind==='number'?'any':undefined}
                     value={alsString(waarde)}
                     onChange={e=>wijzig(kind==='number'?(e.target.value===''?undefined:Number(e.target.value)):e.target.value)}
-                    onBlur={()=>{void opslaan(veld);}}
+                    onBlur={e=>{
+                  if((e.relatedTarget as HTMLElement|null)?.dataset.relatieCancel===String(veld.key))return;
+                  void opslaan(veld);
+                }}
                     onKeyDown={e=>{
                       if(e.key==='Escape'){e.preventDefault();annuleer();}
                       if(e.key==='Enter'){e.preventDefault();void opslaan(veld);}
@@ -228,7 +237,8 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
           {editing&&veld.note&&<p className="text-xs text-muted-foreground">{veld.note}</p>}
           {editing&&fout&&<p role="alert" className="text-xs text-destructive">{fout}</p>}
           {editing&&<div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" disabled={bezig} onClick={annuleer}
+            <button type="button" disabled={bezig} data-relatie-cancel={String(veld.key)}
+              onMouseDown={e=>e.preventDefault()} onClick={annuleer}
               className="rounded border border-border px-2.5 py-1.5 text-xs hover:bg-muted/40">Annuleren</button>
             {complex&&<button type="button" disabled={bezig}
               onClick={()=>{void opslaan(veld);}}
