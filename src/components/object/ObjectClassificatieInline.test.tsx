@@ -46,14 +46,15 @@ describe('Classificatie rechtstreeks op Objecten → Overzicht',()=>{
   });
   it('past alleen geselecteerde subtypen aan zonder type of dealtype te overschrijven',async()=>{
     const {save}=show();
-    fireEvent.click(screen.getByRole('button',{name:'Eengezinswoning'}));
+    fireEvent.click(screen.getByRole('checkbox',{name:'Eengezinswoning'}));
     await waitFor(()=>expect(save).toHaveBeenCalledWith({propertySubtypeIds:[]}));
     expect(save.mock.calls[0][0]).not.toHaveProperty('type');
     expect(save.mock.calls[0][0]).not.toHaveProperty('dealTypeIds');
   });
   it('kan dealtypen zelfstandig wijzigen',async()=>{
     const {save}=show({...obj,dealTypeIds:[]});
-    fireEvent.click(screen.getByRole('button',{name:'Transformatie'}));
+    fireEvent.click(screen.getByText(/Dealtype \/ propositie/));
+    fireEvent.click(screen.getByRole('checkbox',{name:'Transformatie'}));
     await waitFor(()=>expect(save).toHaveBeenCalledWith({dealTypeIds:['d1']}));
   });
 });
