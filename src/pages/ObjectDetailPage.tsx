@@ -52,7 +52,9 @@ import BiedingenSection from '@/components/biedingen/BiedingenSection';
 import KandidaatSelectieDialog from '@/components/pipeline/KandidaatSelectieDialog';
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
-import GeenActieBadge, { isVerlopen as taakIsVerlopen } from '@/components/GeenActieBadge';
+import GeenActieBadge from '@/components/GeenActieBadge';
+import { deadlineLabel } from '@/lib/taakHelpers';
+import { bepaalCockpitOpvolging, cockpitIsActief } from '@/lib/objecten/cockpitOpvolging';
 
 import ObjectFormDialog from '@/components/forms/ObjectFormDialog';
 import ObjectReferentieAnalyseSectie from '@/components/object/ObjectReferentieAnalyseSectie';
@@ -967,18 +969,6 @@ export default function ObjectDetailPage() {
   // 'Kandidaten' telt uitsluitend daadwerkelijk gekoppelde partijen.
   // Automatische suggesties horen bij Kandidaat toevoegen, niet bij de pipeline-KPI.
   const kandidatenTotaal = new Set(kandidatenPipeline.map(k=>k.relatieId)).size;
-  const volgendeTaak = (() => {
-    const open = objectTaken
-      .filter(t => t.status === 'open')
-      .sort((a, b) => {
-        const av = taakIsVerlopen(a.deadline) ? 0 : 1;
-        const bv = taakIsVerlopen(b.deadline) ? 0 : 1;
-        if (av !== bv) return av - bv;
-        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-      });
-    return open[0] ?? null;
-  })();
-
   // ── Financiële KPI's via centrale derivation helpers (Fase 2A) ──
   // Bron van waarheid: src/lib/derivations/financial.ts
   //
@@ -1053,6 +1043,15 @@ export default function ObjectDetailPage() {
   const leadDealVerwachteFee = leadDeal?.commissieBedrag != null
     ? leadDeal.commissieBedrag * getTrajectoryProbability(currentTrajectoryStage)
     : 0;
+  // Eén opvolgingsbron: Taken, inclusief taken van de enige concrete Deal.
+  // Object Pipeline blijft de bron voor de zichtbare trajectfase.
+  const cockpitOpvolging = bepaalCockpitOpvolging(
+    objectTaken,
+    leadDeal ? store.getTakenByDeal(leadDeal.id) : [],
+  );
+  const cockpitActief = cockpitIsActief(object,currentTrajectoryStage);
+  const volgendeTaak = cockpitOpvolging.volgende;
+
 
 
   const handleDelete = async () => {
@@ -2216,112 +2215,98 @@ export default function ObjectDetailPage() {
 
         {/* RIGHT — sticky deal cockpit */}
         <aside className={`${activeTab === 'vastgoedrekenen' ? 'hidden' : activeTab === 'cockpit' ? '' : 'hidden lg:block'} lg:sticky lg:top-[88px] space-y-3 min-w-0`}>
-          {/* Volgende actie — uit Taken-module */}
-          <div id="next-action" className="section-card p-5 space-y-3 scroll-mt-24">
-
-            <div className="flex items-center justify-between gap-2">
+          {/* Eén compacte commerciële cockpit; Taken en Object Pipeline zijn leidend. */}
+          <div id="next-action" className="section-card p-5 space-y-4 scroll-mt-24" data-testid="object-commercial-cockpit">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Volgende actie
-              </p>
-            </div>
-            {volgendeTaak ? (
-              <button
-                type="button"
-                onClick={() => { setEditTaak(volgendeTaak); setTaakDialogOpen(true); }}
-                className="w-full text-left flex items-start gap-2.5 group"
-              >
-                <div className="h-7 w-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
-                  <Calendar className="h-3.5 w-3.5 text-accent" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground group-hover:text-accent transition-colors line-clamp-2">
-                    {volgendeTaak.titel}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <p className="text-xs text-muted-foreground tabular-nums">
-                      {formatDate(volgendeTaak.deadline)}
-                      {volgendeTaak.deadlineTijd ? ` · ${volgendeTaak.deadlineTijd}` : ''}
-                    </p>
-                    {taakIsVerlopen(volgendeTaak.deadline) && (
-                      <GeenActieBadge variant="verlopen" date={volgendeTaak.deadline} />
-                    )}
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent shrink-0" />
-              </button>
-            ) : (
-              <div className="space-y-2.5">
-                <div className="flex items-start gap-2.5">
-                  <div className="h-7 w-7 rounded-md bg-muted border border-border flex items-center justify-center shrink-0">
-                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">Geen volgende actie gepland.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setEditTaak(null); setTaakDialogOpen(true); }}
-                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 transition"
-                >
-                  <Calendar className="h-3.5 w-3.5" /> Taak aanmaken
-                </button>
-              </div>
-            )}
-            {objectTaken.filter(t => t.status === 'open').length > 1 && (
-              <p className="text-[11px] text-muted-foreground hairline pt-2">
-                +{objectTaken.filter(t => t.status === 'open').length - 1} open ta{objectTaken.filter(t => t.status === 'open').length - 1 === 1 ? 'ak' : 'ken'}
-              </p>
-            )}
-          </div>
-
-          {/* Deal status cockpit */}
-          <div id="deal-cockpit" className="section-card p-5 space-y-4 scroll-mt-24">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Transactie
+                Opvolging
               </p>
               <TrajectoryStageBadge objectId={object.id} />
             </div>
-
-            {leadDeal ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="field-label">Koper / voorkeursbieder</p>
-                  <Link
-                    to={`/deals/${leadDeal.id}`}
-                    className="text-sm font-medium text-foreground hover:text-accent inline-flex items-center gap-1 mt-0.5"
-                  >
-                    {getRelationDisplayName(store.getRelatieById(leadDeal.relatieId), store.contactpersonen)}
-                    <ArrowUpRight className="h-3 w-3" />
-                  </Link>
-                </div>
-                {leadDeal.commissieBedrag != null && (
-                  <div className="hairline pt-3 space-y-2">
-                    <div>
-                      <p className="field-label">Potentiële commissie</p>
-                      <p className="font-mono-data text-xl font-semibold text-foreground mt-0.5">
-                        {formatCurrency(leadDeal.commissieBedrag)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="field-label">Verwachte fee (gewogen)</p>
-                      <p className="font-mono-data text-sm text-muted-foreground mt-0.5">
-                        {formatCurrency(leadDealVerwachteFee)}
-                      </p>
-                    </div>
-                  </div>
+            <div className="border-t border-border/60 pt-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-medium text-foreground">Volgende actie</h3>
+                {cockpitActief && cockpitOpvolging.teLaat && (
+                  <GeenActieBadge variant="verlopen" date={volgendeTaak?.deadline}/>
                 )}
-
-
               </div>
-            ) : (
-              <div className="text-center py-4">
-                <Target className="h-7 w-7 text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">Nog geen concrete transactie. Kandidaten en biedingen blijven bij dit object.</p>
-              </div>
-            )}
+              {volgendeTaak ? (
+                <button
+                  type="button"
+                  onClick={() => { setEditTaak(volgendeTaak); setTaakDialogOpen(true); }}
+                  className="w-full text-left flex items-start gap-2.5 group"
+                >
+                  <div className="h-7 w-7 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
+                    <Calendar className="h-3.5 w-3.5 text-accent" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground group-hover:text-accent transition-colors line-clamp-2">
+                      {volgendeTaak.titel}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 tabular-nums">
+                      {deadlineLabel(volgendeTaak)}
+                      {cockpitOpvolging.zonderDeadline ? ' · plan een deadline' : ''}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent shrink-0" />
+                </button>
+              ) : cockpitActief && cockpitOpvolging.wachtend.length > 0 ? (
+                <div className="space-y-2.5">
+                  <p className="text-sm text-muted-foreground">Wachten op reactie. Er is geen uitvoerende actie gepland.</p>
+                  <button type="button" onClick={() => { setEditTaak(null); setTaakDialogOpen(true); }}
+                    className="text-xs font-medium text-accent hover:underline">
+                    Follow-up plannen
+                  </button>
+                </div>
+              ) : cockpitActief ? (
+                <div className="space-y-2.5">
+                  <GeenActieBadge variant="geen"/>
+                  <button type="button"
+                    onClick={() => { setEditTaak(null); setTaakDialogOpen(true); }}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 transition">
+                    <Calendar className="h-3.5 w-3.5" /> Taak aanmaken
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Traject afgesloten. Geen nieuwe opvolging vereist.</p>
+              )}
+              {(cockpitOpvolging.overigeActies > 0 || cockpitOpvolging.wachtend.length > 0) && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground border-t border-border/60 pt-3">
+                  {cockpitOpvolging.overigeActies > 0 &&
+                    <span>+{cockpitOpvolging.overigeActies} andere open {cockpitOpvolging.overigeActies===1?'actie':'acties'}</span>}
+                  {cockpitOpvolging.wachtend.length > 0 &&
+                    <span>{cockpitOpvolging.wachtend.length} wachtend op reactie</span>}
+                </div>
+              )}
+            </div>
+            {/* Bestaande deep-link blijft werken; geen tweede trajectfase in een aparte kaart. */}
+            <div id="deal-cockpit" className="scroll-mt-24">
+              {leadDeal && (
+                <div className="border-t border-border/60 pt-4 space-y-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent">
+                    Concrete transactie
+                  </p>
+                  <div>
+                    <p className="field-label">Koper / voorkeursbieder</p>
+                    <Link to={`/deals/${leadDeal.id}`}
+                      className="text-sm font-medium text-foreground hover:text-accent inline-flex items-center gap-1 mt-0.5">
+                      {getRelationDisplayName(store.getRelatieById(leadDeal.relatieId),store.contactpersonen)}
+                      <ArrowUpRight className="h-3 w-3"/>
+                    </Link>
+                  </div>
+                  {leadDeal.commissieBedrag != null && (
+                    <div className="border-t border-border/60 pt-3 space-y-1">
+                      <p className="field-label">Potentiële commissie</p>
+                      <p className="font-mono-data text-lg font-semibold">{formatCurrency(leadDeal.commissieBedrag)}</p>
+                      <p className="text-xs text-muted-foreground">Gewogen prognose: {formatCurrency(leadDealVerwachteFee)}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Quick actions */}
+                    {/* Quick actions */}
           <div id="quick-actions" className="section-card p-5 space-y-1.5 scroll-mt-24">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent mb-2">
               Acties
