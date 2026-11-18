@@ -21,6 +21,7 @@ type Props={
   verhuur:VerhuurMetrics;
   onSave:(wijziging:GuardedObjectPatch)=>Promise<void>;
   toonStatus?:boolean;
+  embedded?:boolean;
 };
 
 function GeldVeld({
@@ -212,10 +213,10 @@ function IndicatieVeld({
 }
 
 export default function ObjectCommercieelInline({
-  object,verhuur,onSave,toonStatus=true,
+  object,verhuur,onSave,toonStatus=true,embedded=false,
 }:Props){
   const heeftHuurders=verhuur.detail.tenantsCount>0;
-  return <section className="rounded-lg border border-border/60 bg-card/50 p-4 space-y-4"
+  return <section className={embedded?'space-y-4 border-b border-border/60 pb-4':'section-card p-5 space-y-4'}
     data-testid="object-commercieel-inline">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="section-title">Commerciële kerngegevens</h3>
