@@ -362,13 +362,13 @@ describe('Gedeelde aanmaakdefaults en tabnavigatie',()=>{
   render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
   const scroll=screen.getByTestId('relatie-form-scroll') as HTMLDivElement;
   scroll.scrollTop=550;
-  fireEvent.click(screen.getByRole('tab',{name:'Notities'}));
+  fireEvent.mouseDown(screen.getByRole('tab',{name:'Notities'}),{button:0});
   expect(scroll.scrollTop).toBe(0);
   scroll.scrollTop=320;
-  fireEvent.click(screen.getByRole('tab',{name:'Vastgoed'}));
+  fireEvent.mouseDown(screen.getByRole('tab',{name:'Vastgoed'}),{button:0});
   expect(scroll.scrollTop).toBe(0);
   scroll.scrollTop=260;
-  fireEvent.click(screen.getByRole('tab',{name:'Algemeen'}));
+  fireEvent.mouseDown(screen.getByRole('tab',{name:'Algemeen'}),{button:0});
   expect(scroll.scrollTop).toBe(0);
  });
 });
