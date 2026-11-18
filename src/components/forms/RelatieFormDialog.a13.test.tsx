@@ -320,3 +320,55 @@ describe('Fase 1 — volledige primaire criteria in bestaand relatieformulier',(
     expect(mocks.addRelatie).not.toHaveBeenCalled();
   });
 });
+
+
+describe('Gedeelde aanmaakdefaults en tabnavigatie',()=>{
+ it('begint uitgebreid toevoegen met profiel Belegger en rechtsvorm BV',async()=>{
+  mocks.contactpersonen=[];
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close}
+    initialValues={{bedrijfsnaam:'Nieuwe Belegger BV'}}/>);
+  expect(screen.getByRole('combobox',{name:'Partijprofiel'})).toHaveValue('belegger');
+  expect(screen.getByRole('combobox',{name:'Rechtsvorm'})).toHaveValue('bv');
+  fireEvent.click(screen.getByRole('button',{name:'Aanmaken'}));
+  await waitFor(()=>expect(mocks.addRelatie).toHaveBeenCalledTimes(1));
+  const nieuw=mocks.addRelatie.mock.calls[0][0];
+  expect(nieuw).toMatchObject({
+    bedrijfsnaam:'Nieuwe Belegger BV',
+    partijprofiel:'belegger',investeerderSubtype:'bv',type:'belegger',
+  });
+ });
+
+ it('behoudt onbekend profiel en rechtsvorm bij bestaande relatie',()=>{
+  const bestaande={...relatie,partijprofiel:null,investeerderSubtype:undefined};
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={bestaande as Relatie}/>);
+  expect(screen.getByRole('combobox',{name:'Partijprofiel'})).toHaveValue('');
+  expect(screen.getByRole('combobox',{name:'Rechtsvorm'})).toHaveValue('');
+ });
+
+ it('respecteert een expliciete nieuwe voorinvulling van eigenaarsprofiel en NV',async()=>{
+  mocks.contactpersonen=[];
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close}
+    initialValues={{bedrijfsnaam:'Eigenaar NV',partijprofiel:'vastgoedeigenaar',investeerderSubtype:'nv'}}/>);
+  expect(screen.getByRole('combobox',{name:'Partijprofiel'})).toHaveValue('vastgoedeigenaar');
+  expect(screen.getByRole('combobox',{name:'Rechtsvorm'})).toHaveValue('nv');
+  fireEvent.click(screen.getByRole('button',{name:'Aanmaken'}));
+  await waitFor(()=>expect(mocks.addRelatie).toHaveBeenCalledTimes(1));
+  expect(mocks.addRelatie.mock.calls[0][0]).toMatchObject({
+    partijprofiel:'vastgoedeigenaar',investeerderSubtype:'nv',type:'eigenaar',
+  });
+ });
+
+ it('opent ieder tabblad bovenaan, ook na scrollen in een eerdere tab',()=>{
+  render(<RelatieFormDialog open={true} onOpenChange={mocks.close} relatie={relatie}/>);
+  const scroll=screen.getByTestId('relatie-form-scroll') as HTMLDivElement;
+  scroll.scrollTop=550;
+  fireEvent.click(screen.getByRole('tab',{name:'Notities'}));
+  expect(scroll.scrollTop).toBe(0);
+  scroll.scrollTop=320;
+  fireEvent.click(screen.getByRole('tab',{name:'Vastgoed'}));
+  expect(scroll.scrollTop).toBe(0);
+  scroll.scrollTop=260;
+  fireEvent.click(screen.getByRole('tab',{name:'Algemeen'}));
+  expect(scroll.scrollTop).toBe(0);
+ });
+});
