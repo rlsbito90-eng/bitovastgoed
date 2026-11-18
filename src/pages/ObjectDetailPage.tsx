@@ -1464,7 +1464,7 @@ export default function ObjectDetailPage() {
 
               <ObjectKerngegevensInline object={object}
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
-              <ObjectCommercieelInline object={object} verhuur={verhuur}
+              <ObjectCommercieelInline object={object} verhuur={verhuur} embedded
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
               <details className="rounded-lg border border-border/60 bg-card/30">
                 <summary className="cursor-pointer flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/30">
