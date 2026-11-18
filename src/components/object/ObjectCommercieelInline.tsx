@@ -6,12 +6,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { ObjectStatus, ObjectVastgoed } from '@/data/mock-data';
-import { OBJECT_STATUS_LABELS, formatCurrency } from '@/data/mock-data';
+import type { ObjectVastgoed } from '@/data/mock-data';
+import { formatCurrency } from '@/data/mock-data';
+import ObjectStatusInline from './ObjectStatusInline';
 import type { VerhuurMetrics } from '@/lib/derivations/verhuur';
 import type { GuardedObjectPatch } from '@/lib/dataIntegrity/objectPayload';
 import {
-  type FinancieelVeld, maakInlineFinancieelPatch, maakInlineWisPatch, moetStatusArchiveren,
+  type FinancieelVeld, maakInlineFinancieelPatch, maakInlineWisPatch,
 } from '@/lib/objecten/inlineCommercieel';
 
 type Props={
@@ -209,65 +210,6 @@ function IndicatieVeld({
   </div>;
 }
 
-function StatusVeld({
-  object,onSave,
-}:{
-  object:ObjectVastgoed;onSave:Props['onSave'];
-}){
-  const [saving,setSaving]=useState(false);
-  const [pending,setPending]=useState<ObjectStatus|null>(null);
-  const [saved,setSaved]=useState(false);
-  const locked=!!object.isArchived||!!object.softDeletedAt;
-  async function commit(status:ObjectStatus){
-    if(saving||locked||object.status===status)return;
-    setSaving(true);
-    try{
-      await onSave({status});
-      setSaved(true);
-      toast.success(moetStatusArchiveren(status)
-        ? 'Objectstatus aangepast en gearchiveerd'
-        : 'Objectstatus opgeslagen');
-    }catch(e){toast.error(e instanceof Error?e.message:'Status wijzigen mislukt');}
-    finally{setSaving(false);setPending(null);}
-  }
-  return <div className="space-y-2">
-    <label htmlFor="inline-objectstatus" className="field-label">Objectstatus</label>
-    <select id="inline-objectstatus" aria-label="Objectstatus"
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-      value={object.status}
-      disabled={saving||locked}
-      onChange={e=>{
-        const next=e.target.value as ObjectStatus;
-        if(moetStatusArchiveren(next))setPending(next);
-        else void commit(next);
-      }}>
-      {(Object.keys(OBJECT_STATUS_LABELS) as ObjectStatus[]).map(status=>
-        <option key={status} value={status}>{OBJECT_STATUS_LABELS[status]}</option>)}
-    </select>
-    {locked?<p className="text-xs text-muted-foreground">Dit object is gearchiveerd. Zet het eerst terug naar actief om de status te wijzigen.</p>
-      :<p className="text-xs text-muted-foreground">
-        {saving?'Opslaan…':saved?'Opgeslagen':'Gewone statuswijzigingen worden direct opgeslagen.'}
-      </p>}
-    <AlertDialog open={pending!==null} onOpenChange={open=>{if(!open)setPending(null);}}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Object {pending?OBJECT_STATUS_LABELS[pending].toLowerCase():''} melden?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Deze statuswijziging archiveert het object en kan het uit actieve overzichten en matchsuggesties halen.
-            Bestaande kandidaten, taken en biedhistorie blijven bewaard.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Annuleren</AlertDialogCancel>
-          <AlertDialogAction onClick={()=>{if(pending)void commit(pending);}}>
-            Bevestigen en archiveren
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </div>;
-}
-
 export default function ObjectCommercieelInline({
   object,verhuur,onSave,toonStatus=true,
 }:Props){
@@ -280,7 +222,7 @@ export default function ObjectCommercieelInline({
         <Check className="h-3.5 w-3.5"/> Direct bewerkbaar
       </span>
     </div>
-    {toonStatus&&<StatusVeld object={object} onSave={onSave}/>}
+    {toonStatus&&<ObjectStatusInline object={object}/>}
     <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 border-t border-border/60 pt-4">
       <GeldVeld key={`${object.id}-vraagprijs`} veld="vraagprijs" naam="Vraagprijs"
         waarde={object.vraagprijs} onSave={onSave}/>
