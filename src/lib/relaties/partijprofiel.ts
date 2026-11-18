@@ -1,5 +1,25 @@
 import type { Partijprofiel, VastgoedStrategie, PartijType } from '@/data/mock-data';
 
+/** Standaard voor uitsluitend NIEUWE handmatige relaties. Niet toepassen op bestaande dossiers. */
+export const STANDAARD_NIEUWE_RELATIE = {
+  partijprofiel: 'belegger' as Partijprofiel,
+  rechtsvorm: 'bv' as const,
+};
+
+/** Alleen wanneer een andere flow bewust een legacy partijtype voorinvult.
+ * Nooit gebruiken om bestaande relaties achteraf te herclassificeren.
+ */
+export function partijprofielVanExplicietLegacyType(type:PartijType):Partijprofiel{
+  switch(type){
+    case 'belegger':return 'belegger';
+    case 'ontwikkelaar':return 'ontwikkelaar';
+    case 'eigenaar':return 'vastgoedeigenaar';
+    case 'makelaar':return 'makelaar';
+    case 'partner':
+    case 'overig':return 'overig';
+  }
+}
+
 export const PARTIJPROFIELEN: readonly { value: Partijprofiel; label: string }[] = [
   {value:'belegger',label:'Belegger'},
   {value:'ontwikkelende_belegger',label:'Ontwikkelende belegger'},
