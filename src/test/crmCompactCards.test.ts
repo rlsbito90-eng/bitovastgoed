@@ -24,7 +24,10 @@ describe('Compacte dossierkaarten behouden details',()=>{
   });
   it('verwijdert geen invoervelden uit de inline relatie-editor',()=>{
     const component=lees('src/components/relatie/InlineRelatieSectie.tsx');
-    expect(component).toContain('zichtbareVelden=velden.filter(v=>bewerken||toonAlleVelden');
-    expect(component).toContain('velden){');
+    // Geen groot sectieformulier meer: alleen het gekozen veld gaat in editmodus.
+    expect(component).toContain('v.key===actief||toonAlleVelden');
+    expect(component).toContain('velden.map(veld=>');
+    expect(component).toContain('<EditableValueButton');
+    expect(component).toContain('const patch={[veld.key]:next} as Partial<Relatie>');
   });
 });
