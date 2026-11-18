@@ -26,22 +26,28 @@ export default function TaxonomieKeuzelijst({
 }:Props){
   const [query,setQuery]=useState('');
   const tekst=query.trim().toLocaleLowerCase('nl-NL');
-  const items=useMemo(()=>{
+  const volledigeOpties=useMemo(()=>{
     const unique=new Map<string,TaxonomieOptie>();
     for(const opt of options)unique.set(opt.id,opt);
-    return [...unique.values()]
+    for(const id of value){
+      if(!unique.has(id))unique.set(id,{id,label:`Historische keuze (${id})`});
+    }
+    return [...unique.values()];
+  },[options,value]);
+  const items=useMemo(()=>{
+    return volledigeOpties
       .filter(opt=>!tekst||opt.label.toLocaleLowerCase('nl-NL').includes(tekst))
       .sort((a,b)=>{
         const aSelected=value.includes(a.id)?0:1;
         const bSelected=value.includes(b.id)?0:1;
         return aSelected-bSelected||a.label.localeCompare(b.label,'nl');
       });
-  },[options,value,tekst]);
+  },[volledigeOpties,value,tekst]);
   const toggle=(id:string)=>{
     if(disabled)return;
     onChange(value.includes(id)?value.filter(v=>v!==id):[...value,id]);
   };
-  if(!options.length)return <p className="text-xs text-muted-foreground">{emptyLabel}</p>;
+  if(!volledigeOpties.length)return <p className="text-xs text-muted-foreground">{emptyLabel}</p>;
 
   return <div className="overflow-hidden rounded-lg border border-border/70 bg-background"
     data-testid="taxonomie-keuzelijst">
@@ -52,7 +58,7 @@ export default function TaxonomieKeuzelijst({
       {query&&<button type="button" onClick={()=>setQuery('')}
         className="text-xs text-accent hover:underline">Wis zoekopdracht</button>}
     </div>
-    {(options.length>=searchThreshold||query)&&
+    {(volledigeOpties.length>=searchThreshold||query)&&
       <label className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground"/>
         <span className="sr-only">Zoeken in classificatie</span>
