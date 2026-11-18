@@ -1283,7 +1283,7 @@ export default function ObjectDetailPage() {
                 {locatieLabel}
               </HeaderChip>
               <HeaderChip icon={Building2}>{propertyTypeLabel}</HeaderChip>
-              {subtypeLabel && <HeaderChip>{subtypeLabel}</HeaderChip>}
+
               {object.crmObjectnummer && <HeaderChip>{object.crmObjectnummer}</HeaderChip>}
               {object.internReferentienummer && (
                 <HeaderChip>{object.internReferentienummer}</HeaderChip>
@@ -1516,6 +1516,7 @@ export default function ObjectDetailPage() {
                   </summary>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-5 gap-y-3 mt-3 border-t border-border/60 pt-3">
                     {object.crmObjectnummer && <Field label="CRM-object-ID">{object.crmObjectnummer}</Field>}
+                    <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
                     {object.internReferentienummer && <Field label="Intern nummer">{object.internReferentienummer}</Field>}
                     {object.anoniem && <Field label="Anonimiteit">Anoniem presenteren</Field>}
                     {object.publiekeNaam && <Field label="Publieke naam">{object.publiekeNaam}</Field>}
@@ -1533,12 +1534,7 @@ export default function ObjectDetailPage() {
                 </details>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 hairline pt-5">
-                <Field label="Type vastgoed">{propertyTypeLabel}</Field>
-                {subtypeLabel && <Field label="Subtype">{subtypeLabel}</Field>}
-                {dealTypeLabels.length > 0 && <Field label="Dealtype / propositie">{dealTypeLabels.join(', ')}</Field>}
-                <Field label="Toegevoegd"><span className="tabular-nums">{formatDate(object.datumToegevoegd)}</span></Field>
-              </div>
+
             </div>
           </SectionAnchor>
           )}
