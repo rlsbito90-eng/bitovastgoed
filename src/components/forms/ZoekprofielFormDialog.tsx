@@ -29,6 +29,7 @@ import type {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
+import TaxonomieKeuzelijst from '@/components/taxonomie/TaxonomieKeuzelijst';
 import { getRelatieDropdownLabel, sorteerRelatiesVoorDropdown } from '@/lib/relatieNaam';
 import { parseerSteden, valideerZoekprofielCriteria } from '@/lib/matching/zoekprofielCriteria';
 import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken } from '@/lib/geo/gemeenten2026';
@@ -255,8 +256,8 @@ export default function ZoekprofielFormDialog({
                 </p>
                 <div className="space-y-4">
                   <Veld label="Vastgoedtype (optioneel als regio of budget bekend is)">
-                    <MultiSelectChips
-                      options={propertyTypes.map(pt => ({ value: pt.id, label: pt.name }))}
+                    <TaxonomieKeuzelijst
+                      options={propertyTypes.map(pt => ({ id: pt.id, label: pt.name }))}
                       value={form.propertyTypeIds ?? []}
                       onChange={v => {
                         const geldig = subtypesForTypes(v).map(s => s.id);
@@ -321,8 +322,8 @@ export default function ZoekprofielFormDialog({
             {/* WAT */}
             <TabsContent value="wat" className="space-y-5 mt-0">
               <Sectie titel="Type vastgoed (nieuwe taxonomie, meerdere mogelijk)">
-                <MultiSelectChips
-                  options={propertyTypes.map(pt => ({ value: pt.id, label: pt.name }))}
+                <TaxonomieKeuzelijst
+                  options={propertyTypes.map(pt => ({ id: pt.id, label: pt.name }))}
                   value={form.propertyTypeIds ?? []}
                   onChange={v => {
                     // Filter subtypes die niet meer bij gekozen types horen
@@ -342,8 +343,8 @@ export default function ZoekprofielFormDialog({
                     Kies eerst één of meer types vastgoed om subcategorieën te zien.
                   </p>
                 ) : (
-                  <MultiSelectChips
-                    options={subtypesForTypes(form.propertyTypeIds ?? []).map(s => ({ value: s.id, label: s.name }))}
+                  <TaxonomieKeuzelijst
+                    options={subtypesForTypes(form.propertyTypeIds ?? []).map(s => ({ id: s.id, label: s.name }))}
                     value={form.propertySubtypeIds ?? []}
                     onChange={v => set('propertySubtypeIds', v)}
                     emptyLabel="Geen subcategorieën beschikbaar voor de gekozen types"
@@ -457,8 +458,8 @@ export default function ZoekprofielFormDialog({
             {/* VOORKEUREN */}
             <TabsContent value="voorkeuren" className="space-y-5 mt-0">
               <Sectie titel="Dealtype / Propositie (meerdere mogelijk)">
-                <MultiSelectChips
-                  options={dealTypes.map(d => ({ value: d.id, label: d.name }))}
+                <TaxonomieKeuzelijst
+                  options={dealTypes.map(d => ({ id: d.id, label: d.name }))}
                   value={form.dealTypeIds ?? []}
                   onChange={v => set('dealTypeIds', v)}
                 />
