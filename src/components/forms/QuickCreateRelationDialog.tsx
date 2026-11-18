@@ -38,7 +38,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
 import { vindMogelijkeRelaties,isGeldigeLinkedinProfielUrl } from '@/lib/relaties/relatieInvoerDubbelen';
-import type { PartijType, Relatie } from '@/data/mock-data';
+import type { PartijType, Partijprofiel, Relatie } from '@/data/mock-data';
+import {
+  PARTIJPROFIELEN, STANDAARD_NIEUWE_RELATIE, legacyTypeVoorNieuweRelatie,
+  partijprofielVanExplicietLegacyType,
+} from '@/lib/relaties/partijprofiel';
 
 // =====================================================================
 // Types & constants
@@ -59,7 +63,11 @@ export interface QuickCreateDefaults {
   email?: string;
   telefoon?: string;
   linkedinUrl?: string;
+  /** Technische legacy voorinvulling vanuit oudere workflows. */
   type?: PartijType;
+  /** Eén en dezelfde zichtbare indeling als bij uitgebreid toevoegen. */
+  partijprofiel?: Partijprofiel;
+  rechtsvorm?: 'bv' | 'nv' | 'cv';
 }
 
 export interface QuickCreateRelationDialogProps {
@@ -74,33 +82,14 @@ export interface QuickCreateRelationDialogProps {
   onCancel?: () => void;
 }
 
-const PARTIJ_LABELS: Record<PartijType, string> = {
-  belegger: 'Belegger',
-  ontwikkelaar: 'Ontwikkelaar',
-  eigenaar: 'Eigenaar',
-  makelaar: 'Makelaar',
-  partner: 'Partner',
-  overig: 'Overig',
-};
-
-const PARTIJ_ORDER: PartijType[] = [
-  'belegger',
-  'eigenaar',
-  'ontwikkelaar',
-  'makelaar',
-  'partner',
-  'overig',
-];
-
-const CONTEXT_DEFAULT_TYPE: Record<QuickCreateContext, PartijType> = {
-  verkoper: 'eigenaar',
-  kandidaat: 'belegger',
-  bieder: 'belegger',
-  deal: 'belegger',
-  contact: 'overig',
-  taak: 'overig',
-  algemeen: 'overig',
-};
+/** Alleen een expliciete prefill mag van de standaard 'Belegger' afwijken. */
+function quickStartProfiel(defaults?:QuickCreateDefaults):Partijprofiel{
+  return defaults?.partijprofiel
+    ?? (defaults?.type?partijprofielVanExplicietLegacyType(defaults.type):STANDAARD_NIEUWE_RELATIE.partijprofiel);
+}
+function quickStartRechtsvorm(defaults?:QuickCreateDefaults):'bv'|'nv'|'cv'{
+  return defaults?.rechtsvorm??STANDAARD_NIEUWE_RELATIE.rechtsvorm;
+}
 
 const PLACEHOLDERS = new Set(['onbekend', 'onbekende relatie', 'naamloos', '-', '–']);
 
@@ -124,7 +113,6 @@ const onlyDigits = (v: string): string => v.replace(/\D+/g, '');
 export function QuickCreateRelationDialog({
   open,
   onOpenChange,
-  context = 'algemeen',
   defaultValues,
   onCreated,
   showSaveNext=false,
@@ -133,7 +121,8 @@ export function QuickCreateRelationDialog({
 }: QuickCreateRelationDialogProps) {
   const { addRelatie, addContactpersoon, relaties, contactpersonen } = useDataStore();
 
-  const defaultType = defaultValues?.type ?? CONTEXT_DEFAULT_TYPE[context];
+  const defaultProfiel = quickStartProfiel(defaultValues);
+  const defaultRechtsvorm = quickStartRechtsvorm(defaultValues);
 
   const [naam, setNaam] = useState(defaultValues?.naam ?? '');
   const [bedrijfsnaam, setBedrijfsnaam] = useState(defaultValues?.bedrijfsnaam ?? '');
@@ -142,7 +131,8 @@ export function QuickCreateRelationDialog({
   const [linkedinUrl,setLinkedinUrl] = useState(defaultValues?.linkedinUrl ?? '');
   const [aantalToegevoegd,setAantalToegevoegd] = useState(0);
   const naamRef = useRef<HTMLInputElement>(null);
-  const [type, setType] = useState<PartijType>(defaultType);
+  const [partijprofiel, setPartijprofiel] = useState<Partijprofiel>(defaultProfiel);
+  const [rechtsvorm, setRechtsvorm] = useState<'bv'|'nv'|'cv'>(defaultRechtsvorm);
   const [error, setError] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
 
@@ -155,7 +145,8 @@ export function QuickCreateRelationDialog({
       setTelefoon(defaultValues?.telefoon ?? '');
       setLinkedinUrl(defaultValues?.linkedinUrl ?? '');
       setAantalToegevoegd(0);
-      setType(defaultValues?.type ?? CONTEXT_DEFAULT_TYPE[context]);
+      setPartijprofiel(quickStartProfiel(defaultValues));
+      setRechtsvorm(quickStartRechtsvorm(defaultValues));
       setError(null);
       setBezig(false);
     }
@@ -206,7 +197,9 @@ export function QuickCreateRelationDialog({
       const nieuw = await addRelatie({
         bedrijfsnaam: bedrijfC,
         contactpersoon: naamC, // legacy veld, blijft voor backwards compat
-        type,
+        type:legacyTypeVoorNieuweRelatie(partijprofiel),
+        partijprofiel,
+        investeerderSubtype:rechtsvorm,
         telefoon: telC,
         email: emailC,
         linkedinUrl:linkedinC || undefined,
@@ -245,7 +238,8 @@ export function QuickCreateRelationDialog({
       if(volgende){
         onSavedNext?.(nieuw);
         setNaam('');setBedrijfsnaam('');setEmail('');setTelefoon('');setLinkedinUrl('');
-        setType(defaultValues?.type ?? CONTEXT_DEFAULT_TYPE[context]);
+        setPartijprofiel(quickStartProfiel(defaultValues));
+        setRechtsvorm(quickStartRechtsvorm(defaultValues));
         setAantalToegevoegd(n=>n+1);
         naamRef.current?.focus();
       }else{
@@ -340,20 +334,32 @@ export function QuickCreateRelationDialog({
             />
           </div>
 
-          <div className="grid gap-1.5">
-            <Label htmlFor="qcr-type">Partijtype</Label>
-            <Select value={type} onValueChange={(v) => setType(v as PartijType)} disabled={bezig}>
-              <SelectTrigger id="qcr-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PARTIJ_ORDER.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {PARTIJ_LABELS[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label htmlFor="qcr-profiel">Partijprofiel</Label>
+              <Select value={partijprofiel}
+                onValueChange={value=>setPartijprofiel(value as Partijprofiel)}
+                disabled={bezig}>
+                <SelectTrigger id="qcr-profiel" aria-label="Partijprofiel">
+                  <SelectValue/>
+                </SelectTrigger>
+                <SelectContent>
+                  {PARTIJPROFIELEN.map(p=>
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="qcr-rechtsvorm">Rechtsvorm</Label>
+              <select id="qcr-rechtsvorm" aria-label="Rechtsvorm"
+                disabled={bezig} value={rechtsvorm}
+                onChange={e=>setRechtsvorm(e.target.value as 'bv'|'nv'|'cv')}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="bv">BV</option>
+                <option value="nv">NV</option>
+                <option value="cv">CV</option>
+              </select>
+            </div>
           </div>
 
           {duplicates.length > 0 && (
