@@ -4,7 +4,7 @@ import type { ObjectVastgoed, Relatie } from '@/data/mock-data';
 import { VERKOPER_VIA_LABELS } from '@/data/mock-data';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 
-type Props = { object:ObjectVastgoed; gekoppeldeRelatie:Relatie|null };
+type Props = { object:ObjectVastgoed; gekoppeldeRelatie:Relatie|null; toonPrimair?:boolean };
 type ItemProps = { label:string; value:string|undefined|null; href?:string };
 function Contactveld({label,value,href}:ItemProps) {
   if(!value?.trim())return null;
@@ -25,7 +25,7 @@ function contactAanwezig(...velden:Array<string|null|undefined>) {
 /** Gekoppelde relatie is leidend; de vrije contactvelden blijven
  * bewaard en alleen als aanvullende bron onder een inklapbare groep.
  */
-export default function ObjectContactenSectie({object,gekoppeldeRelatie}:Props) {
+export default function ObjectContactenSectie({object,gekoppeldeRelatie,toonPrimair=true}:Props) {
   const verkoperAanvullend=contactAanwezig(
     object.verkoperNaam,object.verkoperEmail,object.verkoperTelefoon,object.verkoperRol,object.verkoperVia,
   );
@@ -35,7 +35,7 @@ export default function ObjectContactenSectie({object,gekoppeldeRelatie}:Props) 
   const overigeCount=Number(verkoperAanvullend)+Number(makelaarAanvullend);
 
   return <div className="space-y-3">
-    <section className="section-card p-5 space-y-3" data-testid="object-gekoppelde-relatie">
+    {toonPrimair&&<section className="section-card p-5 space-y-3" data-testid="object-gekoppelde-relatie">
         <h3 className="section-title">Gekoppelde verkoper / eigenaar</h3>
         {gekoppeldeRelatie?
           <Link to={`/relaties/${gekoppeldeRelatie.id}`}
@@ -50,8 +50,8 @@ export default function ObjectContactenSectie({object,gekoppeldeRelatie}:Props) 
             <p className="text-xs text-muted-foreground">Alleen in object vastgelegd; nog niet aan Relaties gekoppeld.</p>
           </div>
           :<p className="text-sm text-muted-foreground">Nog geen verkoper of eigenaar gekoppeld.</p>}
-      </section>
-    {object.verkoopmotivatie?.trim()&&
+      </section>}
+    {toonPrimair&&object.verkoopmotivatie?.trim()&&
       <section className="section-card p-5 space-y-2">
         <h3 className="section-title">Verkoopmotivatie</h3>
         <p className="text-sm text-foreground whitespace-pre-wrap break-words">{object.verkoopmotivatie}</p>
