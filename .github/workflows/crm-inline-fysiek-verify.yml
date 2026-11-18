@@ -1,0 +1,34 @@
+name: CRM Inline Classificatie & Oppervlakten Verify
+on:
+  push:
+    branches: [feat/object-inline-fysiek-classificatie-20261118]
+    paths:
+      - 'src/components/object/ObjectClassificatieInline*'
+      - 'src/components/object/ObjectFysiekInline*'
+      - 'src/lib/objecten/inlineFysiek*'
+      - 'src/pages/ObjectDetailPage.tsx'
+      - 'src/test/object/objectInlineFysiek.test.ts'
+      - '.github/workflows/crm-inline-fysiek-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-inline-fysiek-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Classificatie, fysiek en objectregressie
+        run: npx vitest run src/lib/objecten/inlineFysiek.test.ts src/components/object/ObjectClassificatieInline.test.tsx src/components/object/ObjectFysiekInline.test.tsx src/test/object/objectInlineFysiek.test.ts src/test/crmCompactCards.test.ts src/test/crmInlineEersteInvoer.test.ts src/components/object/ObjectKerngegevensInline.test.tsx src/components/object/ObjectCommercieelInline.test.tsx src/test/unifiedObjectLifecycleUx.test.ts src/test/derivations/financial.test.ts src/test/vastgoedrekenen/saveGuards.test.ts
+      - name: Productiebuild
+        run: npm run build
