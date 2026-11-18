@@ -57,7 +57,7 @@ describe('Objecten: financiële kerngegevens inline',()=>{
   });
   it('laat prijsindicatie tekstueel en slaat op bij Ctrl+Enter',async()=>{
     const {save}=view();
-    fireEvent.click(screen.getByRole('button',{name:'Wijzigen'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Prijsindicatie / toelichting'}));
     const input=screen.getByRole('textbox',{name:'Prijsindicatie'});
     fireEvent.change(input,{target:{value:'Onder € 900.000 bespreekbaar'}});
     fireEvent.keyDown(input,{key:'Enter',ctrlKey:true});
