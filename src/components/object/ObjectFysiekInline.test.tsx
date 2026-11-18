@@ -57,7 +57,7 @@ describe('Objectkaart: fysieke objectgegevens inline aanpassen',()=>{
   });
   it('kan erfpachttoelichting met Ctrl+Enter zonder groot objectformulier opslaan',async()=>{
     const {save}=show();
-    fireEvent.click(screen.getByRole('button',{name:'Wijzigen'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Erfpacht- / eigendomstoelichting'}));
     const input=screen.getByRole('textbox',{name:'Erfpacht- / eigendomstoelichting'});
     fireEvent.change(input,{target:{value:'Canon loopt tot 2050'}});
     fireEvent.keyDown(input,{key:'Enter',ctrlKey:true});
