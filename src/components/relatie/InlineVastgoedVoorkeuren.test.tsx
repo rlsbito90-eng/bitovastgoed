@@ -26,7 +26,7 @@ vi.mock('@/components/TaxonomieBadges',()=>({
   ClassificatieRij:({onEdit}:{onEdit?:()=>void})=><div>
     Overzicht bestaande vastgoedvoorkeuren
     {onEdit&&<button type="button" onClick={onEdit} aria-label="Wijzig Vastgoedtypen">
-      Wonen
+      Selectie aanpassen
     </button>}
   </div>,
 }));
