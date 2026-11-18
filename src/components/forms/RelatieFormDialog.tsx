@@ -16,7 +16,7 @@
 //   3. Investeerder — budget, kapitaal, dealstructuur + comm.voorkeur + NDA
 //   4. Notities     — aankoop/verkoop, opvolging
 
-import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, ReactNode } from 'react';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -167,6 +167,10 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
     setTab(next);
     if(tabScrollRef.current)tabScrollRef.current.scrollTop=0;
   };
+  // Na het renderen opnieuw resetten voor browser scroll anchoring.
+  useLayoutEffect(()=>{
+    if(open && tabScrollRef.current)tabScrollRef.current.scrollTop=0;
+  },[tab,open]);
   const [naamloosConfirmOpen, setNaamloosConfirmOpen] = useState(false);
   // Bewaak het volledige formulier, inclusief de primaire contactpersoon.
   // De basislijn wordt pas NA de hydratie vastgesteld, niet bij de lege eerste render.
