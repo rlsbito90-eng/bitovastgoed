@@ -9,6 +9,7 @@ import {
 import type { ObjectVastgoed } from '@/data/mock-data';
 import { formatCurrency } from '@/data/mock-data';
 import ObjectStatusInline from './ObjectStatusInline';
+import ObjectAanbiedingInline from './ObjectAanbiedingInline';
 import type { VerhuurMetrics } from '@/lib/derivations/verhuur';
 import type { GuardedObjectPatch } from '@/lib/dataIntegrity/objectPayload';
 import {
@@ -223,6 +224,7 @@ export default function ObjectCommercieelInline({
       </span>
     </div>
     {toonStatus&&<ObjectStatusInline object={object}/>}
+    {toonStatus&&<ObjectAanbiedingInline object={object} onSave={onSave}/>}
     <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 border-t border-border/60 pt-4">
       <GeldVeld key={`${object.id}-vraagprijs`} veld="vraagprijs" naam="Vraagprijs"
         waarde={object.vraagprijs} onSave={onSave}/>
