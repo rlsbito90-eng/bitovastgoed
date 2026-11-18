@@ -19,7 +19,8 @@ describe('Compacte dossierkaarten behouden details',()=>{
     expect(pagina).toContain('<details className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">');
     expect(pagina).toContain('Identificatie en bron');
     expect(pagina).toContain('CRM-object-ID');
-    expect(pagina).toContain('Objectstatus');
+    expect(pagina).toContain('<ObjectCommercieelInline object={object}');
+    expect(pagina).not.toContain('<Field label="Objectstatus">');
   });
   it('verwijdert geen invoervelden uit de inline relatie-editor',()=>{
     const component=lees('src/components/relatie/InlineRelatieSectie.tsx');
