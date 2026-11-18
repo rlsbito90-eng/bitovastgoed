@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import EditableValueButton from '@/components/ui/editable-value-button';
 import type {Partijprofiel,Relatie,VastgoedStrategie} from '@/data/mock-data';
 import PartijprofielVelden from '@/components/forms/PartijprofielVelden';
 import {labelPartijprofiel,labelVastgoedStrategie} from '@/lib/relaties/partijprofiel';
@@ -108,8 +109,7 @@ export default function InlineRelatieClassificatie({relatie,onSave}:{
     aria-label="Partijprofiel en aanvullende activiteiten" data-testid="inline-relatieclassificatie">
     <div className="flex items-center justify-between gap-3">
       <h2 className="section-title">Partijprofiel, strategieën en activiteiten</h2>
-      {!bewerken&&<button type="button" className="text-sm text-accent hover:text-accent/80"
-        onClick={begin}>Wijzig classificatie</button>}
+
     </div>
     {bewerken ? <div className="space-y-4">
       <PartijprofielVelden partijprofiel={profiel}
@@ -151,19 +151,24 @@ export default function InlineRelatieClassificatie({relatie,onSave}:{
     </div> : <div className="space-y-4">
       <div className="grid sm:grid-cols-2 gap-4">
         <div><p className="field-label">Partijprofiel</p>
-          <p className="field-value mt-1.5">{relatie.partijprofiel
-            ?labelPartijprofiel(relatie.partijprofiel):'Nog niet vastgesteld'}</p></div>
+          <EditableValueButton label="Partijprofiel" onClick={begin} className="mt-1.5">
+            {relatie.partijprofiel?labelPartijprofiel(relatie.partijprofiel):'Nog niet vastgesteld'}
+          </EditableValueButton></div>
         <div><p className="field-label">Vastgoedstrategieën</p>
-          <p className="field-value mt-1.5">{relatie.vastgoedStrategieen?.length
-            ?relatie.vastgoedStrategieen.map(labelVastgoedStrategie).join(' · ')
-            :'Nog niet vastgesteld'}</p></div>
+          <EditableValueButton label="Vastgoedstrategieën" onClick={begin} className="mt-1.5">
+            {relatie.vastgoedStrategieen?.length
+              ?relatie.vastgoedStrategieen.map(labelVastgoedStrategie).join(' · ')
+              :'Nog niet vastgesteld'}
+          </EditableValueButton></div>
       </div>
       <div className="border-t border-border/70 pt-3">
         <p className="field-label">Aanvullende activiteiten</p>
-        <p className="field-value mt-1.5">{actueleActiviteiten.length
-          ?TRANSACTIEACTIVITEITEN.filter(x=>actueleActiviteiten.includes(x.value))
-            .map(x=>x.label).join(' · ')
-          :'Nog niet vastgesteld'}</p>
+        <EditableValueButton label="Aanvullende activiteiten" onClick={begin} className="mt-1.5">
+          {actueleActiviteiten.length
+            ?TRANSACTIEACTIVITEITEN.filter(x=>actueleActiviteiten.includes(x.value))
+              .map(x=>x.label).join(' · ')
+            :'Nog niet vastgesteld'}
+        </EditableValueButton>
       </div>
       {historischeRollen.length>0&&<div className="border-t border-border/70 pt-3">
         <p className="field-label">Historische rolindicaties (alleen lezen)</p>
