@@ -27,7 +27,11 @@ describe('Unified Object / Deal lifecycle UX', () => {
     const archiveSource = read('src/components/ArchiveerDialog.tsx');
     const reasonsSource = read('src/lib/lifecycle/lostReasons.ts');
 
-    expect(lifecycleSource).toContain('requireReasonSelection');
+    const statusSource = read('src/components/object/ObjectStatusInline.tsx');
+    expect(lifecycleSource).toContain('<ObjectStatusInline object={object}/>');
+    expect(statusSource).toContain('requireReasonSelection');
+    expect(statusSource).toContain('archivedReason:reason');
+    expect(statusSource).toContain('archivedNote:note');
     expect(archiveSource).toContain('— Kies reden —');
     expect(reasonsSource).toContain('Verkocht extern / aan derde');
   });
