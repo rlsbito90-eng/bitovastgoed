@@ -45,6 +45,10 @@ function leesbaar(veld:InlineRelatieVeld,waarde:unknown):string{
 }
 
 import EditableValueButton from '@/components/ui/editable-value-button';
+import {
+  AlertDialog,AlertDialogAction,AlertDialogCancel,AlertDialogContent,
+  AlertDialogDescription,AlertDialogFooter,AlertDialogHeader,AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 /**
  * De hele veldwaarde is klikbaar. Normale velden slaan op bij blur/Enter;
@@ -58,6 +62,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   const [plaatsenInvoer,setPlaatsenInvoer]=useState('');
   const [bezig,setBezig]=useState(false);
   const [fout,setFout]=useState<string|null>(null);
+  const [wisOpen,setWisOpen]=useState(false);
   const conceptRef=useRef<unknown>(undefined);
   const basisRef=useRef<unknown>(undefined);
   const actiefRef=useRef<keyof Relatie|null>(null);
@@ -72,7 +77,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   useEffect(()=>{
     setActief(null);actiefRef.current=null;setToonAlleVelden(false);
     setConcept(undefined);conceptRef.current=undefined;basisRef.current=undefined;
-    setFout(null);cancelledRef.current=false;
+    setFout(null);setWisOpen(false);cancelledRef.current=false;
   },[relatie.id]);
 
   function start(veld:InlineRelatieVeld){
@@ -102,13 +107,17 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
     if(busyRef.current||!confirmDiscard())return;
     stopEdit();
   }
-  async function opslaan(veld:InlineRelatieVeld,next=conceptRef.current){
+  async function opslaan(veld:InlineRelatieVeld,next=conceptRef.current,explicietWissen=false){
     if(busyRef.current||cancelledRef.current||actiefRef.current!==veld.key)return;
     if(gelijk(next,basisRef.current)){
       actiefRef.current=null;setActief(null);setFout(null);return;
     }
     if(veld.key==='bedrijfsnaam'&&!String(next??'').trim()){
       setFout('Een relatie moet een bedrijfsnaam hebben.');return;
+    }
+    if(veld.kind==='number'&&next==null&&basisRef.current!=null&&!explicietWissen){
+      setFout('Gebruik Waarde wissen om dit bestaande bedrag bewust te verwijderen.');
+      return;
     }
     if(veld.kind==='number'&&next!=null&&
       (typeof next!=='number'||!Number.isFinite(next)||next<0)){
@@ -240,6 +249,10 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                   :leesbaar(veld,relatie[veld.key])}
               </EditableValueButton>}
           {editing&&veld.note&&<p className="text-xs text-muted-foreground">{veld.note}</p>}
+          {editing&&kind==='number'&&concept==null&&basisRef.current!=null&&
+            <button type="button" onMouseDown={e=>e.preventDefault()}
+              onClick={()=>setWisOpen(true)}
+              className="text-xs text-destructive hover:underline">Waarde wissen</button>}
           {editing&&fout&&<p role="alert" className="text-xs text-destructive">{fout}</p>}
           {editing&&<div className="flex items-center justify-end gap-2 pt-1">
             <button type="button" disabled={bezig} data-relatie-cancel={String(veld.key)}
@@ -254,5 +267,24 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
         </div>;
       })}
     </div>
+    <AlertDialog open={wisOpen} onOpenChange={setWisOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Numerieke waarde wissen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Alleen deze waarde wordt verwijderd. Andere budgetten, rendementen en
+            investeringscriteria blijven behouden.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuleren</AlertDialogCancel>
+          <AlertDialogAction onClick={()=>{
+            const veld=velden.find(v=>v.key===actiefRef.current);
+            setWisOpen(false);
+            if(veld)void opslaan(veld,undefined,true);
+          }}>Waarde definitief wissen</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </section>;
 }
