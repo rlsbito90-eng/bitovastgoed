@@ -117,13 +117,41 @@ describe('QuickCreateRelationDialog', () => {
     expect(addRelatieMock).not.toHaveBeenCalled();
   });
 
-  it('default partijtype voor context "verkoper" is eigenaar', async () => {
+  it('start in elke context met Partijprofiel Belegger en Rechtsvorm BV', async () => {
     const user = userEvent.setup();
     renderDialog({ context: 'verkoper' });
+    expect(screen.getByLabelText('Rechtsvorm')).toHaveValue('bv');
+    expect(screen.getByText('Belegger')).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Bedrijfsnaam/i), 'Eigenaar BV');
     await user.click(screen.getByRole('button', { name: /Relatie aanmaken/i }));
     await waitFor(() => expect(addRelatieMock).toHaveBeenCalled());
-    expect(addRelatieMock.mock.calls[0][0].type).toBe('eigenaar');
+    expect(addRelatieMock.mock.calls[0][0]).toMatchObject({
+      type:'belegger',partijprofiel:'belegger',investeerderSubtype:'bv',
+    });
+  });
+
+  it('respecteert een bewust vooraf meegegeven eigenaarprofiel en andere rechtsvorm',async()=>{
+    const user=userEvent.setup();
+    renderDialog({context:'verkoper',defaultValues:{type:'eigenaar',rechtsvorm:'nv'}});
+    expect(screen.getByLabelText('Rechtsvorm')).toHaveValue('nv');
+    expect(screen.getByText('Vastgoedeigenaar')).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Bedrijfsnaam/i),'Vastgoedeigenaar NV');
+    await user.click(screen.getByRole('button',{name:/Relatie aanmaken/i}));
+    await waitFor(()=>expect(addRelatieMock).toHaveBeenCalled());
+    expect(addRelatieMock.mock.calls[0][0]).toMatchObject({
+      type:'eigenaar',partijprofiel:'vastgoedeigenaar',investeerderSubtype:'nv',
+    });
+  });
+
+  it('slaagt bij standaardcontext algemeen met dezelfde profielgegevens',async()=>{
+    const user=userEvent.setup();
+    renderDialog({context:'algemeen'});
+    await user.type(screen.getByLabelText(/Naam \/ contactpersoon/i),'Nieuw contact');
+    await user.click(screen.getByRole('button',{name:/Relatie aanmaken/i}));
+    await waitFor(()=>expect(addRelatieMock).toHaveBeenCalled());
+    expect(addRelatieMock.mock.calls[0][0]).toMatchObject({
+      type:'belegger',partijprofiel:'belegger',investeerderSubtype:'bv',
+    });
   });
 
   it('toont duplicate-hint bij exact e-mailmatch', async () => {
@@ -212,7 +240,10 @@ describe('Snel toevoegen vanuit Relaties',()=>{
     expect(screen.getByLabelText(/LinkedIn-profiel/i)).toHaveValue('');
     expect(addRelatieMock.mock.calls[0][0]).toMatchObject({
       leadStatus:'actief',linkedinUrl:'https://www.linkedin.com/in/jan-voorbeeld/',
+      type:'belegger',partijprofiel:'belegger',investeerderSubtype:'bv',
     });
+    expect(screen.getByLabelText('Rechtsvorm')).toHaveValue('bv');
+    expect(screen.getByText('Belegger')).toBeInTheDocument();
     expect(addContactpersoonMock).toHaveBeenCalledWith(
       expect.objectContaining({linkedinUrl:'https://www.linkedin.com/in/jan-voorbeeld/'}),
     );
