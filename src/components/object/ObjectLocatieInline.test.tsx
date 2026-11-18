@@ -26,7 +26,7 @@ describe('Objectadres direct op de dossierkaart wijzigen',()=>{
     fireEvent.change(screen.getByRole('textbox',{name:'Plaats'}),{target:{value:'Amersfoort'}});
     fireEvent.click(screen.getByRole('button',{name:'Annuleren'}));
     expect(save).not.toHaveBeenCalled();
-    expect(screen.getByText('Utrecht')).toBeTruthy();
+    expect(screen.getAllByText('Utrecht')).toHaveLength(2);
   });
   it('wijzigt alleen publieke regio zonder BAG te resetten',async()=>{
     const save=vi.fn().mockResolvedValue(undefined);
