@@ -23,7 +23,7 @@ describe('Inline objectgegevens',()=>{
   it('laat verkoopmotivatie direct in het overzicht bewerken en slaat op bij verlaten',async()=>{
     const save=vi.fn().mockResolvedValue(undefined);
     render(<MemoryRouter><ObjectKerngegevensInline object={object} onSave={save}/></MemoryRouter>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzigen'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Verkoopmotivatie'}));
     const veld=screen.getByRole('textbox',{name:'Verkoopmotivatie'});
     fireEvent.change(veld,{target:{value:'Verkoper wil vóór einde jaar leveren'}});
     fireEvent.blur(veld);
@@ -34,7 +34,7 @@ describe('Inline objectgegevens',()=>{
   it('annuleert het inline bewerken met Escape',()=>{
     const save=vi.fn().mockResolvedValue(undefined);
     render(<MemoryRouter><ObjectKerngegevensInline object={object} onSave={save}/></MemoryRouter>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzigen'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Verkoopmotivatie'}));
     fireEvent.change(screen.getByRole('textbox',{name:'Verkoopmotivatie'}),
       {target:{value:'Niet bewaren'}});
     fireEvent.keyDown(screen.getByRole('textbox',{name:'Verkoopmotivatie'}),
