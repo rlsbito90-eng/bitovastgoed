@@ -15,9 +15,10 @@ describe('CRM objectkaart zonder administratieve ruis',()=>{
     expect(contacts).toContain('object.verkoopmotivatie');
     expect(page).not.toContain('Vrije tekst / fallback. De gekoppelde relatie');
   });
-  it('toont verkoopmotivatie als zelfstandige reden om Meer te laten zien',()=>{
-    expect(page).toContain('o.verkoopmotivatie');
+  it('toont verkoopmotivatie inline in Overzicht en houdt Meer voor contacthistorie',()=>{
+    expect(page).toContain('<ObjectKerngegevensInline object={object}');
     expect(page).toContain('hasContactenData(object)');
+    expect(page).not.toContain('o.verkoopmotivatie ||');
   });
   it('zet volgende actie vóór transactiestatus zonder actieknoppen te verwijderen',()=>{
     const action=page.indexOf('<div id="next-action"');
