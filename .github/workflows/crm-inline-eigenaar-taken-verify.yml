@@ -1,0 +1,38 @@
+name: CRM Inline Eigenaar & Taken Verify
+on:
+  push:
+    branches: [feat/inline-eigenaar-relatie-taken-20261118]
+    paths:
+      - 'src/components/object/RelatieKoppelveld.tsx'
+      - 'src/components/object/ObjectKerngegevensInline*'
+      - 'src/components/object/ObjectContactenSectie.tsx'
+      - 'src/components/forms/ObjectFormDialog.tsx'
+      - 'src/components/tasks/DossierTakenPanel.tsx'
+      - 'src/lib/tasks/dossierTaken*'
+      - 'src/pages/ObjectDetailPage.tsx'
+      - 'src/pages/RelatieDetailPage.tsx'
+      - 'src/test/crmInlineEersteInvoer.test.ts'
+      - '.github/workflows/crm-inline-eigenaar-taken-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-inline-eigenaar-taken-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Inline editing en bestaande dossierprocessen
+        run: npx vitest run src/components/object/ObjectKerngegevensInline.test.tsx src/lib/tasks/dossierTaken.test.ts src/test/crmInlineEersteInvoer.test.ts src/components/object/ObjectContactenSectie.test.tsx src/test/object/objectContactenEnActies.test.ts src/test/object/objectDetailGekoppeldeRelatie.test.tsx src/test/object/objectCockpitOpvolging.test.ts src/components/relatie/InlineRelatieSectie.test.tsx src/test/unifiedVisibleTrajectory.test.ts
+      - name: Build
+        run: npm run build
