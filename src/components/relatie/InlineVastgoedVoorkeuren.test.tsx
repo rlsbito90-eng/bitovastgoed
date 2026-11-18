@@ -45,7 +45,7 @@ describe('A14 vastgoedtaxonomie rechtstreeks op relatiepagina',()=>{
  it('wijzigt alleen gekozen vastgoed- of dealtype en laat legacy plus budget onaangeroerd',async()=>{
   const onSave=vi.fn().mockResolvedValue(undefined);
   render(<InlineVastgoedVoorkeuren relatie={relatie} onSave={onSave}/>);
-  fireEvent.click(screen.getByRole('button',{name:'Wijzig hier'}));
+  fireEvent.click(screen.getByRole('button',{name:'Wijzig Vastgoedtypen'}));
   fireEvent.click(screen.getByRole('checkbox',{name:'Winkels'}));
   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
   await waitFor(()=>expect(onSave).toHaveBeenCalledWith({propertyTypeIds:['wonen','winkels']}));
@@ -56,7 +56,7 @@ describe('A14 vastgoedtaxonomie rechtstreeks op relatiepagina',()=>{
  it('verwijdert afhankelijke subtypen niet stilzwijgend bij verwijderen hoofdtype',()=>{
   const onSave=vi.fn();
   render(<InlineVastgoedVoorkeuren relatie={relatie} onSave={onSave}/>);
-  fireEvent.click(screen.getByRole('button',{name:'Wijzig hier'}));
+  fireEvent.click(screen.getByRole('button',{name:'Wijzig Vastgoedtypen'}));
   fireEvent.click(screen.getByRole('checkbox',{name:'Wonen'}));
   fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
   expect(screen.getByRole('alert').textContent).toContain('geselecteerde subtypen');
@@ -66,7 +66,7 @@ describe('A14 vastgoedtaxonomie rechtstreeks op relatiepagina',()=>{
   const onSave=vi.fn();
   render(<InlineVastgoedVoorkeuren relatie={{...relatie,propertyTypeIds:['historisch']} as Relatie}
     onSave={onSave}/>);
-  fireEvent.click(screen.getByRole('button',{name:'Wijzig hier'}));
+  fireEvent.click(screen.getByRole('button',{name:'Wijzig Vastgoedtypen'}));
   expect((screen.getByRole('checkbox',{name:/Historisch type \(historisch\)/}) as HTMLInputElement).checked).toBe(true);
   fireEvent.click(screen.getByRole('button',{name:'Annuleren'}));
   expect(onSave).not.toHaveBeenCalled();
