@@ -45,6 +45,7 @@ import type {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import MultiSelectChips from '@/components/object/MultiSelectChips';
+import TaxonomieKeuzelijst from '@/components/taxonomie/TaxonomieKeuzelijst';
 import { Building2, UserCircle2, Info } from 'lucide-react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
@@ -572,46 +573,43 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
               )}
             </TabsContent>
 
-            {/* VASTGOED — onveranderd */}
+            {/* VASTGOED — dezelfde compacte taxonomiepicker als het relatiedossier. */}
             <TabsContent value="vastgoed" className="space-y-5 mt-0">
-              <Sectie titel="Type vastgoed (multi-select)">
-                <MultiSelectChips
-                  options={propertyTypes.map(t => ({ value: t.id, label: t.name }))}
-                  value={form.propertyTypeIds ?? []}
-                  onChange={v => {
-                    const geldigeSubs = subtypesForTypes(v).map(s => s.id);
-                    setForm(prev => ({
+              <Sectie titel="Vastgoedtypen">
+                <TaxonomieKeuzelijst
+                  options={propertyTypes.map(t=>({id:t.id,label:t.name}))}
+                  value={form.propertyTypeIds??[]}
+                  onChange={v=>{
+                    const geldigeSubs=subtypesForTypes(v).map(s=>s.id);
+                    setForm(prev=>({
                       ...prev,
-                      propertyTypeIds: v,
-                      propertySubtypeIds: (prev.propertySubtypeIds ?? []).filter(id => geldigeSubs.includes(id)),
+                      propertyTypeIds:v,
+                      propertySubtypeIds:(prev.propertySubtypeIds??[]).filter(id=>geldigeSubs.includes(id)),
                     }));
                   }}
                   emptyLabel="Geen typen geconfigureerd"
+                  searchPlaceholder="Zoek vastgoedtype…"
                 />
               </Sectie>
-
               <Sectie titel="Subcategorieën">
-                {(form.propertyTypeIds ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">
-                    Kies eerst één of meer typen vastgoed.
-                  </p>
-                ) : (
-                  <MultiSelectChips
-                    options={subtypesForTypes(form.propertyTypeIds ?? []).map(s => ({ value: s.id, label: s.name }))}
-                    value={form.propertySubtypeIds ?? []}
-                    onChange={v => set('propertySubtypeIds', v)}
-                    emptyLabel="Geen subcategorieën beschikbaar voor de gekozen typen"
-                  />
-                )}
+                {(form.propertyTypeIds??[]).length===0?
+                  <p className="text-xs text-muted-foreground">
+                    Selecteer eerst één of meer vastgoedtypen.
+                  </p>:
+                  <TaxonomieKeuzelijst
+                    options={subtypesForTypes(form.propertyTypeIds??[]).map(t=>({id:t.id,label:t.name}))}
+                    value={form.propertySubtypeIds??[]}
+                    onChange={v=>set('propertySubtypeIds',v)}
+                    emptyLabel="Geen subcategorieën bij de gekozen typen"
+                    searchPlaceholder="Zoek subcategorie…"
+                  />}
               </Sectie>
-
-              <Sectie titel="Dealtype / Propositie">
-                <MultiSelectChips
-                  options={dealTypes.map(d => ({ value: d.id, label: d.name }))}
-                  value={form.dealTypeIds ?? []}
-                  onChange={v => set('dealTypeIds', v)}
-                  emptyLabel="Geen dealtypes geconfigureerd"
-                />
+              <Sectie titel="Dealtype / propositie">
+                <TaxonomieKeuzelijst
+                  options={dealTypes.map(d=>({id:d.id,label:d.name}))}
+                  value={form.dealTypeIds??[]}
+                  onChange={v=>set('dealTypeIds',v)}
+                  searchPlaceholder="Zoek propositie…"/>
               </Sectie>
             </TabsContent>
 
