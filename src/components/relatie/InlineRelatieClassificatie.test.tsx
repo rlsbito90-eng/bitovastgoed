@@ -18,7 +18,7 @@ describe('A15.10 — één inline classificatie, één gerichte opslagpatch',()=
   it('legt hoofdprofiel Bemiddelaar en aanvullende ontwikkelaarsactiviteit tegelijk vast',async()=>{
     const save=vi.fn().mockResolvedValue(undefined);
     render(<InlineRelatieClassificatie relatie={relatie()} onSave={save}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
       target:{value:'bemiddelaar'},
     });
@@ -35,7 +35,7 @@ describe('A15.10 — één inline classificatie, één gerichte opslagpatch',()=
   it('houdt ontwikkelende belegger en koperrol in één patch',async()=>{
     const save=vi.fn().mockResolvedValue(undefined);
     render(<InlineRelatieClassificatie relatie={relatie()} onSave={save}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
       target:{value:'ontwikkelende_belegger'},
     });
@@ -51,7 +51,7 @@ describe('A15.10 — één inline classificatie, één gerichte opslagpatch',()=
     render(<InlineRelatieClassificatie relatie={relatie({
       commercialRoles:['ontwikkelaar'],partijprofiel:null,
     })} onSave={save}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
       target:{value:'bemiddelaar'},
     });
@@ -64,7 +64,7 @@ describe('A15.10 — één inline classificatie, één gerichte opslagpatch',()=
     render(<InlineRelatieClassificatie relatie={relatie({
       partijprofiel:'belegger',commercialRoles:['koper'],vastgoedStrategieen:['value_add'],
     })} onSave={save}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
       target:{value:'fonds'},
     });
@@ -80,10 +80,10 @@ describe('A15.10 — één inline classificatie, één gerichte opslagpatch',()=
   it('schrijft niet zonder wijzigingen of bij annuleren',()=>{
     const save=vi.fn();
     render(<InlineRelatieClassificatie relatie={relatie()} onSave={save}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
     expect(save).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
       target:{value:'makelaar'},
     });
@@ -96,7 +96,7 @@ describe('A15.10 — één inline classificatie, één gerichte opslagpatch',()=
     const save=vi.fn();
     const r=relatie({partijprofiel:'bemiddelaar'});
     const {rerender}=render(<InlineRelatieClassificatie relatie={r} onSave={save}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.click(screen.getByRole('checkbox',{name:/Ontwikkelt vastgoed/}));
     rerender(<InlineRelatieClassificatie relatie={{...r,commercialRoles:['koper']}} onSave={save}/>);
     fireEvent.click(screen.getByRole('button',{name:'Opslaan'}));
@@ -106,7 +106,7 @@ describe('A15.10 — één inline classificatie, één gerichte opslagpatch',()=
   it('behoudt invoer wanneer de database-opslag mislukt',async()=>{
     const save=vi.fn().mockRejectedValue(new Error('Opslag niet toegestaan'));
     render(<InlineRelatieClassificatie relatie={relatie()} onSave={save}/>);
-    fireEvent.click(screen.getByRole('button',{name:'Wijzig classificatie'}));
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Partijprofiel'}));
     fireEvent.change(screen.getByRole('combobox',{name:'Partijprofiel'}),{
       target:{value:'bemiddelaar'},
     });
