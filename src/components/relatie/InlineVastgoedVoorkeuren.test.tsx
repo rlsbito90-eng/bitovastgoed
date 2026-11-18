@@ -23,7 +23,12 @@ vi.mock('@/hooks/usePropertyTaxonomie',()=>({
   }),
 }));
 vi.mock('@/components/TaxonomieBadges',()=>({
-  ClassificatieRij:()=> <div>Overzicht bestaande vastgoedvoorkeuren</div>,
+  ClassificatieRij:({onEdit}:{onEdit?:()=>void})=><div>
+    Overzicht bestaande vastgoedvoorkeuren
+    {onEdit&&<button type="button" onClick={onEdit} aria-label="Wijzig Vastgoedtypen">
+      Wonen
+    </button>}
+  </div>,
 }));
 const relatie={
   id:'synthetisch',bedrijfsnaam:'Voorbeeld',type:'belegger',contactpersoon:'',
