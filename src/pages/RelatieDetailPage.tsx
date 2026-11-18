@@ -11,9 +11,7 @@ import {
   KAPITAAL_SITUATIE_LABELS,
   COMMUNICATIE_KANAAL_LABELS,
 } from '@/data/mock-data';
-import {
-  LeadStatusBadge, PrioriteitBadge,
-} from '@/components/StatusBadges';
+import { LeadStatusBadge } from '@/components/StatusBadges';
 import {
   ArrowLeft, Phone, Mail, Pencil, Trash2, Plus,
   ShieldCheck, Linkedin, Globe, MessageSquarePlus,
@@ -41,8 +39,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
-import { getLaatsteContactDatum, getLaatsteActiviteitDatum, getVolgendeOpenTaak } from '@/lib/relatieContact';
-import { isTaakTeLaat, deadlineLabel } from '@/lib/taakHelpers';
+import { getLaatsteContactDatum, getLaatsteActiviteitDatum } from '@/lib/relatieContact';
+import { deadlineLabel } from '@/lib/taakHelpers';
+import { verzamelOpenDossierTaken } from '@/lib/tasks/dossierTaken';
+import DossierTakenPanel from '@/components/tasks/DossierTakenPanel';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import ListNavigator from '@/components/ListNavigator';
 import { getListNavigation } from '@/lib/listNavigation';
@@ -172,10 +172,13 @@ export default function RelatieDetailPage() {
     const stage = getTrajectoryStage(store.getObjectById(deal.objectId), trajectoryStages);
     return isConcreteTransactionPosition(stage, preferredBidderStage);
   });
-  const taken = store.getTakenByRelatie(relatie.id).filter(t => t.status !== 'afgerond' && t.status !== 'geannuleerd');
+  const taken = verzamelOpenDossierTaken([
+    store.getTakenByRelatie(relatie.id),
+    ...deals.map(deal=>store.getTakenByDeal(deal.id)),
+  ]);
   const laatsteContactDatum = getLaatsteContactDatum(relatie.id, store.contactMoments);
   const laatsteActiviteitDatum = getLaatsteActiviteitDatum(relatie.id, store.contactMoments);
-  const volgendeOpenTaak = getVolgendeOpenTaak(relatie.id, store.taken);
+  const volgendeOpenTaak = taken.find(t=>t.status!=='wacht_op_reactie')??null;
 
   const fallbackIds = [...store.relaties]
     .sort((a, b) => (a.bedrijfsnaam || a.contactpersoon || '').localeCompare(b.bedrijfsnaam || b.contactpersoon || '', 'nl'))
@@ -309,30 +312,15 @@ export default function RelatieDetailPage() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div><p className="field-label">Laatste contact</p><p className="field-value">{laatsteContactDatum?formatDate(laatsteContactDatum):'—'}</p></div>
               <div><p className="field-label">Laatste activiteit</p><p className="field-value">{laatsteActiviteitDatum?formatDate(laatsteActiviteitDatum):'—'}</p></div>
-              <div><p className="field-label">Volgende open taak</p><p className="field-value">{volgendeOpenTaak?`${formatDate(volgendeOpenTaak.deadline)} · ${volgendeOpenTaak.titel}`:'—'}</p></div>
+              <div><p className="field-label">Volgende open taak</p><p className="field-value">{volgendeOpenTaak?`${deadlineLabel(volgendeOpenTaak)} · ${volgendeOpenTaak.titel}`:taken.some(t=>t.status==='wacht_op_reactie')?'Wachten op reactie':'—'}</p></div>
               <div><p className="field-label">Aangemaakt op</p><p className="field-value">{relatie.createdAt?formatDate(relatie.createdAt.slice(0,10)):'—'}</p></div>
             </div>
           </section>
 
-          {/* TAKEN */}
-          {taken.length > 0 && (
-            <section className="section-card">
-              <header className="section-header"><h2 className="section-title">Open taken ({taken.length})</h2></header>
-              <div className="divide-y divide-border/70">
-                {taken.map(taak => (
-                  <div key={taak.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm text-foreground truncate">{taak.titel}</p>
-                      <p className={`text-xs mt-0.5 tabular-nums ${isTaakTeLaat(taak) ? 'text-destructive' : 'text-muted-foreground'}`}>{deadlineLabel(taak)}{isTaakTeLaat(taak) ? ' · te laat' : ''}</p>
-                    </div>
-                    <PrioriteitBadge prioriteit={taak.prioriteit} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          {/* Taken van de relatie en gekoppelde concrete deals, zonder duplicaten. */}
+          <DossierTakenPanel taken={taken} defaultRelatieId={relatie.id}/>
 
-          {/* PIPELINE */}
+                    {/* PIPELINE */}
           <RelatiePipelineSectie relatieId={relatie.id} />
 
           {/* OFF-MARKET SIGNALEN */}
