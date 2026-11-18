@@ -134,7 +134,7 @@ export default function EntityPicker({
       </div>
       <div className="rounded-md border border-input bg-card flex items-stretch gap-1 p-1 group focus-within:ring-2 focus-within:ring-ring/30 focus-within:border-ring/60">
         <button type="button" onClick={()=>setOpen(true)}
-          aria-label={selected?`Wijzig ${label}`:`Kies ${label}`}
+          aria-label={selected?`Wijzig ${label}`:`Kiezen: ${label}`}
           aria-haspopup="dialog" aria-expanded={open}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
           <span className="min-w-0 flex-1">
