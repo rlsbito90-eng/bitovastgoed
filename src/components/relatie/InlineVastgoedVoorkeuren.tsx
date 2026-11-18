@@ -86,12 +86,12 @@ export default function InlineVastgoedVoorkeuren({relatie,onSave}:Props){
   return <section className="section-card p-5 sm:p-6 space-y-4" aria-label="Vastgoedvoorkeuren">
     <div className="flex items-center justify-between gap-3">
       <h2 className="section-title">Vastgoedvoorkeuren</h2>
-      {!editing&&<button type="button" onClick={start}
-        className="text-sm text-accent hover:text-accent/80">Wijzig hier</button>}
+
     </div>
     <ClassificatieRij propertyTypeIds={relatie.propertyTypeIds}
       fallbackAssetClasses={relatie.assetClasses}
-      subtypeIds={relatie.propertySubtypeIds} dealTypeIds={relatie.dealTypeIds} mode="multi"/>
+      subtypeIds={relatie.propertySubtypeIds} dealTypeIds={relatie.dealTypeIds}
+      mode="multi" onEdit={!editing?start:undefined}/>
     {relatie.assetClasses?.length>0&&<details className="text-xs text-muted-foreground">
       <summary className="cursor-pointer hover:text-foreground">Historische vastgoedklassen</summary>
       <p className="mt-2">{relatie.assetClasses.map(x=>ASSET_CLASS_LABELS[x]||x).join(', ')}</p>
