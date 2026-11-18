@@ -2304,12 +2304,11 @@ export default function ObjectDetailPage() {
                 </div>
               )}
             </div>
-          </div>
 
-                    {/* Quick actions */}
-          <div id="quick-actions" className="section-card p-5 space-y-1.5 scroll-mt-24">
+          {/* Relevante handelingen direct, overige acties op verzoek. */}
+          <div id="quick-actions" className="border-t border-border/60 pt-3 space-y-1 scroll-mt-24">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent mb-2">
-              Acties
+              Snelle acties
             </p>
             <button
               type="button"
@@ -2327,6 +2326,11 @@ export default function ObjectDetailPage() {
               <Send className="h-3.5 w-3.5 text-muted-foreground" /> Aanbieding openen
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
             </button>
+            <details className="rounded-md border border-border/60 mt-2">
+              <summary className="cursor-pointer px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
+                Meer acties
+              </summary>
+              <div className="px-2 pb-2 space-y-1 border-t border-border/50">
             <button
               type="button"
               onClick={() => setNotitieDialogOpen(true)}
@@ -2360,6 +2364,9 @@ export default function ObjectDetailPage() {
                 <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
               </button>
             )}
+              </div>
+            </details>
+          </div>
           </div>
         </aside>
       </div>
