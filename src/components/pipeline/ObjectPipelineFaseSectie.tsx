@@ -7,13 +7,13 @@
 import { Link } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useObjectFeeForecast } from '@/hooks/useObjectFeeForecast';
-import type { ObjectVastgoed, ObjectStatus } from '@/data/mock-data';
-import { OBJECT_STATUS_LABELS, formatCurrency } from '@/data/mock-data';
+import type { ObjectVastgoed } from '@/data/mock-data';
+import { formatCurrency } from '@/data/mock-data';
 import { Lock, Unlock, ExternalLink, GitBranch, Building2, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NumberField } from '@/components/ui/number-field';
 import { Input } from '@/components/ui/input';
-import ArchiveerDialog from '@/components/ArchiveerDialog';
+import ObjectStatusInline from '@/components/object/ObjectStatusInline';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
@@ -23,25 +23,14 @@ interface Props {
   object: ObjectVastgoed;
 }
 
-const BESCHIKBAARHEIDSSTATUSSEN: ObjectStatus[] = [
-  'beschikbaar',
-  'on_hold',
-  'onder_optie',
-  'verkocht',
-  'ingetrokken',
-];
-
 export default function ObjectPipelineFaseSectie({ object }: Props) {
   const {
     getDefaultObjectPipeline, getStagesVoorPipeline,
-    setObjectPipelineStage, updateObject, unarchiveObject, getDealsByObject,
+    setObjectPipelineStage, updateObject, getDealsByObject,
   } = useDataStore();
 
   const [bezig, setBezig] = useState(false);
-  const [statusBezig, setStatusBezig] = useState(false);
   const [feeDirty, setFeeDirty] = useState(false);
-  const [eindstatusOpen, setEindstatusOpen] = useState(false);
-  const [pendingEindstatus, setPendingEindstatus] = useState<ObjectStatus | null>(null);
 
   const pipeline = getDefaultObjectPipeline();
   const stages = pipeline ? getStagesVoorPipeline(pipeline.id) : [];
@@ -51,9 +40,6 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
   const hasTransactionPosition = !!(
     huidigeStage && preferredBidderStage && huidigeStage.sortOrder >= preferredBidderStage.sortOrder
   );
-
-  const statusIsLegacy = !BESCHIKBAARHEIDSSTATUSSEN.includes(object.status);
-  const statusSelectValue = statusIsLegacy ? '' : object.status;
 
   const {
     forecast,
@@ -67,50 +53,6 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
   // daadwerkelijk de transactiegrens heeft bereikt, mag de Deal fee leidend zijn.
   const actieveDealRecords = getDealsByObject(object.id).filter(d => !d.isArchived && !d.softDeletedAt);
   const heeftConcreteDeal = hasTransactionPosition && actieveDealRecords.length > 0;
-
-  const wijzigStatus = async (nieuweStatus: ObjectStatus) => {
-    if (!nieuweStatus || nieuweStatus === object.status) return;
-
-    const isEindstatus = nieuweStatus === 'verkocht' || nieuweStatus === 'ingetrokken';
-    if (isEindstatus) {
-      setPendingEindstatus(nieuweStatus);
-      setEindstatusOpen(true);
-      return;
-    }
-
-    setStatusBezig(true);
-    try {
-      await updateObject(object.id, { status: nieuweStatus });
-
-      if (object.isArchived) {
-        await unarchiveObject(object.id);
-      }
-
-      toast.success(`Objectstatus gewijzigd naar ${OBJECT_STATUS_LABELS[nieuweStatus]}`);
-    } catch (err: any) {
-      toast.error(`Objectstatus bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
-    } finally {
-      setStatusBezig(false);
-    }
-  };
-
-  const statusSelect = (
-    <select
-      className="h-10 w-full px-3 rounded-md border border-input bg-background text-sm"
-      value={statusSelectValue}
-      disabled={statusBezig}
-      onChange={e => wijzigStatus(e.target.value as ObjectStatus)}
-    >
-      {statusIsLegacy && (
-        <option value="" disabled>
-          {OBJECT_STATUS_LABELS[object.status]} — legacy, kies nieuwe status
-        </option>
-      )}
-      {BESCHIKBAARHEIDSSTATUSSEN.map(status => (
-        <option key={status} value={status}>{OBJECT_STATUS_LABELS[status]}</option>
-      ))}
-    </select>
-  );
 
   const saveFee = async () => {
     try {
@@ -201,39 +143,6 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
     </div>
   );
 
-  const eindstatusDialog = (
-    <ArchiveerDialog
-      open={eindstatusOpen}
-      onOpenChange={(open) => {
-        setEindstatusOpen(open);
-        if (!open) setPendingEindstatus(null);
-      }}
-      kind="object"
-      requireReasonSelection
-      triggerHint={pendingEindstatus === 'verkocht'
-        ? 'Het object wordt als Verkocht gearchiveerd. Kies bewust of Bito de transactie heeft gesloten of dat het object extern is verkocht; dit bepaalt de funnel- en fee-rapportage.'
-        : 'Het object wordt als Ingetrokken gearchiveerd. Kies de feitelijke reden; gekoppelde actieve Deals worden als verloren afgesloten.'}
-      onConfirm={async ({ reason, note }) => {
-        if (!pendingEindstatus) return;
-        setStatusBezig(true);
-        try {
-          await updateObject(object.id, {
-            status: pendingEindstatus,
-            archivedReason: reason,
-            archivedNote: note,
-          });
-          toast.success(`Objectstatus gewijzigd naar ${OBJECT_STATUS_LABELS[pendingEindstatus]}`);
-          setEindstatusOpen(false);
-          setPendingEindstatus(null);
-        } catch (err: any) {
-          toast.error(`Objectstatus bijwerken mislukt: ${err.message ?? 'onbekende fout'}`);
-        } finally {
-          setStatusBezig(false);
-        }
-      }}
-    />
-  );
-
   if (!pipeline || stages.length === 0) {
     return (
       <>
@@ -246,16 +155,10 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
               Objectstatus staat los van de commerciële trajectfase.
             </p>
           </div>
-          {statusSelect}
-          {statusIsLegacy && (
-            <p className="text-[11px] text-warning">
-              Dit object gebruikt nog een oude processtatus. Er wordt niets automatisch geconverteerd; kies bewust een beschikbaarheidsstatus.
-            </p>
-          )}
+          <ObjectStatusInline object={object}/>
           <p className="text-sm text-muted-foreground">Geen actieve Object Pipeline geconfigureerd.</p>
           {feeSection}
         </section>
-        {eindstatusDialog}
       </>
     );
   }
@@ -299,20 +202,7 @@ export default function ObjectPipelineFaseSectie({ object }: Props) {
               </p>
             </div>
 
-            <div>
-              <label className="field-label block mb-1.5">Objectstatus</label>
-              {statusSelect}
-            </div>
-
-            {statusIsLegacy && (
-              <p className="text-[11px] text-warning">
-                Huidige waarde is een oude processtatus. Kies bewust een nieuwe beschikbaarheidsstatus; er vindt geen stille conversie plaats.
-              </p>
-            )}
-
-            <p className="text-[11px] text-muted-foreground">
-              Verkocht en Ingetrokken vragen om een expliciete reden en archiveren het object automatisch. Terugzetten naar een actieve status activeert het object weer.
-            </p>
+            <ObjectStatusInline object={object}/>
           </div>
 
           <div className="space-y-3">
