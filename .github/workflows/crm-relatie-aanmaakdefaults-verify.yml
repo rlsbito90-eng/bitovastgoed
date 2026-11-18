@@ -1,0 +1,34 @@
+name: CRM Relatie Aanmaakdefaults Verify
+on:
+  push:
+    branches: [feat/crm-relatie-aanmaak-defaults-eenheid-20261118]
+    paths:
+      - 'src/components/forms/QuickCreateRelationDialog.tsx'
+      - 'src/components/forms/RelatieFormDialog.tsx'
+      - 'src/lib/relaties/partijprofiel.ts'
+      - 'src/test/forms/quickCreateRelationDialog.test.tsx'
+      - 'src/components/forms/RelatieFormDialog.a13.test.tsx'
+      - '.github/workflows/crm-relatie-aanmaakdefaults-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-relatie-defaults-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Relatie aanmaakdefaults en regressietests
+        run: npx vitest run src/test/forms/quickCreateRelationDialog.test.tsx src/components/forms/RelatieFormDialog.a13.test.tsx src/components/forms/PartijprofielVelden.test.tsx src/lib/relaties/partijprofiel.test.ts src/lib/relaties/partijprofiel.migration.test.ts src/components/relatie/InlineRelatieClassificatie.test.tsx src/test/crmTaxonomieDesign.test.ts src/test/crmInlineEersteInvoer.test.ts src/test/forms/bulkRelatieLinkedinCsv.test.ts
+      - name: Build
+        run: npm run build
