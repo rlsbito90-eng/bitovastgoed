@@ -224,6 +224,30 @@ interface ClassificatieProps {
   mode?: 'single' | 'multi';
 }
 
+function RustigeClassificatieWaarde({
+  waarden,sterk=false,
+}:{
+  waarden:string[];sterk?:boolean;
+}){
+  if(!waarden.length)return <span className="text-muted-foreground">Niet opgegeven</span>;
+  const hoofd=waarden.slice(0,3);
+  const rest=waarden.slice(3);
+  return <div className={`min-w-0 break-words ${sterk?'font-semibold text-foreground':'text-foreground'}`}>
+    <span>{hoofd.join(' · ')}</span>
+    {rest.length>0&&<details className="mt-1 text-xs font-normal">
+      <summary className="cursor-pointer text-accent hover:underline">
+        +{rest.length} meer tonen
+      </summary>
+      <p className="mt-1 text-foreground">{rest.join(' · ')}</p>
+    </details>}
+  </div>;
+}
+
+/**
+ * Eén zakelijke leesweergave voor Objecten en Relaties. Labels zijn echte
+ * taxonomienamen, niet nogmaals grote kleurrijke chips of invoertegels.
+ * Onbekende historische ID's blijven herkenbaar in plaats van te verdwijnen.
+ */
 export function ClassificatieRij({
   propertyTypeId,
   propertyTypeIds,
@@ -233,28 +257,32 @@ export function ClassificatieRij({
   dealTypeIds,
   mode = 'single',
 }: ClassificatieProps) {
-  return (
-    <div className="space-y-3">
-      <div>
-        <p className="field-label mb-1.5">Type vastgoed</p>
-        {mode === 'single' ? (
-          <PropertyTypeBadge id={propertyTypeId} fallbackAssetClass={fallbackAssetClass} />
-        ) : (
-          <PropertyTypeBadges
-            ids={propertyTypeIds}
-            fallbackAssetClasses={fallbackAssetClasses}
-            max={6}
-          />
-        )}
-      </div>
-      <div>
-        <p className="field-label mb-1.5">Subcategorieën</p>
-        <SubtypeBadges ids={subtypeIds} max={6} />
-      </div>
-      <div>
-        <p className="field-label mb-1.5">Dealtype / Propositie</p>
-        <DealtypeBadges ids={dealTypeIds} max={6} />
-      </div>
+  const {propertyTypeById,propertySubtypeById,dealTypeById}=usePropertyTaxonomie();
+  const typen=mode==='single'
+    ?(propertyTypeId
+      ?[propertyTypeById(propertyTypeId)?.name??`Historisch type (${propertyTypeId})`]
+      :(fallbackAssetClass?[ASSET_CLASS_LABELS[fallbackAssetClass]]:[]))
+    :((propertyTypeIds?.length??0)>0
+      ?(propertyTypeIds??[]).map(id=>propertyTypeById(id)?.name??`Historisch type (${id})`)
+      :(fallbackAssetClasses??[]).map(cls=>ASSET_CLASS_LABELS[cls]));
+  const subtypen=(subtypeIds??[]).map(id=>
+    propertySubtypeById(id)?.name??`Historische subcategorie (${id})`);
+  const proposities=(dealTypeIds??[]).map(id=>
+    dealTypeById(id)?.name??`Historisch dealtype (${id})`);
+
+  return <dl className="divide-y divide-border/50 rounded-md border border-border/60 bg-background/50 px-3"
+    data-testid="taxonomie-samenvatting">
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-3">
+      <dt className="field-label pt-0.5">Vastgoedtype{mode==='multi'?'n':''}</dt>
+      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={typen} sterk/></dd>
     </div>
-  );
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-2.5">
+      <dt className="field-label pt-0.5">Subcategorieën</dt>
+      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={subtypen}/></dd>
+    </div>
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-2.5">
+      <dt className="field-label pt-0.5">Propositie</dt>
+      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={proposities}/></dd>
+    </div>
+  </dl>;
 }
