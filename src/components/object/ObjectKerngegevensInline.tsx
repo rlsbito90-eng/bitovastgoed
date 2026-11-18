@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Pencil } from 'lucide-react';
+import { Check } from 'lucide-react';
+import EditableValueButton from '@/components/ui/editable-value-button';
 import { toast } from 'sonner';
 import type { ObjectVastgoed } from '@/data/mock-data';
 import RelatieKoppelveld from './RelatieKoppelveld';
@@ -84,14 +85,7 @@ export default function ObjectKerngegevensInline({object,onSave}:Props){
         de oude waarde blijft bewaard.
       </p>}
     <div className="border-t border-border/60 pt-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="field-label">Verkoopmotivatie</span>
-        {!motivatieOpen&&<button type="button" disabled={busy}
-          onClick={()=>setMotivatieOpen(true)}
-          className="inline-flex gap-1 items-center text-xs text-accent hover:underline disabled:opacity-40">
-          <Pencil className="h-3.5 w-3.5"/> Wijzigen
-        </button>}
-      </div>
+      <span className="field-label">Verkoopmotivatie</span>
       {motivatieOpen?
         <textarea autoFocus rows={3} aria-label="Verkoopmotivatie"
           className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -102,9 +96,10 @@ export default function ObjectKerngegevensInline({object,onSave}:Props){
             if(e.key==='Escape'){setMotivatie(object.verkoopmotivatie??'');setMotivatieOpen(false);}
             if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void saveMotivatie();}
           }}/>:
-        <p className="mt-1.5 text-sm text-foreground whitespace-pre-wrap break-words">
+        <EditableValueButton label="Verkoopmotivatie" disabled={busy} multiline
+          onClick={()=>setMotivatieOpen(true)} className="mt-1.5">
           {object.verkoopmotivatie?.trim()||<span className="text-muted-foreground">Nog niet vastgelegd</span>}
-        </p>}
+        </EditableValueButton>}
     </div>
   </div>;
 }
