@@ -6,6 +6,8 @@ import { getRelationDisplayName } from '@/lib/relatieNaam';
 import ObjectContactenSectie from '@/components/object/ObjectContactenSectie';
 import ObjectKerngegevensInline from '@/components/object/ObjectKerngegevensInline';
 import ObjectCommercieelInline from '@/components/object/ObjectCommercieelInline';
+import ObjectClassificatieInline from '@/components/object/ObjectClassificatieInline';
+import ObjectFysiekInline from '@/components/object/ObjectFysiekInline';
 import DossierTakenPanel from '@/components/tasks/DossierTakenPanel';
 import { verzamelOpenDossierTaken } from '@/lib/tasks/dossierTaken';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
@@ -1458,17 +1460,14 @@ export default function ObjectDetailPage() {
           {activeTab === 'overzicht' && (
           <SectionAnchor id="overzicht" eyebrow={eyebrowFor("overzicht", "Asset")} title="Overzicht">
             <div className="section-card p-5 sm:p-6 space-y-5">
-              <ClassificatieRij
-                propertyTypeId={object.propertyTypeId}
-                fallbackAssetClass={object.type}
-                subtypeIds={object.propertySubtypeIds}
-                dealTypeIds={object.dealTypeIds}
-                mode="single"
-              />
+              <ObjectClassificatieInline object={object}
+                onSave={(patch)=>store.updateObject(object.id,patch)}/>
 
               <ObjectKerngegevensInline object={object}
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
               <ObjectCommercieelInline object={object} verhuur={verhuur}
+                onSave={(patch)=>store.updateObject(object.id,patch)}/>
+              <ObjectFysiekInline object={object}
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
 
 
