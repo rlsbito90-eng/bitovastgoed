@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Pencil, Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
+import EditableValueButton from '@/components/ui/editable-value-button';
 import { toast } from 'sonner';
 import { NumberField } from '@/components/ui/number-field';
 import {
@@ -104,20 +105,13 @@ function GeldVeld({
   return <div className="min-w-0 space-y-2">
     <div className="flex flex-wrap justify-between items-center gap-2">
       <label className="field-label" htmlFor={`inline-${veld}`}>{naam}</label>
-      {!edit&&<div className="flex gap-2 items-center">
-        <button type="button" disabled={saving} onClick={start}
-          aria-label={`Wijzig ${naam}`}
-          className="inline-flex gap-1 items-center text-xs text-accent hover:underline disabled:opacity-40">
-          <Pencil className="h-3.5 w-3.5"/> Wijzigen
-        </button>
-        {waarde!==undefined&&<button type="button" disabled={saving}
-          onClick={()=>setWisOpen(true)}
-          aria-label={`Wis ${naam}`}
-          className="text-muted-foreground hover:text-destructive disabled:opacity-40"
-          title="Waarde wissen">
-          <Trash2 className="h-3.5 w-3.5"/>
-        </button>}
-      </div>}
+      {!edit&&waarde!==undefined&&<button type="button" disabled={saving}
+        onClick={()=>setWisOpen(true)}
+        aria-label={`Wis ${naam}`}
+        className="rounded p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40"
+        title="Waarde wissen">
+        <Trash2 className="h-3.5 w-3.5"/>
+      </button>}
     </div>
     {edit?<NumberField
       autoFocus id={`inline-${veld}`}
@@ -132,10 +126,11 @@ function GeldVeld({
       }}
       className="w-full"
     />:
-      <p className="text-sm font-medium tabular-nums">
+      <EditableValueButton label={naam} onClick={start} disabled={saving}
+        className="font-medium tabular-nums">
         {waarde===undefined?<span className="text-muted-foreground font-normal">Niet opgegeven</span>:formatCurrency(waarde)}
         {saving&&<span className="text-xs font-normal text-muted-foreground ml-2">Opslaan…</span>}
-      </p>}
+      </EditableValueButton>}
     <AlertDialog open={wisOpen} onOpenChange={setWisOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -189,11 +184,7 @@ function IndicatieVeld({
   return <div className="min-w-0 space-y-2">
     <div className="flex justify-between items-center gap-2">
       <label htmlFor="inline-prijsindicatie" className="field-label">Prijsindicatie / toelichting</label>
-      {!edit&&<button type="button" disabled={saving} onClick={()=>{
-        cancelled.current=false;setEdit(true);
-      }} className="inline-flex gap-1 items-center text-xs text-accent hover:underline disabled:opacity-40">
-        <Pencil className="h-3.5 w-3.5"/> Wijzigen
-      </button>}
+
     </div>
     {edit?<textarea id="inline-prijsindicatie" aria-label="Prijsindicatie" autoFocus rows={2}
       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -204,10 +195,12 @@ function IndicatieVeld({
         if(e.key==='Escape'){e.preventDefault();annuleren();}
         if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void commit();}
       }}
-    />:<p className="text-sm whitespace-pre-wrap break-words">
+    />:<EditableValueButton label="Prijsindicatie / toelichting"
+      multiline disabled={saving}
+      onClick={()=>{cancelled.current=false;setEdit(true);}}>
       {waarde?.trim()||<span className="text-muted-foreground">Niet opgegeven</span>}
       {saving&&<span className="text-xs text-muted-foreground ml-2">Opslaan…</span>}
-    </p>}
+    </EditableValueButton>}
     <p className="text-xs text-muted-foreground">Tekstuele prijsindicatie; wordt niet gebruikt voor BAR, factor of €/m².</p>
   </div>;
 }
