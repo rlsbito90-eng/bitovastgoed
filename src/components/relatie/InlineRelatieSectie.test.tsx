@@ -54,13 +54,18 @@ describe('Direct bewerken Relaties: klik op afzonderlijke veldwaarde',()=>{
     expect(save.mock.calls[0][0]).not.toHaveProperty('budgetMin');
     expect(save.mock.calls[0][0]).not.toHaveProperty('commercialRoles');
   });
-  it('leeg numeriek veld patcht alleen het bedoelde veld',async()=>{
+  it('vereist expliciete bevestiging voordat een bestaand budget wordt gewist',async()=>{
     const save=vi.fn().mockResolvedValue(undefined);
     render(<InlineRelatieSectie titel="Financiering" relatie={relatie} velden={finance} onSave={save}/>);
     fireEvent.click(screen.getByRole('button',{name:'Wijzig Budget minimum'}));
     const input=screen.getByLabelText('Budget minimum');
     fireEvent.change(input,{target:{value:''}});
     fireEvent.keyDown(input,{key:'Enter'});
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toContain('Waarde wissen');
+    fireEvent.click(screen.getByRole('button',{name:'Waarde wissen'}));
+    expect(save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button',{name:'Waarde definitief wissen'}));
     await waitFor(()=>expect(save).toHaveBeenCalledWith({budgetMin:undefined}));
     expect(save.mock.calls[0][0]).not.toHaveProperty('budgetMax');
   });
