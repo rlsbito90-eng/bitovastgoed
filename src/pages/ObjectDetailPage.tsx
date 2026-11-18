@@ -5,6 +5,8 @@ import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import ObjectContactenSectie from '@/components/object/ObjectContactenSectie';
 import ObjectKerngegevensInline from '@/components/object/ObjectKerngegevensInline';
+import DossierTakenPanel from '@/components/tasks/DossierTakenPanel';
+import { verzamelOpenDossierTaken } from '@/lib/tasks/dossierTaken';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
@@ -1054,6 +1056,11 @@ export default function ObjectDetailPage() {
   );
   const cockpitActief = cockpitIsActief(object,currentTrajectoryStage);
   const volgendeTaak = cockpitOpvolging.volgende;
+  const cockpitTaken = verzamelOpenDossierTaken([
+    objectTaken,
+    leadDeal?store.getTakenByDeal(leadDeal.id):[],
+  ]);
+
 
 
 
@@ -2278,14 +2285,14 @@ export default function ObjectDetailPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">Traject afgesloten. Geen nieuwe opvolging vereist.</p>
               )}
-              {(cockpitOpvolging.overigeActies > 0 || cockpitOpvolging.wachtend.length > 0) && (
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground border-t border-border/60 pt-3">
-                  {cockpitOpvolging.overigeActies > 0 &&
-                    <span>+{cockpitOpvolging.overigeActies} andere open {cockpitOpvolging.overigeActies===1?'actie':'acties'}</span>}
-                  {cockpitOpvolging.wachtend.length > 0 &&
-                    <span>{cockpitOpvolging.wachtend.length} wachtend op reactie</span>}
+              {cockpitTaken.length>0&&<details className="border-t border-border/60 pt-3">
+                <summary className="cursor-pointer text-xs text-accent hover:underline">
+                  Bekijk alle open taken ({cockpitTaken.length})
+                </summary>
+                <div className="mt-2 border border-border/60 rounded-md">
+                  <DossierTakenPanel taken={cockpitTaken} embedded defaultObjectId={object.id}/>
                 </div>
-              )}
+              </details>}
             </div>
             {/* Bestaande deep-link blijft werken; geen tweede trajectfase in een aparte kaart. */}
             <div id="deal-cockpit" className="scroll-mt-24">
