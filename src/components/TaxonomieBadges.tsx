@@ -12,6 +12,7 @@ import { ReactNode } from 'react';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { ASSET_CLASS_LABELS } from '@/data/mock-data';
 import type { AssetClass } from '@/data/mock-data';
+import EditableValueButton from '@/components/ui/editable-value-button';
 
 type Variant = 'default' | 'compact';
 
@@ -222,18 +223,23 @@ interface ClassificatieProps {
   dealTypeIds?: string[];
   /** Single = object-detail (1 type), multi = relatie/zoekprofiel (n types). */
   mode?: 'single' | 'multi';
+  /** Optioneel: klik op getoonde taxonomiewaarde opent de lokale picker. */
+  onEdit?: () => void;
 }
 
 function RustigeClassificatieWaarde({
-  waarden,sterk=false,
+  waarden,sterk=false,onEdit,label,
 }:{
-  waarden:string[];sterk?:boolean;
+  waarden:string[];sterk?:boolean;onEdit?:()=>void;label:string;
 }){
-  if(!waarden.length)return <span className="text-muted-foreground">Niet opgegeven</span>;
   const hoofd=waarden.slice(0,3);
   const rest=waarden.slice(3);
+  const tekst=hoofd.length?hoofd.join(' · '):'Niet opgegeven';
   return <div className={`min-w-0 break-words ${sterk?'font-semibold text-foreground':'text-foreground'}`}>
-    <span>{hoofd.join(' · ')}</span>
+    {onEdit?<EditableValueButton label={label} onClick={onEdit}>
+      {tekst}
+    </EditableValueButton>:
+      <span className={waarden.length?'':'text-muted-foreground'}>{tekst}</span>}
     {rest.length>0&&<details className="mt-1 text-xs font-normal">
       <summary className="cursor-pointer text-accent hover:underline">
         +{rest.length} meer tonen
@@ -255,7 +261,7 @@ export function ClassificatieRij({
   fallbackAssetClasses,
   subtypeIds,
   dealTypeIds,
-  mode = 'single',
+  mode = 'single',onEdit,
 }: ClassificatieProps) {
   const {propertyTypeById,propertySubtypeById,dealTypeById}=usePropertyTaxonomie();
   const typen=mode==='single'
@@ -274,15 +280,15 @@ export function ClassificatieRij({
     data-testid="taxonomie-samenvatting">
     <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-3">
       <dt className="field-label pt-0.5">Vastgoedtype{mode==='multi'?'n':''}</dt>
-      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={typen} sterk/></dd>
+      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={typen} label="Vastgoedtypen" sterk onEdit={onEdit}/></dd>
     </div>
     <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-2.5">
       <dt className="field-label pt-0.5">Subcategorieën</dt>
-      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={subtypen}/></dd>
+      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={subtypen} label="Subcategorieën" onEdit={onEdit}/></dd>
     </div>
     <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-2.5">
       <dt className="field-label pt-0.5">Propositie</dt>
-      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={proposities}/></dd>
+      <dd className="min-w-0 text-sm"><RustigeClassificatieWaarde waarden={proposities} label="Propositie" onEdit={onEdit}/></dd>
     </div>
   </dl>;
 }
