@@ -26,7 +26,7 @@ describe('Compacte dossierkaarten behouden details',()=>{
     const component=lees('src/components/relatie/InlineRelatieSectie.tsx');
     // Geen groot sectieformulier meer: alleen het gekozen veld gaat in editmodus.
     expect(component).toContain('v.key===actief||toonAlleVelden');
-    expect(component).toContain('velden.map(veld=>');
+    expect(component).toContain('zichtbareVelden.map(veld=>');
     expect(component).toContain('<EditableValueButton');
     expect(component).toContain('const patch={[veld.key]:next} as Partial<Relatie>');
   });
