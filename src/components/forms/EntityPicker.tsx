@@ -3,8 +3,8 @@
 // Herbruikbare zoekbare picker voor entiteiten (Relatie, Object, Deal).
 // - Mobiel: bottom sheet (Sheet uit shadcn met side="bottom")
 // - Desktop: gecentreerde Dialog met zoekveld
-// - Trigger: een rustige "card" die de huidige selectie toont met
-//   Wijzigen / Wissen acties, of Kiezen wanneer leeg.
+// - Trigger: klik op de HELE huidige selectie/lege waarde om te kiezen.
+//   Alleen ontkoppelen heeft een afzonderlijke, expliciete actie.
 //
 // Items kunnen "recent" en "relevant" eerst tonen voor snellere selectie.
 //
@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Search, X, Check, Pencil, Plus } from 'lucide-react';
+import { Search, X, Check, Plus, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface EntityPickerItem {
@@ -132,49 +132,28 @@ export default function EntityPicker({
       <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
         {label}
       </div>
-      <div className="rounded-md border border-input bg-card px-3 py-2.5 flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          {selected ? (
-            <>
-              <p className="text-sm font-medium text-foreground truncate">{selected.primair}</p>
-              {selected.secundair && (
-                <p className="text-xs text-muted-foreground truncate">{selected.secundair}</p>
-              )}
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">{emptyLabel}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {selected ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-foreground hover:bg-muted rounded transition-colors"
-              >
-                <Pencil className="h-3 w-3" /> Wijzigen
-              </button>
-              <button
-                type="button"
-                onClick={() => onChange('')}
-                className="inline-flex items-center px-1.5 py-1 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                aria-label="Wissen"
-                title="Wissen"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-accent-foreground bg-accent rounded hover:bg-accent/90 transition-colors"
-            >
-              <Plus className="h-3 w-3" /> Kiezen
-            </button>
-          )}
-        </div>
+      <div className="rounded-md border border-input bg-card flex items-stretch gap-1 p-1 group focus-within:ring-2 focus-within:ring-ring/30 focus-within:border-ring/60">
+        <button type="button" onClick={()=>setOpen(true)}
+          aria-label={selected?`Wijzig ${label}`:`Kies ${label}`}
+          aria-haspopup="dialog" aria-expanded={open}
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+          <span className="min-w-0 flex-1">
+            {selected?<>
+              <span className="block truncate text-sm font-medium text-foreground">{selected.primair}</span>
+              {selected.secundair&&
+                <span className="block truncate text-xs text-muted-foreground">{selected.secundair}</span>}
+            </>:<span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Plus className="h-3.5 w-3.5 shrink-0"/>{emptyLabel}
+            </span>}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground opacity-70 group-hover:opacity-100"/>
+        </button>
+        {selected&&<button type="button" onClick={()=>onChange('')}
+          className="shrink-0 self-center rounded p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Ontkoppel ${label}`} title="Selectie wissen">
+          <X className="h-4 w-4"/>
+        </button>}
+
       </div>
     </div>
   );
