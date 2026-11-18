@@ -4,6 +4,7 @@ import { ASSET_CLASS_LABELS } from '@/data/mock-data';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import { ClassificatieRij } from '@/components/TaxonomieBadges';
+import TaxonomieKeuzelijst from '@/components/taxonomie/TaxonomieKeuzelijst';
 
 type Sleutel='propertyTypeIds'|'propertySubtypeIds'|'dealTypeIds';
 type Patch=Pick<Relatie,Sleutel>;
@@ -36,13 +37,6 @@ export default function InlineVastgoedVoorkeuren({relatie,onSave}:Props){
   const cancel=()=>{
     if(saving||!confirmDiscard())return;
     setEditing(false);setError(null);
-  };
-  const toggle=(key:Sleutel,id:string,checked:boolean)=>{
-    setValues(prev=>{
-      const values=prev[key]??[];
-      return {...prev,[key]:checked?[...new Set([...values,id])]:values.filter(v=>v!==id)};
-    });
-    setError(null);
   };
   const save=async()=>{
     if(saving)return;
@@ -105,22 +99,31 @@ export default function InlineVastgoedVoorkeuren({relatie,onSave}:Props){
     {editing&&<p className="text-xs text-muted-foreground">
       Dit zijn de algemene vastgoedvoorkeuren. Gebruik een aanvullend zoekprofiel voor een afwijkende zoekrichting.
     </p>}
-    {editing&&<div className="space-y-4">
+    {editing&&<div className="space-y-3 border-t border-border/60 pt-4">
       {([
-        {key:'propertyTypeIds' as const,label:'Vastgoedtypen',options:types},
-        {key:'propertySubtypeIds' as const,label:'Subtypen',options:subtypes},
-        {key:'dealTypeIds' as const,label:'Dealtypen',options:deals},
-      ]).map(group=><fieldset key={group.key} className="space-y-2">
-        <legend className="field-label">{group.label}</legend>
-        <div className="grid sm:grid-cols-2 gap-2">
-          {group.options.map(opt=><label key={opt.id} className="inline-flex items-start gap-2 rounded-md border border-border px-3 py-2 text-sm">
-            <input type="checkbox" checked={(values[group.key]??[]).includes(opt.id)}
-              onChange={e=>toggle(group.key,opt.id,e.target.checked)} />
-            <span className="break-words">{opt.label}</span>
-          </label>)}
-          {!group.options.length&&<p className="text-xs text-muted-foreground">Nog geen opties in taxonomie.</p>}
-        </div>
-      </fieldset>)}
+        {key:'propertyTypeIds' as const,label:'Vastgoedtypen',options:types,
+          placeholder:'Zoek vastgoedtype…',initOpen:true},
+        {key:'propertySubtypeIds' as const,label:'Subcategorieën',options:subtypes,
+          placeholder:'Zoek subcategorie…',initOpen:false},
+        {key:'dealTypeIds' as const,label:'Dealtype / propositie',options:deals,
+          placeholder:'Zoek propositie…',initOpen:false},
+      ]).map(group=>
+        <details key={group.key} defaultOpen={group.initOpen}
+          className="rounded-lg border border-border/70 bg-background">
+          <summary className="cursor-pointer flex items-center justify-between gap-2 px-3 py-3 text-sm font-medium hover:bg-muted/25">
+            <span>{group.label}</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              {(values[group.key]??[]).length} geselecteerd
+            </span>
+          </summary>
+          <div className="border-t border-border/60 p-3">
+            <TaxonomieKeuzelijst options={group.options}
+              value={values[group.key]??[]}
+              onChange={next=>setValues(prev=>({...prev,[group.key]:next}))}
+              disabled={saving}
+              searchPlaceholder={group.placeholder}/>
+          </div>
+        </details>)}
       {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" disabled={saving} onClick={cancel}
