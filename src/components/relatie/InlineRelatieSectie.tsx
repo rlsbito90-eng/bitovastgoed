@@ -91,11 +91,16 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   function wijzig(next:unknown){
     conceptRef.current=next;setConcept(next);setFout(null);
   }
-  function annuleer(){
-    if(busyRef.current||!confirmDiscard())return;
+  // Escape is bewust annuleren; de zichtbare Annuleren-knop kan bij
+  // niet-opgeslagen invoer nog steeds bevestiging vragen.
+  function stopEdit(){
     cancelledRef.current=true;actiefRef.current=null;setActief(null);
     conceptRef.current=undefined;setConcept(undefined);basisRef.current=undefined;
     setFout(null);
+  }
+  function annuleer(){
+    if(busyRef.current||!confirmDiscard())return;
+    stopEdit();
   }
   async function opslaan(veld:InlineRelatieVeld,next=conceptRef.current){
     if(busyRef.current||cancelledRef.current||actiefRef.current!==veld.key)return;
@@ -165,14 +170,14 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                   void opslaan(veld);
                 }}
                 onKeyDown={e=>{
-                  if(e.key==='Escape'){e.preventDefault();annuleer();}
+                  if(e.key==='Escape'){e.preventDefault();stopEdit();}
                   if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void opslaan(veld);}
                 }}
                 className="flex min-h-20 w-full rounded-md border border-input bg-background p-2 text-sm"/>
               :kind==='select'
                 ?<select id={id} autoFocus value={alsString(waarde)}
                   onChange={e=>{wijzig(e.target.value);void opslaan(veld,e.target.value);}}
-                  onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();annuleer();}}}
+                  onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();stopEdit();}}}
                   className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm">
                     <option value="">— Niet ingevuld —</option>
                     {veld.options?.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}
@@ -192,7 +197,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                   void opslaan(veld);
                 }}
                     onKeyDown={e=>{
-                      if(e.key==='Escape'){e.preventDefault();annuleer();}
+                      if(e.key==='Escape'){e.preventDefault();stopEdit();}
                       if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void opslaan(veld);}
                     }}
                     className="flex min-h-16 w-full rounded-md border border-input bg-background p-2 text-sm"/>
@@ -221,7 +226,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
                   void opslaan(veld);
                 }}
                     onKeyDown={e=>{
-                      if(e.key==='Escape'){e.preventDefault();annuleer();}
+                      if(e.key==='Escape'){e.preventDefault();stopEdit();}
                       if(e.key==='Enter'){e.preventDefault();void opslaan(veld);}
                     }}
                     className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm"/>
