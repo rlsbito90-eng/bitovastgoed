@@ -1,0 +1,37 @@
+name: CRM Klik Waarde UX Verify
+on:
+  push:
+    branches: [feat/crm-klik-waarde-ux-basis-20261118]
+    paths:
+      - 'src/components/ui/editable-value-button*'
+      - 'src/components/forms/EntityPicker.tsx'
+      - 'src/components/object/ObjectKerngegevensInline*'
+      - 'src/components/object/ObjectCommercieelInline*'
+      - 'src/components/object/ObjectFysiekInline*'
+      - 'src/components/object/ObjectOnderhoudInline*'
+      - 'src/test/forms/entityPickerFullValue.test.tsx'
+      - 'docs/crm/UX-DIRECT-KLIKBARE-WAARDEN-AUDIT-2026-11-18.md'
+      - '.github/workflows/crm-klik-waarde-ux-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-klik-waarde-ux-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Klik op waarde, PII, financiële guards en regressie
+        run: npx vitest run src/components/ui/editable-value-button.test.tsx src/test/forms/entityPickerFullValue.test.tsx src/test/forms/entityPickerPiiPolicy.test.tsx src/test/forms/selectorPiiRegressie.test.tsx src/components/object/ObjectKerngegevensInline.test.tsx src/components/object/ObjectCommercieelInline.test.tsx src/components/object/ObjectFysiekInline.test.tsx src/components/object/ObjectOnderhoudInline.test.tsx src/lib/objecten/inlineCommercieel.test.ts src/lib/objecten/inlineFysiek.test.ts src/test/crmInlineEersteInvoer.test.ts src/test/crmTaxonomieDesign.test.ts src/test/object/objectCockpitOpvolging.test.ts src/test/unifiedObjectLifecycleUx.test.ts
+      - name: Production build
+        run: npm run build
