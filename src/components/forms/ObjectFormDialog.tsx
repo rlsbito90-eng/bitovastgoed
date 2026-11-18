@@ -67,6 +67,7 @@ import {
 } from '@/data/mock-data';
 import { toast } from 'sonner';
 import SubcategorieSelect from '@/components/object/SubcategorieSelect';
+import RelatieKoppelveld from '@/components/object/RelatieKoppelveld';
 import HuurdersPanel from '@/components/object/HuurdersPanel';
 import DocumentenPanel from '@/components/object/DocumentenPanel';
 import FotosPanel from '@/components/object/FotosPanel';
@@ -1141,72 +1142,80 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
               </Sectie>
             </TabsContent>
 
-            {/* TAB 6: VERKOPER */}
+            {/* TAB 6: VERKOPER — relatie-ID is leidend, losse velden alleen historisch. */}
             <TabsContent value="contacten" className="space-y-5 mt-0">
-              <div className="rounded-md border border-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Deze velden zijn bedoeld als vrije tekst/fallback. De gekoppelde relatie blijft leidend waar beschikbaar.
-              </div>
-              <Sectie titel="Verkoper / eigenaar / aanbieder">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Naam">
-                    <Input value={form.verkoperNaam ?? ''}
-                      onChange={e => set('verkoperNaam', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="Rol">
-                    <Input value={form.verkoperRol ?? ''}
-                      onChange={e => set('verkoperRol', e.target.value || undefined)}
-                      placeholder="eigenaar, beheerder, adviseur, ..." />
-                  </Veld>
-                  <Veld label="Via">
-                    <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={form.verkoperVia ?? 'onbekend'}
-                      onChange={e => set('verkoperVia', e.target.value as VerkoperVia)}
-                    >
-                      {Object.entries(VERKOPER_VIA_LABELS).map(([v, l]) => (
-                        <option key={v} value={v}>{l}</option>
-                      ))}
-                    </select>
-                  </Veld>
-                  <Veld label="Telefoon">
-                    <Input value={form.verkoperTelefoon ?? ''}
-                      onChange={e => set('verkoperTelefoon', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="E-mail">
-                    <Input type="email" value={form.verkoperEmail ?? ''}
-                      onChange={e => set('verkoperEmail', e.target.value || undefined)} />
-                  </Veld>
-                </div>
+              <Sectie titel="Eigenaar / verkoper">
+                <RelatieKoppelveld
+                  value={form.eigenaarRelatieId}
+                  onChange={id=>set('eigenaarRelatieId',id)}
+                  label="Gekoppelde relatie"
+                />
                 <Veld label="Verkoopmotivatie">
                   <Textarea rows={2} value={form.verkoopmotivatie ?? ''}
-                    onChange={e => set('verkoopmotivatie', e.target.value || undefined)}
-                    placeholder="waarom wil de verkoper van het object af" />
+                    onChange={e=>set('verkoopmotivatie',e.target.value||undefined)}
+                    placeholder="Waarom wil de eigenaar verkopen?" />
                 </Veld>
+                <p className="text-xs text-muted-foreground">
+                  Kies een bestaande relatie. Aanvullende contactgegevens worden niet naar de relatie gekopieerd.
+                </p>
               </Sectie>
 
-              <Sectie titel="Objectcontact / makelaar / tussenpersoon">
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Indien leeg vallen IM en 1-pager terug op de verkoper-info. Lege velden verschijnen niet.
-                </p>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Veld label="Naam">
-                    <Input value={form.contactNaam ?? ''}
-                      onChange={e => set('contactNaam', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="Functie">
-                    <Input value={form.contactFunctie ?? ''}
-                      onChange={e => set('contactFunctie', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="Telefoon">
-                    <Input value={form.contactTelefoon ?? ''}
-                      onChange={e => set('contactTelefoon', e.target.value || undefined)} />
-                  </Veld>
-                  <Veld label="E-mail">
-                    <Input type="email" value={form.contactEmail ?? ''}
-                      onChange={e => set('contactEmail', e.target.value || undefined)} />
-                  </Veld>
+              <details className="rounded-md border border-border/60">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+                  Historische losse contactgegevens
+                </summary>
+                <div className="border-t border-border/60 p-4 space-y-5">
+                  <Sectie titel="Verkoper / aanbieder (historisch)">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Veld label="Naam (vrije tekst)">
+                        <Input value={form.verkoperNaam ?? ''}
+                          onChange={e=>set('verkoperNaam',e.target.value||undefined)}/>
+                      </Veld>
+                      <Veld label="Rol">
+                        <Input value={form.verkoperRol ?? ''}
+                          onChange={e=>set('verkoperRol',e.target.value||undefined)}
+                          placeholder="Eigenaar, beheerder, adviseur…"/>
+                      </Veld>
+                      <Veld label="Via">
+                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={form.verkoperVia??'onbekend'}
+                          onChange={e=>set('verkoperVia',e.target.value as VerkoperVia)}>
+                          {Object.entries(VERKOPER_VIA_LABELS).map(([v,l])=>
+                            <option key={v} value={v}>{l}</option>)}
+                        </select>
+                      </Veld>
+                      <Veld label="Telefoon">
+                        <Input value={form.verkoperTelefoon ?? ''}
+                          onChange={e=>set('verkoperTelefoon',e.target.value||undefined)}/>
+                      </Veld>
+                      <Veld label="E-mail">
+                        <Input type="email" value={form.verkoperEmail??''}
+                          onChange={e=>set('verkoperEmail',e.target.value||undefined)}/>
+                      </Veld>
+                    </div>
+                  </Sectie>
+                  <Sectie titel="Objectcontact / makelaar / tussenpersoon">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Veld label="Naam">
+                        <Input value={form.contactNaam??''}
+                          onChange={e=>set('contactNaam',e.target.value||undefined)}/>
+                      </Veld>
+                      <Veld label="Functie">
+                        <Input value={form.contactFunctie??''}
+                          onChange={e=>set('contactFunctie',e.target.value||undefined)}/>
+                      </Veld>
+                      <Veld label="Telefoon">
+                        <Input value={form.contactTelefoon??''}
+                          onChange={e=>set('contactTelefoon',e.target.value||undefined)}/>
+                      </Veld>
+                      <Veld label="E-mail">
+                        <Input type="email" value={form.contactEmail??''}
+                          onChange={e=>set('contactEmail',e.target.value||undefined)}/>
+                      </Veld>
+                    </div>
+                  </Sectie>
                 </div>
-              </Sectie>
+              </details>
             </TabsContent>
 
             {/* TAB: POTENTIE */}
