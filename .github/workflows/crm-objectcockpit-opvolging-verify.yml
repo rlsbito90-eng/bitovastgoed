@@ -1,0 +1,32 @@
+name: CRM Objectcockpit Opvolging Verify
+on:
+  push:
+    branches: [feat/object-cockpit-opvolging-20261118]
+    paths:
+      - 'src/pages/ObjectDetailPage.tsx'
+      - 'src/lib/objecten/cockpitOpvolging*'
+      - 'src/test/object/objectCockpitOpvolging.test.ts'
+      - '.github/workflows/crm-objectcockpit-opvolging-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-cockpit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Cockpit en regressietests
+        run: npx vitest run src/lib/objecten/cockpitOpvolging.test.ts src/test/object/objectCockpitOpvolging.test.ts src/test/object/objectContactenEnActies.test.ts src/test/unifiedVisibleTrajectory.test.ts src/test/object/objectDetailKadasterTab.test.ts src/test/object/objectDossierProgress.test.tsx
+      - name: Build
+        run: npm run build
