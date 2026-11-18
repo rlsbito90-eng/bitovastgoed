@@ -4,6 +4,7 @@ import { useDataStore } from '@/hooks/useDataStore';
 import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import ObjectContactenSectie from '@/components/object/ObjectContactenSectie';
+import ObjectKerngegevensInline from '@/components/object/ObjectKerngegevensInline';
 import { useSubcategorieen } from '@/hooks/useSubcategorieen';
 import { usePropertyTaxonomie } from '@/hooks/usePropertyTaxonomie';
 import {
@@ -284,8 +285,10 @@ function hasJuridischData(o: any): boolean {
     o.kadastraalNummer || o.kadastraleGemeente || o.kadastraleSectie));
 }
 function hasContactenData(o: any): boolean {
-  return !!(o && (o.eigenaarRelatieId || o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
-    o.verkoperRol || o.verkoperVia || o.verkoopmotivatie ||
+  // Eigenaar en verkoopmotivatie staan altijd in Overzicht. Meer bevat alleen
+  // aanvullende en historische contactgegevens, nooit een tweede primaire kaart.
+  return !!(o && (o.verkoperNaam || o.verkoperEmail || o.verkoperTelefoon ||
+    o.verkoperRol || (o.verkoperVia && o.verkoperVia!=='onbekend') ||
     o.contactNaam || o.contactEmail || o.contactTelefoon || o.contactFunctie));
 }
 
@@ -1455,6 +1458,10 @@ export default function ObjectDetailPage() {
                 mode="single"
               />
 
+              <ObjectKerngegevensInline object={object}
+                onSave={(patch)=>store.updateObject(object.id,patch)}/>
+
+
               <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-4 hairline pt-5">
                 <div className="rounded-lg border border-border/60 bg-card/50 p-4 min-w-0">
                   <div className="flex items-center gap-2 mb-3">
@@ -1947,7 +1954,8 @@ export default function ObjectDetailPage() {
             <SectionAnchor id="verkoper" eyebrow={eyebrowFor("verkoper", "Verkoper")} title="Eigendom & relaties">
               <ObjectContactenSectie object={object}
                 gekoppeldeRelatie={object.eigenaarRelatieId?
-                  store.getRelatieById(object.eigenaarRelatieId)??null:null}/>
+                  store.getRelatieById(object.eigenaarRelatieId)??null:null}
+                toonPrimair={false}/>
             </SectionAnchor>
           )}
 
