@@ -41,7 +41,7 @@ describe('één zichtbare commerciële trajectfase', () => {
     const source = read('src/pages/ObjectDetailPage.tsx');
     expect(source).toContain('hasTransactionPosition && activeDealRecords.length === 1');
     expect(source).toContain('TrajectoryStageBadge objectId={object.id}');
-    expect(source).toContain('Transactie');
+    expect(source).toContain('Concrete transactie');
     expect(source).not.toContain('DealFaseBadge');
     expect(source).not.toContain('selectLeadDeal');
   });
