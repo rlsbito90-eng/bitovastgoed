@@ -6,6 +6,7 @@ on:
       - 'src/pages/ObjectDetailPage.tsx'
       - 'src/lib/objecten/cockpitOpvolging*'
       - 'src/test/object/objectCockpitOpvolging.test.ts'
+      - 'src/test/unifiedVisibleTrajectory.test.ts'
       - '.github/workflows/crm-objectcockpit-opvolging-verify.yml'
   workflow_dispatch:
 permissions:
