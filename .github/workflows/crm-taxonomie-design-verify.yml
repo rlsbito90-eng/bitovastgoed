@@ -1,0 +1,39 @@
+name: CRM Taxonomie Design Verify
+on:
+  push:
+    branches: [feat/crm-taxonomie-design-20261118]
+    paths:
+      - 'src/components/taxonomie/*'
+      - 'src/components/TaxonomieBadges*'
+      - 'src/components/object/ObjectClassificatieInline*'
+      - 'src/components/object/ObjectKerngegevensInline.tsx'
+      - 'src/components/object/ObjectCommercieelInline.tsx'
+      - 'src/components/relatie/InlineVastgoedVoorkeuren*'
+      - 'src/components/forms/RelatieFormDialog.tsx'
+      - 'src/components/forms/ZoekprofielFormDialog.tsx'
+      - 'src/pages/ObjectDetailPage.tsx'
+      - 'src/test/crmTaxonomieDesign.test.ts'
+      - '.github/workflows/crm-taxonomie-design-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: crm-taxonomie-design-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install --no-package-lock
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Taxonomie, relatie, matching en layout regressie
+        run: npx vitest run src/components/taxonomie/TaxonomieKeuzelijst.test.tsx src/components/TaxonomieBadges.samenstelling.test.tsx src/components/object/ObjectClassificatieInline.test.tsx src/components/relatie/InlineVastgoedVoorkeuren.test.tsx src/components/forms/RelatieFormDialog.a13.test.tsx src/test/crmTaxonomieDesign.test.ts src/test/crmCompactCards.test.ts src/test/object/objectInlineFysiek.test.ts src/test/crmInlineEersteInvoer.test.ts src/test/object/objectContactenEnActies.test.ts src/lib/matching/relatieObjectVoorstellenR2.test.ts src/lib/matching/relatiesBasisProfiel.test.ts src/test/unifiedVisibleTrajectory.test.ts
+      - name: Production build
+        run: npm run build
