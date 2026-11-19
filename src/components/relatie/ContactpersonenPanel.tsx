@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Trash2, Pencil, X, Check, Star, Phone, Mail, Linkedin } from 'lucide-react';
+import { Plus, Trash2, X, Check, Star, Phone, Mail, Linkedin } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -85,7 +85,11 @@ export default function ContactpersonenPanel({ relatieId }: Props) {
         <div key={c.id} className="border border-border rounded-md p-3 flex items-start justify-between gap-3 bg-card">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-medium text-foreground">{c.naam}</p>
+              <button type="button" onClick={()=>openEdit(c)}
+                aria-label={`Wijzig contactpersoon ${c.naam}`}
+                className="-mx-2 min-h-10 rounded-md px-2 text-left font-medium text-foreground hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+                {c.naam}
+              </button>
               {c.functie && <span className="text-xs text-muted-foreground">· {c.functie}</span>}
               {c.isPrimair && (
                 <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider bg-accent/20 text-accent px-2 py-0.5 rounded-full">
@@ -126,14 +130,6 @@ export default function ContactpersonenPanel({ relatieId }: Props) {
                 <Star className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => openEdit(c)}
-              className="p-1.5 hover:bg-muted rounded transition-colors"
-              aria-label="Bewerken"
-            >
-              <Pencil className="h-4 w-4 text-muted-foreground" />
-            </button>
             <button
               type="button"
               onClick={() => handleDelete(c.id)}
