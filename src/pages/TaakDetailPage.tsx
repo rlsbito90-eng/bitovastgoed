@@ -21,7 +21,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { deadlineLabel, isTaakTeLaat } from '@/lib/taakHelpers';
+import { deadlineLabel, isTaakTeLaat, TAAK_TYPES } from '@/lib/taakHelpers';
+import { InlineDossierTekst, InlineDossierKeuze } from '@/components/ui/inline-dossier-waarde';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import { useOffMarketSignaal } from '@/hooks/useOffMarketSignalen';
 import { leesCrmReturnContext } from '@/lib/crmReturnContext';
@@ -147,7 +148,7 @@ export default function TaakDetailPage() {
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil className="h-4 w-4 mr-1.5" /> Bewerken
+            <Pencil className="h-4 w-4 mr-1.5" /> Planning & koppelingen
           </Button>
           <Button
             size="sm"
@@ -162,11 +163,21 @@ export default function TaakDetailPage() {
 
       <section className="section-card p-5 space-y-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <h1 className={`text-lg sm:text-xl font-semibold leading-snug ${isAfgerond ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-            {taak.titel}
-          </h1>
-          <div className="flex items-center gap-1.5">
-            <PrioriteitBadge prioriteit={taak.prioriteit} />
+          <div className="min-w-0 flex-1">
+            <InlineDossierTekst key={taak.id+'-titel'} label="Taaktitel" value={taak.titel}
+              required displayClassName={`text-lg sm:text-xl font-semibold leading-snug ${isAfgerond?'line-through text-muted-foreground':'text-foreground'}`}
+              onSave={titel=>updateTaak(taak.id,{titel})}/>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="min-w-36">
+              <InlineDossierKeuze label="Prioriteit" value={taak.prioriteit}
+                options={[
+                  {value:'laag',label:'Laag'},{value:'normaal',label:'Normaal'},
+                  {value:'hoog',label:'Hoog'},{value:'urgent',label:'Urgent'},
+                ]} onSave={prioriteit=>updateTaak(taak.id,{prioriteit:prioriteit as typeof taak.prioriteit})}>
+                <PrioriteitBadge prioriteit={taak.prioriteit}/>
+              </InlineDossierKeuze>
+            </div>
             <TaakStatusBadge status={taak.status} />
           </div>
         </div>
@@ -196,16 +207,22 @@ export default function TaakDetailPage() {
               </span>
             </span>
           )}
-          <span>Type: {taak.type}</span>
+          <div className="min-w-40">
+            <InlineDossierKeuze label="Taaktype" value={taak.type}
+              options={TAAK_TYPES.map(type=>({value:type,label:type}))}
+              onSave={type=>updateTaak(taak.id,{type})}>
+              <span>Type: {taak.type}</span>
+            </InlineDossierKeuze>
+          </div>
         </div>
       </section>
 
-      {taak.notities && (
-        <section className="section-card p-5 space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Notities & context</h2>
-          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{taak.notities}</p>
-        </section>
-      )}
+      <section className="section-card p-5 space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Notities & context</h2>
+        <InlineDossierTekst key={taak.id+'-notities'} label="Taaknotities" multiline
+          value={taak.notities} emptyLabel="Klik om notities toe te voegen"
+          onSave={notities=>updateTaak(taak.id,{notities})}/>
+      </section>
 
       <section className="section-card p-5 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Koppelingen</h2>
