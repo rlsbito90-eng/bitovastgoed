@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import type React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, CalendarCheck2, Redo2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarCheck2, Plus, Redo2 } from 'lucide-react';
 import type { Taak } from '@/data/mock-data';
 import type { TodayWorkGroups } from '@/lib/tasks/workView';
-import QuickTaskCapture from '@/components/tasks/QuickTaskCapture';
 
 /** Desktop (lg en breder): zoveel taken per groep, daarna "Bekijk alle (n) in Taken". */
 export const WERKLIJST_MAX_PER_GROEP = 5;
@@ -26,6 +25,7 @@ export function werklijstZichtbaarheid(index: number, uitgeklapt: boolean): stri
 interface Props {
   groups: TodayWorkGroups;
   renderTask: (task: Taak) => React.ReactNode;
+  onNewTask: () => void;
 }
 
 function Groep({ titel, icon, taken, danger, renderTask }: {
@@ -74,7 +74,7 @@ function Groep({ titel, icon, taken, danger, renderTask }: {
  * Werklijst op het dashboard: achterstallig, doorgeschoven en vandaag, met dezelfde
  * indeling (groupTodayWork) en dezelfde taakrij (TaskRow) als de Taken-module.
  */
-export default function DashboardWerklijst({ groups, renderTask }: Props) {
+export default function DashboardWerklijst({ groups, renderTask, onNewTask }: Props) {
   const { achterstallig, doorgeschoven, vandaag } = groups;
   const voorVandaag = doorgeschoven.length + vandaag.length;
   const leeg = achterstallig.length === 0 && voorVandaag === 0;
@@ -89,13 +89,25 @@ export default function DashboardWerklijst({ groups, renderTask }: Props) {
             {achterstallig.length > 0 && <> · <span className="text-destructive">{`${achterstallig.length} achterstallig`}</span></>}
           </p>
         </div>
-        <Link to="/taken" className="section-link inline-flex items-center gap-1">Alle taken <ArrowRight className="h-3 w-3" /></Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={onNewTask}
+            aria-label="Nieuwe taak aanmaken"
+            title="Nieuwe taak"
+            className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg border border-border/65 px-2 text-sm font-medium text-foreground hover:border-accent/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Plus className="h-4 w-4 text-accent" />
+            <span className="hidden sm:inline">Taak</span>
+          </button>
+          <Link to="/taken" className="section-link inline-flex min-h-10 items-center gap-1">Alle taken <ArrowRight className="h-3 w-3" /></Link>
+        </div>
       </header>
 
       {leeg ? (
         <div className="px-4 sm:px-5 py-4 space-y-3">
           <p className="text-sm text-muted-foreground">Niets gepland voor vandaag.</p>
-          <QuickTaskCapture defaultTarget="today" />
+          <button type="button" onClick={onNewTask}
+            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-accent hover:bg-muted/30">
+            <Plus className="h-4 w-4"/> Eerste taak plannen
+          </button>
         </div>
       ) : (
         <div className="pb-1">
