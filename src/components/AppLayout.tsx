@@ -41,6 +41,8 @@ import NotificationsBellV2 from "@/components/NotificationsBellV2";
 import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
 import TaakFormDialog from "@/components/forms/TaakFormDialog";
+import { QuickCreateRelationDialog } from "@/components/forms/QuickCreateRelationDialog";
+import ObjectQuickCreateDialog from "@/components/forms/ObjectQuickCreateDialog";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
 import {
   VR_WORKSPACE_NAV_ITEMS,
@@ -207,8 +209,11 @@ function GlobalSearch() {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nieuweTaakOpen,setNieuweTaakOpen] = useState(false);
+  const [nieuweRelatieOpen,setNieuweRelatieOpen] = useState(false);
+  const [nieuwObjectOpen,setNieuwObjectOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("bito.sidebar.collapsed") === "1";
@@ -335,15 +340,35 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <RefreshButton />
             <MatchAlertBadge />
             <ActiveNotificationsBell />
-            <button type="button" onClick={()=>setNieuweTaakOpen(true)} className="btn-premium ml-2"
-              aria-label="Nieuwe taak aanmaken">
-              <Plus className="h-4 w-4" />
-              <span>Nieuwe taak</span>
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="btn-premium ml-2"
+                  aria-label="Nieuw item aanmaken">
+                  <Plus className="h-4 w-4"/>
+                  <span>Nieuw</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>Toevoegen</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={()=>setNieuweTaakOpen(true)}>
+                  <CheckSquare className="mr-2 h-4 w-4"/> Nieuwe taak
+                </DropdownMenuItem>
+                <DropdownMenuSeparator/>
+                <DropdownMenuItem onSelect={()=>setNieuweRelatieOpen(true)}>
+                  <Users className="mr-2 h-4 w-4"/> Nieuwe relatie
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={()=>setNieuwObjectOpen(true)}>
+                  <Building2 className="mr-2 h-4 w-4"/> Nieuw object
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
         <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen}/>
+        <QuickCreateRelationDialog open={nieuweRelatieOpen} onOpenChange={setNieuweRelatieOpen}
+          onCreated={relatie=>{setNieuweRelatieOpen(false);navigate(`/relaties/${relatie.id}`);}}/>
+        <ObjectQuickCreateDialog open={nieuwObjectOpen} onOpenChange={setNieuwObjectOpen}/>
         {IS_OFFLINE_PREVIEW && (
           <div role="status" className="sticky top-0 z-40 shrink-0 border-b border-amber-500/30 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">
             TESTOMGEVING · fictieve gegevens · uitsluitend lokaal in deze browser · geen verbinding met het echte CRM
