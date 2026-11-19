@@ -58,12 +58,14 @@ describe('Taken — Quick Capture v2', () => {
     expect(taskDetail).not.toContain("'Zonder datum'");
   });
 
-  it('houdt Quick Capture eenvoudig en verplaatst meervoudige CRM-koppelingen naar taak bewerken', () => {
+  it('houdt Quick Capture eenvoudig en ondersteunt meervoudige CRM-koppelingen bij taak aanmaken en bewerken', () => {
     expect(capture).not.toContain('CRM-context koppelen');
     expect(capture).not.toContain('replaceTaskLinks');
     expect(taskForm).toContain('TaskLinksPickerDialog');
     expect(taskForm).toContain('replaceTaskLinks');
     expect(taskForm).toContain('taskLinkCount');
+    expect(taskForm).toContain('const selectedLinks = taskLinks;');
+    expect(taskForm).toContain('title={isEdit ?');
     expect(taskLinksPicker).toContain('Koppelingen bewerken');
     expect(taskLinksPicker).toContain('Radar-signalen');
     expect(links).toContain("'relatie' | 'deal' | 'object' | 'signaal'");
