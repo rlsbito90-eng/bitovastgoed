@@ -104,10 +104,6 @@ export default function DashboardWerklijst({ groups, renderTask, onNewTask }: Pr
       {leeg ? (
         <div className="px-4 sm:px-5 py-4 space-y-3">
           <p className="text-sm text-muted-foreground">Niets gepland voor vandaag.</p>
-          <button type="button" onClick={onNewTask}
-            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium text-accent hover:bg-muted/30">
-            <Plus className="h-4 w-4"/> Eerste taak plannen
-          </button>
         </div>
       ) : (
         <div className="pb-1">
