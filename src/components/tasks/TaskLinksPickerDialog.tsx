@@ -31,6 +31,24 @@ export function taskLinkSelectionFromLegacy(input: {
   };
 }
 
+/**
+ * Vervang alleen de primaire koppeling. Eventuele aanvullende koppelingen
+ * blijven bestaan; bij ontkoppelen schuift de volgende selectie naar voren.
+ */
+export function replacePrimaryTaskLink(
+  selection: TaskLinkSelection,
+  type: TaskLinkEntityType,
+  id: string,
+): TaskLinkSelection {
+  const previous = selection[type];
+  if (id === previous[0]) return selection;
+  const additional = previous.slice(1).filter(existing => existing !== id);
+  return {
+    ...selection,
+    [type]: id ? [id, ...additional] : additional,
+  };
+}
+
 export default function TaskLinksPickerDialog({
   open,
   onOpenChange,
