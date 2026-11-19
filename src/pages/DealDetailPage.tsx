@@ -10,10 +10,11 @@ import {
 } from '@/data/mock-data';
 import { LeadStatusBadge, ObjectStatusBadge } from '@/components/StatusBadges';
 import {
-  ArrowLeft, Pencil, Star, Trophy, AlertCircle,
+  ArrowLeft, Pencil, Star, Trophy, AlertCircle, Plus,
   Building2, Landmark, Users as UsersIcon, Archive, ArchiveRestore,
 } from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import {InlineDossierTekst,InlineDossierKeuze} from '@/components/ui/inline-dossier-waarde';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
@@ -46,6 +47,7 @@ export default function DealDetailPage() {
   const trajectory = useObjectTrajectoryStage(deal?.objectId);
   const [editOpen, setEditOpen] = useState(false);
   const [archiefOpen, setArchiefOpen] = useState(false);
+  const [nieuweTaakOpen, setNieuweTaakOpen] = useState(false);
 
   if (!deal) {
     return (
@@ -81,6 +83,10 @@ export default function DealDetailPage() {
 
       <div className="flex flex-col gap-3 min-w-0">
         <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={()=>setNieuweTaakOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:bg-accent/90">
+            <Plus className="h-4 w-4"/> Taak toevoegen
+          </button>
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <Pencil className="h-4 w-4" /> Proces & commissie
           </button>
@@ -384,6 +390,9 @@ export default function DealDetailPage() {
       </div>
 
       <DealFormDialog open={editOpen} onOpenChange={setEditOpen} deal={deal} />
+      <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen}
+        defaultDealId={deal.id} defaultObjectId={deal.objectId}
+        defaultRelatieId={isTransactionPosition?deal.relatieId:undefined}/>
       <ArchiveerDialog
         open={archiefOpen}
         onOpenChange={setArchiefOpen}

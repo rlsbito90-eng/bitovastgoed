@@ -1186,6 +1186,10 @@ export default function ObjectDetailPage() {
         // Desktop / overlay — alle acties zichtbaar
         const actionsBlock = (
           <div className="flex items-center gap-1.5 flex-wrap">
+            <button type="button" onClick={()=>{setEditTaak(null);setTaakDialogOpen(true);}}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition">
+              <Calendar className="h-3.5 w-3.5"/> Taak toevoegen
+            </button>
             <button
               onClick={() => setEditOpen(true)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium bg-background/70 backdrop-blur border border-border/60 rounded-md hover:bg-background transition text-foreground"
@@ -1220,6 +1224,7 @@ export default function ObjectDetailPage() {
 
         // Mobiel — alleen Bewerken + PDF primair; rest in overflow-menu
         const actionsBlockMobile = (
+          <div className="space-y-2">
           <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
             <button
               onClick={() => setEditOpen(true)}
@@ -1266,6 +1271,11 @@ export default function ObjectDetailPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+          <button type="button" onClick={()=>{setEditTaak(null);setTaakDialogOpen(true);}}
+            className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-accent-foreground hover:bg-accent/90">
+            <Calendar className="h-4 w-4"/> Taak toevoegen
+          </button>
           </div>
         );
 

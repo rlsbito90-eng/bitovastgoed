@@ -19,6 +19,7 @@ import {
 import ContactMomentFormDialog from '@/components/forms/ContactMomentFormDialog';
 import Timeline from '@/components/contactmoment/Timeline';
 import RelatieFormDialog from '@/components/forms/RelatieFormDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
 import ZoekprofielFormDialog from '@/components/forms/ZoekprofielFormDialog';
 import InlineRelatieClassificatie from '@/components/relatie/InlineRelatieClassificatie';
 import InlineRelatieSectie, { type InlineRelatieVeld } from '@/components/relatie/InlineRelatieSectie';
@@ -145,6 +146,7 @@ export default function RelatieDetailPage() {
   const [zpOpen, setZpOpen] = useState(false);
   const [zpBewerken, setZpBewerken] = useState<Zoekprofiel | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [nieuweTaakOpen,setNieuweTaakOpen] = useState(false);
   const zoekprofielFormRef = useRef<HTMLDivElement | null>(null);
   useEffect(()=>{
     if(zpOpen && zoekprofielFormRef.current?.scrollIntoView){
@@ -231,6 +233,10 @@ export default function RelatieDetailPage() {
               <Linkedin className="h-4 w-4" />
             </a>
           )}
+          <button type="button" onClick={()=>setNieuweTaakOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-accent text-accent-foreground hover:bg-accent/90">
+            <Plus className="h-4 w-4"/> Taak toevoegen
+          </button>
           <button onClick={() => setLogOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
             <MessageSquarePlus className="h-4 w-4" /> Log contact
           </button>
@@ -437,6 +443,8 @@ export default function RelatieDetailPage() {
 
       <RelatieFormDialog open={editOpen} onOpenChange={setEditOpen} relatie={relatie} />
       <ContactMomentFormDialog open={logOpen} onOpenChange={setLogOpen} defaultRelatieId={relatie.id} />
+      <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen}
+        defaultRelatieId={relatie.id}/>
     </div>
   );
 }

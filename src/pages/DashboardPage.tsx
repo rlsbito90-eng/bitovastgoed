@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import TaskRow from '@/components/tasks/TaskRow';
 import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import { Plus } from 'lucide-react';
 import DashboardKengetallen from '@/components/dashboard/DashboardKengetallen';
 import DashboardWerklijst from '@/components/dashboard/DashboardWerklijst';
 import DashboardAandacht from '@/components/dashboard/DashboardAandacht';
@@ -45,6 +47,7 @@ export default function DashboardPage() {
   const nu = new Date();
   const unifiedFees = useUnifiedFeeReporting(nu.getFullYear());
   const [planningRows, setPlanningRows] = useState<TaskPlanningMeta[]>([]);
+  const [nieuweTaakOpen, setNieuweTaakOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -140,6 +143,10 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle={<span className="capitalize">{nu.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>}
+        actions={<button type="button" onClick={()=>setNieuweTaakOpen(true)}
+          className="inline-flex w-full sm:w-auto min-h-10 items-center justify-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-accent-foreground hover:bg-accent/90">
+          <Plus className="h-4 w-4"/> Nieuwe taak
+        </button>}
       />
 
       <DashboardKengetallen
@@ -171,6 +178,7 @@ export default function DashboardPage() {
         ])}
       />
       <TaakAfrondenDialog open={!!afrondenTaak} onOpenChange={value => { if (!value) setAfrondenTaak(null); }} taak={afrondenTaak} />
+      <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen} />
     </div>
   );
 }
