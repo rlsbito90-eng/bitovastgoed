@@ -421,19 +421,12 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             <section className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
               {isEdit ? (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/30 p-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {taskLinkCount ? `${taskLinkCount} gekoppeld` : 'Geen CRM-koppelingen'}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Relaties, deals, objecten en Radar-signalen kunnen hier meervoudig worden gekoppeld.
-                    </p>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setTaskLinksOpen(true)}>
-                    <Link2 className="mr-1.5 h-4 w-4" /> Beheren
-                  </Button>
-                </div>
+                <button type="button" onClick={() => setTaskLinksOpen(true)}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-sm text-accent hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Link2 className="h-4 w-4" />
+                  Koppelingen beheren
+                  <span className="text-xs text-muted-foreground">· {taskLinkCount} gekoppeld</span>
+                </button>
               ) : (
                 <div className="space-y-3">
                   <EntityPicker
@@ -474,17 +467,12 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
                     relevantLabel="Relevant voor selectie"
                     recentIds={readRecent('deal')}
                   />
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/30 p-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">Extra koppelingen</p>
-                      <p className="text-xs text-muted-foreground">
-                        {taskLinkCount ? `${taskLinkCount} gekoppeld` : 'Nog geen koppelingen'} · Voeg meerdere dossiers of Radar-signalen toe.
-                      </p>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setTaskLinksOpen(true)}>
-                      <Link2 className="mr-1.5 h-4 w-4" /> Meer kiezen
-                    </Button>
-                  </div>
+                  <button type="button" onClick={() => setTaskLinksOpen(true)}
+                    className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-md px-2 text-left text-sm text-accent hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <Link2 className="h-4 w-4 shrink-0" />
+                    <span>Meerdere koppelen</span>
+                    {taskLinkCount > 0 && <span className="text-xs text-muted-foreground">· {taskLinkCount} gekoppeld</span>}
+                  </button>
                 </div>
               )}
             </section>

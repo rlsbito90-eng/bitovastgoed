@@ -25,8 +25,8 @@ describe('Taken: koppelingen bij aanmaken',()=>{
     const planning = source.indexOf('>Planning</h3>');
     expect(koppelingen).toBeGreaterThan(0);
     expect(koppelingen).toBeLessThan(planning);
-    expect(source).toContain('>Extra koppelingen</p>');
-    expect(source).toContain('> Meer kiezen');
+    expect(source).toContain('>Meerdere koppelen</span>');
+    expect(source).not.toContain('>Extra koppelingen</p>');
     expect(source).toContain('label="Relatie"');
     expect(source).toContain('label="Object"');
     expect(source).toContain('label="Deal"');

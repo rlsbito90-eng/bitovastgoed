@@ -49,7 +49,6 @@ import {
   resolveVrWorkspaceSection,
 } from "@/lib/vastgoedrekenen/workspaceNavigation";
 
-const HAMBURGER_RIGHT_MOBILE = true;
 const NOTIFICATION_ENGINE_V2_ENABLED = import.meta.env.VITE_NOTIFICATION_ENGINE_V2 === "true";
 const ActiveNotificationsBell = NOTIFICATION_ENGINE_V2_ENABLED ? NotificationsBellV2 : NotificationsBell;
 
@@ -304,26 +303,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             paddingTop: "env(safe-area-inset-top)",
           }}
         >
-          {HAMBURGER_RIGHT_MOBILE ? (
-            <>
-              <Link to="/" className="flex min-w-0 items-center rounded-md px-1 py-1 transition-colors hover:bg-muted/60">
-                <img src="/logo-bito-vastgoed.png" alt="Bito Vastgoed" className="h-9 w-auto max-w-[132px] object-contain" />
-              </Link>
-              <div className="ml-auto flex shrink-0 items-center gap-0.5">
-                <RefreshButton />
-                <MatchAlertBadge />
-                <ActiveNotificationsBell />
-                <button
-                  onClick={() => setMobileOpen(!mobileOpen)}
-                  className="-mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 text-foreground hover:bg-muted"
-                  aria-label={mobileOpen ? "Navigatie sluiten" : "Menu openen"}
-                  aria-expanded={mobileOpen}
-                >
-                  {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                </button>
-              </div>
-            </>
-          ) : null}
+          <div className="flex min-w-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="-ml-1 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={mobileOpen ? "Navigatie sluiten" : "Menu openen"}
+              aria-expanded={mobileOpen}
+              aria-controls="crm-mobile-navigation"
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <Link to="/" aria-label="Naar dashboard" className="flex min-h-11 min-w-10 items-center justify-center rounded-md hover:bg-muted/60">
+              <img src="/apple-touch-icon-v3.png" alt="Bito Vastgoed" className="h-8 w-8 object-contain" />
+            </Link>
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-0.5">
+            <RefreshButton />
+            <MatchAlertBadge />
+            <ActiveNotificationsBell />
+          </div>
         </header>
 
         <header className="sticky top-0 z-40 hidden h-16 shrink-0 items-center gap-4 border-b border-border/60 px-6 glass-topbar lg:flex">
@@ -380,6 +379,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               className="fixed bottom-0 left-0 top-0 flex w-[min(86vw,20rem)] flex-col border-r border-sidebar-border/50 p-4 glass-dark text-sidebar-foreground"
               onClick={(e) => e.stopPropagation()}
               aria-label="Mobiele navigatie"
+              id="crm-mobile-navigation"
             >
               <div className="mb-3 flex shrink-0 items-center justify-between">
                 <Link to="/" onClick={() => setMobileOpen(false)} className="rounded-md px-1 py-1 hover:bg-sidebar-accent">

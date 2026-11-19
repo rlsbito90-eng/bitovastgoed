@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import TaskRow from '@/components/tasks/TaskRow';
 import TaakAfrondenDialog from '@/components/forms/TaakAfrondenDialog';
 import TaakFormDialog from '@/components/forms/TaakFormDialog';
-import { Plus } from 'lucide-react';
 import DashboardKengetallen from '@/components/dashboard/DashboardKengetallen';
 import DashboardWerklijst from '@/components/dashboard/DashboardWerklijst';
 import DashboardAandacht from '@/components/dashboard/DashboardAandacht';
@@ -143,10 +142,6 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle={<span className="capitalize">{nu.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>}
-        actions={<button type="button" onClick={()=>setNieuweTaakOpen(true)}
-          className="inline-flex w-full sm:w-auto min-h-10 items-center justify-center gap-1.5 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-accent-foreground hover:bg-accent/90">
-          <Plus className="h-4 w-4"/> Nieuwe taak
-        </button>}
       />
 
       <DashboardKengetallen
@@ -158,7 +153,8 @@ export default function DashboardPage() {
       />
 
       <div className="grid gap-4 lg:gap-6 lg:grid-cols-2 items-start">
-        <DashboardWerklijst groups={werklijst} renderTask={renderWerklijstTaak} />
+        <DashboardWerklijst groups={werklijst} renderTask={renderWerklijstTaak}
+          onNewTask={()=>setNieuweTaakOpen(true)} />
         <div className="space-y-4 lg:space-y-6 min-w-0">
           <DashboardAandacht
             overzicht={aandacht}
