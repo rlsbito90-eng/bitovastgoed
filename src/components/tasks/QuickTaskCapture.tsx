@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
-import { ArrowUp, CalendarDays, Check, Clock3, Plus, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUp, CalendarDays, Check, Clock3, Link2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDataStore } from '@/hooks/useDataStore';
 import { createManualTaskWithReminder } from '@/lib/tasks/reminders';
 import { updateTaskPlanning, type TaskPlanningBucket } from '@/lib/tasks/planning';
+import { replaceTaskLinks, type TaskLinkEntityType, type TaskLinkInput } from '@/lib/tasks/links';
+import TaskLinksPickerDialog, {
+  countTaskLinks,
+  EMPTY_TASK_LINK_SELECTION,
+  type TaskLinkSelection,
+} from '@/components/tasks/TaskLinksPickerDialog';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -69,6 +75,11 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
   const [deadlineExpanded, setDeadlineExpanded] = useState(false);
   const [planningOpen, setPlanningOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [linksOpen, setLinksOpen] = useState(false);
+  const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
+  // Een gedeeltelijk geslaagde opslag mag bij opnieuw proberen geen tweede taak creëren.
+  const pendingTaskIdRef = useRef<string | null>(null);
+  const linkCount = countTaskLinks(taskLinks);
 
   useEffect(() => {
     setTarget(defaultTarget);
@@ -83,8 +94,12 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
 
     setSaving(true);
     try {
-      const taskId = await createManualTaskWithReminder({
+      const taskId = pendingTaskIdRef.current ?? await createManualTaskWithReminder({
         titel: trimmed,
+        relatieId: taskLinks.relatie[0] || undefined,
+        objectId: taskLinks.object[0] || undefined,
+        dealId: taskLinks.deal[0] || undefined,
+        offMarketSignaalId: taskLinks.signaal[0] || undefined,
         type: 'Algemeen',
         deadline: deadline || undefined,
         deadlineTijd: deadline ? (deadlineTime || undefined) : undefined,
@@ -92,15 +107,27 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
         status: 'open',
         reminderSelection: 'default',
       });
+      pendingTaskIdRef.current = taskId;
+      if (linkCount > 0) {
+        const rows = (Object.entries(taskLinks) as [TaskLinkEntityType, string[]][])
+          .flatMap(([entityType, ids]): TaskLinkInput[] => ids.map((entityId, index) => ({
+            entityType, entityId, isPrimary: index === 0,
+          })));
+        await replaceTaskLinks(taskId, rows);
+      }
       await updateTaskPlanning(taskId, planningForTarget(target, planDate, planTime));
       await refresh();
+      pendingTaskIdRef.current = null;
       setTitel('');
+      setTaskLinks({ relatie: [], object: [], deal: [], signaal: [] });
       setDeadline(null);
       setDeadlineTime(null);
       setDeadlineExpanded(false);
       toast.success(`Toegevoegd · ${planLabel(target, planDate, planTime)}`);
     } catch (error: any) {
-      toast.error(`Taak toevoegen mislukt: ${error?.message ?? 'onbekende fout'}`);
+      toast.error(pendingTaskIdRef.current
+        ? `Taak bestaat al, maar koppelingen of planning zijn niet volledig opgeslagen. Probeer opnieuw: ${error?.message ?? 'onbekende fout'}`
+        : `Taak toevoegen mislukt: ${error?.message ?? 'onbekende fout'}`);
     } finally {
       setSaving(false);
     }
@@ -149,7 +176,13 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
         data-testid="quick-task-capture"
         className="flex min-w-0 items-center gap-2 rounded-[1.4rem] p-2"
       >
-        <Plus className="ml-1 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+        <button type="button" onClick={() => setLinksOpen(true)} disabled={saving}
+          aria-label={linkCount ? `Koppelingen wijzigen, ${linkCount} gekoppeld` : 'Relatie, object of deal koppelen'}
+          title="Relatie, object of deal koppelen"
+          className="relative inline-flex h-10 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted/40 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Link2 className={`h-4 w-4 ${linkCount ? 'text-accent' : ''}`} />
+          {linkCount > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground">{linkCount}</span>}
+        </button>
         <input
           value={titel}
           onChange={(event) => setTitel(event.target.value)}
@@ -313,6 +346,9 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
           </button>
         </DialogContent>
       </Dialog>
+      {linksOpen && <TaskLinksPickerDialog open={linksOpen}
+        title="Koppelen aan taak" onOpenChange={setLinksOpen}
+        value={taskLinks} onChange={setTaskLinks} />}
     </>
   );
 }
