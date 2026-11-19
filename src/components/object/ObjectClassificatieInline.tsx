@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Check,Pencil} from 'lucide-react';
+import {Check} from 'lucide-react';
 import {toast} from 'sonner';
 import type {ObjectVastgoed} from '@/data/mock-data';
 import type {GuardedObjectPatch} from '@/lib/dataIntegrity/objectPayload';
@@ -67,15 +67,15 @@ export default function ObjectClassificatieInline({object,onSave}:Props){
     data-testid="object-classificatie-inline">
     <div className="flex items-center justify-between gap-2">
       <h3 className="section-title">Vastgoedclassificatie</h3>
-      <button type="button" aria-expanded={bewerken}
-        disabled={bezig} onClick={()=>setBewerken(x=>!x)}
-        className="inline-flex items-center gap-1 text-xs text-accent hover:underline disabled:opacity-50">
-        <Pencil className="h-3.5 w-3.5"/>{bewerken?'Sluiten':'Wijzigen'}
-      </button>
+      {bewerken&&<button type="button" disabled={bezig} onClick={()=>setBewerken(false)}
+        className="rounded-md px-2 py-1 text-xs text-accent hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-50">
+        Sluiten
+      </button>}
     </div>
     <ClassificatieRij propertyTypeId={object.propertyTypeId}
       fallbackAssetClass={object.type} subtypeIds={object.propertySubtypeIds}
-      dealTypeIds={object.dealTypeIds} mode="single"/>
+      dealTypeIds={object.dealTypeIds} mode="single"
+      onEdit={!bewerken&&!bezig?()=>setBewerken(true):undefined}/>
     {saved&&!bezig&&<p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
       <Check className="h-3.5 w-3.5"/> Opgeslagen
     </p>}

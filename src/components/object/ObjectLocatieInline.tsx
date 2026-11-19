@@ -1,5 +1,6 @@
 import {useEffect,useState} from 'react';
-import {Pencil,Check,AlertTriangle} from 'lucide-react';
+import {Check,AlertTriangle} from 'lucide-react';
+import EditableValueButton from '@/components/ui/editable-value-button';
 import {toast} from 'sonner';
 import {PROVINCIES,type ObjectVastgoed} from '@/data/mock-data';
 import type {GuardedObjectPatch} from '@/lib/dataIntegrity/objectPayload';
@@ -56,10 +57,7 @@ export default function ObjectLocatieInline({object,onSave}:Props){
           <Check className="h-3.5 w-3.5"/> Opgeslagen
         </span>}
       </div>
-      {!edit&&<button type="button" onClick={()=>{setConcept(locatieInvoerVanObject(object));setEdit(true);}}
-        className="inline-flex gap-1 items-center text-xs text-accent hover:underline">
-        <Pencil className="h-3.5 w-3.5"/> Wijzigen
-      </button>}
+
     </div>
     {edit?<form className="space-y-3" onSubmit={e=>{e.preventDefault();void save();}}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -111,10 +109,17 @@ export default function ObjectLocatieInline({object,onSave}:Props){
         .filter(key=>!!object[key]?.trim())
         .map(key=><div key={key}>
           <p className="field-label">{labels[key]}</p>
-          <p className="field-value mt-1.5">{object[key]}</p>
+          <EditableValueButton label={labels[key]} disabled={saving}
+            className="mt-1.5"
+            onClick={()=>{setConcept(locatieInvoerVanObject(object));setEdit(true);}}>
+            {object[key]}
+          </EditableValueButton>
         </div>)}
       {!object.adres&&!object.plaats&&!object.postcode&&
-        <p className="text-sm text-muted-foreground">Nog geen volledig adres vastgelegd.</p>}
+        <EditableValueButton label="Locatiegegevens" disabled={saving}
+          onClick={()=>{setConcept(locatieInvoerVanObject(object));setEdit(true);}}>
+          <span className="text-muted-foreground">Nog geen volledig adres vastgelegd.</span>
+        </EditableValueButton>}
     </div>}
   </div>;
 }
