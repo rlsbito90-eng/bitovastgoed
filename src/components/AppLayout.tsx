@@ -40,6 +40,7 @@ import NotificationsBell from "@/components/NotificationsBell";
 import NotificationsBellV2 from "@/components/NotificationsBellV2";
 import PullToRefresh from "@/components/PullToRefresh";
 import RefreshButton from "@/components/RefreshButton";
+import TaakFormDialog from "@/components/forms/TaakFormDialog";
 import { useAutoRefreshOnFocus } from "@/hooks/useAppRefresh";
 import {
   VR_WORKSPACE_NAV_ITEMS,
@@ -207,6 +208,7 @@ function GlobalSearch() {
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [nieuweTaakOpen,setNieuweTaakOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("bito.sidebar.collapsed") === "1";
@@ -333,13 +335,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <RefreshButton />
             <MatchAlertBadge />
             <ActiveNotificationsBell />
-            <Link to="/taken" className="btn-premium ml-2">
+            <button type="button" onClick={()=>setNieuweTaakOpen(true)} className="btn-premium ml-2"
+              aria-label="Nieuwe taak aanmaken">
               <Plus className="h-4 w-4" />
-              <span>Nieuw</span>
-            </Link>
+              <span>Nieuwe taak</span>
+            </button>
           </div>
         </header>
 
+        <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen}/>
         {IS_OFFLINE_PREVIEW && (
           <div role="status" className="sticky top-0 z-40 shrink-0 border-b border-amber-500/30 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">
             TESTOMGEVING · fictieve gegevens · uitsluitend lokaal in deze browser · geen verbinding met het echte CRM
