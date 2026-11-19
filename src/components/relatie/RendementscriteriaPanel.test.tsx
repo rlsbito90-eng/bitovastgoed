@@ -37,7 +37,7 @@ describe('Rendementscriteria: klik de criteriumwaarde rechtstreeks',()=>{
     fireEvent.click(row);
     expect(screen.getByLabelText('Berekeningsmethode')).toHaveValue('netto_onbekend');
     expect(screen.getByLabelText('Betekenis')).toHaveValue('minimum');
-    expect(screen.getByText('Berekeningsmethode nog verifiëren')).toBeTruthy();
+    expect(screen.getAllByText('Berekeningsmethode nog verifiëren')).toHaveLength(2);
     expect(p.onSave).not.toHaveBeenCalled();
   });
 
