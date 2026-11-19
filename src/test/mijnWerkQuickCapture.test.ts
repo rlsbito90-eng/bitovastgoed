@@ -60,7 +60,12 @@ describe('Taken — Quick Capture v2', () => {
 
   it('houdt Quick Capture eenvoudig en ondersteunt meervoudige CRM-koppelingen bij taak aanmaken en bewerken', () => {
     expect(capture).not.toContain('CRM-context koppelen');
-    expect(capture).not.toContain('replaceTaskLinks');
+    expect(capture).toContain('replaceTaskLinks');
+    expect(capture).toContain('pendingTaskIdRef.current');
+    expect(capture).toContain('TaskLinksPickerDialog');
+    expect(capture).toContain('relatieId: taskLinks.relatie[0]');
+    expect(capture).toContain('objectId: taskLinks.object[0]');
+    expect(capture).toContain('dealId: taskLinks.deal[0]');
     expect(taskForm).toContain('TaskLinksPickerDialog');
     expect(taskForm).toContain('replaceTaskLinks');
     expect(taskForm).toContain('taskLinkCount');
@@ -74,6 +79,7 @@ describe('Taken — Quick Capture v2', () => {
   it('blijft op Taken beschikbaar en elders compact via de CRM-shell', () => {
     expect(app).toContain('<QuickTaskCaptureDock />');
     expect(takenPage).toContain('<QuickTaskCapture');
+    expect(dock).toContain("location.pathname === '/'");
     expect(dock).toContain("location.pathname === '/taken'");
     expect(dock).toContain('return null');
     expect(capture).toContain('data-testid="quick-task-capture"');
