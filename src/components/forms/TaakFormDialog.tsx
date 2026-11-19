@@ -582,6 +582,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       {taskLinksOpen && (
         <TaskLinksPickerDialog
           open={taskLinksOpen}
+          title={isEdit ? 'Koppelingen bewerken' : 'Koppelingen kiezen'}
           onOpenChange={setTaskLinksOpen}
           value={taskLinks}
           onChange={handleTaskLinksChange}
