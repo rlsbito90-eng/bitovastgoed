@@ -21,7 +21,12 @@ vi.mock('@/hooks/usePropertyTaxonomie',()=>({
   }),
 }));
 vi.mock('@/components/TaxonomieBadges',()=>({
-  ClassificatieRij:()=> <p>Huidige classificatie</p>,
+  ClassificatieRij:({onEdit}:{onEdit?:()=>void})=><div>
+    <button type="button" aria-label="Wijzig Vastgoedtypen" onClick={onEdit}
+      disabled={!onEdit}>Huidige classificatie</button>
+    <button type="button" aria-label="Wijzig Subcategorieën" onClick={onEdit}
+      disabled={!onEdit}>Eengezinswoning</button>
+  </div>,
 }));
 const obj={
   id:'obj',type:'wonen',propertyTypeId:'t-woon',
@@ -29,11 +34,19 @@ const obj={
 } as ObjectVastgoed;
 const show=(o=obj,save=vi.fn().mockResolvedValue(undefined))=>{
   const result=render(<ObjectClassificatieInline object={o} onSave={save}/>);
-  fireEvent.click(screen.getByRole('button',{name:'Wijzigen'}));
+  fireEvent.click(screen.getByRole('button',{name:'Wijzig Vastgoedtypen'}));
   return {save,...result};
 };
 
 describe('Classificatie rechtstreeks op Objecten → Overzicht',()=>{
+  it('opent bij klik op vastgoedtype of subtype, zonder aparte Wijzigen-knop',()=>{
+    const {unmount}=render(<ObjectClassificatieInline object={obj} onSave={vi.fn()}/>);
+    expect(screen.queryByRole('button',{name:'Wijzigen'})).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Wijzig Subcategorieën'}));
+    expect(screen.getByLabelText('Type vastgoed')).toBeTruthy();
+    expect(screen.getByRole('button',{name:'Sluiten'})).toBeTruthy();
+    unmount();
+  });
   it('vraagt bevestiging vóór subcategorieën verdwijnen door hoofdtypewijziging',async()=>{
     const {save}=show();
     fireEvent.change(screen.getByLabelText('Type vastgoed'),{target:{value:'t-kantoor'}});
