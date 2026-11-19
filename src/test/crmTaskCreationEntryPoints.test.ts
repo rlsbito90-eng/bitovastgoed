@@ -24,8 +24,11 @@ describe('CRM-brede taakcreatie: zichtbare ingangen en één veilige opslagflow'
   it('heeft rechtstreekse taakingangen op Dashboard en in de globale header',()=>{
     expect(dashboard).toContain('setNieuweTaakOpen(true)');
     expect(dashboard).toContain('<TaakFormDialog open={nieuweTaakOpen}');
-    expect(app).toContain('aria-label="Nieuwe taak aanmaken"');
+    expect(app).toContain('aria-label="Nieuw item aanmaken"');
+    expect(app).toContain('onSelect={()=>setNieuweTaakOpen(true)}');
     expect(app).toContain('<TaakFormDialog open={nieuweTaakOpen}');
+    expect(app).toContain('onSelect={()=>setNieuweRelatieOpen(true)}');
+    expect(app).toContain('onSelect={()=>setNieuwObjectOpen(true)}');
     expect(app).not.toContain('<Link to="/taken" className="btn-premium ml-2">');
   });
 
