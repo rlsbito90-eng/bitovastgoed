@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link2 } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
+import { getRelatieNaamCompact } from '@/lib/relatieNaam';
 import type { TaskLinkEntityType } from '@/lib/tasks/links';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -54,13 +55,15 @@ export default function TaskLinksPickerDialog({
   onOpenChange,
   value,
   onChange,
+  title = 'Koppelingen bewerken',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   value: TaskLinkSelection;
   onChange: (next: TaskLinkSelection) => void;
+  title?: string;
 }) {
-  const { relaties, deals, objecten, getObjectById } = useDataStore();
+  const { relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const { data: signalen = [] } = useOffMarketSignalen();
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
@@ -77,7 +80,7 @@ export default function TaskLinksPickerDialog({
       label: 'Deals',
       rows: deals.map((d: any) => ({
         id: d.id,
-        label: getObjectById(d.objectId)?.titel || getObjectById(d.objectId)?.adres || d.titel || `Deal ${String(d.id).slice(0, 8)}`,
+        label: `${getObjectById(d.objectId)?.titel || getObjectById(d.objectId)?.adres || d.titel || 'Deal'} · ${getRelatieNaamCompact(getRelatieById(d.relatieId), contactpersonen)} · ${d.fase || 'onbekende fase'}`,
       })),
     },
     {
@@ -90,7 +93,7 @@ export default function TaskLinksPickerDialog({
       label: 'Radar-signalen',
       rows: signalen.map((s: any) => ({ id: s.id, label: s.titel || s.adres || s.omschrijving || 'Radar-signaal' })),
     },
-  ]), [relaties, deals, objecten, signalen, getObjectById]);
+  ]), [relaties, deals, objecten, signalen, getObjectById, getRelatieById, contactpersonen]);
 
   const toggle = (type: TaskLinkEntityType, id: string) => {
     const current = value[type];
@@ -104,7 +107,7 @@ export default function TaskLinksPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-1rem)] max-w-lg sm:w-full">
         <DialogHeader>
-          <DialogTitle>Koppelingen bewerken</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             Koppel één of meerdere relaties, deals, objecten en Radar-signalen aan deze taak.
           </DialogDescription>
