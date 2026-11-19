@@ -14,6 +14,7 @@ import {
   Building2, Landmark, Users as UsersIcon, Archive, ArchiveRestore,
 } from 'lucide-react';
 import DealFormDialog from '@/components/forms/DealFormDialog';
+import {InlineDossierTekst,InlineDossierKeuze} from '@/components/ui/inline-dossier-waarde';
 import ArchiveerDialog from '@/components/ArchiveerDialog';
 import RelatieNaamDisplay from '@/components/RelatieNaamDisplay';
 import { getRelatieNaamCompact } from '@/lib/relatieNaam';
@@ -81,7 +82,7 @@ export default function DealDetailPage() {
       <div className="flex flex-col gap-3 min-w-0">
         <div className="flex flex-wrap justify-end gap-2">
           <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors text-foreground">
-            <Pencil className="h-4 w-4" /> Bewerken
+            <Pencil className="h-4 w-4" /> Proces & commissie
           </button>
           {deal.isArchived ? (
             <button
@@ -140,7 +141,7 @@ export default function DealDetailPage() {
             <p className="text-sm text-muted-foreground mt-0.5">
               {deal.commissieBedrag != null
                 ? `Goed voor ${formatCurrency(deal.commissieBedrag)} commissie. Telt mee in je gerealiseerde commissie op het dashboard.`
-                : 'Vul de commissie in via Bewerken om hem mee te tellen op het dashboard.'}
+                : 'Vul de commissie in via Proces & commissie om hem mee te tellen op het dashboard.'}
             </p>
           </div>
         </div>
@@ -153,7 +154,7 @@ export default function DealDetailPage() {
             {deal.afwijzingsreden ? (
               <p className="text-sm text-muted-foreground mt-0.5">Reden: {deal.afwijzingsreden}</p>
             ) : (
-              <p className="text-sm text-muted-foreground mt-0.5">Vul de afwijzingsreden in via Bewerken — handig voor toekomstige analyse.</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Vul de afwijzingsreden direct in bij Notities — handig voor toekomstige analyse.</p>
             )}
           </div>
         </div>
@@ -167,14 +168,15 @@ export default function DealDetailPage() {
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
               <Field label="Trajectfase">{trajectfase?.name ?? 'Niet ingesteld'}</Field>
               <Field label="Interessegraad">
-                <span className="inline-flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-3.5 w-3.5 ${i < deal.interessegraad ? 'fill-accent text-accent' : 'text-muted-foreground/30'}`}
-                    />
-                  ))}
-                </span>
+                <InlineDossierKeuze label="Interessegraad" value={String(deal.interessegraad)}
+                  options={[1,2,3,4,5].map(n=>({value:String(n),label:`${n} van 5`}))}
+                  onSave={value=>store.updateDeal(deal.id,{interessegraad:Number(value)})}>
+                  <span className="inline-flex items-center gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className={`h-3.5 w-3.5 ${i < deal.interessegraad?'fill-accent text-accent':'text-muted-foreground/30'}`}/>
+                    ))}
+                  </span>
+                </InlineDossierKeuze>
               </Field>
               <Field label="Eerste contact">
                 <span className="tabular-nums">{formatDate(deal.datumEersteContact)}</span>
@@ -279,31 +281,39 @@ export default function DealDetailPage() {
                     {DD_STATUS_LABELS[deal.ddStatus]}
                   </Field>
                 )}
-                {deal.notaris && <Field label="Notaris">{deal.notaris}</Field>}
-                {deal.bank && <Field label="Bank">{deal.bank}</Field>}
+                {deal.notaris && <Field label="Notaris">
+                  <InlineDossierTekst key={deal.id+'-notaris'} label="Notaris"
+                    value={deal.notaris} onSave={notaris=>store.updateDeal(deal.id,{notaris})}/>
+                </Field>}
+                {deal.bank && <Field label="Bank">
+                  <InlineDossierTekst key={deal.id+'-bank'} label="Bank" value={deal.bank}
+                    onSave={bank=>store.updateDeal(deal.id,{bank})}/>
+                </Field>}
                 {deal.tegenpartijMakelaar && (
-                  <Field label="Tegenpartij makelaar">{deal.tegenpartijMakelaar}</Field>
+                  <Field label="Tegenpartij makelaar">
+                    <InlineDossierTekst key={deal.id+'-makelaar'} label="Tegenpartij makelaar"
+                      value={deal.tegenpartijMakelaar}
+                      onSave={tegenpartijMakelaar=>store.updateDeal(deal.id,{tegenpartijMakelaar})}/>
+                  </Field>
                 )}
               </div>
             </section>
           )}
 
-          {/* NOTITIES */}
-          {(deal.notities || (isAfgevallen && deal.afwijzingsreden)) && (
-            <section className="section-card p-5 sm:p-6 space-y-4">
-              <h2 className="section-title">Notities</h2>
-              {isAfgevallen && deal.afwijzingsreden && (
-                <Field label="Afwijzingsreden">
-                  <p className="whitespace-pre-wrap">{deal.afwijzingsreden}</p>
-                </Field>
-              )}
-              {deal.notities && (
-                <Field label="Algemeen">
-                  <p className="whitespace-pre-wrap">{deal.notities}</p>
-                </Field>
-              )}
-            </section>
-          )}
+          {/* NOTITIES: gewone tekst zonder het volledige dealformulier */}
+          <section className="section-card p-5 sm:p-6 space-y-4">
+            <h2 className="section-title">Notities</h2>
+            {isAfgevallen&&<Field label="Afwijzingsreden">
+              <InlineDossierTekst key={deal.id+'-afwijzingsreden'} label="Afwijzingsreden"
+                value={deal.afwijzingsreden} multiline emptyLabel="Klik om afwijzingsreden vast te leggen"
+                onSave={afwijzingsreden=>store.updateDeal(deal.id,{afwijzingsreden})}/>
+            </Field>}
+            <Field label="Algemeen">
+              <InlineDossierTekst key={deal.id+'-notities'} label="Dealnotities"
+                value={deal.notities} multiline emptyLabel="Klik om notities toe te voegen"
+                onSave={notities=>store.updateDeal(deal.id,{notities})}/>
+            </Field>
+          </section>
 
           {/* PRIMAIR OBJECT */}
           {object && (
