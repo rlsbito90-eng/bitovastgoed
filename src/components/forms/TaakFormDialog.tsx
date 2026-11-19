@@ -33,6 +33,7 @@ import TaskLinksPickerDialog, {
   countTaskLinks,
   EMPTY_TASK_LINK_SELECTION,
   taskLinkSelectionFromLegacy,
+  replacePrimaryTaskLink,
   type TaskLinkSelection,
 } from '@/components/tasks/TaskLinksPickerDialog';
 import EntityPicker, { type EntityPickerItem } from './EntityPicker';
@@ -114,6 +115,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
   const [defaultReminderMinutes, setDefaultReminderMinutes] = useState<number | null>(60);
   const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
   const [taskLinksOpen, setTaskLinksOpen] = useState(false);
+  const [linksDirty, setLinksDirty] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
   const isEdit = !!taak;
@@ -158,6 +160,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       offMarketSignaalId: taak?.offMarketSignaalId ?? defaultOffMarketSignaalId,
     });
     setTaskLinks(base);
+    setLinksDirty(false);
     if (!open || !taak?.id) return;
 
     let cancelled = false;
@@ -272,18 +275,34 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     return Array.from(ids);
   }, [deals, form.dealId, form.objectId]);
 
+  /** Eén bron voor primaire én aanvullende CRM-koppelingen tijdens aanmaken. */
+  const handleTaskLinksChange = (next: TaskLinkSelection) => {
+    setTaskLinks(next);
+    setLinksDirty(true);
+    if (!isEdit) {
+      setForm(prev => ({
+        ...prev,
+        relatieId: next.relatie[0] || '',
+        objectId: next.object[0] || '',
+        dealId: next.deal[0] || '',
+        offMarketSignaalId: next.signaal[0] || '',
+      }));
+    }
+  };
+
+  const changePrimaryLink = (type: 'relatie' | 'object', id: string) => {
+    handleTaskLinksChange(replacePrimaryTaskLink(taskLinks, type, id));
+  };
+
   const handleDealChange = (id: string) => {
-    setForm(prev => {
-      const next = { ...prev, dealId: id };
-      if (id) {
-        const d = deals.find(x => x.id === id);
-        if (d) {
-          if (!prev.relatieId) next.relatieId = d.relatieId;
-          if (!prev.objectId) next.objectId = d.objectId;
-        }
-      }
-      return next;
-    });
+    let next = replacePrimaryTaskLink(taskLinks, 'deal', id);
+    const selectedDeal = id ? deals.find(d => d.id === id) : null;
+    // Een deal hoort bij een object. De relatie uit een legacy-deal kan echter
+    // de verkoper zijn; die wordt daarom niet ongevraagd als koper gekoppeld.
+    if (selectedDeal && next.object.length === 0) {
+      next = replacePrimaryTaskLink(next, 'object', selectedDeal.objectId);
+    }
+    handleTaskLinksChange(next);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -295,14 +314,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     }
     setBezig(true);
 
-    const selectedLinks = isEdit
-      ? taskLinks
-      : taskLinkSelectionFromLegacy({
-          relatieId: form.relatieId,
-          dealId: form.dealId,
-          objectId: form.objectId,
-          offMarketSignaalId: form.offMarketSignaalId,
-        });
+    const selectedLinks = taskLinks;
 
     const data = {
       titel: form.titel.trim(),
@@ -362,7 +374,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     ...(key === 'deadline' && !val ? { deadlineTijd: '' } : {}),
   }));
 
-  const dirtyState = useMemo(() => ({ ...form, reminderSelection }), [form, reminderSelection]);
+  const dirtyState = useMemo(() => ({ ...form, reminderSelection, linksDirty }), [form, reminderSelection, linksDirty]);
   const { guardedOnOpenChange } = useFormDirtyGuard(open, dirtyState, onOpenChange);
   const hasExactDeadline = Boolean(form.deadline && form.deadlineTijd);
   const taskLinkCount = countTaskLinks(taskLinks);
@@ -407,6 +419,77 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
             </section>
 
             <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
+              {isEdit ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/30 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {taskLinkCount ? `${taskLinkCount} gekoppeld` : 'Geen CRM-koppelingen'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Relaties, deals, objecten en Radar-signalen kunnen hier meervoudig worden gekoppeld.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setTaskLinksOpen(true)}>
+                    <Link2 className="mr-1.5 h-4 w-4" /> Beheren
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <EntityPicker
+                    label="Relatie"
+                    pickerTitle="Kies relatie"
+                    searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
+                    emptyLabel="Geen gekoppelde relatie"
+                    value={taskLinks.relatie[0] || ''}
+                    onChange={(id) => changePrimaryLink('relatie', id)}
+                    items={relatieItems}
+                    relevantIds={relevantRelatieIds}
+                    relevantLabel="Relevant voor selectie"
+                    recentIds={readRecent('relatie')}
+                  />
+                  <EntityPicker
+                    label="Object"
+                    pickerTitle="Kies object"
+                    searchPlaceholder="Zoek op adres, plaats, type…"
+                    emptyLabel="Geen gekoppeld object"
+                    value={taskLinks.object[0] || ''}
+                    onChange={(id) => changePrimaryLink('object', id)}
+                    items={objectItemsActief}
+                    archivedItems={objectItemsArchief}
+                    relevantIds={relevantObjectIds}
+                    relevantLabel="Relevant voor selectie"
+                    recentIds={readRecent('object')}
+                  />
+                  <EntityPicker
+                    label="Deal"
+                    pickerTitle="Kies deal"
+                    searchPlaceholder="Zoek op object, relatie, fase…"
+                    emptyLabel="Geen gekoppelde deal"
+                    value={taskLinks.deal[0] || ''}
+                    onChange={handleDealChange}
+                    items={dealItemsActief}
+                    archivedItems={dealItemsArchief}
+                    relevantIds={relevantDealIds}
+                    relevantLabel="Relevant voor selectie"
+                    recentIds={readRecent('deal')}
+                  />
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/30 p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">Extra koppelingen</p>
+                      <p className="text-xs text-muted-foreground">
+                        {taskLinkCount ? `${taskLinkCount} gekoppeld` : 'Nog geen koppelingen'} · Voeg meerdere dossiers of Radar-signalen toe.
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setTaskLinksOpen(true)}>
+                      <Link2 className="mr-1.5 h-4 w-4" /> Meer kiezen
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="space-y-3">
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
                 <p className="mt-1 text-xs text-muted-foreground">Deadline en herinnering zijn afzonderlijk. Met een tijdstip kan Bito CRM de melding vooraf exact server-side plannen.</p>
@@ -445,66 +528,6 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
                       : 'Zonder tijdstip is alleen een dagmelding mogelijk. Kies een tijd om minuten/uren vooraf in te stellen.'}
                 </p>
               </div>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
-              {isEdit ? (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/30 p-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {taskLinkCount ? `${taskLinkCount} gekoppeld` : 'Geen CRM-koppelingen'}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Relaties, deals, objecten en Radar-signalen kunnen hier meervoudig worden gekoppeld.
-                    </p>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setTaskLinksOpen(true)}>
-                    <Link2 className="mr-1.5 h-4 w-4" /> Beheren
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <EntityPicker
-                    label="Relatie"
-                    pickerTitle="Kies relatie"
-                    searchPlaceholder="Zoek op bedrijf, contactpersoon, e-mail…"
-                    emptyLabel="Geen gekoppelde relatie"
-                    value={form.relatieId}
-                    onChange={(id) => set('relatieId', id)}
-                    items={relatieItems}
-                    relevantIds={relevantRelatieIds}
-                    relevantLabel="Relevant voor selectie"
-                    recentIds={readRecent('relatie')}
-                  />
-                  <EntityPicker
-                    label="Object"
-                    pickerTitle="Kies object"
-                    searchPlaceholder="Zoek op adres, plaats, type…"
-                    emptyLabel="Geen gekoppeld object"
-                    value={form.objectId}
-                    onChange={(id) => set('objectId', id)}
-                    items={objectItemsActief}
-                    archivedItems={objectItemsArchief}
-                    relevantIds={relevantObjectIds}
-                    relevantLabel="Relevant voor selectie"
-                    recentIds={readRecent('object')}
-                  />
-                  <EntityPicker
-                    label="Deal"
-                    pickerTitle="Kies deal"
-                    searchPlaceholder="Zoek op object, relatie, fase…"
-                    emptyLabel="Geen gekoppelde deal"
-                    value={form.dealId}
-                    onChange={handleDealChange}
-                    items={dealItemsActief}
-                    archivedItems={dealItemsArchief}
-                    relevantIds={relevantDealIds}
-                    relevantLabel="Relevant voor selectie"
-                    recentIds={readRecent('deal')}
-                  />
-                </div>
-              )}
             </section>
 
             <section className="space-y-3">
@@ -556,14 +579,15 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
         </AlertDialog>
       </Dialog>
 
-      {isEdit ? (
+      {taskLinksOpen && (
         <TaskLinksPickerDialog
           open={taskLinksOpen}
+          title={isEdit ? 'Koppelingen bewerken' : 'Koppelingen kiezen'}
           onOpenChange={setTaskLinksOpen}
           value={taskLinks}
-          onChange={setTaskLinks}
+          onChange={handleTaskLinksChange}
         />
-      ) : null}
+      )}
     </>
   );
 }
