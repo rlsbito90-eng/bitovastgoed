@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
+import EditableValueButton from '@/components/ui/editable-value-button';
+import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import { toast } from 'sonner';
 import type { Zoekprofiel } from '@/data/mock-data';
 import type { Rendementscriterium, Rendementsinvoer, RendementMethode,
@@ -39,15 +41,22 @@ export default function RendementscriteriaPanel({
   const [busy,setBusy]=useState(false);
   const lastRef=useRef('');
   const active=criteria.filter(x=>x.status==='actief');
+  const {confirmDiscard}=useDirtyGuard(editing!==null&&dirty);
 
   function start(c?:Rendementscriterium){
-    setEditing(c?.id??'nieuw');
+    const target=c?.id??'nieuw';
+    if(busy||target===editing||(editing!==null&&!confirmDiscard()))return;
+    setEditing(target);
     setDraft(c?{strategie:c.strategie,methode:c.methode,percentage:String(c.percentage),
       criteriumType:c.criteriumType,methodeBevestigd:c.methodeBevestigd,
       zoekprofielId:c.zoekprofielId,toelichting:c.toelichting,bron:c.bron}:{...nieuw});
     setDirty(false);setStatus('klaar');lastRef.current='';
   }
   function wijzig(p:Partial<Draft>){setDraft(d=>({...d,...p}));setDirty(true);setStatus('bezig');}
+  function sluit(){
+    if(busy||!confirmDiscard())return;
+    setEditing(null);setDirty(false);
+  }
   async function bewaar(d:Draft,id?:string) {
     const percentage=d.percentage.trim()===''?NaN:Number(d.percentage.replace(',','.'));
     if(!Number.isFinite(percentage)||percentage<0||percentage>1000) {
@@ -93,24 +102,21 @@ export default function RendementscriteriaPanel({
       {!loading&&active.length===0&&editing!=='nieuw'&&
         <p className="px-5 py-4 text-sm text-muted-foreground">Nog geen rendementscriteria vastgelegd.</p>}
       {active.map(c=><div key={c.id} className="px-5 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">{STRATEGIEEN[c.strategie]} · {c.percentage.toLocaleString('nl-NL')}%</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {TYPES[c.criteriumType]} · {METHODEN[c.methode]}
-            </p>
-            {(!c.methodeBevestigd||c.methode==='onbekend'||c.methode==='netto_onbekend')&&
-              <p className="text-xs text-muted-foreground mt-1">Berekeningsmethode nog verifiëren</p>}
-            {c.toelichting&&<p className="text-xs text-muted-foreground mt-1">{c.toelichting}</p>}
-          </div>
-          <button type="button" aria-label="Rendementscriterium bewerken" onClick={()=>start(c)}
-            className="rounded border border-border p-2 text-muted-foreground hover:text-accent">
-            <Pencil className="h-3.5 w-3.5"/>
-          </button>
-        </div>
+        <EditableValueButton
+          label={`rendementscriterium ${STRATEGIEEN[c.strategie]}, ${c.percentage.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})}%, ${TYPES[c.criteriumType]}, ${METHODEN[c.methode]}`}
+          onClick={()=>start(c)} disabled={busy||editing===c.id}
+          multiline className="!items-start">
+          <span className="block font-medium">{STRATEGIEEN[c.strategie]} · {c.percentage.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})}%</span>
+          <span className="block mt-1 text-xs text-muted-foreground">
+            {TYPES[c.criteriumType]} · {METHODEN[c.methode]}
+          </span>
+          {(!c.methodeBevestigd||c.methode==='onbekend'||c.methode==='netto_onbekend')&&
+            <span className="block mt-1 text-xs text-muted-foreground">Berekeningsmethode nog verifiëren</span>}
+          {c.toelichting&&<span className="block mt-1 text-xs text-muted-foreground">{c.toelichting}</span>}
+        </EditableValueButton>
         {editing===c.id&&<Editor draft={draft} wijzig={wijzig} zoekprofielen={zoekprofielen}
           status={status} busy={busy} onSave={()=>void bewaar(draft,c.id)}
-          onClose={()=>setEditing(null)} onDelete={async()=>{
+          onClose={sluit} onDelete={async()=>{
             try{await onDelete(c.id);setEditing(null);toast.success('Criterium gearchiveerd');}
             catch(e){toast.error(e instanceof Error?e.message:'Verwijderen mislukt');}
           }}/>}
@@ -118,7 +124,7 @@ export default function RendementscriteriaPanel({
       {editing==='nieuw'&&<div className="px-5 py-4">
         <p className="text-sm font-medium mb-3">Nieuw rendementscriterium</p>
         <Editor draft={draft} wijzig={wijzig} zoekprofielen={zoekprofielen} status={status}
-          busy={busy} onSave={()=>void bewaar(draft)} onClose={()=>setEditing(null)}/>
+          busy={busy} onSave={()=>void bewaar(draft)} onClose={sluit}/>
       </div>}
     </div>
   </section>;

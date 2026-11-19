@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { NumberField } from '@/components/ui/number-field';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Pencil, X, Check } from 'lucide-react';
+import { Plus, Trash2, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -76,12 +76,14 @@ export default function HuurdersPanel({ objectId }: Props) {
         )}
         {huurders.map(h => (
           <div key={h.id} className="border border-border rounded-md p-3 flex items-start justify-between gap-3 bg-card">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-medium text-foreground">{h.huurderNaam}</p>
+            <button type="button" onClick={()=>openEdit(h)}
+              aria-label={`Wijzig huurder ${h.huurderNaam}`}
+              className="min-w-0 min-h-11 flex-1 rounded-md px-2 -mx-2 py-1 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+              <span className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-foreground">{h.huurderNaam}</span>
                 {h.branche && <span className="text-xs text-muted-foreground">· {h.branche}</span>}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-0.5 mt-1 text-xs text-muted-foreground">
+              </span>
+              <span className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-0.5 mt-1 text-xs text-muted-foreground">
                 {h.oppervlakteM2 != null && <span>{formatM2(h.oppervlakteM2)}</span>}
                 {h.jaarhuur != null && <span className="font-mono">{formatCurrency(h.jaarhuur)}/jr</span>}
                 {h.ingangsdatum && <span>Ingang: {formatDate(h.ingangsdatum)}</span>}
@@ -93,17 +95,9 @@ export default function HuurdersPanel({ objectId }: Props) {
                     {h.indexatieBasis === 'vast_pct' && h.indexatiePct != null && ` (${h.indexatiePct}%)`}
                   </span>
                 )}
-              </div>
-            </div>
+              </span>
+            </button>
             <div className="flex gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => openEdit(h)}
-                className="p-1.5 hover:bg-muted rounded transition-colors"
-                aria-label="Bewerken"
-              >
-                <Pencil className="h-4 w-4 text-muted-foreground" />
-              </button>
               <button
                 type="button"
                 onClick={() => handleDelete(h.id)}
