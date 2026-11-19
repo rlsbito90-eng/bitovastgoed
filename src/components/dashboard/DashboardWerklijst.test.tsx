@@ -7,16 +7,13 @@ import type { Taak } from '@/data/mock-data';
 import DashboardWerklijst, { werklijstZichtbaarheid } from './DashboardWerklijst';
 import DashboardKengetallen from './DashboardKengetallen';
 
-vi.mock('@/components/tasks/QuickTaskCapture', () => ({
-  default: ({ defaultTarget }: { defaultTarget: string }) => <div data-testid="quick-capture">{defaultTarget}</div>,
-}));
-
 const taken = (prefix: string, n: number) =>
   Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}`, titel: `${prefix} ${i}` }) as unknown as Taak);
 const renderTask = (t: Taak) => <div key={t.id} data-testid="rij">{t.titel}</div>;
 
+const newTask = vi.fn();
 const renderLijst = (groups: { achterstallig: Taak[]; doorgeschoven: Taak[]; vandaag: Taak[] }) =>
-  render(<MemoryRouter><DashboardWerklijst groups={groups} renderTask={renderTask} /></MemoryRouter>);
+  render(<MemoryRouter><DashboardWerklijst groups={groups} renderTask={renderTask} onNewTask={newTask} /></MemoryRouter>);
 
 describe('DashboardWerklijst', () => {
   it('heet Mijn werkzaamheden', () => {
@@ -98,10 +95,13 @@ describe('DashboardWerklijst', () => {
     expect(screen.getByTestId('werklijst-groep-vandaag')).toBeTruthy();
   });
 
-  it('zonder werk: melding plus snelinvoer voor vandaag', () => {
+  it('zonder werk blijft alleen de compacte actie in de werklijstkop zichtbaar', () => {
+    newTask.mockClear();
     renderLijst({ achterstallig: [], doorgeschoven: [], vandaag: [] });
     expect(screen.getByText('Niets gepland voor vandaag.')).toBeTruthy();
-    expect(screen.getByTestId('quick-capture').textContent).toBe('today');
+    expect(screen.queryByTestId('quick-capture')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Nieuwe taak aanmaken'}));
+    expect(newTask).toHaveBeenCalledOnce();
   });
 });
 
