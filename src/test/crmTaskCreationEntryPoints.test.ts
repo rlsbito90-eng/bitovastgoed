@@ -26,7 +26,11 @@ describe('CRM-brede taakcreatie: zichtbare ingangen en één veilige opslagflow'
     expect(dashboard).toContain('<TaakFormDialog open={nieuweTaakOpen}');
     expect(app).toContain('aria-label="Nieuw item aanmaken"');
     expect(app).toContain('onSelect={()=>setNieuweTaakOpen(true)}');
-    expect(app).toContain('<TaakFormDialog open={nieuweTaakOpen}');
+    // AppLayout-tests renderen zonder DataStoreProvider. De dialogen mogen geen hooks
+    // uitvoeren totdat de gebruiker ze daadwerkelijk opent.
+    expect(app).toContain('{nieuweTaakOpen&&<TaakFormDialog open={nieuweTaakOpen}');
+    expect(app).toContain('{nieuweRelatieOpen&&<QuickCreateRelationDialog');
+    expect(app).toContain('{nieuwObjectOpen&&<ObjectQuickCreateDialog');
     expect(app).toContain('onSelect={()=>setNieuweRelatieOpen(true)}');
     expect(app).toContain('onSelect={()=>setNieuwObjectOpen(true)}');
     expect(app).not.toContain('<Link to="/taken" className="btn-premium ml-2">');
