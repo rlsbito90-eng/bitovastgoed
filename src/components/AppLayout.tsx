@@ -365,10 +365,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen}/>
-        <QuickCreateRelationDialog open={nieuweRelatieOpen} onOpenChange={setNieuweRelatieOpen}
-          onCreated={relatie=>{setNieuweRelatieOpen(false);navigate(`/relaties/${relatie.id}`);}}/>
-        <ObjectQuickCreateDialog open={nieuwObjectOpen} onOpenChange={setNieuwObjectOpen}/>
+        {nieuweTaakOpen&&<TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen}/>}
+        {nieuweRelatieOpen&&<QuickCreateRelationDialog open={nieuweRelatieOpen} onOpenChange={setNieuweRelatieOpen}
+          onCreated={relatie=>{setNieuweRelatieOpen(false);navigate(`/relaties/${relatie.id}`);}}/>}
+        {nieuwObjectOpen&&<ObjectQuickCreateDialog open={nieuwObjectOpen} onOpenChange={setNieuwObjectOpen}/>}
         {IS_OFFLINE_PREVIEW && (
           <div role="status" className="sticky top-0 z-40 shrink-0 border-b border-amber-500/30 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100">
             TESTOMGEVING · fictieve gegevens · uitsluitend lokaal in deze browser · geen verbinding met het echte CRM
