@@ -11,8 +11,9 @@ export default function QuickTaskCaptureDock() {
     setOpen(false);
   }, [location.pathname]);
 
-  // Taken heeft een eigen zwevende Quick Capture. Taakdetail blijft bewust rustig.
-  if (location.pathname === '/taken' || location.pathname.startsWith('/taken/')) return null;
+  // Op het Dashboard staat één taakactie bij Mijn werkzaamheden;
+  // Taken heeft een eigen Quick Capture. De vaste dock zou daar dubbel zijn.
+  if (location.pathname === '/' || location.pathname === '/taken' || location.pathname.startsWith('/taken/')) return null;
 
   return (
     <div
