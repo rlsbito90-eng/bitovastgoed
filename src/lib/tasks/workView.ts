@@ -84,8 +84,19 @@ export function isTaskInTodayView(
 }
 
 export function taskWorkDate(task: Taak, planning: TaskPlanningMeta): string | null {
-  if (planning.planningBucket !== 'open') return null;
+  // Ook legacy Inbox/Later-taken met een toekomstige harde deadline horen in Komend.
   return planning.planDatum || task.deadline || null;
+}
+
+/** Één overzicht voor nog niet ingeplande taken, ook bij oude buckets. */
+export function isTaskUnplanned(
+  task: Taak,
+  planning: TaskPlanningMeta,
+  now: Date,
+): boolean {
+  if (!isOpenTaskStatus(task.status) || task.status === 'wacht_op_reactie') return false;
+  if (isTaskInTodayView(task, planning, now) || isTaskUpcoming(task, planning, now)) return false;
+  return !planning.planDatum;
 }
 
 export function isTaskUpcoming(
