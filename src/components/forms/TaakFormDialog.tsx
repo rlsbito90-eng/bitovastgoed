@@ -117,7 +117,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   const [form, setForm] = useState(emptyForm);
   const [reminderSelection, setReminderSelection] = useState<TaskReminderSelection>('default');
   const [defaultReminderMinutes, setDefaultReminderMinutes] = useState<number | null>(60);
-  const [workPlan,setWorkPlan] = useState<ManualTaskPlanning>({planDatum:null,planTijd:null,planningBucket:'open'});
+  const [workPlan,setWorkPlan] = useState<ManualTaskPlanning>({planDatum:null,planTijd:null,planningBucket:'open',reminderMode:'none'});
   const [workPlanLoaded,setWorkPlanLoaded] = useState(true);
   const [workPlanError,setWorkPlanError] = useState<string|null>(null);
   const [workPlanDirty,setWorkPlanDirty] = useState(false);
@@ -216,7 +216,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
       pendingCreatedTaskId.current=null;
       return;
     }
-    setWorkPlan({planDatum:null,planTijd:null,planningBucket:'open'});
+    setWorkPlan({planDatum:null,planTijd:null,planningBucket:'open',reminderMode:'none'});
     setWorkPlanDirty(false);
     setWorkPlanError(null);
     setWorkPlanLoaded(!taak?.id);
@@ -229,6 +229,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
           planDatum:row.planDatum,
           planTijd:row.planTijd,
           planningBucket:row.planningBucket,
+          reminderMode:row.reminderMode,
         });
         setWorkPlanLoaded(true);
       })
