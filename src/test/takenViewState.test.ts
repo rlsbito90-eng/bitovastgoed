@@ -30,6 +30,13 @@ describe('takenViewState', () => {
     });
   });
 
+  it('herkent oude Inbox/Openstaand/Later tabs als Niet ingepland', () => {
+    for (const tab of ['inbox','openstaand','later']) {
+      sessionStorage.setItem('crm:taken:view-state:v3',JSON.stringify({tab}));
+      expect(loadTakenViewState().tab).toBe('ongepland');
+    }
+  });
+
   it('accepteert geen onbekende enumwaarden uit sessionStorage', () => {
     sessionStorage.setItem('crm:taken:view-state:v3', JSON.stringify({
       zoek: 'x',
