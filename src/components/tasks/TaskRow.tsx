@@ -62,13 +62,9 @@ export default function TaskRow({
   if (rel) context.push(relatieNaam ?? '');
   if (obj?.titel) context.push(obj.titel);
 
-  const planningLabel = planning.planningBucket === 'inbox'
-    ? 'Inbox'
-    : planning.planningBucket === 'later'
-      ? 'Later'
-      : planning.planDatum
-        ? planDateLabel(planning.planDatum, today, isTaskRolledOver(task, planning, now))
-        : !task.deadline ? 'Openstaand' : null;
+  const planningLabel = planning.planDatum
+    ? planDateLabel(planning.planDatum, today, isTaskRolledOver(task, planning, now))
+    : !task.deadline ? 'Niet ingepland' : null;
 
   const toggleSelection = () => onToggleSelection?.(task.id);
 
@@ -122,9 +118,7 @@ export default function TaskRow({
                 <DropdownMenuItem onClick={event => actions.planAfterDays(event as any, task, 0)}>Vandaag</DropdownMenuItem>
                 <DropdownMenuItem onClick={event => actions.planAfterDays(event as any, task, 1)}>Morgen</DropdownMenuItem>
                 <DropdownMenuItem onClick={event => actions.planAfterDays(event as any, task, 7)}>Over een week</DropdownMenuItem>
-                <DropdownMenuItem onClick={event => actions.updatePlanning(event as any, task, { planningBucket: 'open', planDatum: null }, 'Verplaatst naar Openstaand')}>Openstaand</DropdownMenuItem>
-                <DropdownMenuItem onClick={event => actions.updatePlanning(event as any, task, { planningBucket: 'inbox', planDatum: null }, 'Verplaatst naar Inbox')}>Inbox</DropdownMenuItem>
-                <DropdownMenuItem onClick={event => actions.updatePlanning(event as any, task, { planningBucket: 'later', planDatum: null }, 'Verplaatst naar Later')}>Later</DropdownMenuItem>
+                <DropdownMenuItem onClick={event => actions.updatePlanning(event as any, task, { planningBucket: 'open', planDatum: null }, 'Niet ingepland')}>Niet ingepland</DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>}
               {rel && <DropdownMenuItem asChild><Link to={`/relaties/${rel.id}`} onClick={event => event.stopPropagation()}><ExternalLink className="h-4 w-4 mr-2" /> Open relatie</Link></DropdownMenuItem>}
