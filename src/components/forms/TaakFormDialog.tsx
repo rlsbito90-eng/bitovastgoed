@@ -445,14 +445,14 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
           <DialogHeader>
             <DialogTitle>{isEdit ? 'Taak bewerken' : 'Nieuwe taak'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basis</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Taakgegevens</h3>
               <div className="space-y-1.5">
                 <Label>Titel *</Label>
                 <Input value={form.titel} onChange={e => set('titel', e.target.value)} placeholder="Wat moet er gedaan worden?" />
               </div>
-              <div className="grid sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label>Type</Label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
@@ -468,13 +468,21 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                     <option value="urgent">Urgent</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="col-span-2 sm:col-span-1 space-y-1.5">
                   <Label>Status</Label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
                     {TAAK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
               </div>
+            </section>
+
+            <section className="space-y-3">
+              <TaakWerkplanningVelden value={workPlan} onChange={handleWorkPlanChange}
+                disabled={!workPlanLoaded||bezig}/>
+              {!workPlanLoaded&&<p role="status" className="text-xs text-muted-foreground">
+                {workPlanError || 'Bestaande werkplanning laden…'}
+              </p>}
             </section>
 
             <section className="space-y-3">
@@ -536,19 +544,14 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               )}
             </section>
 
-            <section className="space-y-4">
-              <TaakWerkplanningVelden value={workPlan} onChange={handleWorkPlanChange}
-                disabled={!workPlanLoaded||bezig}/>
-              {!workPlanLoaded&&<p role="status" className="text-xs text-muted-foreground">
-                {workPlanError || 'Bestaande werkplanning laden…'}
-              </p>}
-              <div className="border-t border-border/60 pt-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Harde deadline</h3>
-                <p className="mt-1 text-xs text-muted-foreground">Alleen voor een echte uiterste datum. Een werkdatum hierboven is geen deadline.</p>
+            <section className="space-y-3">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Uiterste datum</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Optioneel. Alleen als de taak een harde deadline heeft.</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Uiterste datum (optioneel)</Label>
+                  <Label>Datum (optioneel)</Label>
                   <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
@@ -572,13 +575,9 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                     <option key={minutes} value={String(minutes)}>{formatReminderOffset(minutes)}</option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground">
-                  {!form.deadline
-                    ? 'Alleen bij een harde deadline kun je deze melding instellen.'
-                    : hasExactDeadline
-                      ? 'De server plant deze herinnering direct bij het opslaan; de deadline zelf verandert niet.'
-                      : 'Zonder tijdstip is alleen een dagmelding mogelijk. Kies een tijd om minuten/uren vooraf in te stellen.'}
-                </p>
+                {form.deadline && !hasExactDeadline && (
+                  <p className="text-xs text-muted-foreground">Zonder tijdstip wordt de melding op de geselecteerde dag verstuurd.</p>
+                )}
               </div>
             </section>
 
@@ -587,7 +586,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} placeholder="Optionele context, opvolging, aanvullende info…" />
             </section>
 
-            <div className="flex justify-between items-center gap-2 pt-2 border-t border-border">
+            <div className="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-border">
               <div>
                 {isEdit && (
                   <Button
