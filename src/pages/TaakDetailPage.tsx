@@ -187,12 +187,14 @@ export default function TaakDetailPage() {
               <Calendar className="h-3.5 w-3.5" />
               <span>{planningDateLabel(planning.planDatum)}</span>
             </span>
-          ) : !taak.deadline ? (
+          ) : (
             <span className="inline-flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              <span>Niet gepland</span>
+              <span>{planning?.planningBucket === 'inbox' ? 'Inbox'
+                : planning?.planningBucket === 'later' ? 'Later'
+                : planning ? 'Openstaand' : 'Planning onbekend'}</span>
             </span>
-          ) : null}
+          )}
           {planTijd && (
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />{planTijd}
