@@ -565,7 +565,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Melding</Label>
+                <Label>Herinnering bij deadline</Label>
                 <select
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
                   value={reminderSelection}
