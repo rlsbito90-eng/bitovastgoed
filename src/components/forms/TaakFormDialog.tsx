@@ -319,15 +319,13 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   const handleTaskLinksChange = (next: TaskLinkSelection) => {
     setTaskLinks(next);
     setLinksDirty(true);
-    if (!isEdit) {
-      setForm(prev => ({
-        ...prev,
-        relatieId: next.relatie[0] || '',
-        objectId: next.object[0] || '',
-        dealId: next.deal[0] || '',
-        offMarketSignaalId: next.signaal[0] || '',
-      }));
-    }
+    setForm(prev => ({
+      ...prev,
+      relatieId: next.relatie[0] || '',
+      objectId: next.object[0] || '',
+      dealId: next.deal[0] || '',
+      offMarketSignaalId: next.signaal[0] || '',
+    }));
   };
 
   const changePrimaryLink = (type: 'relatie' | 'object', id: string) => {
@@ -487,14 +485,6 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
 
             <section className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
-              {isEdit ? (
-                <button type="button" onClick={() => setTaskLinksOpen(true)}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-md px-2 text-sm text-accent hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Link2 className="h-4 w-4" />
-                  Koppelingen beheren
-                  <span className="text-xs text-muted-foreground">· {taskLinkCount} gekoppeld</span>
-                </button>
-              ) : (
                 <div className="space-y-3">
                   <EntityPicker
                     label="Relatie"
@@ -541,7 +531,6 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                     {taskLinkCount > 0 && <span className="text-xs text-muted-foreground">· {taskLinkCount} gekoppeld</span>}
                   </button>
                 </div>
-              )}
             </section>
 
             <section className="space-y-3">
