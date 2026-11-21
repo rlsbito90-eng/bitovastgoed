@@ -49,7 +49,10 @@ export async function updateTaskPlanning(
   patch: { planDatum?: string | null; planTijd?: string | null; planningBucket?: TaskPlanningBucket; reminderMode?: WorkReminderMode },
 ): Promise<void> {
   const payload: Record<string, unknown> = {};
-  if (patch.planDatum !== undefined) payload.plan_datum = patch.planDatum;
+  if (patch.planDatum !== undefined) {
+    payload.plan_datum = patch.planDatum;
+    if(patch.planDatum===null && patch.planTijd===undefined) payload.plan_tijd = null;
+  }
   if (patch.planTijd !== undefined) payload.plan_tijd = patch.planTijd;
   if (patch.planningBucket !== undefined) payload.planning_bucket = patch.planningBucket;
   if (patch.reminderMode !== undefined) payload.plan_reminder_mode = patch.reminderMode;
