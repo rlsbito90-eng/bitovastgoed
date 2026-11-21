@@ -49,9 +49,9 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
       Werkplanning
     </legend>
     <p className="text-xs text-muted-foreground">
-      Wanneer wil je eraan werken? Dit is geen harde deadline. Geplande taken komen automatisch in je werklijst.
+      Kies wanneer je aan de taak wilt werken. Dit is geen deadline.
     </p>
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
       {OPTIONS.map(option=><button key={option.id} type="button"
         aria-pressed={selected===option.id}
         onClick={()=>onChange(workPlanForChoice(option.id))}
