@@ -22,14 +22,18 @@ describe('Taken: koppelingen bij aanmaken',()=>{
 
   it('maakt CRM-koppelingen zichtbaar vóór planning en toont meervoudig kiezen bij create',()=>{
     const koppelingen = source.indexOf('>Koppelingen</h3>');
-    const planning = source.indexOf('>Planning</h3>');
+    const planning = source.indexOf('<TaakWerkplanningVelden');
     expect(koppelingen).toBeGreaterThan(0);
-    expect(koppelingen).toBeLessThan(planning);
+    expect(planning).toBeLessThan(koppelingen);
     expect(source).toContain('>Meerdere koppelen</span>');
     expect(source).not.toContain('>Extra koppelingen</p>');
     expect(source).toContain('label="Relatie"');
     expect(source).toContain('label="Object"');
     expect(source).toContain('label="Deal"');
+    expect(source).not.toContain('Koppelingen beheren');
+    expect(source).toContain("onChange={(id) => changePrimaryLink('relatie', id)}");
+    expect(source).toContain('const handleTaskLinksChange = (next: TaskLinkSelection) => {');
+    expect(source).toContain('setForm(prev => ({');
   });
 
   it('bewaart aanvullende koppelingen bij het wijzigen van de primaire selectie',()=>{

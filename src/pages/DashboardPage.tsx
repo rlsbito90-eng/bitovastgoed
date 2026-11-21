@@ -174,7 +174,11 @@ export default function DashboardPage() {
         ])}
       />
       <TaakAfrondenDialog open={!!afrondenTaak} onOpenChange={value => { if (!value) setAfrondenTaak(null); }} taak={afrondenTaak} />
-      <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen} />
+      <TaakFormDialog open={nieuweTaakOpen} onOpenChange={setNieuweTaakOpen}
+        onSaved={()=>{
+          void listTaskPlanning().then(setPlanningRows)
+            .catch(error=>console.error('Dashboard taakplanning vernieuwen mislukt',error));
+        }} />
     </div>
   );
 }

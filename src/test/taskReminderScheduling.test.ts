@@ -91,7 +91,7 @@ describe('task reminder scheduling', () => {
   });
 
   it('slaat taak en reminder in één databasewrite op', () => {
-    expect(taskForm).toContain('createManualTaskWithReminder(data)');
+    expect(taskForm).toContain('createManualTaskWithReminder(data,workPlan)');
     expect(taskForm).toContain('updateManualTaskWithReminder(taak.id, data)');
     expect(taskForm).toContain('Standaard (');
     expect(taskForm).toContain('TASK_REMINDER_OFFSETS');
