@@ -1,6 +1,6 @@
 import type { TaakPrioriteit, TaakStatus } from '@/data/mock-data';
 
-export type TakenTab = 'inbox' | 'vandaag' | 'komend' | 'openstaand' | 'later' | 'wachten' | 'alles' | 'afgerond';
+export type TakenTab = 'vandaag' | 'komend' | 'ongepland' | 'wachten' | 'alles' | 'afgerond';
 
 export interface TakenViewState {
   zoek: string;
@@ -11,7 +11,7 @@ export interface TakenViewState {
 }
 
 const KEY = 'crm:taken:view-state:v3';
-const TABS = new Set<TakenTab>(['inbox', 'vandaag', 'komend', 'openstaand', 'later', 'wachten', 'alles', 'afgerond']);
+const TABS = new Set<TakenTab>(['vandaag', 'komend', 'ongepland', 'wachten', 'alles', 'afgerond']);
 const PRIORITEITEN = new Set(['urgent', 'hoog', 'normaal', 'laag']);
 const STATUSSEN = new Set(['open', 'wacht_op_reactie', 'in_uitvoering', 'afgerond', 'geannuleerd']);
 
@@ -37,7 +37,10 @@ export function loadTakenViewState(): TakenViewState {
       statusFilter: STATUSSEN.has(parsed.statusFilter ?? '')
         ? parsed.statusFilter as TaakStatus
         : '',
-      tab: TABS.has(parsed.tab as TakenTab) ? parsed.tab as TakenTab : 'vandaag',
+      // Oude tabs blijven bereikbaar als dezelfde samengevoegde werkvoorraad.
+      tab: ['inbox','openstaand','later'].includes(String(parsed.tab))
+        ? 'ongepland'
+        : TABS.has(parsed.tab as TakenTab) ? parsed.tab as TakenTab : 'vandaag',
     };
   } catch {
     return DEFAULT_TAKEN_VIEW_STATE;
