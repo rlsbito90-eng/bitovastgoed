@@ -124,6 +124,8 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   const pendingCreatedTaskId = useRef<string|null>(null);
   const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
   const [taskLinksOpen, setTaskLinksOpen] = useState(false);
+  const [linksLoaded,setLinksLoaded] = useState(true);
+  const [linksLoadError,setLinksLoadError] = useState<string|null>(null);
   const [linksDirty, setLinksDirty] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
@@ -170,14 +172,22 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
     });
     setTaskLinks(base);
     setLinksDirty(false);
+    setLinksLoadError(null);
+    setLinksLoaded(!taak?.id);
     if (!open || !taak?.id) return;
 
     let cancelled = false;
     void listTaskLinks(taak.id)
       .then(rows => {
-        if (!cancelled) setTaskLinks(mergeTaskLinks(base, rows));
+        if(cancelled)return;
+        setTaskLinks(mergeTaskLinks(base, rows));
+        setLinksLoaded(true);
       })
-      .catch(error => console.error('Taakkoppelingen laden mislukt', error));
+      .catch(error => {
+        if(cancelled)return;
+        console.error('Taakkoppelingen laden mislukt', error);
+        setLinksLoadError('De bestaande koppelingen konden niet worden geladen. Sluit het formulier en probeer opnieuw.');
+      });
     return () => { cancelled = true; };
   }, [open, taak?.id, taak?.relatieId, taak?.dealId, taak?.objectId, taak?.offMarketSignaalId, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId]);
 
@@ -350,8 +360,8 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
       toast.error('Titel is verplicht');
       return;
     }
-    if (!workPlanLoaded) {
-      toast.error('De werkplanning wordt nog geladen of is niet beschikbaar.');
+    if (!workPlanLoaded || !linksLoaded) {
+      toast.error('De huidige werkplanning of koppelingen zijn nog niet beschikbaar. Probeer opnieuw.');
       return;
     }
     setBezig(true);
@@ -485,6 +495,10 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
 
             <section className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
+              {!linksLoaded&&<p role="status" className="text-xs text-muted-foreground">
+                {linksLoadError || 'Bestaande koppelingen laden…'}
+              </p>}
+              <fieldset disabled={!linksLoaded||bezig} className="min-w-0">
                 <div className="space-y-3">
                   <EntityPicker
                     label="Relatie"
@@ -531,6 +545,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                     {taskLinkCount > 0 && <span className="text-xs text-muted-foreground">· {taskLinkCount} gekoppeld</span>}
                   </button>
                 </div>
+              </fieldset>
             </section>
 
             <section className="space-y-3">
@@ -591,7 +606,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-                <Button type="submit" disabled={bezig||!workPlanLoaded}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+                <Button type="submit" disabled={bezig||!workPlanLoaded||!linksLoaded}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
               </div>
             </div>
           </form>
