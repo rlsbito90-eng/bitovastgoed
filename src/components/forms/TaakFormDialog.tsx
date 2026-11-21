@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -23,7 +23,10 @@ import {
   getTaskReminderSelection,
   updateManualTaskWithReminder,
   type TaskReminderSelection,
+  type ManualTaskPlanning,
 } from '@/lib/tasks/reminders';
+import { getTaskPlanning, updateTaskPlanning } from '@/lib/tasks/planning';
+import TaakWerkplanningVelden from '@/components/tasks/TaakWerkplanningVelden';
 import {
   listTaskLinks,
   replaceTaskLinks,
@@ -41,6 +44,7 @@ import EntityPicker, { type EntityPickerItem } from './EntityPicker';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSaved?: (taskId: string) => void;
   taak?: Taak | null;
   defaultRelatieId?: string;
   defaultDealId?: string;
@@ -108,11 +112,16 @@ function taskLinkRows(selection: TaskLinkSelection) {
   );
 }
 
-export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities }: Props) {
+export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defaultRelatieId, defaultDealId, defaultObjectId, defaultOffMarketSignaalId, defaultTitel, defaultType, defaultPrioriteit, defaultDeadline, defaultNotities }: Props) {
   const { deleteTaak, refresh, relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const [form, setForm] = useState(emptyForm);
   const [reminderSelection, setReminderSelection] = useState<TaskReminderSelection>('default');
   const [defaultReminderMinutes, setDefaultReminderMinutes] = useState<number | null>(60);
+  const [workPlan,setWorkPlan] = useState<ManualTaskPlanning>({planDatum:null,planTijd:null,planningBucket:'open'});
+  const [workPlanLoaded,setWorkPlanLoaded] = useState(true);
+  const [workPlanError,setWorkPlanError] = useState<string|null>(null);
+  const [workPlanDirty,setWorkPlanDirty] = useState(false);
+  const pendingCreatedTaskId = useRef<string|null>(null);
   const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
   const [taskLinksOpen, setTaskLinksOpen] = useState(false);
   const [linksDirty, setLinksDirty] = useState(false);
@@ -189,6 +198,37 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     })();
     return () => { cancelled = true; };
   }, [open, taak?.id]);
+
+  // Bij bestaande taken eerst de echte werkdatum laden, niet een lege
+  // standaardwaarde tonen en die bij een andere wijziging overschrijven.
+  useEffect(()=>{
+    if(!open){
+      pendingCreatedTaskId.current=null;
+      return;
+    }
+    setWorkPlan({planDatum:null,planTijd:null,planningBucket:'open'});
+    setWorkPlanDirty(false);
+    setWorkPlanError(null);
+    setWorkPlanLoaded(!taak?.id);
+    if(!taak?.id)return;
+    let cancelled=false;
+    void getTaskPlanning(taak.id)
+      .then(row=>{
+        if(cancelled)return;
+        setWorkPlan({
+          planDatum:row.planDatum,
+          planTijd:row.planTijd,
+          planningBucket:row.planningBucket,
+        });
+        setWorkPlanLoaded(true);
+      })
+      .catch(error=>{
+        if(cancelled)return;
+        console.error('Werkplanning laden mislukt',error);
+        setWorkPlanError('De bestaande werkplanning kon niet worden geladen. Sluit dit formulier en probeer opnieuw.');
+      });
+    return ()=>{cancelled=true;};
+  },[open,taak?.id]);
 
   const relatieItems = useMemo<EntityPickerItem[]>(() => {
     return relaties.map(r => {
@@ -312,6 +352,10 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       toast.error('Titel is verplicht');
       return;
     }
+    if (!workPlanLoaded) {
+      toast.error('De werkplanning wordt nog geladen of is niet beschikbaar.');
+      return;
+    }
     setBezig(true);
 
     const selectedLinks = taskLinks;
@@ -336,18 +380,29 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
       if (isEdit && taak) {
         savedTaskId = taak.id;
         await updateManualTaskWithReminder(taak.id, data);
+        if(workPlanDirty)await updateTaskPlanning(taak.id,workPlan);
+      } else if(pendingCreatedTaskId.current){
+        savedTaskId = pendingCreatedTaskId.current;
+        await updateManualTaskWithReminder(savedTaskId,data);
+        await updateTaskPlanning(savedTaskId,workPlan);
       } else {
-        savedTaskId = await createManualTaskWithReminder(data);
+        // Nieuwe werkplanning in dezelfde database-insert als de taak zelf.
+        savedTaskId = await createManualTaskWithReminder(data,workPlan);
+        pendingCreatedTaskId.current = savedTaskId;
       }
       await replaceTaskLinks(savedTaskId, taskLinkRows(selectedLinks));
       await refresh();
+      pendingCreatedTaskId.current=null;
+      onSaved?.(savedTaskId);
       pushRecent('relatie', selectedLinks.relatie[0] || '');
       pushRecent('object', selectedLinks.object[0] || '');
       pushRecent('deal', selectedLinks.deal[0] || '');
       toast.success(isEdit ? 'Taak bijgewerkt' : 'Taak aangemaakt');
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(`Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
+      toast.error(pendingCreatedTaskId.current
+        ? `Taak is al aangemaakt, maar de verwerking is nog niet volledig. Probeer opslaan opnieuw: ${err.message ?? 'onbekende fout'}`
+        : `Opslaan mislukt: ${err.message ?? 'onbekende fout'}`);
     } finally {
       setBezig(false);
     }
@@ -374,9 +429,13 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
     ...(key === 'deadline' && !val ? { deadlineTijd: '' } : {}),
   }));
 
-  const dirtyState = useMemo(() => ({ ...form, reminderSelection, linksDirty }), [form, reminderSelection, linksDirty]);
+  const dirtyState = useMemo(() => ({ ...form, reminderSelection, linksDirty, workPlanDirty }), [form, reminderSelection, linksDirty, workPlanDirty]);
   const { guardedOnOpenChange } = useFormDirtyGuard(open, dirtyState, onOpenChange);
   const hasExactDeadline = Boolean(form.deadline && form.deadlineTijd);
+  const handleWorkPlanChange=(next:ManualTaskPlanning)=>{
+    setWorkPlan(next);
+    setWorkPlanDirty(true);
+  };
   const taskLinkCount = countTaskLinks(taskLinks);
 
   return (
@@ -477,14 +536,19 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
               )}
             </section>
 
-            <section className="space-y-3">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Planning</h3>
-                <p className="mt-1 text-xs text-muted-foreground">Deadline en herinnering zijn afzonderlijk. Met een tijdstip kan Bito CRM de melding vooraf exact server-side plannen.</p>
+            <section className="space-y-4">
+              <TaakWerkplanningVelden value={workPlan} onChange={handleWorkPlanChange}
+                disabled={!workPlanLoaded||bezig}/>
+              {!workPlanLoaded&&<p role="status" className="text-xs text-muted-foreground">
+                {workPlanError || 'Bestaande werkplanning laden…'}
+              </p>}
+              <div className="border-t border-border/60 pt-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Harde deadline</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Alleen voor een echte uiterste datum. Een werkdatum hierboven is geen deadline.</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Deadline (optioneel)</Label>
+                  <Label>Uiterste datum (optioneel)</Label>
                   <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
@@ -510,7 +574,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
                 </select>
                 <p className="text-xs text-muted-foreground">
                   {!form.deadline
-                    ? 'Kies eerst een deadline.'
+                    ? 'Alleen bij een harde deadline kun je deze melding instellen.'
                     : hasExactDeadline
                       ? 'De server plant deze herinnering direct bij het opslaan; de deadline zelf verandert niet.'
                       : 'Zonder tijdstip is alleen een dagmelding mogelijk. Kies een tijd om minuten/uren vooraf in te stellen.'}
@@ -539,7 +603,7 @@ export default function TaakFormDialog({ open, onOpenChange, taak, defaultRelati
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-                <Button type="submit" disabled={bezig}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+                <Button type="submit" disabled={bezig||!workPlanLoaded}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
               </div>
             </div>
           </form>
