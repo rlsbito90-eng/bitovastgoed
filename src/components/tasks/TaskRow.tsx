@@ -64,7 +64,7 @@ export default function TaskRow({
 
   const planningLabel = planning.planDatum
     ? planDateLabel(planning.planDatum, today, isTaskRolledOver(task, planning, now))
-    : !task.deadline ? 'Niet ingepland' : null;
+    : 'Niet ingepland';
 
   const toggleSelection = () => onToggleSelection?.(task.id);
 
