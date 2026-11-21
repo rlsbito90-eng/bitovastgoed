@@ -1,5 +1,6 @@
 import type {ManualTaskPlanning} from '@/lib/tasks/reminders';
 import {localDateKey} from '@/lib/tasks/workView';
+import WorkPlanReminderSelect from './WorkPlanReminderSelect';
 
 type Choice = 'today' | 'tomorrow' | 'none';
 type Props = {
@@ -50,7 +51,10 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
     <div className="grid grid-cols-3 gap-2">
       {OPTIONS.map(option=><button key={option.id} type="button"
         aria-pressed={selected===option.id}
-        onClick={()=>onChange(workPlanForChoice(option.id))}
+        onClick={()=>{
+          const next=workPlanForChoice(option.id);
+          onChange({...next,reminderMode:option.id==='none'?'none':value.reminderMode==='at_time'?'none':(value.reminderMode??'none')});
+        }}
         className={`min-h-10 rounded-lg border px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected===option.id
           ?'border-accent/50 bg-accent/10 font-medium text-foreground'
           :'border-border/70 bg-background/30 text-muted-foreground hover:bg-muted/35 hover:text-foreground'}`}>
@@ -63,9 +67,11 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
         <input id="taak-werkdatum" type="date"
           value={value.planDatum??''}
           onChange={e=>onChange({
+            ...value,
             planDatum:e.target.value||null,
             planTijd:e.target.value?value.planTijd??null:null,
             planningBucket:'open',
+            reminderMode:e.target.value?(value.reminderMode??'none'):'none',
           })}
           className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm"/>
       </div>
@@ -73,9 +79,17 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
         <label htmlFor="taak-werktijd" className="text-xs font-medium text-muted-foreground">Werktijd (optioneel)</label>
         <input id="taak-werktijd" type="time" disabled={!value.planDatum}
           value={value.planDatum?(value.planTijd??'').slice(0,5):''}
-          onChange={e=>onChange({...value,planTijd:e.target.value||null})}
+          onChange={e=>onChange({
+            ...value,
+            planTijd:e.target.value||null,
+            reminderMode:!e.target.value&&value.reminderMode==='at_time'?'none':(value.reminderMode??'none'),
+          })}
           className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-40"/>
       </div>
     </div>
+    <WorkPlanReminderSelect value={value.reminderMode??'none'}
+      hasDate={Boolean(value.planDatum)}
+      hasTime={Boolean(value.planTijd)}
+      onChange={reminderMode=>onChange({...value,reminderMode})} />
   </fieldset>;
 }
