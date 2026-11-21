@@ -11,18 +11,18 @@ import TaakWerkplanningVelden, {
 const now=new Date(2026,10,21,15,30); // lokale datum, geen UTC-verschil
 
 describe('Werkplanning is geen harde deadline',()=>{
-  it('scheidt vandaag, morgen, openstaand, later en inbox',()=>{
+  it('vereenvoudigt plankeuzes zonder bestaande inbox-/latergegevens te verwijderen',()=>{
     expect(workPlanForChoice('today',now)).toEqual({
       planDatum:'2026-11-21',planTijd:null,planningBucket:'open',
     });
     expect(workPlanForChoice('tomorrow',now)).toEqual({
       planDatum:'2026-11-22',planTijd:null,planningBucket:'open',
     });
-    expect(workPlanForChoice('open',now)).toEqual({
-      planDatum:null,planTijd:null,planningBucket:'open',
+    expect(workPlanForChoice('none',now)).toEqual({
+      planDatum:null,planTijd:null,planningBucket:'open',reminderMode:'none',
     });
-    expect(workPlanForChoice('later',now).planningBucket).toBe('later');
-    expect(workPlanForChoice('inbox',now).planningBucket).toBe('inbox');
+    expect(selectedWorkPlanChoice({planDatum:null,planTijd:null,planningBucket:'inbox'},now)).toBe('none');
+    expect(selectedWorkPlanChoice({planDatum:null,planTijd:null,planningBucket:'later'},now)).toBe('none');
   });
 
   it('behoudt de actuele planning als de gebruiker alleen het formulier opent',()=>{
@@ -51,7 +51,7 @@ describe('Werkplanning is geen harde deadline',()=>{
     fireEvent.change(screen.getByLabelText('Werktijd (optioneel)'),{
       target:{value:'14:30'},
     });
-    expect(change).toHaveBeenLastCalledWith({...next,planTijd:'14:30'});
+    expect(change).toHaveBeenLastCalledWith({...next,planTijd:'14:30',reminderMode:'none'});
   });
 
   it('maakt werktijd leeg als de werkdatum wordt gewist',()=>{
@@ -61,7 +61,7 @@ describe('Werkplanning is geen harde deadline',()=>{
       onChange={change}/>);
     fireEvent.change(screen.getByLabelText('Werkdatum'),{target:{value:''}});
     expect(change).toHaveBeenCalledWith({
-      planDatum:null,planTijd:null,planningBucket:'open',
+      planDatum:null,planTijd:null,planningBucket:'open',reminderMode:'none',
     });
   });
 });
