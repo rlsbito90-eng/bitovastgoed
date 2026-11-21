@@ -10,7 +10,7 @@ import type {Taak} from '@/data/mock-data';
 import type {TaskPlanningMeta} from '@/lib/tasks/planning';
 
 const read=(path:string)=>readFileSync(resolve(process.cwd(),path),'utf8');
-const migration=read('supabase/migrations/20261122010500_task_workday_reminder_without_time.sql');
+const migration=read('supabase/migrations/20261121235859_task_workday_reminder_without_time.sql');
 const form=read('src/components/forms/TaakFormDialog.tsx');
 const quick=read('src/components/tasks/QuickTaskCapture.tsx');
 const planning=read('src/lib/tasks/planning.ts');
