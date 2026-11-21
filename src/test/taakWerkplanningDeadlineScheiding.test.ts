@@ -18,11 +18,16 @@ describe('Volledig taakformulier: dezelfde werkplanning als snelle invoer',()=>{
 
   it('heeft een aparte werkplan-editor en harde deadline',()=>{
     expect(form).toContain('<TaakWerkplanningVelden');
-    expect(form).toContain('Harde deadline</h3>');
-    expect(form).toContain('Uiterste datum (optioneel)');
+    expect(form).toContain('Uiterste datum</h3>');
+    expect(form).toContain('Datum (optioneel)');
     expect(form).toContain('setWorkPlanDirty(true)');
     expect(form).toContain('workPlanDirty');
     expect(form).toContain('disabled={bezig||!workPlanLoaded}');
+    expect(form.indexOf('>Taakgegevens</h3>')).toBeLessThan(form.indexOf('<TaakWerkplanningVelden'));
+    expect(form.indexOf('<TaakWerkplanningVelden')).toBeLessThan(form.indexOf('>Koppelingen</h3>'));
+    expect(form.indexOf('>Koppelingen</h3>')).toBeLessThan(form.indexOf('>Uiterste datum</h3>'));
+    expect(form.indexOf('>Uiterste datum</h3>')).toBeLessThan(form.indexOf('>Notities</h3>'));
+    expect(form).not.toContain('Collapsible');
   });
 
   it('maakt werkplan en taak in één insert en past bij bewerken alleen gewijzigde planning aan',()=>{
