@@ -14,6 +14,7 @@ describe('Volledig taakformulier: dezelfde werkplanning als snelle invoer',()=>{
   it('laadt bestaande werkplanning op taak-ID en schrijft die niet blind leeg',()=>{
     expect(form).toContain('getTaskPlanning(taak.id)');
     expect(form).toContain('setWorkPlanLoaded(!taak?.id)');
+    expect(form).toContain('reminderMode:row.reminderMode');
   });
 
   it('heeft een aparte werkplan-editor en harde deadline',()=>{
@@ -52,7 +53,7 @@ describe('Volledig taakformulier: dezelfde werkplanning als snelle invoer',()=>{
   });
 
   it('slaat ook bij Quick Capture werkdatum direct atomair op',()=>{
-    expect(quick).toContain('planningForTarget(target, planDate, planTime));');
+    expect(quick).toContain('planningForTarget(target, planDate, planTime, workReminderMode));');
     expect(quick).toContain('if (restoringExistingTask)');
     expect(quick).toContain('await updateTaskPlanning(taskId, planningForTarget(');
     expect(quick).toContain('pendingTaskIdRef.current');
