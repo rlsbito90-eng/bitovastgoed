@@ -20,6 +20,7 @@ export function planningForTask(
     planDatum: null,
     planTijd: null,
     planningBucket: 'open',
+    reminderMode: 'at_time',
   };
 }
 
