@@ -22,7 +22,11 @@ describe('Volledig taakformulier: dezelfde werkplanning als snelle invoer',()=>{
     expect(form).toContain('Datum (optioneel)');
     expect(form).toContain('setWorkPlanDirty(true)');
     expect(form).toContain('workPlanDirty');
-    expect(form).toContain('disabled={bezig||!workPlanLoaded}');
+    expect(form).toContain('disabled={bezig||!workPlanLoaded||!linksLoaded}');
+    expect(form).toContain('setLinksLoaded(!taak?.id)');
+    expect(form).toContain('setLinksLoaded(true)');
+    expect(form).toContain('setLinksLoadError(');
+    expect(form).toContain('<fieldset disabled={!linksLoaded||bezig}');
     expect(form.indexOf('>Taakgegevens</h3>')).toBeLessThan(form.indexOf('<TaakWerkplanningVelden'));
     expect(form.indexOf('<TaakWerkplanningVelden')).toBeLessThan(form.indexOf('>Koppelingen</h3>'));
     expect(form.indexOf('>Koppelingen</h3>')).toBeLessThan(form.indexOf('>Uiterste datum</h3>'));
