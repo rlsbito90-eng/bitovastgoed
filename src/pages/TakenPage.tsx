@@ -530,7 +530,11 @@ export default function TakenPage() {
         </div>
       )}
 
-      <TaakFormDialog open={formOpen} onOpenChange={value => { setFormOpen(value); if (!value) setEditTaak(null); }} taak={editTaak} />
+      <TaakFormDialog open={formOpen} onOpenChange={value => { setFormOpen(value); if (!value) setEditTaak(null); }}
+        taak={editTaak} onSaved={()=>{
+          void listTaskPlanning().then(setPlanningRows)
+            .catch(error=>console.error('Taakplanning vernieuwen mislukt',error));
+        }} />
       <TaakAfrondenDialog open={!!afrondenTaak} onOpenChange={value => { if (!value) setAfrondenTaak(null); }} taak={afrondenTaak} />
       <AlertDialog open={!!verwijderTaak} onOpenChange={open => { if (!open) setVerwijderTaak(null); }}>
         <AlertDialogContent>
