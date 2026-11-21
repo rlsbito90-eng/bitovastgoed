@@ -94,6 +94,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
 
     setSaving(true);
     try {
+      const restoringExistingTask = Boolean(pendingTaskIdRef.current);
       const taskId = pendingTaskIdRef.current ?? await createManualTaskWithReminder({
         titel: trimmed,
         relatieId: taskLinks.relatie[0] || undefined,
@@ -106,7 +107,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
         prioriteit: 'normaal',
         status: 'open',
         reminderSelection: 'default',
-      });
+      }, planningForTarget(target, planDate, planTime));
       pendingTaskIdRef.current = taskId;
       if (linkCount > 0) {
         const rows = (Object.entries(taskLinks) as [TaskLinkEntityType, string[]][])
@@ -115,7 +116,11 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
           })));
         await replaceTaskLinks(taskId, rows);
       }
-      await updateTaskPlanning(taskId, planningForTarget(target, planDate, planTime));
+      // Alleen bij opnieuw proberen is een tweede planning-update nodig.
+      // Nieuwe taken krijgen hun werkdatum atomair in dezelfde insert.
+      if (restoringExistingTask) {
+        await updateTaskPlanning(taskId, planningForTarget(target, planDate, planTime));
+      }
       await refresh();
       pendingTaskIdRef.current = null;
       setTitel('');
