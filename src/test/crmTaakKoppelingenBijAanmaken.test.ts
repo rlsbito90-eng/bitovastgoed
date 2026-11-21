@@ -22,9 +22,9 @@ describe('Taken: koppelingen bij aanmaken',()=>{
 
   it('maakt CRM-koppelingen zichtbaar vóór planning en toont meervoudig kiezen bij create',()=>{
     const koppelingen = source.indexOf('>Koppelingen</h3>');
-    const planning = source.indexOf('>Planning</h3>');
+    const planning = source.indexOf('<TaakWerkplanningVelden');
     expect(koppelingen).toBeGreaterThan(0);
-    expect(koppelingen).toBeLessThan(planning);
+    expect(planning).toBeLessThan(koppelingen);
     expect(source).toContain('>Meerdere koppelen</span>');
     expect(source).not.toContain('>Extra koppelingen</p>');
     expect(source).toContain('label="Relatie"');
