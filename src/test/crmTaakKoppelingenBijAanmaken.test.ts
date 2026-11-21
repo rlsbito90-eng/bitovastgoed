@@ -30,6 +30,10 @@ describe('Taken: koppelingen bij aanmaken',()=>{
     expect(source).toContain('label="Relatie"');
     expect(source).toContain('label="Object"');
     expect(source).toContain('label="Deal"');
+    expect(source).not.toContain('Koppelingen beheren');
+    expect(source).toContain("onChange={(id) => changePrimaryLink('relatie', id)}");
+    expect(source).toContain('const handleTaskLinksChange = (next: TaskLinkSelection) => {');
+    expect(source).toContain('setForm(prev => ({');
   });
 
   it('bewaart aanvullende koppelingen bij het wijzigen van de primaire selectie',()=>{
