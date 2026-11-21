@@ -14,10 +14,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 
-export type QuickTaskTarget = 'today' | 'inbox' | 'open' | 'later';
+export type QuickTaskTarget = 'today' | 'open';
 
 const TARGET_LABELS: Record<QuickTaskTarget, string> = {
-  today: 'Vandaag', inbox: 'Inbox', open: 'Openstaand', later: 'Later',
+  today: 'Vandaag', open: 'Niet ingepland',
 };
 
 function localDateKey(date: Date): string {
@@ -38,8 +38,7 @@ function planningForTarget(target: QuickTaskTarget, customDate: string | null, p
   let planningBucket: TaskPlanningBucket = 'open';
   if (!customDate) {
     if (target === 'today') planDatum = localDateKey(new Date());
-    if (target === 'inbox') planningBucket = 'inbox';
-    if (target === 'later') planningBucket = 'later';
+
   }
   return { planDatum, planTijd: planDatum ? planTime : null, planningBucket };
 }
@@ -64,7 +63,7 @@ function dateLabel(value: string | null, fallback: string): string {
   });
 }
 
-export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultTarget?: QuickTaskTarget }) {
+export default function QuickTaskCapture({ defaultTarget = 'open' }: { defaultTarget?: QuickTaskTarget }) {
   const { refresh } = useDataStore();
   const [titel, setTitel] = useState('');
   const [target, setTarget] = useState<QuickTaskTarget>(defaultTarget);
@@ -142,7 +141,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
   const tomorrow = plusDays(1);
   const effectivePlanDate = planDate || (target === 'today' ? today : null);
 
-  const choose = (value: 'today' | 'tomorrow' | 'open' | 'later') => {
+  const choose = (value: 'today' | 'tomorrow' | 'open') => {
     if (value === 'today') {
       setTarget('today');
       setPlanDate(today);
@@ -159,20 +158,15 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
       setPlanTime(null);
       return;
     }
-    setTarget('later');
-    setPlanDate(null);
-    setPlanTime(null);
   };
 
   const selectedChoice = planDate === tomorrow
     ? 'tomorrow'
     : planDate === today || (!planDate && target === 'today')
       ? 'today'
-      : !planDate && target === 'later'
-        ? 'later'
-        : !planDate && target === 'open'
-          ? 'open'
-          : null;
+      : !planDate && target === 'open'
+        ? 'open'
+        : null;
 
   return (
     <>
@@ -228,8 +222,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
             {([
               ['today', 'Vandaag'],
               ['tomorrow', 'Morgen'],
-              ['open', 'Openstaand'],
-              ['later', 'Later'],
+              ['open', 'Niet ingepland'],
             ] as const).map(([value, label]) => {
               const selected = selectedChoice === value;
               return (
