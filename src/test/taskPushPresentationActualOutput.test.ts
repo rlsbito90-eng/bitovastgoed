@@ -66,6 +66,29 @@ describe('Echte opmaak van CRM-pushberichten', () => {
     expect(result.body).toBe('Verkoper Westervoort opvolgen');
   });
 
+  it('gebruikt de primaire contactpersoon wanneer het relatiehoofdrecord geen naam bevat', () => {
+    const result = present(
+      {event_type:'task_plan_reminder',metadata:{plan_datum:today}},
+      {titel:'Test taak',type_taak:'Algemeen'},
+      {relatie:{bedrijfsnaam:'',contactpersoon:null},primaireContactNaam:'Kwok'},
+      zone,
+    );
+    expect(result).toEqual({
+      title:'Taak · Vandaag gepland',
+      body:'Test taak\nKwok',
+    });
+  });
+
+  it('gebruikt de bedrijfsnaam als die bestaat, en voorkomt dubbele contactnamen', () => {
+    const result = present(
+      {event_type:'task_plan_reminder',metadata:{plan_datum:today}},
+      {titel:'Koper bellen',type_taak:'Bellen'},
+      {relatie:{bedrijfsnaam:'Triple S Vastgoed'},primaireContactNaam:'Robin'},
+      zone,
+    );
+    expect(result.body).toBe('Koper bellen\nTriple S Vastgoed');
+  });
+
   it('toont alleen relatie, indien geen object is gekoppeld', () => {
     const result = present({event_type:'high_priority_task'},{
       titel:'Documenten opvragen',type_taak:'Algemeen',
