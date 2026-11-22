@@ -10,6 +10,7 @@ import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
 import { MATCH_AFWIJSREDENEN } from '@/lib/matching/relatieObjectBesluiten';
 import { beoordeelObjectRendement } from '@/lib/matching/rendementsOordeel';
 import { bepaalVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
+import { MatchOnderbouwing } from '@/components/matching/MatchOnderbouwing';
 
 const REDENEN = MATCH_AFWIJSREDENEN;
 
@@ -112,17 +113,25 @@ export default function ObjectvoorstellenPanel({
       ? 'Portefeuille: samenstelling en locaties per adres controleren'
       : VOORSTEL_LABELS[item.prioriteit];
     return <div className="px-5 py-3 space-y-2" key={id}>
-      <div className="flex justify-between items-start gap-2">
-        <div className="min-w-0">
-          <Link to={`/objecten/${id}`} className="text-sm font-medium hover:text-accent break-words">
+      <div className="flex flex-wrap justify-between items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <Link to={`/objecten/${id}`} className="break-words text-sm font-semibold hover:text-accent">
             {item.object.titel}
           </Link>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {item.object.plaats?.trim()||'Locatie onbekend'} · {omschrijving}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {item.object.plaats?.trim()||'Locatie onbekend'} · {item.route.naam}
           </p>
         </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${item.prioriteit==='kansrijk'
+          ? 'border-emerald-400/50 bg-emerald-50 text-emerald-800'
+          : item.prioriteit==='controleren'
+            ? 'border-amber-400/50 bg-amber-50 text-amber-900'
+            : 'border-border bg-muted text-muted-foreground'}`}>
+          {omschrijving}
+        </span>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <MatchOnderbouwing route={item.route} rendement={item.rendement} />
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-2">
         <button type="button" disabled={busy===id} onClick={()=>void beoordeel(id,'interessant')}
           className="inline-flex items-center gap-1 rounded border border-border px-2.5 py-1.5 text-xs hover:bg-muted disabled:opacity-50">
           <Check className="h-3.5 w-3.5"/> Interessant
@@ -131,15 +140,7 @@ export default function ObjectvoorstellenPanel({
           className="inline-flex items-center gap-1 rounded border border-border px-2.5 py-1.5 text-xs hover:bg-muted disabled:opacity-50">
           <X className="h-3.5 w-3.5"/> Niet passend
         </button>
-        <details className="text-xs text-muted-foreground">
-          <summary className="cursor-pointer">Onderbouwing</summary>
-          <div className="mt-2 space-y-1">
-            {item.route.toelichting.matcht.map((t,i)=><p key={i}>✓ {t}</p>)}
-            {item.route.toelichting.controleer.map((t,i)=><p key={i}>Te controleren: {t}</p>)}
-            {item.route.toelichting.afwijkend.map((t,i)=><p key={i}>{t}</p>)}
-            {item.rendement.status!=='niet_van_toepassing'&&<p>Rendement: {item.rendement.uitleg}</p>}
-          </div>
-        </details>
+
       </div>
       {redenKiezen===id&&<div className="flex flex-wrap items-center gap-2 rounded border border-border bg-muted/30 p-2">
         <label htmlFor={`reden-${id}`} className="text-xs text-muted-foreground">Reden</label>
