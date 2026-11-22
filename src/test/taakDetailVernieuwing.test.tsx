@@ -60,7 +60,7 @@ describe('Taakdetail: rustige directe interacties',()=>{
     expect(source).toContain('onConfirm={next=>void saveLinks(next)}');
     expect(source).toContain('setLinksOpen(false)');
     expect(picker).toContain('onConfirm?: (selection: TaskLinkSelection) => void');
-    expect(picker).toContain('onConfirm ? onConfirm(value) : onOpenChange(false)');
+    expect(picker).toContain('if (onConfirm) onConfirm(next);');
     expect(picker).toContain('getRelatieNaamCompact(r, contactpersonen)');
   });
 
