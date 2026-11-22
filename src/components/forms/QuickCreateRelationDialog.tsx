@@ -406,13 +406,13 @@ export function QuickCreateRelationDialog({
           <Button type="button" variant="outline" onClick={handleCancel} disabled={bezig} className="min-w-0">
             {showSaveNext ? 'Sluiten' : 'Annuleren'}
           </Button>
+          <Button type="button" className="min-w-0 sm:order-3" onClick={()=>void handleSave(false)} disabled={bezig||duplicates.length>0}>
+            {bezig ? 'Bezig…' : 'Relatie aanmaken'}
+          </Button>
           {showSaveNext&&<Button type="button" variant="outline" className="col-span-2 min-w-0 sm:order-2 sm:col-auto"
             onClick={()=>void handleSave(true)} disabled={bezig||duplicates.length>0}>
             Opslaan en volgende
           </Button>}
-          <Button type="button" className="min-w-0 sm:order-3" onClick={()=>void handleSave(false)} disabled={bezig||duplicates.length>0}>
-            {bezig ? 'Bezig…' : 'Relatie aanmaken'}
-          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
