@@ -261,7 +261,7 @@ export function QuickCreateRelationDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!o ? handleCancel() : onOpenChange(o))}>
-      <DialogContent className="flex h-[min(88svh,740px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-md flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]">
+      <DialogContent className="flex h-[min(88svh,740px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-md flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]" style={{ paddingBottom: 0 }}>
         <DialogHeader className="shrink-0 touch-none border-b border-border/70 px-4 pb-3 pt-5 sm:px-5">
           <DialogTitle>Nieuwe relatie</DialogTitle>
           <DialogDescription>
