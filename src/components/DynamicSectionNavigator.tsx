@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { floatingActionOverlayOpen, hasGlobalQuickTaskDock, hasInlineQuickTaskBar } from '@/lib/ui/floatingControls';
 
 const MIN_SCROLL_Y = 420;
 const SECTION_START_TOLERANCE = 72;
@@ -128,6 +129,8 @@ export default function DynamicSectionNavigator() {
   const [mode, setMode] = useState<'section' | 'top'>('top');
   const armedSectionTop = useRef<number | null>(null);
   const title = useMemo(() => label, [label]);
+  const hasTaskDock = hasGlobalQuickTaskDock(location.pathname);
+  const hasInlineTaskBar = hasInlineQuickTaskBar(location.pathname);
 
   useEffect(() => {
     const handleScenarioNameUpdated = (event: Event) => {
@@ -155,7 +158,7 @@ export default function DynamicSectionNavigator() {
 
         const container = getScrollContainer();
         const scrollTop = getScrollTop(container);
-        setVisible(scrollTop > MIN_SCROLL_Y && !isEditing() && !isTaskSelectionActive());
+        setVisible(scrollTop > MIN_SCROLL_Y && !isEditing() && !isTaskSelectionActive() && !floatingActionOverlayOpen());
 
         if (armedSectionTop.current !== null) {
           const distanceToArmedSection = Math.abs(scrollTop - armedSectionTop.current);
@@ -218,7 +221,7 @@ export default function DynamicSectionNavigator() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['hidden', 'class', 'data-state', 'data-task-selection-mode'],
+      attributeFilter: ['hidden', 'class', 'data-state', 'data-task-selection-mode', 'data-expanded'],
     });
 
     return () => {
@@ -251,7 +254,12 @@ export default function DynamicSectionNavigator() {
           onClick={handleClick}
           title={title}
           aria-label={title}
-          className="group fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:right-6 sm:h-11 sm:px-3.5"
+          data-testid="dynamic-section-navigator"
+          className={`group fixed right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-accent/50 bg-primary px-3 text-primary-foreground shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl sm:bottom-6 sm:h-11 sm:px-3.5 ${hasInlineTaskBar
+            ? 'bottom-[calc(env(safe-area-inset-bottom)+6.5rem)]'
+            : 'bottom-[calc(env(safe-area-inset-bottom)+1rem)]'} ${hasTaskDock
+            ? 'sm:right-[10.5rem]'
+            : 'sm:right-6'}`}
         >
           <ArrowUp className="h-5 w-5 shrink-0" />
           <span className="hidden max-w-0 overflow-hidden whitespace-nowrap text-xs font-medium opacity-0 transition-all duration-200 group-hover:max-w-[260px] group-hover:opacity-100 lg:inline-block">{label}</span>

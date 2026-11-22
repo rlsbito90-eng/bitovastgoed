@@ -82,8 +82,8 @@ describe('Taken — Quick Capture v2', () => {
   it('blijft op Taken beschikbaar en elders compact via de CRM-shell', () => {
     expect(app).toContain('<QuickTaskCaptureDock />');
     expect(takenPage).toContain('<QuickTaskCapture');
-    expect(dock).toContain("location.pathname === '/'");
-    expect(dock).toContain("location.pathname === '/taken'");
+    expect(dock).toContain('hasGlobalQuickTaskDock(location.pathname)');
+    expect(dock).toContain("data-expanded={open ? 'true' : 'false'}");
     expect(dock).toContain('return null');
     expect(capture).toContain('data-testid="quick-task-capture"');
   });

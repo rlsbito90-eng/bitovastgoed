@@ -77,7 +77,9 @@
     display: none;
   }
 
+  /* Taken gebruikt zelf een vaste taakinvoer. De pijl omhoog staat hier
+     bewust bóven die invoer; ook het laatste taakitem moet vrij blijven. */
   .page-shell:has(> [data-testid='quick-task-capture']) {
-    padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(10.5rem + env(safe-area-inset-bottom));
   }
 }

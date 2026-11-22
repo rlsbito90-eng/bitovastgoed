@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import QuickTaskCapture from './QuickTaskCapture';
+import { hasGlobalQuickTaskDock } from '@/lib/ui/floatingControls';
 
 export default function QuickTaskCaptureDock() {
   const location = useLocation();
@@ -11,13 +12,13 @@ export default function QuickTaskCaptureDock() {
     setOpen(false);
   }, [location.pathname]);
 
-  // Op het Dashboard staat één taakactie bij Mijn werkzaamheden;
-  // Taken heeft een eigen Quick Capture. De vaste dock zou daar dubbel zijn.
-  if (location.pathname === '/' || location.pathname === '/taken' || location.pathname.startsWith('/taken/')) return null;
+  // Eén app-breed beleid voor de taakbalk en zijn vrijgehouden paginaruimte.
+  if (!hasGlobalQuickTaskDock(location.pathname)) return null;
 
   return (
     <div
       data-testid="quick-task-capture-dock"
+      data-expanded={open ? 'true' : 'false'}
       className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 z-30 sm:left-auto sm:right-5 lg:bottom-5 lg:right-6"
     >
       {open ? (
@@ -36,6 +37,7 @@ export default function QuickTaskCaptureDock() {
         <button
           type="button"
           onClick={() => setOpen(true)}
+          aria-expanded={open}
           aria-label="Snel taak toevoegen"
           className="acquisitie-selection-glass flex h-12 items-center gap-2 rounded-full px-4 text-sm font-medium text-foreground transition-transform hover:-translate-y-0.5"
         >
