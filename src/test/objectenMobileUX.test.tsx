@@ -65,7 +65,8 @@ describe('Objecten: compacte iPhone detailpagina en vaste form-acties', () => {
     expect(quick).toContain('style={{ paddingBottom: 0 }}');
     expect(quick.indexOf('data-testid="quick-object-form-scroll"')).toBeLessThan(quick.indexOf('<DialogFooter className='));
     expect(quick).toContain('Object aanmaken');
-    expect(quick).toContain('eigenaarRelatieId: relatieId || undefined');
+    expect(quick).toContain("eigenaarRelatieId: relatieRol==='eigenaar'");
+    expect(quick).toContain("aanbiederRelatieId: relatieRol==='aanbieder'");
   });
 
   it('houdt tabs en opslaan van het uitgebreide objectformulier zichtbaar op iPhone', () => {
