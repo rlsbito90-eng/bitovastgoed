@@ -312,13 +312,13 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   // Letterlijke wensen en uitsluitingen nooit stilzwijgend als geverifieerd
   // behandelen. Ze zijn niet gestructureerd genoeg voor een automatische
   // afwijzing, maar verhinderen wel een onterecht groen 'passend'.
-  if(!p&&r.hardeAankoopvoorwaarden?.trim()){
+  if(r.hardeAankoopvoorwaarden?.trim()){
     controleer.push('Harde aankoopvoorwaarden van de relatie verifiëren vóór benadering');
     controleNodig=true;
   }
   // Voorkeuren leveren geen hard negatief oordeel op. We kennen hun relatie
   // tot de objectkenmerken nog niet betrouwbaar uit ongestructureerde tekst.
-  if(!p&&r.aankoopvoorkeuren?.trim()){
+  if(r.aankoopvoorkeuren?.trim()){
     controleer.push('Niet-bindende aankoopvoorkeuren handmatig afwegen');
   }
   if(r.uitsluitingen?.trim()){
