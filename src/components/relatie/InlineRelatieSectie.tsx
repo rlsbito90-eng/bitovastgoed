@@ -16,6 +16,7 @@ type Props = {
   relatie:Relatie;
   velden:readonly InlineRelatieVeld[];
   onSave:(patch:Partial<Relatie>)=>Promise<void>;
+  toonAlleVeldenInitieel?:boolean;
 };
 
 const gelijk=(a:unknown,b:unknown):boolean=>{
@@ -55,9 +56,9 @@ import {
  * meervoudige selecties gebruiken een lokale bevestiging om onbedoelde
  * dataverliezen te voorkomen. Alleen het gewijzigde sleutelveld wordt gepatcht.
  */
-export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props){
+export default function InlineRelatieSectie({titel,relatie,velden,onSave,toonAlleVeldenInitieel=false}:Props){
   const [actief,setActief]=useState<keyof Relatie|null>(null);
-  const [toonAlleVelden,setToonAlleVelden]=useState(false);
+  const [toonAlleVelden,setToonAlleVelden]=useState(toonAlleVeldenInitieel);
   const [concept,setConcept]=useState<unknown>(undefined);
   const [plaatsenInvoer,setPlaatsenInvoer]=useState('');
   const [bezig,setBezig]=useState(false);
@@ -75,7 +76,7 @@ export default function InlineRelatieSectie({titel,relatie,velden,onSave}:Props)
   const {confirmDiscard}=useDirtyGuard(dirty);
 
   useEffect(()=>{
-    setActief(null);actiefRef.current=null;setToonAlleVelden(false);
+    setActief(null);actiefRef.current=null;setToonAlleVelden(toonAlleVeldenInitieel);
     setConcept(undefined);conceptRef.current=undefined;basisRef.current=undefined;
     setFout(null);setWisOpen(false);cancelledRef.current=false;
   },[relatie.id]);
