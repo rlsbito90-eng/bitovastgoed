@@ -22,7 +22,11 @@ describe('notification-push-send — compacte taakpresentatie', () => {
     expect(source).toContain(".select('id, titel, type_taak, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')");
     expect(source).toContain('task?.type_taak');
     expect(source).toContain('const pand = signaalLabel(context.signaal) || objectLabel(context.object)');
-    expect(source).toContain('const relatie = relatieLabel(context.relatie)');
+    expect(source).toContain('const relatie = relatieLabel(context.relatie, context.primaireContactNaam)');
+    expect(source).toContain(".from('relatie_contactpersonen')");
+    expect(source).toContain(".select('relatie_id, naam, is_primair')");
+    expect(source).toContain(".order('is_primair', { ascending: false })");
+    expect(source).toContain('primaireContactNaam: task.relatie_id ? primaireContactMap.get(task.relatie_id) : null');
     expect(source).toContain("regels.push(verkortPushRegel(contextParts.join(' · '), 96))");
     expect(source).not.toContain("regels.push(verkortPushRegel(briefNummer");
   });
