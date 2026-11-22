@@ -177,7 +177,7 @@ describe('ObjectQuickCreateDialog', () => {
     await user.type(screen.getByLabelText(/Titel \/ objectnaam/i), 'Met relatie');
     // Kies relatie via picker
     await user.click(screen.getByRole('button', { name: /Kiezen/i }));
-    const picker = await screen.findByRole('dialog', { name: /Kies verkoper of eigenaar/i });
+    const picker = await screen.findByRole('dialog', { name: /Kies betrokken relatie/i });
     await user.click(within(picker).getByText('Jan de Vries'));
     await user.click(screen.getByRole('button', { name: /Object aanmaken/i }));
     expect(addObjectMock).not.toHaveBeenCalled();
