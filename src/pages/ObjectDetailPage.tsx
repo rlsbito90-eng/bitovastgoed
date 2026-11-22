@@ -1306,7 +1306,7 @@ export default function ObjectDetailPage() {
         return (
           <header className="relative overflow-hidden rounded-2xl border border-border/60 shadow-sm glass-card">
             {/* Banner */}
-            <div className="relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted">
+            <div className={`relative aspect-[21/9] sm:aspect-[24/8] lg:aspect-[28/8] bg-muted ${heroUrl ? "" : "hidden sm:block"}`}>
               {heroUrl ? (
                 <img
                   src={heroUrl}
@@ -1348,7 +1348,7 @@ export default function ObjectDetailPage() {
               <div className="absolute inset-0 hidden sm:block bg-gradient-to-r from-background/70 via-transparent to-background/30" />
             </div>
 
-            {/* MOBIEL — content stroomt onder de banner, geen overlap */}
+            {/* MOBIEL — als er nog geen foto is, verschijnt direct de objectkop. */}
             <div className="sm:hidden p-4 space-y-3.5 bg-card/80 backdrop-blur">
               {badgesBlock}
               {titleBlock}
@@ -1366,6 +1366,9 @@ export default function ObjectDetailPage() {
           </header>
         );
       })()}
+
+      {/* Objecttabs direct onder de kop: niet pas na financiële metrics en dossiercontrole. */}
+      <WorkspaceTabsNav tabs={visibleTabs} active={activeTab} onSelect={setActiveTab} />
 
       {/* =================================================
           HERO KPI STRIP — dynamisch: alleen relevante tiles
@@ -1452,11 +1455,6 @@ export default function ObjectDetailPage() {
         huurdersCount={huurders.length}
         onGoto={(anchor: DossierAnchor) => goToAnchor(anchor)}
       />
-
-      {/* =================================================
-          STICKY SECTION NAV
-          ================================================= */}
-      <WorkspaceTabsNav tabs={visibleTabs} active={activeTab} onSelect={setActiveTab} />
 
       {/* =================================================
           MAIN GRID — content + sticky deal cockpit
@@ -2459,8 +2457,7 @@ export default function ObjectDetailPage() {
         defaultObjectId={object.id}
       />
 
-      {/* Mobile bottom scroll space — zodat laatste sectie netjes onder sticky bar past */}
-      <div aria-hidden className="lg:hidden h-[40vh]" />
+      {/* Algemene CRM-shell houdt al veilige ruimte vrij voor zwevende knoppen. */}
     </div>
   );
 }
