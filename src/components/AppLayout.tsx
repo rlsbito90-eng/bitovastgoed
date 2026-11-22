@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -39,6 +39,7 @@ import MatchAlertBadge from "@/components/MatchAlertBadge";
 import NotificationsBell from "@/components/NotificationsBell";
 import NotificationsBellV2 from "@/components/NotificationsBellV2";
 import PullToRefresh from "@/components/PullToRefresh";
+import { isTaskPageScrollRoute, useTaskPageScrollBoundary } from "@/hooks/useTaskPageScrollBoundary";
 import RefreshButton from "@/components/RefreshButton";
 import TaakFormDialog from "@/components/forms/TaakFormDialog";
 import { QuickCreateRelationDialog } from "@/components/forms/QuickCreateRelationDialog";
@@ -209,6 +210,9 @@ function GlobalSearch() {
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const mainScrollRef = useRef<HTMLElement>(null);
+  const isTaskPage = isTaskPageScrollRoute(location.pathname);
+  useTaskPageScrollBoundary(mainScrollRef, isTaskPage);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nieuweTaakOpen,setNieuweTaakOpen] = useState(false);
   const [nieuweRelatieOpen,setNieuweRelatieOpen] = useState(false);
@@ -432,7 +436,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
+        <main ref={mainScrollRef} data-task-scroll-boundary={isTaskPage ? "true" : undefined}
+          className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${isTaskPage ? "overscroll-y-none" : "overscroll-y-contain"}`}>
           <PullToRefresh>{children}</PullToRefresh>
         </main>
       </div>
