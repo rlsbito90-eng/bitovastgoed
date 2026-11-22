@@ -46,28 +46,28 @@ export default function TaakWerkplanningVelden({
   value,onChange,disabled=false,autoReminderOnTime=true,onReminderTouched,
 }:Props){
   const selected=selectedWorkPlanChoice(value);
-  return <fieldset disabled={disabled} className="space-y-2">
+  return <fieldset disabled={disabled} className="min-w-0 max-w-full space-y-2">
     <legend className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
       Planning
     </legend>
     <p className="sr-only">
       Kies wanneer je de taak wilt uitvoeren.
     </p>
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid min-w-0 grid-cols-3 gap-2">
       {OPTIONS.map(option=><button key={option.id} type="button"
         aria-pressed={selected===option.id}
         onClick={()=>{
           const next=workPlanForChoice(option.id);
           onChange({...next,reminderMode:option.id==='none'?'none':value.reminderMode==='at_time'?'none':(value.reminderMode??'none')});
         }}
-        className={`min-h-10 rounded-lg border px-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected===option.id
+        className={`min-h-10 min-w-0 rounded-lg border px-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected===option.id
           ?'border-accent/50 bg-accent/10 font-medium text-foreground'
           :'border-border/70 bg-background/30 text-muted-foreground hover:bg-muted/35 hover:text-foreground'}`}>
         {option.label}
       </button>)}
     </div>
-    <div className="grid grid-cols-2 gap-2">
-      <div className="space-y-1.5">
+    <div className="grid min-w-0 grid-cols-2 gap-2">
+      <div className="min-w-0 space-y-1.5">
         <label htmlFor="taak-werkdatum" className="text-xs font-medium text-muted-foreground">Datum</label>
         <input id="taak-werkdatum" type="date"
           value={value.planDatum??''}
@@ -78,9 +78,9 @@ export default function TaakWerkplanningVelden({
             planningBucket:'open',
             reminderMode:e.target.value?(value.reminderMode??'none'):'none',
           })}
-          className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm"/>
+          className="h-10 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-2 text-sm"/>
       </div>
-      <div className="space-y-1.5">
+      <div className="min-w-0 space-y-1.5">
         <label htmlFor="taak-werktijd" className="text-xs font-medium text-muted-foreground">Tijd (optioneel)</label>
         <input id="taak-werktijd" type="time" disabled={!value.planDatum}
           value={value.planDatum?(value.planTijd??'').slice(0,5):''}
@@ -90,7 +90,7 @@ export default function TaakWerkplanningVelden({
             reminderMode:reminderAfterTimeChange(value.reminderMode??'none',value.planTijd,e.target.value,
               !autoReminderOnTime),
           })}
-          className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-40"/>
+          className="h-10 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-2 text-sm disabled:opacity-40"/>
       </div>
     </div>
     <WorkPlanReminderSelect value={value.reminderMode??'none'}
