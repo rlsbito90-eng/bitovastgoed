@@ -5,6 +5,7 @@ import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
 import ObjectContactenSectie from '@/components/object/ObjectContactenSectie';
 import ObjectKerngegevensInline from '@/components/object/ObjectKerngegevensInline';
+import ObjectTitelInline from '@/components/object/ObjectTitelInline';
 import ObjectCommercieelInline from '@/components/object/ObjectCommercieelInline';
 import ObjectClassificatieInline from '@/components/object/ObjectClassificatieInline';
 import ObjectFysiekInline from '@/components/object/ObjectFysiekInline';
@@ -1281,9 +1282,8 @@ export default function ObjectDetailPage() {
 
         const titleBlock = (
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-semibold text-foreground tracking-tight leading-[1.1] break-words drop-shadow-sm">
-              {object.titel}
-            </h1>
+            <ObjectTitelInline object={object}
+              onSave={(patch)=>store.updateObject(object.id,patch)} />
             <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
               <HeaderChip
                 icon={MapPin}
@@ -1467,12 +1467,13 @@ export default function ObjectDetailPage() {
           {activeTab === 'overzicht' && (
           <SectionAnchor id="overzicht" eyebrow={eyebrowFor("overzicht", "Asset")} title="Overzicht">
             <div className="section-card p-5 sm:p-6 space-y-5">
-              <ObjectClassificatieInline object={object}
-                onSave={(patch)=>store.updateObject(object.id,patch)}/>
-
+              {/* Eerst transactierelevante gegevens: wie verkoopt, status, prijs en huur. */}
               <ObjectKerngegevensInline object={object}
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
               <ObjectCommercieelInline object={object} verhuur={verhuur} embedded
+                onSave={(patch)=>store.updateObject(object.id,patch)}/>
+              {/* Taxonomie voor kandidaatmatching volgt hierna; alle opties blijven inline bewerkbaar. */}
+              <ObjectClassificatieInline object={object}
                 onSave={(patch)=>store.updateObject(object.id,patch)}/>
               <details className="rounded-lg border border-border/60 bg-card/30">
                 <summary className="cursor-pointer flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/30">
