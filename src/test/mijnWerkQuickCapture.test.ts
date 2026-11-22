@@ -74,7 +74,7 @@ describe('Taken — Quick Capture v2', () => {
     expect(taskForm).toContain('taskLinkCount');
     expect(taskForm).toContain('const selectedLinks = taskLinks;');
     expect(taskForm).toContain('title={isEdit ?');
-    expect(taskLinksPicker).toContain('Koppelingen bewerken');
+    expect(taskForm).toContain("title={isEdit ? 'Koppelingen bewerken' : 'Koppelingen kiezen'}");
     expect(taskLinksPicker).toContain('Radar-signalen');
     expect(links).toContain("'relatie' | 'deal' | 'object' | 'signaal'");
   });
