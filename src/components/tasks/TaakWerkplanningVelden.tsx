@@ -43,10 +43,10 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
   const selected=selectedWorkPlanChoice(value);
   return <fieldset disabled={disabled} className="space-y-3">
     <legend className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-      Werkplanning
+      Planning
     </legend>
     <p className="text-xs text-muted-foreground">
-      Kies een werkdag of laat de taak voorlopig ongepland.
+      Kies wanneer je de taak wilt uitvoeren.
     </p>
     <div className="grid grid-cols-3 gap-2">
       {OPTIONS.map(option=><button key={option.id} type="button"
@@ -63,7 +63,7 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
     </div>
     <div className="grid grid-cols-2 gap-3">
       <div className="space-y-1.5">
-        <label htmlFor="taak-werkdatum" className="text-xs font-medium text-muted-foreground">Werkdatum</label>
+        <label htmlFor="taak-werkdatum" className="text-xs font-medium text-muted-foreground">Datum</label>
         <input id="taak-werkdatum" type="date"
           value={value.planDatum??''}
           onChange={e=>onChange({
@@ -76,7 +76,7 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
           className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm"/>
       </div>
       <div className="space-y-1.5">
-        <label htmlFor="taak-werktijd" className="text-xs font-medium text-muted-foreground">Werktijd (optioneel)</label>
+        <label htmlFor="taak-werktijd" className="text-xs font-medium text-muted-foreground">Tijd (optioneel)</label>
         <input id="taak-werktijd" type="time" disabled={!value.planDatum}
           value={value.planDatum?(value.planTijd??'').slice(0,5):''}
           onChange={e=>onChange({
