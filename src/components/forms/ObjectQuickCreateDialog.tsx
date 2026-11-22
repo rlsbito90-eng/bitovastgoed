@@ -367,7 +367,7 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
               searchPlaceholder="Zoek relatie op naam of bedrijf…"
               emptyLabel="Geen gekoppelde relatie"
               value={relatieId}
-              onChange={setRelatieId}
+              onChange={id=>{setRelatieId(id);setRelatieRol('');}}
               items={relatieItems}
             />
             {relatieId && <div className="space-y-1.5">
