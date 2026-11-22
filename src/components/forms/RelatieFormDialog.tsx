@@ -396,7 +396,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="flex h-[min(88svh,800px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-4xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]">
+      <DialogContent className="flex h-[min(88svh,800px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-4xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]" style={{ paddingBottom: 0 }}>
         <DialogHeader className="shrink-0 touch-none border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pt-6">
           <DialogTitle>
             {isEdit ? 'Relatie bewerken' : (gemaaktId ? 'Relatie bewerken' : 'Nieuwe relatie')}
