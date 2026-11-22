@@ -184,7 +184,7 @@ export default function TaakDetailPage(){
       href:objectId?`/objecten/${objectId}`:null,
     },
     deal:{
-      naam:deal?(getObjectById(deal.objectId)?.titel||deal.titel||'Deal'):dealId?'Deal laden…':null,
+      naam:deal?(getObjectById(deal.objectId)?.titel||getObjectById(deal.objectId)?.adres||'Deal'):dealId?'Deal laden…':null,
       href:dealId?`/deals/${dealId}`:null,
     },
     signaal:{
