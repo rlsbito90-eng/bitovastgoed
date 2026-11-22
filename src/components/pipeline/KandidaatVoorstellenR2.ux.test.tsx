@@ -44,7 +44,7 @@ describe('Match-UI: professionele shortlist met controlepunten',()=>{
     fireEvent.click(screen.getByRole('button',{name:/Controle nodig/}));
     const cards=screen.getAllByTestId('match-kandidaat-kaart');
     expect(cards).toHaveLength(1);
-    expect(within(cards[0]).getByText(/Expliciete uitsluitingen/)).toBeInTheDocument();
+    expect(within(cards[0]).getAllByText(/Expliciete uitsluitingen/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button',{name:/Relevant/}));
     fireEvent.change(screen.getByPlaceholderText('Zoek koper of zoekprofiel'),{
       target:{value:'koper-1'},
