@@ -11,12 +11,13 @@ type InlineTekstProps={
   required?:boolean;
   emptyLabel?:string;
   displayClassName?:string;
+  showPencil?:boolean;
 };
 
 /** Eén direct aanklikbare dossierwaarde, met gerichte patch en expliciet wissen. */
 export function InlineDossierTekst({
   label,value,onSave,multiline=false,required=false,
-  emptyLabel='Niet opgegeven',displayClassName,
+  emptyLabel='Niet opgegeven',displayClassName,showPencil=true,
 }:InlineTekstProps){
   const [editing,setEditing]=useState(false);
   const [draft,setDraft]=useState(value??'');
@@ -103,7 +104,7 @@ export function InlineDossierTekst({
         </div>
       </>:
       <EditableValueButton label={label} onClick={start} multiline={multiline}
-        className={cn('w-full',displayClassName)}>
+        showPencil={showPencil} className={cn('w-full',displayClassName)}>
         <span className={cn('break-words',displayClassName)}>
           {value?.trim()||<span className="text-muted-foreground font-normal">{emptyLabel}</span>}
         </span>
@@ -113,10 +114,10 @@ export function InlineDossierTekst({
 
 type Option={value:string;label:string};
 export function InlineDossierKeuze({
-  label,value,options,onSave,children,
+  label,value,options,onSave,children,showPencil=true,
 }:{
   label:string;value:string;options:readonly Option[];
-  onSave:(value:string)=>Promise<void>;children?:ReactNode;
+  onSave:(value:string)=>Promise<void>;children?:ReactNode;showPencil?:boolean;
 }){
   const [editing,setEditing]=useState(false);
   const [saving,setSaving]=useState(false);
@@ -141,7 +142,7 @@ export function InlineDossierKeuze({
         {!options.some(o=>o.value===value)&&<option value={value}>{value}</option>}
         {options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
       </select>:
-      <EditableValueButton label={label} onClick={()=>{setError(null);setEditing(true);}}>
+      <EditableValueButton label={label} showPencil={showPencil} onClick={()=>{setError(null);setEditing(true);}}>
         {children??options.find(o=>o.value===value)?.label??value}
       </EditableValueButton>}
     {error&&<p role="alert" className="text-xs text-destructive">{error}</p>}
