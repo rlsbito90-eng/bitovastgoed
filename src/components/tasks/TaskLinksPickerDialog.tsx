@@ -77,7 +77,7 @@ export default function TaskLinksPickerDialog({
     {
       type: 'relatie' as const,
       label: 'Relaties',
-      rows: relaties.map((r: any) => ({ id: r.id, label: r.bedrijfsnaam || r.naam || r.email || 'Relatie' })),
+      rows: relaties.map((r: any) => ({ id: r.id, label: getRelatieNaamCompact(r, contactpersonen) })),
     },
     {
       type: 'deal' as const,
