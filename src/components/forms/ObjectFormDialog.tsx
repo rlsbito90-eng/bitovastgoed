@@ -18,6 +18,7 @@ import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { useResetScrollOnChange } from '@/hooks/useResetScrollOnChange';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { round2, formatFactor, fmtEuroNL, fmtPctNL } from '@/lib/financialCalc';
 import {
   calculateRentPerM2,
@@ -266,6 +267,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
 
   // Scroll-container ref: bij tabwissel scrollt deze automatisch naar boven.
   const scrollRef = useResetScrollOnChange(tab);
+  useModalScrollContainment(scrollRef, open);
 
   // Hydreer form alleen bij open-transitie of wanneer een ander object wordt
   // bewerkt (object?.id verandert). Bewust NIET op iedere nieuwe object-
@@ -432,8 +434,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] max-h-[95dvh] p-0 gap-0 flex flex-col overflow-hidden overflow-x-hidden">
-        <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
+      <DialogContent className="flex h-[min(88svh,850px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-5xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]" style={{ paddingBottom: 0 }}>
+        <DialogHeader className="shrink-0 touch-none border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pt-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <DialogTitle>
               {isEdit ? 'Object bewerken' : (gemaaktId ? 'Object bewerken' : 'Nieuw object')}
@@ -450,7 +452,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
         </DialogHeader>
 
         {markeerAlsReferentie && (
-          <div className="shrink-0 px-6 py-3 border-b border-border bg-muted/30">
+          <div className="min-w-0 shrink-0 border-b border-border bg-muted/30 px-4 py-2 sm:px-6 sm:py-3">
             <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
               <div className="flex items-center gap-2">
                 <BookMarked className="h-4 w-4 text-accent" />
@@ -497,8 +499,8 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
           </div>
         )}
 
-        <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 px-3 sm:px-6 pt-3 pb-2 border-b border-border bg-background overflow-x-auto no-scrollbar">
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="min-w-0 shrink-0 overflow-x-auto overscroll-x-contain border-b border-border bg-background px-3 pb-2 pt-3 no-scrollbar sm:px-6">
             <TabsList className="inline-flex h-auto p-1 gap-1 bg-transparent rounded-full glass-card border border-border/60">
               <TabsTrigger value="algemeen" className="modal-tab-pill data-[state=active]:shadow-none">Algemeen</TabsTrigger>
               <TabsTrigger value="financieel" className="modal-tab-pill data-[state=active]:shadow-none">Financieel</TabsTrigger>
@@ -515,7 +517,7 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
             </TabsList>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 min-h-0">
+          <div ref={scrollRef} data-testid="object-full-form-scroll" className="min-h-0 min-w-0 w-full max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-4 py-4 sm:px-6">
 
             {/* TAB 1: ALGEMEEN */}
             <TabsContent value="algemeen" className="space-y-5 mt-0">
@@ -1550,15 +1552,15 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
           </div>
 
           {/* Footer */}
-          <div className="shrink-0 border-t border-border px-6 py-3 flex justify-between items-center gap-3 bg-background">
+          <div className="z-10 flex min-w-0 shrink-0 items-center justify-between gap-3 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">
             <p className="text-xs text-muted-foreground hidden sm:block">
               {isEdit || gemaaktId ? 'Wijzigingen worden direct opgeslagen na klikken' : 'Eerst opslaan om media toe te voegen'}
             </p>
-            <div className="flex gap-2 ml-auto">
-              <Button variant="outline" onClick={handleClose}>
+            <div className="ml-auto grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:w-auto">
+              <Button type="button" variant="outline" onClick={handleClose} className="min-w-0">
                 {(isEdit || gemaaktId) ? 'Sluiten' : 'Annuleren'}
               </Button>
-              <Button onClick={handleSave} disabled={bezig}>
+              <Button type="button" onClick={handleSave} disabled={bezig} className="min-w-0">
                 {bezig ? 'Bezig…' : (isEdit || gemaaktId ? 'Opslaan' : 'Aanmaken')}
               </Button>
             </div>
