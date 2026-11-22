@@ -99,7 +99,7 @@ describe('Echte opmaak van CRM-pushberichten', () => {
         relatie: {bedrijfsnaam:'Investeerder'},
       },zone,
     );
-    expect(result.body).toBe('Test taak\\nBedrijfspand Veendam · Investeerder');
+    expect(result.body).toBe('Test taak\nBedrijfspand Veendam · Investeerder');
   });
 
   it('kiest de expliciet gekoppelde CRM-objectnaam vóór een aanvullend Radar-signaal', () => {
@@ -111,7 +111,7 @@ describe('Echte opmaak van CRM-pushberichten', () => {
         signaal: {adres:'Ander signaal 1',plaats:'Amsterdam'},
       },zone,
     );
-    expect(result.body).toBe('Bezichtiging voorbereiden\\n1e Sweelinckstraat 26, Den Haag');
+    expect(result.body).toBe('Bezichtiging voorbereiden\n1e Sweelinckstraat 26, Den Haag');
   });
 
   it('toont alleen relatie, indien geen object is gekoppeld', () => {
