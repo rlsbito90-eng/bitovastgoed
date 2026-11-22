@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { AlertCircle } from 'lucide-react';
 
 import {
@@ -131,6 +132,8 @@ export function QuickCreateRelationDialog({
   const [linkedinUrl,setLinkedinUrl] = useState(defaultValues?.linkedinUrl ?? '');
   const [aantalToegevoegd,setAantalToegevoegd] = useState(0);
   const naamRef = useRef<HTMLInputElement>(null);
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+  useModalScrollContainment(bodyScrollRef, open);
   const [partijprofiel, setPartijprofiel] = useState<Partijprofiel>(defaultProfiel);
   const [rechtsvorm, setRechtsvorm] = useState<'bv'|'nv'|'cv'>(defaultRechtsvorm);
   const [error, setError] = useState<string | null>(null);
@@ -258,16 +261,17 @@ export function QuickCreateRelationDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!o ? handleCancel() : onOpenChange(o))}>
-      <DialogContent className="max-w-md w-[95vw]">
-        <DialogHeader>
+      <DialogContent className="flex h-[min(88svh,740px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-md flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]" style={{ paddingBottom: 0 }}>
+        <DialogHeader className="shrink-0 touch-none border-b border-border/70 px-4 pb-3 pt-5 sm:px-5">
           <DialogTitle>Nieuwe relatie</DialogTitle>
           <DialogDescription>
             Snel toevoegen. Je kunt later meer details aanvullen via de relatiepagina.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
+        <div ref={bodyScrollRef} data-testid="quick-relatie-scroll"
+          className="min-h-0 min-w-0 w-full max-w-full flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-4 py-4 sm:px-5">
+          <div className="grid min-w-0 gap-1.5">
             <Label htmlFor="qcr-naam">Naam / contactpersoon</Label>
             <Input
               id="qcr-naam"
@@ -291,7 +295,7 @@ export function QuickCreateRelationDialog({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="qcr-email">E-mail</Label>
               <Input
@@ -334,7 +338,7 @@ export function QuickCreateRelationDialog({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="qcr-profiel">Partijprofiel</Label>
               <Select value={partijprofiel}
@@ -395,20 +399,20 @@ export function QuickCreateRelationDialog({
           )}
         </div>
 
-        {aantalToegevoegd>0 && <p className="text-xs text-muted-foreground">
+        {aantalToegevoegd>0 && <p className="shrink-0 border-t border-border/50 px-4 py-1.5 text-xs text-muted-foreground sm:px-5">
           {aantalToegevoegd} relatie(s) toegevoegd in deze invoersessie.
         </p>}
-        <DialogFooter className="flex-wrap gap-2 sm:gap-2">
-          <Button type="button" variant="outline" onClick={handleCancel} disabled={bezig}>
+        <DialogFooter className="z-10 grid min-w-0 shrink-0 grid-cols-2 gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:flex sm:flex-row sm:flex-wrap sm:justify-end sm:px-5">
+          <Button type="button" variant="outline" onClick={handleCancel} disabled={bezig} className="min-w-0">
             {showSaveNext ? 'Sluiten' : 'Annuleren'}
           </Button>
-          {showSaveNext&&<Button type="button" variant="outline"
+          <Button type="button" className="min-w-0 sm:order-3" onClick={()=>void handleSave(false)} disabled={bezig||duplicates.length>0}>
+            {bezig ? 'Bezig…' : 'Relatie aanmaken'}
+          </Button>
+          {showSaveNext&&<Button type="button" variant="outline" className="col-span-2 min-w-0 sm:order-2 sm:col-auto"
             onClick={()=>void handleSave(true)} disabled={bezig||duplicates.length>0}>
             Opslaan en volgende
           </Button>}
-          <Button type="button" onClick={()=>void handleSave(false)} disabled={bezig||duplicates.length>0}>
-            {bezig ? 'Bezig…' : 'Relatie aanmaken'}
-          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

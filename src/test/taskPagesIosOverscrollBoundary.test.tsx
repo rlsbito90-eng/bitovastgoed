@@ -94,9 +94,9 @@ describe('Taken overzicht en detail: iPhone verticale scrollgrens', () => {
   it('begrenst de hoofdscrollcontainer zonder taak-tabs te vergrendelen', () => {
     const app = readFileSync(resolve(process.cwd(), 'src/components/AppLayout.tsx'), 'utf8');
     const tasks = readFileSync(resolve(process.cwd(), 'src/pages/TakenPage.tsx'), 'utf8');
-    expect(app).toContain('useTaskPageScrollBoundary(mainScrollRef, isTaskPage)');
+    expect(app).toContain('useTaskPageScrollBoundary(mainScrollRef, boundedPage)');
     expect(app).toContain('data-task-scroll-boundary={isTaskPage ? "true" : undefined}');
-    expect(app).toContain('isTaskPage ? "overscroll-y-none" : "overscroll-y-contain"');
+    expect(app).toContain('boundedPage ? "overscroll-y-none" : "overscroll-y-contain"');
     expect(app).toContain('overflow-y-auto overflow-x-hidden');
     expect(tasks).toContain('className={`page-shell');
     expect(tasks).toContain('overflow-x-auto');
