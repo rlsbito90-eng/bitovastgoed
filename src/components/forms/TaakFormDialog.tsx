@@ -121,6 +121,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   const [workPlanLoaded,setWorkPlanLoaded] = useState(true);
   const [workPlanError,setWorkPlanError] = useState<string|null>(null);
   const [workPlanDirty,setWorkPlanDirty] = useState(false);
+  const [workReminderTouched,setWorkReminderTouched] = useState(false);
   const pendingCreatedTaskId = useRef<string|null>(null);
   const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
   const [taskLinksOpen, setTaskLinksOpen] = useState(false);
@@ -129,9 +130,13 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   const [linksDirty, setLinksDirty] = useState(false);
   const [bezig, setBezig] = useState(false);
   const [verwijderOpen, setVerwijderOpen] = useState(false);
+  const [deadlineExpanded,setDeadlineExpanded] = useState(false);
+  const [notesExpanded,setNotesExpanded] = useState(false);
   const isEdit = !!taak;
 
   useEffect(() => {
+    setDeadlineExpanded(Boolean(taak?.deadline||defaultDeadline));
+    setNotesExpanded(Boolean(taak?.notities||defaultNotities));
     if (taak) {
       setForm({
         titel: taak.titel,
@@ -218,6 +223,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
     }
     setWorkPlan({planDatum:null,planTijd:null,planningBucket:'open',reminderMode:'none'});
     setWorkPlanDirty(false);
+    setWorkReminderTouched(Boolean(taak?.id));
     setWorkPlanError(null);
     setWorkPlanLoaded(!taak?.id);
     if(!taak?.id)return;
@@ -446,48 +452,56 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
     setWorkPlanDirty(true);
   };
   const taskLinkCount = countTaskLinks(taskLinks);
+  const linkedSummary = [
+    taskLinks.relatie[0] ? relatieItems.find(item=>item.id===taskLinks.relatie[0])?.primair||'Relatie' : null,
+    taskLinks.object[0] ? [...objectItemsActief,...objectItemsArchief].find(item=>item.id===taskLinks.object[0])?.primair||'Object' : null,
+    taskLinks.deal[0] ? [...dealItemsActief,...dealItemsArchief].find(item=>item.id===taskLinks.deal[0])?.primair||'Deal' : null,
+  ].filter(Boolean).join(' · ');
 
   return (
     <>
       <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-xl max-h-[92vh] overflow-y-auto overflow-x-hidden">
-          <DialogHeader>
+        <DialogContent className="flex h-[min(92dvh,800px)] max-h-[92dvh] w-[calc(100vw-1rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+          <DialogHeader className="shrink-0 border-b border-border/60 px-4 pb-3 pt-5 sm:px-6">
             <DialogTitle>{isEdit ? 'Taak bewerken' : 'Nieuwe taak'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Taakgegevens</h3>
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            <section className="space-y-2">
+              {isEdit&&<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Taakgegevens</h3>}
               <div className="space-y-1.5">
                 <Label>Titel *</Label>
                 <Input value={form.titel} onChange={e => set('titel', e.target.value)} placeholder="Wat moet er gedaan worden?" />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Type</Label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="min-w-0 space-y-1">
+                  <Label className="text-xs">Type</Label>
+                  <select className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 py-2 text-xs sm:text-sm" value={form.type} onChange={e => set('type', e.target.value)}>
                     {TAAK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Prioriteit</Label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.prioriteit} onChange={e => set('prioriteit', e.target.value)}>
+                <div className="min-w-0 space-y-1">
+                  <Label className="text-xs">Prioriteit</Label>
+                  <select className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 py-2 text-xs sm:text-sm" value={form.prioriteit} onChange={e => set('prioriteit', e.target.value)}>
                     <option value="laag">Laag</option>
                     <option value="normaal">Normaal</option>
                     <option value="hoog">Hoog</option>
                     <option value="urgent">Urgent</option>
                   </select>
                 </div>
-                <div className="col-span-2 sm:col-span-1 space-y-1.5">
-                  <Label>Status</Label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
+                <div className="min-w-0 space-y-1">
+                  <Label className="text-xs">Status</Label>
+                  <select className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 py-2 text-xs sm:text-sm" value={form.status} onChange={e => set('status', e.target.value)}>
                     {TAAK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
               </div>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-2">
               <TaakWerkplanningVelden value={workPlan} onChange={handleWorkPlanChange}
+                autoReminderOnTime={!workReminderTouched&&!isEdit}
+                onReminderTouched={()=>setWorkReminderTouched(true)}
                 disabled={!workPlanLoaded||bezig}/>
               {!workPlanLoaded&&<p role="status" className="text-xs text-muted-foreground">
                 {workPlanError || 'Bestaande werkplanning laden…'}
@@ -499,6 +513,17 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               {!linksLoaded&&<p role="status" className="text-xs text-muted-foreground">
                 {linksLoadError || 'Bestaande koppelingen laden…'}
               </p>}
+              {!isEdit?(
+                <button type="button" onClick={()=>setTaskLinksOpen(true)}
+                  disabled={!linksLoaded||bezig}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-border/65 px-3 py-2 text-left text-sm hover:bg-muted/30 disabled:opacity-60">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Link2 className="h-4 w-4 shrink-0 text-muted-foreground"/>
+                    <span className="min-w-0 truncate">{linkedSummary||'Relatie, object of deal toevoegen'}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-accent">{taskLinkCount||'+'}</span>
+                </button>
+              ):(
               <fieldset disabled={!linksLoaded||bezig} className="min-w-0">
                 <div className="space-y-3">
                   <EntityPicker
@@ -547,14 +572,20 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                   </button>
                 </div>
               </fieldset>
+              )}
             </section>
 
-            <section className="space-y-3">
-              <div>
+            <section className="space-y-2">
+              <div className="flex min-h-9 items-center justify-between gap-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deadline</h3>
-                <p className="mt-1 text-xs text-muted-foreground">Optioneel. Alleen als de taak een harde deadline heeft.</p>
+                {!isEdit&&!deadlineExpanded&&
+                  <button type="button" onClick={()=>setDeadlineExpanded(true)}
+                    className="min-h-9 rounded-lg px-2 text-sm text-accent hover:bg-muted/35">
+                    + Toevoegen
+                  </button>}
               </div>
-              <div className="grid sm:grid-cols-2 gap-3">
+              {(isEdit||deadlineExpanded)&&<>
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
                   <Label>Datum (optioneel)</Label>
                   <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
@@ -584,14 +615,30 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                   <p className="text-xs text-muted-foreground">Zonder tijdstip wordt de melding op de geselecteerde dag verstuurd.</p>
                 )}
               </div>
+              {!isEdit&&
+                <button type="button" className="min-h-9 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={()=>{set('deadline','');setDeadlineExpanded(false);setReminderSelection('default');}}>
+                  Deadline verwijderen
+                </button>}
+              </>}
             </section>
 
-            <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notities</h3>
-              <Textarea value={form.notities} onChange={e => set('notities', e.target.value)} rows={3} placeholder="Optionele context, opvolging, aanvullende info…" />
+            <section className="space-y-2">
+              <div className="flex min-h-9 items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notities</h3>
+                {!isEdit&&!notesExpanded&&
+                  <button type="button" onClick={()=>setNotesExpanded(true)}
+                    className="min-h-9 rounded-lg px-2 text-sm text-accent hover:bg-muted/35">
+                    + Toevoegen
+                  </button>}
+              </div>
+              {(isEdit||notesExpanded)&&
+                <Textarea value={form.notities} onChange={e => set('notities', e.target.value)}
+                  rows={2} placeholder="Optionele context, opvolging, aanvullende info…" />}
             </section>
 
-            <div className="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-border">
+            </div>
+            <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">
               <div>
                 {isEdit && (
                   <Button
@@ -605,9 +652,12 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                   </Button>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex min-w-0 flex-1 justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
-                <Button type="submit" disabled={bezig||!workPlanLoaded||!linksLoaded}>{bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Aanmaken')}</Button>
+                <Button type="submit" className="min-w-0 flex-1 sm:flex-none"
+                  disabled={bezig||!workPlanLoaded||!linksLoaded}>
+                  {bezig ? 'Bezig…' : (isEdit ? 'Opslaan' : 'Taak aanmaken')}
+                </Button>
               </div>
             </div>
           </form>

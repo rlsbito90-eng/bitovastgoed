@@ -3,7 +3,7 @@ import { ArrowUp, CalendarDays, Check, Clock3, Link2, Plus, X } from 'lucide-rea
 import { toast } from 'sonner';
 import { useDataStore } from '@/hooks/useDataStore';
 import { createManualTaskWithReminder } from '@/lib/tasks/reminders';
-import { updateTaskPlanning, type TaskPlanningBucket, type WorkReminderMode } from '@/lib/tasks/planning';
+import { updateTaskPlanning, reminderAfterTimeChange, type TaskPlanningBucket, type WorkReminderMode } from '@/lib/tasks/planning';
 import WorkPlanReminderSelect from '@/components/tasks/WorkPlanReminderSelect';
 import { replaceTaskLinks, type TaskLinkEntityType, type TaskLinkInput } from '@/lib/tasks/links';
 import TaskLinksPickerDialog, {
@@ -72,6 +72,7 @@ export default function QuickTaskCapture({ defaultTarget = 'open' }: { defaultTa
   const [planDate, setPlanDate] = useState<string | null>(null);
   const [planTime, setPlanTime] = useState<string | null>(null);
   const [workReminderMode, setWorkReminderMode] = useState<WorkReminderMode>('none');
+  const [reminderTouched,setReminderTouched] = useState(false);
   const [deadline, setDeadline] = useState<string | null>(null);
   const [deadlineTime, setDeadlineTime] = useState<string | null>(null);
   const [deadlineExpanded, setDeadlineExpanded] = useState(false);
@@ -88,6 +89,7 @@ export default function QuickTaskCapture({ defaultTarget = 'open' }: { defaultTa
     setPlanDate(null);
     setPlanTime(null);
     setWorkReminderMode('none');
+    setReminderTouched(false);
   }, [defaultTarget]);
 
   const submit = async (event: React.FormEvent) => {
@@ -129,6 +131,7 @@ export default function QuickTaskCapture({ defaultTarget = 'open' }: { defaultTa
       setTitel('');
       setTaskLinks({ relatie: [], object: [], deal: [], signaal: [] });
       setWorkReminderMode('none');
+      setReminderTouched(false);
       setDeadline(null);
       setDeadlineTime(null);
       setDeadlineExpanded(false);
@@ -162,6 +165,7 @@ export default function QuickTaskCapture({ defaultTarget = 'open' }: { defaultTa
       setPlanDate(null);
       setPlanTime(null);
       setWorkReminderMode('none');
+      setReminderTouched(false);
       return;
     }
   };
@@ -281,16 +285,19 @@ export default function QuickTaskCapture({ defaultTarget = 'open' }: { defaultTa
               icon={<Clock3 className="h-4 w-4" />}
               onChange={(value) => {
                 setPlanTime(value || null);
-                if (!value && workReminderMode==='at_time') setWorkReminderMode('none');
+                setWorkReminderMode(reminderAfterTimeChange(workReminderMode,planTime,value,reminderTouched));
               }}
-              onClear={planTime ? () => setPlanTime(null) : undefined}
+              onClear={planTime ? () => {
+                setPlanTime(null);
+                setWorkReminderMode(reminderAfterTimeChange(workReminderMode,planTime,null,reminderTouched));
+              } : undefined}
               clearLabel="Tijd wissen"
             />
           </div>
 
           <WorkPlanReminderSelect value={workReminderMode}
             hasDate={Boolean(effectivePlanDate)} hasTime={Boolean(planTime)}
-            onChange={setWorkReminderMode} />
+            onChange={mode=>{setReminderTouched(true);setWorkReminderMode(mode);}} />
 
           {!deadlineExpanded ? (
             <button

@@ -1,7 +1,28 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export type TaskPlanningBucket = 'open' | 'inbox' | 'later';
-export type WorkReminderMode = 'none' | 'on_day' | 'day_before' | 'at_time';
+export const WORK_REMINDER_OFFSETS = [5,10,15,30,60,120,1440,2880,10080] as const;
+export type WorkReminderOffset = typeof WORK_REMINDER_OFFSETS[number];
+export type WorkReminderMode = 'none' | 'on_day' | 'day_before' | 'at_time' | `offset_${WorkReminderOffset}`;
+
+/** De tijdkeuze geeft standaard een herinnering, tenzij Geen bewust is geselecteerd. */
+export function reminderAfterTimeChange(
+  mode:WorkReminderMode,timeBefore:string|null|undefined,timeAfter:string|null|undefined,
+  userExplicitlyChoseReminder:boolean,
+):WorkReminderMode{
+  if(!timeAfter){
+    if(mode==='at_time'||(mode.startsWith('offset_')&&Number(mode.slice(7))<1440))return 'none';
+    return mode;
+  }
+  if(!timeBefore&&mode==='none'&&!userExplicitlyChoseReminder)return 'at_time';
+  return mode;
+}
+export function workReminderIsValid(mode:WorkReminderMode,hasDate:boolean,hasTime:boolean):boolean {
+  if(!hasDate)return mode==='none';
+  if(mode==='at_time')return hasTime;
+  if(mode.startsWith('offset_'))return hasTime||Number(mode.slice(7))>=1440;
+  return true;
+}
 
 export interface TaskPlanningMeta {
   id: string;

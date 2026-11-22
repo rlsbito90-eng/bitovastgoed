@@ -11,6 +11,7 @@ import type {Taak} from '@/data/mock-data';
 const updatePlanning=vi.fn();
 vi.mock('@/lib/tasks/planning',()=>({
   updateTaskPlanning:(...args:unknown[])=>updatePlanning(...args),
+  WORK_REMINDER_OFFSETS:[5,10,15,30,60,120,1440,2880,10080],
 }));
 vi.mock('@/lib/tasks/reminders',()=>({
   getTaskReminderSelection:()=>Promise.resolve('default'),

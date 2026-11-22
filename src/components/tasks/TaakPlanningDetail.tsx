@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {Bell,CalendarDays,Clock3,Flag,X,Check} from 'lucide-react';
 import {toast} from 'sonner';
 import type {Taak} from '@/data/mock-data';
-import {updateTaskPlanning,type TaskPlanningMeta,type WorkReminderMode} from '@/lib/tasks/planning';
+import {updateTaskPlanning,WORK_REMINDER_OFFSETS,type TaskPlanningMeta,type WorkReminderMode} from '@/lib/tasks/planning';
 import {
   getTaskReminderSelection,reminderSelectionToDb,formatReminderOffset,
   TASK_REMINDER_OFFSETS,type TaskReminderSelection,
@@ -37,6 +37,10 @@ export function taskReminderLabel(value:WorkReminderMode,hasTime:boolean):string
   if(value==='on_day')return 'Op de dag zelf, 09:00';
   if(value==='day_before')return 'Een dag eerder, 09:00';
   if(value==='at_time'&&hasTime)return 'Op de gekozen tijd';
+  if(value.startsWith('offset_')){
+    const minutes=Number(value.slice(7));
+    return formatReminderOffset(minutes)+(hasTime?'':' (09:00)');
+  }
   return 'Geen';
 }
 export function taskDeadlineLabel(date:string|undefined, time:string|undefined):string{
@@ -187,6 +191,13 @@ export default function TaakPlanningDetail({
         <option value="on_day">Op de dag zelf, 09:00</option>
         <option value="day_before">Een dag eerder, 09:00</option>
         {(time||reminder==='at_time')&&<option value="at_time" disabled={!time}>Op de gekozen tijd</option>}
+        {WORK_REMINDER_OFFSETS.map(minutes=>{
+          const needsTime=minutes<1440;
+          if(needsTime&&!time&&reminder!==`offset_${minutes}`)return null;
+          return <option value={`offset_${minutes}`} key={minutes} disabled={needsTime&&!time}>
+            {formatReminderOffset(minutes)}{!time&&minutes>=1440?' (09:00)':''}
+          </option>;
+        })}
       </select>
     </div>
     <div className="border-t border-border/60 pt-2">
