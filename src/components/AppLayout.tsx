@@ -40,6 +40,7 @@ import NotificationsBell from "@/components/NotificationsBell";
 import NotificationsBellV2 from "@/components/NotificationsBellV2";
 import PullToRefresh from "@/components/PullToRefresh";
 import { isTaskPageScrollRoute, isRelatiePageScrollRoute, useTaskPageScrollBoundary } from "@/hooks/useTaskPageScrollBoundary";
+import { hasGlobalQuickTaskDock, hasInlineQuickTaskBar } from "@/lib/ui/floatingControls";
 import RefreshButton from "@/components/RefreshButton";
 import TaakFormDialog from "@/components/forms/TaakFormDialog";
 import { QuickCreateRelationDialog } from "@/components/forms/QuickCreateRelationDialog";
@@ -214,6 +215,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isTaskPage = isTaskPageScrollRoute(location.pathname);
   const isRelatiePage = isRelatiePageScrollRoute(location.pathname);
   const boundedPage = isTaskPage || isRelatiePage;
+  const hasFloatingDock = hasGlobalQuickTaskDock(location.pathname);
   useTaskPageScrollBoundary(mainScrollRef, boundedPage);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nieuweTaakOpen,setNieuweTaakOpen] = useState(false);
@@ -440,8 +442,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <main ref={mainScrollRef} data-task-scroll-boundary={isTaskPage ? "true" : undefined}
           data-relatie-scroll-boundary={isRelatiePage ? "true" : undefined}
-          className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${boundedPage ? "overscroll-y-none" : "overscroll-y-contain"}`}>
+          data-floating-task-dock={hasFloatingDock ? "true" : undefined}
+          className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden max-sm:scroll-pb-28 ${boundedPage ? "overscroll-y-none" : "overscroll-y-contain"}`}>
           <PullToRefresh>{children}</PullToRefresh>
+          {/* Mobiele zwevende acties mogen nooit de laatste paginering, knoppen
+              of invoervelden onbereikbaar maken. Dit is scrollbare eindruimte,
+              geen transparante laag boven de pagina. Taken heeft al eigen ruimte. */}
+          {!hasInlineQuickTaskBar(location.pathname) && (
+            <div data-testid="crm-floating-controls-clearance" aria-hidden="true"
+              className={`pointer-events-none shrink-0 sm:hidden ${hasFloatingDock
+                ? "h-[calc(7.5rem+env(safe-area-inset-bottom))]"
+                : "h-[calc(4.5rem+env(safe-area-inset-bottom))]"}`} />
+          )}
         </main>
       </div>
       <ScrollToTopButton />
