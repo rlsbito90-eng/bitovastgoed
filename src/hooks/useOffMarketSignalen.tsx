@@ -22,9 +22,10 @@ const LIST_KEY = ['off-market-signalen'] as const;
 const ALL_LIST_KEY = ['off-market-signalen', 'alle'] as const;
 const KPI_KEY = ['off-market-kpi'] as const;
 
-export function useOffMarketSignalen() {
+export function useOffMarketSignalen(enabled = true) {
   return useQuery({
     queryKey: LIST_KEY,
+    enabled,
     queryFn: async (): Promise<OffMarketSignaal[]> => {
       const { data, error } = await supabase
         .from('off_market_signalen')
