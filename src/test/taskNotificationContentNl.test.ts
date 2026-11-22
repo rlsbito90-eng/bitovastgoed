@@ -21,21 +21,23 @@ describe('taaknotificaties met herkenbare Nederlandse context', () => {
     expect(pushBron).toContain('signaalLabel(context.signaal) || objectLabel(context.object)');
   });
 
-  it('gebruikt compacte semantische pushkoppen en bewaart de taaktekst in de body', () => {
-    expect(pushBron).toContain('const title = compacteTaakCategorie(task, event, timeZone);');
-    expect(pushBron).toContain("return 'Taak vandaag'");
+  it('houdt semantische koppen en toont altijd de concrete taakomschrijving', () => {
+    expect(pushBron).toContain('const categorie = compacteTaakCategorie(task, event);');
     expect(pushBron).toContain("return 'Brief opvolgen'");
-    expect(pushBron).toContain('regels.push(verkortPushRegel(bronTitel))');
+    expect(pushBron).toContain('const regels = [verkortPushRegel(bronTitel, 96)]');
+    expect(pushBron).toContain("regels.push(verkortPushRegel(contextParts.join(' · '), 96))");
     expect(pushBron).toContain('title: pushTitle');
     expect(pushBron).toContain('body: pushBody');
   });
 
-  it('presenteert timing in natuurlijk Nederlands zonder technisch deadline-label', () => {
-    expect(pushBron).toContain('Vandaag om ${tijd}');
-    expect(pushBron).toContain('Morgen om ${tijd}');
-    expect(pushBron).toContain('Gisteren sinds ${tijd} te laat');
-    expect(pushBron).toContain('Sinds ${datumLabel} ${tijd} te laat');
-    expect(pushBron).not.toContain("pushBody = `${task.titel} · deadline");
+  it('onderscheidt werkplanning van de harde deadline in de kop', () => {
+    expect(pushBron).toContain("if (type === 'task_plan_reminder')");
+    expect(pushBron).toContain("return 'Vandaag gepland'");
+    expect(pushBron).toContain("return 'Morgen gepland'");
+    expect(pushBron).toContain("if (type === 'task_reminder' || type === 'task_due_today')");
+    expect(pushBron).toContain("return 'Deadline vandaag'");
+    expect(pushBron).toContain("return 'Deadline verstreken'");
+    expect(pushBron).not.toContain('taakTijdLabel(task, event, timeZone)');
   });
 
   it('maakt voor post geen persoonlijke opvolgtaak meer en behoudt e-mailtaakcontext', () => {
