@@ -8,6 +8,7 @@
 
 import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
 import { afstandHemelsbreedKm } from '../geo/afstandHemelsbreed';
+import { isObjectAanbiederRelatie } from './objectAanbiederUitsluiting';
 
 import type { CommercieleRol, Partijprofiel } from '../../data/mock-data';
 /** A15 proposal may be simulated; the existing policy remains the default. */
@@ -41,6 +42,12 @@ export interface CrmRelatieInput {
   budgetMin?: number | null;
   budgetMax?: number | null;
   aankoopcriteria?: string | null;
+  bedrijfsnaam?: string | null;
+  contactpersoon?: string | null;
+  email?: string | null;
+  /** Reeds vastgelegde contactpersonen; uitsluitend voor exacte aanbiederuitsluiting. */
+  contactpersoonNamen?: readonly string[] | null;
+  contactEmails?: readonly string[] | null;
   /** Vrije criteria zijn geen machineleesbare knock-outs. */
   uitsluitingen?: string | null;
   gewensteSituatie?: readonly string[] | null;
@@ -77,6 +84,12 @@ export interface CrmObjectInput {
   propertySubtypeIds?: readonly string[] | null;
   dealTypeIds?: readonly string[] | null;
   vraagprijs?: number | null;
+  /** De aanbieder/eigenaar van dit object is nooit een aankoopvoorstel voor hetzelfde object. */
+  eigenaarRelatieId?: string | null;
+  verkoperNaam?: string | null;
+  verkoperEmail?: string | null;
+  contactNaam?: string | null;
+  contactEmail?: string | null;
   plaats?: string | null;
   provincie?: string | null;
   geoLat?: number | null;
@@ -346,7 +359,7 @@ export function maakKandidaatVoorstellen(
  if(!isAanbiedbaar(object))return [];
  const result:KandidaatVoorstel[]=[];
  for(const r of relaties){
-   if(r.softDeletedAt||options.reedsGekoppeld?.has(r.id))continue;
+   if(r.softDeletedAt||options.reedsGekoppeld?.has(r.id)||isObjectAanbiederRelatie(object,r))continue;
    const profiles=zoekprofielen.filter(p=>p.relatieId===r.id&&p.status==='actief');
    const routes=[beoordelen(object,r,relaties,undefined,options.beleid),...profiles.map(p=>beoordelen(object,r,relaties,p,options.beleid))]
     .filter((x):x is ProfielRoute=>x!==null).filter(x=>options.toonAfwijkende||x.kwalificatie!=='afwijkend');
@@ -377,6 +390,9 @@ export function maakKandidaatConcept(
   if(!gekozen) return {ok:false as const,reden:'Zoekmandaat niet gevonden'};
   if(!isAanbiedbaar(object))return {ok:false as const,reden:'Object is niet beschikbaar'};
   if(gekozen.kwalificatie==='afwijkend')return {ok:false as const,reden:'Harde criteria wijken af'};
+  // Eerdere UI-concepten mogen geen aanbieders aan de koperspipeline toevoegen.
+  // De definitieve selectie valideert bovendien opnieuw tegen actuele CRM-data.
+  if(voorstel.relatieId===object.eigenaarRelatieId)return {ok:false as const,reden:'Aanbieder of verkoper van dit object'};
   return {ok:true as const,concept:{objectId:object.id,contactRelatieId:voorstel.relatieId,
       gekozenMandaatId:gekozen.zoekprofielId,contactRoute:gekozen.route,
       koperRelatieId:gekozen.koperRelatieId,controles:gekozen.toelichting.controleer,

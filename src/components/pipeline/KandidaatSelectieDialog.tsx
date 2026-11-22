@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstell
 import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
 import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen } from '@/lib/matching/rolMandaatAdapter';
+import { isObjectAanbiederRelatie } from '@/lib/matching/objectAanbiederUitsluiting';
 
 
 interface Props {
@@ -80,12 +82,34 @@ const fmtBudgetRange = (min?: number, max?: number): string => {
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
 
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
+  const navigate = useNavigate();
   const {
     relaties, contactpersonen, getObjectById,
     addPipelineKandidaat, getPipelineVoorObject, zoekprofielen,
   } = useDataStore();
 
   const object = getObjectById(objectId);
+  // Neem ook de losse contactpersoonrecords mee: een aanbieder kan in het CRM
+  // onder zijn makelaarskantoor staan, niet onder zijn persoonlijke naam.
+  const matchingRelaties = useMemo(() => {
+    const contactPerRelatie = new Map<string, typeof contactpersonen>();
+    for (const contact of contactpersonen) {
+      const lijst = contactPerRelatie.get(contact.relatieId) ?? [];
+      lijst.push(contact);
+      contactPerRelatie.set(contact.relatieId, lijst);
+    }
+    return relaties.map(relatie => {
+      const contacten = contactPerRelatie.get(relatie.id) ?? [];
+      return {
+        ...relatie,
+        contactpersoonNamen: contacten.map(c => c.naam).filter(Boolean),
+        contactEmails: contacten.map(c => c.email).filter((e): e is string => !!e),
+      };
+    });
+  }, [relaties, contactpersonen]);
+  const aanbiederRelatieIds = useMemo(() => new Set(object
+    ? matchingRelaties.filter(relatie => isObjectAanbiederRelatie(object, relatie)).map(r => r.id)
+    : []), [object, matchingRelaties]);
 
   const [zoek, setZoek] = useState('');
   const [filterType, setFilterType] = useState<PartijType | ''>('');
@@ -129,7 +153,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   // Handmatige selectie kent geen automatisch berekende matchscore of zoekroute.
   const verrijkt = useMemo(() => {
     return relaties
-      .filter(r => !reedsGekoppeld.has(r.id) && !afgewezenRelaties.has(r.id))
+      .filter(r => !reedsGekoppeld.has(r.id) && !afgewezenRelaties.has(r.id) && !aanbiederRelatieIds.has(r.id))
       .map(r => {
         const cps = contactpersonen.filter(c => c.relatieId === r.id);
         const primair = cps.find(c => c.isPrimair) ?? cps[0];
@@ -151,7 +175,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           alleContacten: cps,
         };
       });
-  }, [relaties, contactpersonen, reedsGekoppeld, afgewezenRelaties]);
+  }, [relaties, contactpersonen, reedsGekoppeld, afgewezenRelaties, aanbiederRelatieIds]);
 
   // Filter
   const gefilterd = useMemo(() => {
@@ -256,6 +280,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
 
   const handleToevoegen = async () => {
     if (geselecteerd.size === 0 || !object) return;
+    if ([...geselecteerd].some(id => aanbiederRelatieIds.has(id))) {
+      toast.error('De aanbieder of verkoper van dit object kan niet als koper worden toegevoegd.');
+      setGeselecteerd(new Set([...geselecteerd].filter(id => !aanbiederRelatieIds.has(id))));
+      return;
+    }
     if(matchingBesluiten.loading || matchingBesluiten.fout) {
       toast.error('Eerdere beoordelingen konden niet worden gecontroleerd.');
       return;
@@ -307,6 +336,11 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const handleR2Toevoegen = async () => {
     if(bezig || !r2Concept || !object || r2Concept.objectId!==objectId) return;
     const relatieId=r2Concept.contactRelatieId;
+    if (aanbiederRelatieIds.has(relatieId)) {
+      setR2Concept(null);
+      toast.error('De aanbieder of verkoper van dit object kan niet als koper worden toegevoegd.');
+      return;
+    }
     if(matchingBesluiten.loading || matchingBesluiten.fout) {
       toast.error('Eerdere beoordelingen zijn niet beschikbaar.');
       return;
@@ -333,7 +367,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       toast.error('Deze partij is al gekoppeld. Open de bestaande kandidaat in de pipeline.');
       return;
     }
-    const actueel=maakKandidaatVoorstellen(object,relaties,zoekprofielen,{reedsGekoppeld});
+    const actueel=maakKandidaatVoorstellen(object,matchingRelaties,zoekprofielen,{reedsGekoppeld});
     const partij=actueel.find(x=>x.relatieId===relatieId);
     const route=partij?.alleRoutes.find(x=>x.zoekprofielId===r2Concept.gekozenMandaatId && x.kwalificatie!=='afwijkend');
     if(!route || !partij) {
@@ -362,6 +396,10 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   };
 
   const handleQuickCreated = (r: Relatie) => {
+    if (object && isObjectAanbiederRelatie(object, r)) {
+      toast.error('Deze relatie is de aanbieder of verkoper van dit object, geen koopkandidaat.');
+      return;
+    }
     // Voeg nieuwe relatie toe aan selectie; behoud bestaande selectie.
     setGeselecteerd(prev => {
       const n = new Set(prev);
@@ -412,15 +450,16 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
 
         {r2Actief && (
           <div ref={r2ScrollRef} data-testid="kandidaat-voorstellen-scroll" className="min-h-0 min-w-0 w-full max-w-full flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-3 py-3 sm:px-5 sm:py-4">
-            <p className="text-xs text-muted-foreground">Beoordeel een voorstel of kies expliciet een kandidaat. Er worden geen aanbiedingen of berichten automatisch verstuurd.</p>
+            <p className="text-xs text-muted-foreground">Beoordeel een voorstel of kies expliciet een kandidaat. Aanbieders en verkopers van dit object worden uitgesloten; er worden geen berichten automatisch verstuurd.</p>
             {object ? <KandidaatVoorstellenR2
-              object={object} relaties={relaties} zoekprofielen={zoekprofielen}
+              object={object} relaties={matchingRelaties} zoekprofielen={zoekprofielen}
               reedsGekoppeld={reedsGekoppeld}
               relatieNaam={id => {
                 const r = relaties.find(item => item.id === id);
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
               }}
               onConceptGekozen={setR2Concept}
+              onOpenRelatie={id => { onOpenChange(false); navigate(`/relaties/${id}`); }}
               geselecteerdeRelatieId={r2Concept?.contactRelatieId ?? null}
               besluiten={matchingBesluiten.besluiten}
               besluitenGeladen={!matchingBesluiten.loading && !matchingBesluiten.fout}

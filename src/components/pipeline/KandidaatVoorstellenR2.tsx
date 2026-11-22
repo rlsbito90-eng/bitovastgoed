@@ -4,7 +4,7 @@
  * Alleen de expliciete actie "Kandidaat toevoegen" start het dealtraject.
  */
 import { useMemo, useState } from 'react';
-import { Check, Search, UserPlus } from 'lucide-react';
+import { Check, Search, UserPlus, ArrowUpRight } from 'lucide-react';
 import { MatchOnderbouwing } from '@/components/matching/MatchOnderbouwing';
 import type { ObjectBesluiten } from '@/hooks/useObjectMatchBesluiten';
 import { bepaalInhoudelijkeVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
@@ -25,6 +25,7 @@ export interface KandidaatVoorstellenProps {
   relatieNaam: (relatieId: string) => string;
   /** Selectie is een concept; pas het bovenliggende dialoog kan koppelen. */
   onConceptGekozen?: (concept: Concept) => void;
+  onOpenRelatie?: (relatieId: string) => void;
   geselecteerdeRelatieId?: string | null;
   besluiten:ObjectBesluiten;
   besluitenGeladen:boolean;
@@ -212,6 +213,11 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
             onClick={()=>void beoordeel(p.relatieId,'interessant')}
             className="min-h-9 rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-40">
             Interessant
+          </button>}
+          {props.onOpenRelatie&&<button type="button"
+            onClick={()=>props.onOpenRelatie?.(p.relatieId)}
+            className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 py-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+            Kopersprofiel <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
           </button>}
           <button type="button" disabled={!!bezig}
             onClick={()=>setRedenVoor(x=>x===p.relatieId?null:p.relatieId)}
