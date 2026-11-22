@@ -51,7 +51,7 @@ describe('Werkplanning is geen harde deadline',()=>{
     fireEvent.change(screen.getByLabelText('Tijd (optioneel)'),{
       target:{value:'14:30'},
     });
-    expect(change).toHaveBeenLastCalledWith({...next,planTijd:'14:30',reminderMode:'none'});
+    expect(change).toHaveBeenLastCalledWith({...next,planTijd:'14:30',reminderMode:'at_time'});
   });
 
   it('maakt werktijd leeg als de werkdatum wordt gewist',()=>{
