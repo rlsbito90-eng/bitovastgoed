@@ -127,6 +127,8 @@ const leegForm: FormState = {
   budgetVoorkeurToelichting: undefined,
   rendementseis: undefined,
   rendementsdoelToelichting: undefined,
+  hardeAankoopvoorwaarden: undefined,
+  aankoopvoorkeuren: undefined,
   zoekRadiusCentrum: undefined,
   zoekRadiusWaarde: undefined,
   zoekRadiusEenheid: undefined,
@@ -866,7 +868,17 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
                     onChange={e => set('strategieToelichting', e.target.value || undefined)}
                     placeholder="Bijv. portefeuille-uitbreiding of specifieke value-addstrategie" />
                 </Veld>
-                <Veld label="Wat past nadrukkelijk niet?">
+                <Veld label="Harde aankoopvoorwaarden (moet voldoen)">
+                  <Textarea rows={3} value={form.hardeAankoopvoorwaarden ?? ''}
+                    onChange={e => set('hardeAankoopvoorwaarden', e.target.value || undefined)}
+                    placeholder="Bijv. minimaal 70% bedrijfsruimte — alleen bevestigde harde eisen" />
+                </Veld>
+                <Veld label="Voorkeuren (mag afwijken)">
+                  <Textarea rows={2} value={form.aankoopvoorkeuren ?? ''}
+                    onChange={e => set('aankoopvoorkeuren', e.target.value || undefined)}
+                    placeholder="Bijv. liefst verhuurd of in een specifieke stad" />
+                </Veld>
+                <Veld label="Overige expliciete uitsluitingen (historisch)">
                   <Textarea rows={2} value={form.uitsluitingen ?? ''}
                     onChange={e => set('uitsluitingen', e.target.value || undefined)} />
                 </Veld>
