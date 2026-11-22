@@ -15,7 +15,9 @@ interface Props {
 export default function WorkPlanReminderSelect({
   value,onChange,hasDate,hasTime,disabled=false,
 }:Props){
-  const selected=hasDate?value:'none';
+  // Legacy taken zonder werktijd hebben feitelijk geen werkmelding.
+  // Toon daarom Geen, zonder het bestaande record stilzwijgend te herschrijven.
+  const selected=!hasDate||(value==='at_time'&&!hasTime)?'none':value;
   return <div className="space-y-1.5">
     <label htmlFor="task-work-reminder" className="text-sm font-medium text-foreground">
       Herinnering bij werkplanning
