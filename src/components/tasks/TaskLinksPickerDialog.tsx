@@ -56,12 +56,16 @@ export default function TaskLinksPickerDialog({
   value,
   onChange,
   title = 'Koppelingen bewerken',
+  onConfirm,
+  confirming = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   value: TaskLinkSelection;
   onChange: (next: TaskLinkSelection) => void;
   title?: string;
+  onConfirm?: (selection: TaskLinkSelection) => void;
+  confirming?: boolean;
 }) {
   const { relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
   const { data: signalen = [] } = useOffMarketSignalen();
@@ -155,10 +159,11 @@ export default function TaskLinksPickerDialog({
 
         <button
           type="button"
-          onClick={() => onOpenChange(false)}
-          className="h-11 rounded-xl bg-foreground text-sm font-medium text-background"
+          onClick={() => onConfirm ? onConfirm(value) : onOpenChange(false)}
+          disabled={confirming}
+          className="h-11 rounded-xl bg-foreground text-sm font-medium text-background disabled:opacity-60"
         >
-          Gereed · {total} gekoppeld
+          {confirming ? 'Opslaan…' : onConfirm ? `Opslaan · ${total} gekoppeld` : `Gereed · ${total} gekoppeld`}
         </button>
       </DialogContent>
     </Dialog>
