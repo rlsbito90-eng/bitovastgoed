@@ -47,9 +47,9 @@ export default function RelatieKoppelveld({
     <div className={disabled?'pointer-events-none opacity-50':''}>
       <EntityPicker
         label={label}
-        pickerTitle="Kies eigenaar of verkoper"
+        pickerTitle={`Kies: ${label}`}
         searchPlaceholder="Zoek op naam of bedrijfsnaam…"
-        emptyLabel="Nog geen eigenaar gekoppeld"
+        emptyLabel="Nog geen relatie gekoppeld"
         value={value??''}
         onChange={id=>{if(!disabled)onChange(id||null);}}
         items={actief}
