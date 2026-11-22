@@ -60,12 +60,13 @@ describe('Taak aanmaken: compact en herinnering op gekozen tijd',()=>{
   });
   it('compacte aanmaak heeft bereikbare koppelingen en een vaste knop onder de scrollinhoud',()=>{
     const form=read('src/components/forms/TaakFormDialog.tsx');
-    expect(form).toContain('overscroll-contain');
+    expect(form).toContain('overscroll-none');
+    expect(form).toContain('useModalScrollContainment(scrollBodyRef, open)');
     expect(form).toContain('shrink-0 flex-wrap items-center');
     expect(form).toContain('safe-area-inset-bottom');
     expect(form).toContain("'Taak aanmaken'");
-    expect(form.indexOf('overflow-y-auto overscroll-contain')).toBeLessThan(form.indexOf('z-10 flex shrink-0'));
-    expect(form).toContain("linkedSummary||'Relatie, object of deal toevoegen'");
+    expect(form.indexOf('overflow-x-hidden overflow-y-auto overscroll-none')).toBeLessThan(form.indexOf('z-10 flex min-w-0 shrink-0'));
+    expect(form).toContain("linkedSummary||'Object of relatie toevoegen'");
     expect(form).toContain('deadlineExpanded');
     expect(form).toContain('notesExpanded');
   });
