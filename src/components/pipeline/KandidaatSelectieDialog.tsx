@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,6 +82,7 @@ const fmtBudgetRange = (min?: number, max?: number): string => {
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
 
 export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
+  const navigate = useNavigate();
   const {
     relaties, contactpersonen, getObjectById,
     addPipelineKandidaat, getPipelineVoorObject, zoekprofielen,
@@ -457,6 +459,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
               }}
               onConceptGekozen={setR2Concept}
+              onOpenRelatie={id => { onOpenChange(false); navigate(`/relaties/${id}`); }}
               geselecteerdeRelatieId={r2Concept?.contactRelatieId ?? null}
               besluiten={matchingBesluiten.besluiten}
               besluitenGeladen={!matchingBesluiten.loading && !matchingBesluiten.fout}
