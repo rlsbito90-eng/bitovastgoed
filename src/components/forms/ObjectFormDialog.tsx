@@ -1146,19 +1146,35 @@ export default function ObjectFormDialog({ open, onOpenChange, object, initialTa
 
             {/* TAB 6: VERKOPER — relatie-ID is leidend, losse velden alleen historisch. */}
             <TabsContent value="contacten" className="space-y-5 mt-0">
-              <Sectie titel="Eigenaar / verkoper">
-                <RelatieKoppelveld
-                  value={form.eigenaarRelatieId}
-                  onChange={id=>set('eigenaarRelatieId',id)}
-                  label="Gekoppelde relatie"
-                />
+              <Sectie titel="Partijen bij dit object">
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Leg eigenaar, verkoper en aanbiedende partij apart vast. De historische
+                  eigenaar-koppeling wordt niet automatisch aan een andere rol toegewezen.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <RelatieKoppelveld
+                    value={form.eigenaarRelatieId}
+                    onChange={id=>set('eigenaarRelatieId',id)}
+                    label="Eigenaar (bestaande koppeling)"
+                  />
+                  <RelatieKoppelveld
+                    value={form.verkoperRelatieId}
+                    onChange={id=>set('verkoperRelatieId',id)}
+                    label="Verkoper"
+                  />
+                  <RelatieKoppelveld
+                    value={form.aanbiederRelatieId}
+                    onChange={id=>set('aanbiederRelatieId',id)}
+                    label="Aanbiedende makelaar / tussenpersoon"
+                  />
+                </div>
                 <Veld label="Verkoopmotivatie">
                   <Textarea rows={2} value={form.verkoopmotivatie ?? ''}
                     onChange={e=>set('verkoopmotivatie',e.target.value||undefined)}
                     placeholder="Waarom wil de eigenaar verkopen?" />
                 </Veld>
                 <p className="text-xs text-muted-foreground">
-                  Kies een bestaande relatie. Aanvullende contactgegevens worden niet naar de relatie gekopieerd.
+                  Alleen bevestigde rollen invullen. Aanvullende contactgegevens worden niet naar de relatie gekopieerd.
                 </p>
               </Sectie>
 

@@ -23,6 +23,8 @@ export function maakObjectVoorstellenVoorRelatie(
       dealTypeIds: object.dealTypeIds,
       vraagprijs: object.vraagprijs,
       eigenaarRelatieId: object.eigenaarRelatieId,
+      verkoperRelatieId: object.verkoperRelatieId,
+      aanbiederRelatieId: object.aanbiederRelatieId,
       verkoperNaam: object.verkoperNaam,
       verkoperEmail: object.verkoperEmail,
       contactNaam: object.contactNaam,

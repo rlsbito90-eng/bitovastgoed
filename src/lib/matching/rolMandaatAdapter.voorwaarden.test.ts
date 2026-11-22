@@ -77,6 +77,35 @@ describe('Nieuwe matching: vrije aankoopvoorwaarden zijn nooit onterecht groen',
     }
   });
 
+  it('harde voorwaarden zijn een verplichte controle en nooit automatisch een afwijzing op vrijetekst',()=>{
+    const m=matches({...relatie,hardeAankoopvoorwaarden:'Minimaal 70% bedrijfsruimte'});
+    expect(m).toHaveLength(1);
+    expect(m[0].besteRoute.kwalificatie).toBe('te_verifieren');
+    expect(m[0].besteRoute.toelichting.controleer.join(' ')).toContain('Harde aankoopvoorwaarden');
+    expect(m[0].besteRoute.toelichting.afwijkend).toHaveLength(0);
+  });
+
+  it('voorkeuren mogen geen harde uitsluiting of negatief matchoordeel veroorzaken',()=>{
+    const m=matches({...relatie,aankoopvoorkeuren:'Bij voorkeur verhuurd'});
+    expect(m).toHaveLength(1);
+    expect(m[0].besteRoute.kwalificatie).toBe('passend');
+    expect(m[0].besteRoute.toelichting.controleer.join(' ')).toContain('Niet-bindende aankoopvoorkeuren');
+    expect(m[0].besteRoute.toelichting.afwijkend).toHaveLength(0);
+  });
+
+  it('relatiebrede harde voorwaarden blijven zichtbaar bij een afzonderlijk zoekprofiel',()=>{
+    const p:CrmMandaatInput={
+      id:'profiel-1',relatieId:'koper-1',status:'actief',
+      propertyTypeIds:['woning'],regio:['Noord-Brabant'],prijsMax:800000,
+    };
+    const m=matches({...relatie,hardeAankoopvoorwaarden:'NAR minimaal 8,5%'},[p]);
+    expect(m[0].alleRoutes).toHaveLength(2);
+    for(const route of m[0].alleRoutes){
+      expect(route.kwalificatie).toBe('te_verifieren');
+      expect(route.toelichting.controleer.join(' ')).toContain('Harde aankoopvoorwaarden');
+    }
+  });
+
   it('bestaande koopuitwisselingsveiligheid blijft behouden', () => {
     const m=matches(relatie);
     expect(m[0].kanAutomatischVersturen).toBe(false);

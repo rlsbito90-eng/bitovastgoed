@@ -124,12 +124,18 @@ const COMMUNICATIEVELDEN: readonly InlineRelatieVeld[] = [
     kind:'readonly',
     options:Object.entries(INVESTEERDER_SUBTYPE_LABELS).map(([value,label])=>({value,label}))},
 ];
+const MATCHVOORWAARDENVELDEN: readonly InlineRelatieVeld[] = [
+  {key:'hardeAankoopvoorwaarden',label:'Harde aankoopvoorwaarden (moet voldoen)',kind:'textarea',
+    note:'Bijvoorbeeld minimaal 70% bedrijfsruimte of een aantoonbare rendementseis. Deze tekst blijft te controleren totdat de voorwaarden meetbaar zijn vastgelegd.'},
+  {key:'aankoopvoorkeuren',label:'Voorkeuren (mag afwijken)',kind:'textarea',
+    note:'Bijvoorbeeld voorkeur voor verhuurd vastgoed of een bepaalde stad. Een voorkeur mag een passende koper niet automatisch uitsluiten.'},
+];
 const NOTITIEVELDEN: readonly InlineRelatieVeld[] = [
-  {key:'aankoopcriteria',label:'Belangrijkste acquisitiecriteria',kind:'textarea',
+  {key:'aankoopcriteria',label:'Algemene acquisitietoelichting (historisch)',kind:'textarea',
    note:'Deze basiscriteria staan op Relaties; extra zoekprofielen zijn alleen voor afwijkende zoekrichtingen.'},
   {key:'strategieToelichting',label:'Investeringsstrategie (vrije toelichting)',kind:'textarea',
     note:'Bewaar websitekeuzes die niet één-op-één in de CRM-taxonomie passen ook letterlijk.'},
-  {key:'uitsluitingen',label:'Wat past nadrukkelijk niet?',kind:'textarea'},
+  {key:'uitsluitingen',label:'Overige expliciete uitsluitingen (historisch)',kind:'textarea'},
   {key:'overigeToelichting',label:'Overige toelichting',kind:'textarea'},
   {key:'verkoopintentie',label:'Verkoopintentie',kind:'textarea'},
   {key:'volgendeActie',label:'Losse opvolgnotitie',note:'Taken met deadlines staan bij Taken.'},
@@ -294,6 +300,10 @@ export default function RelatieDetailPage() {
           </section>
           <InlineVastgoedVoorkeuren relatie={relatie}
             onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
+          <InlineRelatieSectie titel="Matchvoorwaarden — hard versus voorkeur"
+            relatie={relatie} velden={MATCHVOORWAARDENVELDEN}
+            toonAlleVeldenInitieel
+            onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
             velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           {relatie.zoekRadiusCentrum?.trim()&&relatie.zoekRadiusWaarde!=null&&

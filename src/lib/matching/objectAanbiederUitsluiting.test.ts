@@ -31,6 +31,18 @@ describe('Aanbieders, verkopers en objectcontacten horen niet in de kopersmatchi
     expect(maakKandidaatVoorstellen(object(),[aanbieder],[p],{toonAfwijkende:true})).toHaveLength(0);
   });
 
+  it('nieuwe expliciete verkoper- en aanbiedersrollen worden objectgebonden uitgesloten',()=>{
+    const kandidaat=relatie({id:'partij-1'});
+    const metVerkoper=object({eigenaarRelatieId:null,verkoperNaam:null,verkoperRelatieId:'partij-1'});
+    const metAanbieder=object({eigenaarRelatieId:null,verkoperNaam:null,aanbiederRelatieId:'partij-1'});
+    expect(isObjectAanbiederRelatie(metVerkoper,kandidaat)).toBe(true);
+    expect(isObjectAanbiederRelatie(metAanbieder,kandidaat)).toBe(true);
+    expect(maakKandidaatVoorstellen(metVerkoper,[kandidaat],[])).toHaveLength(0);
+    expect(maakKandidaatVoorstellen(metAanbieder,[kandidaat],[])).toHaveLength(0);
+    expect(maakKandidaatVoorstellen(object({eigenaarRelatieId:null,verkoperNaam:null}),[kandidaat],[]))
+      .toHaveLength(1);
+  });
+
   it('hetzelfde kantoor kan bij een ander object wél een relevante aankoopcontactpersoon zijn',()=>{
     const aanbieder=relatie({id:'frisia',bedrijfsnaam:'Frisia makelaars',contactpersoonNamen:['Jorg Ollie']});
     const ander=object({id:'ander',eigenaarRelatieId:'andere-verkoper',verkoperNaam:'Andere eigenaar'});

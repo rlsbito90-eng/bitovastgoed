@@ -16,7 +16,9 @@ describe('Dossiergegevens na eerste invoer zonder langdurige formulieren',()=>{
     expect(form).toContain('<RelatieKoppelveld');
     expect(form).toContain("onChange={id=>set('eigenaarRelatieId',id)}");
     expect(form).toContain('Historische losse contactgegevens');
-    expect(quick).toContain('eigenaarRelatieId: relatieId || undefined');
+    expect(quick).toContain("eigenaarRelatieId: relatieRol==='eigenaar'");
+    expect(quick).toContain("verkoperRelatieId: relatieRol==='verkoper'");
+    expect(quick).toContain("aanbiederRelatieId: relatieRol==='aanbieder'");
     expect(form).toContain('form.verkoperNaam');
   });
   it('beide dossiers kunnen taken rechtstreeks bekijken en afronden',()=>{

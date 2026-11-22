@@ -76,6 +76,7 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
   const [subcategorieId, setSubcategorieId] = useState<string | undefined>(undefined);
   const [bron, setBron] = useState('');
   const [relatieId, setRelatieId] = useState<string>('');
+  const [relatieRol, setRelatieRol] = useState<''|'eigenaar'|'verkoper'|'aanbieder'>('');
   const [vraagprijs, setVraagprijs] = useState<number | undefined>(undefined);
   const [prijsindicatie, setPrijsindicatie] = useState('');
   const [notitie, setNotitie] = useState('');
@@ -117,6 +118,7 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
     setSubcategorieId(undefined);
     setBron('');
     setRelatieId('');
+    setRelatieRol('');
     setVraagprijs(undefined);
     setPrijsindicatie('');
     setNotitie('');
@@ -134,11 +136,15 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
       toast.error('Titel / objectnaam is verplicht');
       return;
     }
+    if (relatieId && !relatieRol) {
+      toast.error('Kies eerst de rol van de gekoppelde relatie bij dit object.');
+      return;
+    }
 
     // Bouw payload met alleen ingevulde velden. Overige DB-kolommen blijven
     // NULL of behouden hun server-default (zie useDataStore.addObject).
-    // Gekoppelde relatie wordt als FK opgeslagen in eigenaar_relatie_id.
-    // Het vrije-tekstveld verkoperNaam wordt niet meer synthetisch gevuld.
+    // Een gekozen contact wordt alleen onder de expliciet aangegeven rol
+    // opgeslagen, nooit automatisch als eigenaar. Historische velden blijven ongemoeid.
     const payload: Record<string, unknown> = {
       titel: titelClean,
       anoniem,
@@ -150,7 +156,9 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
       vraagprijs: typeof vraagprijs === 'number' && Number.isFinite(vraagprijs) ? vraagprijs : undefined,
       prijsindicatie: prijsindicatie.trim() || undefined,
       interneOpmerkingen: notitie.trim() || undefined,
-      eigenaarRelatieId: relatieId || undefined,
+      eigenaarRelatieId: relatieRol==='eigenaar' ? relatieId || undefined : undefined,
+      verkoperRelatieId: relatieRol==='verkoper' ? relatieId || undefined : undefined,
+      aanbiederRelatieId: relatieRol==='aanbieder' ? relatieId || undefined : undefined,
       verkoperVia: 'onbekend',
 
       // Locatie afhankelijk van anonimiteit:
@@ -351,16 +359,32 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
             />
           </div>
 
-          {/* Gekoppelde relatie */}
-          <EntityPicker
-            label="Gekoppelde relatie (optioneel)"
-            pickerTitle="Kies verkoper of eigenaar"
-            searchPlaceholder="Zoek relatie op naam of bedrijf…"
-            emptyLabel="Geen gekoppelde relatie"
-            value={relatieId}
-            onChange={setRelatieId}
-            items={relatieItems}
-          />
+          {/* De rol is bewust expliciet: een makelaar is geen juridisch eigenaar. */}
+          <div className="min-w-0 space-y-2">
+            <EntityPicker
+              label="Betrokken relatie (optioneel)"
+              pickerTitle="Kies betrokken relatie"
+              searchPlaceholder="Zoek relatie op naam of bedrijf…"
+              emptyLabel="Geen gekoppelde relatie"
+              value={relatieId}
+              onChange={id=>{setRelatieId(id);setRelatieRol('');}}
+              items={relatieItems}
+            />
+            {relatieId && <div className="space-y-1.5">
+              <Label htmlFor="quick-relatie-rol">Rol bij dit object *</Label>
+              <select id="quick-relatie-rol" value={relatieRol}
+                onChange={e=>setRelatieRol(e.target.value as typeof relatieRol)}
+                className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">— Kies de bevestigde rol —</option>
+                <option value="eigenaar">Eigenaar</option>
+                <option value="verkoper">Verkoper</option>
+                <option value="aanbieder">Aanbiedende makelaar / tussenpersoon</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Leg onbekende rollen niet vast als eigenaar. Je kunt later meer partijen koppelen.
+              </p>
+            </div>}
+          </div>
 
           {/* Prijs */}
           <div className="grid gap-3 sm:grid-cols-2">

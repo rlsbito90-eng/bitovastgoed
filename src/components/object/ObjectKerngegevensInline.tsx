@@ -25,15 +25,15 @@ export default function ObjectKerngegevensInline({object,onSave}:Props){
     if(!motivatieOpen)setMotivatie(object.verkoopmotivatie??'');
   },[object.verkoopmotivatie,motivatieOpen]);
 
-  async function saveOwner(nieuw:string|null){
-    const vorige=object.eigenaarRelatieId??null;
+  async function saveRol(veld:'eigenaarRelatieId'|'verkoperRelatieId'|'aanbiederRelatieId',nieuw:string|null){
+    const vorige=object[veld]??null;
     if(busy||nieuw===vorige)return;
     setBusy(true);
     try{
-      await onSave({eigenaarRelatieId:nieuw});
+      await onSave({[veld]:nieuw});
       setStatus('saved');
-      toast.success('Eigenaar gekoppeld',{
-        action:{label:'Ongedaan maken',onClick:()=>{void onSave({eigenaarRelatieId:vorige})
+      toast.success('Relatierol opgeslagen',{ 
+        action:{label:'Ongedaan maken',onClick:()=>{void onSave({[veld]:vorige})
           .catch(()=>toast.error('Herstellen mislukt'));}},
       });
     }catch(e){toast.error(e instanceof Error?e.message:'Koppelen mislukt');}
@@ -62,23 +62,30 @@ export default function ObjectKerngegevensInline({object,onSave}:Props){
 
   return <div className="space-y-4 border-b border-border/60 pb-4" data-testid="object-inline-kerngegevens">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h3 className="section-title">Eigenaar en verkoopmotivatie</h3>
+      <h3 className="section-title">Betrokken partijen en verkoopmotivatie</h3>
       {status==='saved'&&!busy&&<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
         <Check className="h-3.5 w-3.5"/> Opgeslagen
       </span>}
       {busy&&<span className="text-xs text-muted-foreground">Opslaan…</span>}
     </div>
-    <RelatieKoppelveld
-      label="Gekoppelde eigenaar / verkoper"
-      value={object.eigenaarRelatieId}
-      onChange={id=>{void saveOwner(id);}}
-      allowCreate
-      disabled={busy}
-    />
-    {object.eigenaarRelatieId&&<Link to={`/relaties/${object.eigenaarRelatieId}`}
-      className="text-xs text-accent hover:underline">
-      Relatiedossier openen
-    </Link>}
+    <p className="text-xs leading-5 text-muted-foreground">
+      Koppel partijen op hun rol bij dit specifieke object. De bestaande eigenaar-koppeling
+      kan in oudere dossiers ook een makelaar of verkoper zijn; deze gegevens worden niet automatisch gewijzigd.
+    </p>
+    <div className="grid min-w-0 gap-4 sm:grid-cols-3">
+      {([
+        {key:'eigenaarRelatieId' as const,label:'Eigenaar (bestaande koppeling)',help:'Controleer of dit daadwerkelijk de eigenaar is.'},
+        {key:'verkoperRelatieId' as const,label:'Verkoper / verkoopbevoegde partij',help:'De partij die namens eigendom verkoopt.'},
+        {key:'aanbiederRelatieId' as const,label:'Aanbiedende makelaar / tussenpersoon',help:'De partij die deze propositie aanbrengt.'},
+      ]).map(rol=><div key={rol.key} className="min-w-0 space-y-1.5">
+        <RelatieKoppelveld label={rol.label} value={object[rol.key]}
+          onChange={id=>{void saveRol(rol.key,id);}}
+          allowCreate disabled={busy} />
+        <p className="text-xs leading-4 text-muted-foreground">{rol.help}</p>
+        {object[rol.key]&&<Link to={`/relaties/${object[rol.key]}`}
+          className="inline-block text-xs text-accent hover:underline">Relatiedossier openen</Link>}
+      </div>)}
+    </div>
     {!object.eigenaarRelatieId&&object.verkoperNaam?.trim()&&
       <p className="text-xs text-muted-foreground">
         Historische naam: {object.verkoperNaam}. Koppel deze aan een bestaande of nieuwe relatie;
