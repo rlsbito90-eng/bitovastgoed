@@ -57,7 +57,7 @@ function schoon(value: unknown): string | null {
   return result || null;
 }
 
-function relatieLabel(row: any): string | null {
+function relatieLabel(row: any, primaireContactNaam?: string | null): string | null {
   if (!row) return null;
   const bedrijf = schoon(row.bedrijfsnaam) || schoon(row.organisatie_naam) || schoon(row.naam);
   if (bedrijf) return bedrijf;
@@ -66,7 +66,8 @@ function relatieLabel(row: any): string | null {
     .filter(Boolean)
     .join(' ')
     .trim();
-  return persoon || null;
+  // CRM-relaties kunnen alleen in relatie_contactpersonen een naam hebben.
+  return persoon || schoon(row.contactpersoon) || schoon(primaireContactNaam) || null;
 }
 
 function objectLabel(row: any): string | null {
@@ -153,7 +154,7 @@ function verkortPushRegel(value: string, max = 76): string {
 function taakPushPresentatie(
   event: any,
   task: any,
-  context: { relatie?: any; object?: any; signaal?: any },
+  context: { relatie?: any; object?: any; signaal?: any; primaireContactNaam?: string | null },
   timeZone: string,
 ): { title: string; body: string } {
   const bronTitel = schoon(task?.titel) || schoon(event?.title) || 'Taak';
@@ -166,7 +167,7 @@ function taakPushPresentatie(
   const regels = [verkortPushRegel(bronTitel, 96)];
   const contextParts: string[] = [];
   const pand = signaalLabel(context.signaal) || objectLabel(context.object);
-  const relatie = relatieLabel(context.relatie);
+  const relatie = relatieLabel(context.relatie, context.primaireContactNaam);
   if (pand) contextParts.push(pand);
   if (relatie && !contextParts.some(deel => deel.toLocaleLowerCase('nl-NL') === relatie.toLocaleLowerCase('nl-NL'))) {
     contextParts.push(relatie);
@@ -268,20 +269,40 @@ Deno.serve(async (req: Request) => {
     const objectIds = Array.from(new Set((tasks ?? []).map((t: any) => t.object_id).filter(Boolean)));
     const signaalIds = Array.from(new Set((tasks ?? []).map((t: any) => t.off_market_signaal_id).filter(Boolean)));
 
-    const [{ data: relaties, error: relatiesError }, { data: objecten, error: objectenError }, { data: signalen, error: signalenError }] = await Promise.all([
+    const [
+      { data: relaties, error: relatiesError },
+      { data: objecten, error: objectenError },
+      { data: signalen, error: signalenError },
+      { data: contactpersonen, error: contactpersonenError },
+    ] = await Promise.all([
       relatieIds.length ? supabase.from('relaties').select('*').in('id', relatieIds) : Promise.resolve({ data: [], error: null } as any),
       objectIds.length ? supabase.from('objecten').select('*').in('id', objectIds) : Promise.resolve({ data: [], error: null } as any),
       signaalIds.length ? supabase.from('off_market_signalen').select('id, adres, plaats, titel').in('id', signaalIds) : Promise.resolve({ data: [], error: null } as any),
+      relatieIds.length
+        ? supabase.from('relatie_contactpersonen')
+          .select('relatie_id, naam, is_primair')
+          .in('relatie_id', relatieIds)
+          .order('is_primair', { ascending: false })
+        : Promise.resolve({ data: [], error: null } as any),
     ]);
     if (relatiesError) throw relatiesError;
     if (objectenError) throw objectenError;
     if (signalenError) throw signalenError;
+    if (contactpersonenError) throw contactpersonenError;
 
     const eventMap = new Map((events ?? []).map((e: any) => [e.id, e]));
     const subMap = new Map((subscriptions ?? []).map((s: any) => [s.id, s]));
     const prefMap = new Map((preferences ?? []).map((p: any) => [p.user_id, p]));
     const taskMap = new Map((tasks ?? []).map((t: any) => [t.id, t]));
     const relatieMap = new Map((relaties ?? []).map((r: any) => [r.id, r]));
+    // Primair eerst; bij oude data zonder primaire markering het eerste bruikbare contact.
+    const primaireContactMap = new Map<string, string>();
+    for (const contact of contactpersonen ?? []) {
+      const naam = schoon(contact.naam);
+      if (naam && !primaireContactMap.has(contact.relatie_id)) {
+        primaireContactMap.set(contact.relatie_id, naam);
+      }
+    }
     const objectMap = new Map((objecten ?? []).map((o: any) => [o.id, o]));
     const signaalMap = new Map((signalen ?? []).map((s: any) => [s.id, s]));
 
@@ -335,6 +356,7 @@ Deno.serve(async (req: Request) => {
             task,
             {
               relatie: task.relatie_id ? relatieMap.get(task.relatie_id) : null,
+              primaireContactNaam: task.relatie_id ? primaireContactMap.get(task.relatie_id) : null,
               object: task.object_id ? objectMap.get(task.object_id) : null,
               signaal: task.off_market_signaal_id ? signaalMap.get(task.off_market_signaal_id) : null,
             },
