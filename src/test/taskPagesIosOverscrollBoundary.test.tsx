@@ -99,6 +99,6 @@ describe('Taken overzicht en detail: iPhone verticale scrollgrens', () => {
     expect(app).toContain('isTaskPage ? "overscroll-y-none" : "overscroll-y-contain"');
     expect(app).toContain('overflow-y-auto overflow-x-hidden');
     expect(tasks).toContain('className={`page-shell');
-    expect(tasks).toContain('tabs-scroll');
+    expect(tasks).toContain('overflow-x-auto');
   });
 });
