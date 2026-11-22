@@ -271,6 +271,10 @@ export interface Relatie {
   financieringsstatus?: string;
   besluitvorming?: string;
   uitsluitingen?: string;
+  /** Expliciete harde aankoopvoorwaarden, letterlijk ingevoerd. Alleen toetsbaar na validatie. */
+  hardeAankoopvoorwaarden?: string;
+  /** Niet-bindende voorkeuren die bij rangschikking kunnen helpen, geen knock-out. */
+  aankoopvoorkeuren?: string;
   overigeToelichting?: string;
   strategieToelichting?: string;
   kapitaalsituatie?: KapitaalSituatie;
@@ -424,7 +428,10 @@ export interface ObjectVastgoed {
   verkoopmotivatie?: string;
   /** FK naar relaties.id — canonical gekoppelde eigenaar/verkoper. */
   eigenaarRelatieId?: string | null;
-
+  /** Geverifieerde verkoper (kan verschillen van juridisch eigenaar). */
+  verkoperRelatieId?: string | null;
+  /** Aanbiedende makelaar of tussenpersoon — nadrukkelijk geen automatische koper. */
+  aanbiederRelatieId?: string | null;
 
   // Portefeuille
   isPortefeuille: boolean;
