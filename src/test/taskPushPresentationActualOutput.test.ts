@@ -89,6 +89,31 @@ describe('Echte opmaak van CRM-pushberichten', () => {
     expect(result.body).toBe('Koper bellen\nTriple S Vastgoed');
   });
 
+
+  it('toont het echte CRM-object bij een taak zonder adres (Veendam)', () => {
+    const result = present(
+      {event_type:'task_plan_reminder',metadata:{plan_datum:today}},
+      {titel:'Test taak',type_taak:'Algemeen'},
+      {
+        object: {objectnaam:'Bedrijfspand Veendam',adres:null,publieke_naam:null},
+        relatie: {bedrijfsnaam:'Investeerder'},
+      },zone,
+    );
+    expect(result.body).toBe('Test taak\\nBedrijfspand Veendam · Investeerder');
+  });
+
+  it('kiest de expliciet gekoppelde CRM-objectnaam vóór een aanvullend Radar-signaal', () => {
+    const result = present(
+      {event_type:'task_plan_reminder',metadata:{plan_datum:today}},
+      {titel:'Bezichtiging voorbereiden',type_taak:'Algemeen'},
+      {
+        object: {objectnaam:'1e Sweelinckstraat 26, Den Haag',adres:'1e Sweelinckstraat 26'},
+        signaal: {adres:'Ander signaal 1',plaats:'Amsterdam'},
+      },zone,
+    );
+    expect(result.body).toBe('Bezichtiging voorbereiden\\n1e Sweelinckstraat 26, Den Haag');
+  });
+
   it('toont alleen relatie, indien geen object is gekoppeld', () => {
     const result = present({event_type:'high_priority_task'},{
       titel:'Documenten opvragen',type_taak:'Algemeen',
