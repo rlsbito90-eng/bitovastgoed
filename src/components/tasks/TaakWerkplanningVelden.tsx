@@ -1,4 +1,5 @@
 import type {ManualTaskPlanning} from '@/lib/tasks/reminders';
+import {reminderAfterTimeChange} from '@/lib/tasks/planning';
 import {localDateKey} from '@/lib/tasks/workView';
 import WorkPlanReminderSelect from './WorkPlanReminderSelect';
 
@@ -7,6 +8,8 @@ type Props = {
   value: ManualTaskPlanning;
   onChange: (value: ManualTaskPlanning) => void;
   disabled?: boolean;
+  autoReminderOnTime?: boolean;
+  onReminderTouched?: () => void;
 };
 
 /** Werkdatum is een voornemen; een deadline blijft een apart, hard veld. */
@@ -39,13 +42,15 @@ const OPTIONS:readonly {id:Choice,label:string}[]=[
   {id:'none',label:'Niet ingepland'},
 ];
 
-export default function TaakWerkplanningVelden({value,onChange,disabled=false}:Props){
+export default function TaakWerkplanningVelden({
+  value,onChange,disabled=false,autoReminderOnTime=true,onReminderTouched,
+}:Props){
   const selected=selectedWorkPlanChoice(value);
-  return <fieldset disabled={disabled} className="space-y-3">
+  return <fieldset disabled={disabled} className="space-y-2">
     <legend className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
       Planning
     </legend>
-    <p className="text-xs text-muted-foreground">
+    <p className="sr-only">
       Kies wanneer je de taak wilt uitvoeren.
     </p>
     <div className="grid grid-cols-3 gap-2">
@@ -61,7 +66,7 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
         {option.label}
       </button>)}
     </div>
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-2">
       <div className="space-y-1.5">
         <label htmlFor="taak-werkdatum" className="text-xs font-medium text-muted-foreground">Datum</label>
         <input id="taak-werkdatum" type="date"
@@ -82,7 +87,8 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
           onChange={e=>onChange({
             ...value,
             planTijd:e.target.value||null,
-            reminderMode:!e.target.value&&value.reminderMode==='at_time'?'none':(value.reminderMode??'none'),
+            reminderMode:reminderAfterTimeChange(value.reminderMode??'none',value.planTijd,e.target.value,
+              !autoReminderOnTime),
           })}
           className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-40"/>
       </div>
@@ -90,6 +96,6 @@ export default function TaakWerkplanningVelden({value,onChange,disabled=false}:P
     <WorkPlanReminderSelect value={value.reminderMode??'none'}
       hasDate={Boolean(value.planDatum)}
       hasTime={Boolean(value.planTijd)}
-      onChange={reminderMode=>onChange({...value,reminderMode})} />
+      onChange={reminderMode=>{onReminderTouched?.();onChange({...value,reminderMode});}} />
   </fieldset>;
 }
