@@ -72,8 +72,13 @@ function relatieLabel(row: any, primaireContactNaam?: string | null): string | n
 
 function objectLabel(row: any): string | null {
   if (!row) return null;
-  return schoon(row.titel)
+  // Het CRM bewaart de herkenbare objectnaam in 'objectnaam', ook wanneer
+  // de adresvelden leeg zijn (bijvoorbeeld Bedrijfspand Veendam).
+  // 'titel' was alleen de legacy-fallback en is geen DB-kolom in objecten.
+  return schoon(row.objectnaam)
+    || schoon(row.publieke_naam)
     || schoon(row.adres)
+    || schoon(row.titel)
     || [row.straat, row.huisnummer, row.toevoeging].map(schoon).filter(Boolean).join(' ').trim()
     || null;
 }
@@ -166,7 +171,7 @@ function taakPushPresentatie(
   // alleen de categorie 'Bellen' of 'Opvolging' bevat.
   const regels = [verkortPushRegel(bronTitel, 96)];
   const contextParts: string[] = [];
-  const pand = signaalLabel(context.signaal) || objectLabel(context.object);
+  const pand = objectLabel(context.object) || signaalLabel(context.signaal);
   const relatie = relatieLabel(context.relatie, context.primaireContactNaam);
   if (pand) contextParts.push(pand);
   if (relatie && !contextParts.some(deel => deel.toLocaleLowerCase('nl-NL') === relatie.toLocaleLowerCase('nl-NL'))) {

@@ -18,7 +18,7 @@ describe('taaknotificaties met herkenbare Nederlandse context', () => {
     expect(pushBron).toContain(".from('off_market_signalen')");
     expect(pushBron).toContain(".from('relaties')");
     expect(pushBron).toContain(".from('objecten')");
-    expect(pushBron).toContain('signaalLabel(context.signaal) || objectLabel(context.object)');
+    expect(pushBron).toContain('objectLabel(context.object) || signaalLabel(context.signaal)');
   });
 
   it('houdt semantische koppen en toont altijd de concrete taakomschrijving', () => {
