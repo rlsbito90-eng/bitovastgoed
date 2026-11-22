@@ -49,14 +49,16 @@ describe('Taken — Quick Capture v2', () => {
     expect(notificationEngine).toContain("task_plan_reminder: 'task_due_enabled'");
   });
 
-  it('toont op taakdetail de planning neutraal en een harde deadline afzonderlijk', () => {
+  it('toont op taakdetail de planning en een harde deadline afzonderlijk, direct aanpasbaar', () => {
+    const detailPlanning = readFileSync(resolve(process.cwd(), 'src/components/tasks/TaakPlanningDetail.tsx'), 'utf8');
     expect(taskDetail).toContain('getTaskPlanning');
-    expect(taskDetail).toContain('planningDateLabel');
-    expect(taskDetail).toContain("return 'Gepland vandaag'");
-    expect(taskDetail).toContain('planning?.planDatum');
-    expect(taskDetail).toContain('Deadline {deadlineLabel');
-    expect(taskDetail).toContain("teLaat ? 'text-destructive font-medium' : ''");
-    expect(taskDetail).not.toContain("'Zonder datum'");
+    expect(taskDetail).toContain('<TaakPlanningDetail');
+    expect(detailPlanning).toContain('taskPlanDateLabel');
+    expect(detailPlanning).toContain("if(date===today)return 'Vandaag'");
+    expect(detailPlanning).toContain("onClick={()=>openEdit('deadline')}");
+    expect(detailPlanning).toContain("await updateTaskPlanning(task.id,{");
+    expect(detailPlanning).toContain('await updateTask({');
+    expect(detailPlanning).not.toContain("deadline: planDatum");
   });
 
   it('houdt Quick Capture eenvoudig en ondersteunt meervoudige CRM-koppelingen bij taak aanmaken en bewerken', () => {
