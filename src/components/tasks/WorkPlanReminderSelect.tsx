@@ -20,7 +20,7 @@ export default function WorkPlanReminderSelect({
   const selected=!hasDate||(value==='at_time'&&!hasTime)?'none':value;
   return <div className="space-y-1.5">
     <label htmlFor="task-work-reminder" className="text-sm font-medium text-foreground">
-      Herinnering bij werkplanning
+      Herinnering
     </label>
     <select id="task-work-reminder"
       value={selected}
@@ -28,10 +28,10 @@ export default function WorkPlanReminderSelect({
       onChange={e=>onChange(e.target.value as WorkReminderMode)}
       className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground disabled:opacity-50">
       <option value="none">Geen</option>
-      <option value="on_day">Op de werkdag om 09:00 uur</option>
-      <option value="day_before">Een dag ervoor om 09:00 uur</option>
+      <option value="on_day">Op de geplande dag om 09:00 uur</option>
+      <option value="day_before">Een dag eerder om 09:00 uur</option>
       {(hasTime||value==='at_time')&&
-        <option value="at_time" disabled={!hasTime}>Op de gekozen werktijd</option>}
+        <option value="at_time" disabled={!hasTime}>Op de gekozen tijd</option>}
     </select>
   </div>;
 }
