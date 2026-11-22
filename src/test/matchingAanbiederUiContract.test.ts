@@ -24,7 +24,7 @@ describe('Kandidaatselectie: aanbiederuitsluiting is ook in de UI en save-route 
     expect(dialog).toContain('if (aanbiederRelatieIds.has(relatieId))');
     expect(dialog).toContain('maakKandidaatVoorstellen(object,matchingRelaties,zoekprofielen');
     expect(adapter).toContain('isObjectAanbiederRelatie(object,r)');
-    expect(adapter).toContain("if(voorstel.relatieId===object.eigenaarRelatieId)");
+    expect(adapter).toContain('[object.eigenaarRelatieId,object.verkoperRelatieId,object.aanbiederRelatieId]');
   });
 
   it('past dezelfde regel toe op voorstellen in het relatiedossier',()=>{
