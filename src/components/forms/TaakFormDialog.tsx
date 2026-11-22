@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -123,6 +124,8 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   const [workPlanDirty,setWorkPlanDirty] = useState(false);
   const [workReminderTouched,setWorkReminderTouched] = useState(false);
   const pendingCreatedTaskId = useRef<string|null>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+  useModalScrollContainment(scrollBodyRef, open);
   const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
   const [taskLinksOpen, setTaskLinksOpen] = useState(false);
   const [linksLoaded,setLinksLoaded] = useState(true);
@@ -461,13 +464,13 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   return (
     <>
       <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-        <DialogContent className="flex h-[min(92dvh,800px)] max-h-[92dvh] w-[calc(100vw-1rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
-          <DialogHeader className="shrink-0 border-b border-border/60 px-4 pb-3 pt-5 sm:px-6">
+        <DialogContent className="flex h-[min(92svh,800px)] max-h-[92dvh] w-[calc(100vw-1rem)] min-w-0 max-w-xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-full">
+          <DialogHeader className="shrink-0 touch-none border-b border-border/60 px-4 pb-3 pt-5 sm:px-6">
             <DialogTitle>{isEdit ? 'Taak bewerken' : 'Nieuwe taak'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
-            <section className="space-y-2">
+          <form onSubmit={handleSubmit} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div ref={scrollBodyRef} data-testid="task-form-scroll-body" className="min-h-0 min-w-0 w-full max-w-full flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-4 py-4 sm:px-6">
+            <section className="min-w-0 space-y-2">
               {isEdit&&<h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Taakgegevens</h3>}
               <div className="space-y-1.5">
                 <Label>Titel *</Label>
@@ -498,7 +501,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               </div>
             </section>
 
-            <section className="space-y-2">
+            <section className="min-w-0 space-y-2">
               <TaakWerkplanningVelden value={workPlan} onChange={handleWorkPlanChange}
                 autoReminderOnTime={!workReminderTouched&&!isEdit}
                 onReminderTouched={()=>setWorkReminderTouched(true)}
@@ -508,7 +511,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               </p>}
             </section>
 
-            <section className="space-y-3">
+            <section className="min-w-0 space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Koppelingen</h3>
               {!linksLoaded&&<p role="status" className="text-xs text-muted-foreground">
                 {linksLoadError || 'Bestaande koppelingen laden…'}
@@ -519,7 +522,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                   className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-border/65 px-3 py-2 text-left text-sm hover:bg-muted/30 disabled:opacity-60">
                   <span className="flex min-w-0 items-center gap-2">
                     <Link2 className="h-4 w-4 shrink-0 text-muted-foreground"/>
-                    <span className="min-w-0 truncate">{linkedSummary||'Relatie, object of deal toevoegen'}</span>
+                    <span className="min-w-0 truncate">{linkedSummary||'Object of relatie toevoegen'}</span>
                   </span>
                   <span className="shrink-0 text-xs text-accent">{taskLinkCount||'+'}</span>
                 </button>
@@ -575,7 +578,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               )}
             </section>
 
-            <section className="space-y-2">
+            <section className="min-w-0 space-y-2">
               <div className="flex min-h-9 items-center justify-between gap-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deadline</h3>
                 {!isEdit&&!deadlineExpanded&&
@@ -585,14 +588,14 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                   </button>}
               </div>
               {(isEdit||deadlineExpanded)&&<>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
+              <div className="grid min-w-0 grid-cols-2 gap-2">
+                <div className="min-w-0 space-y-1.5">
                   <Label>Datum (optioneel)</Label>
-                  <Input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+                  <Input className="min-w-0 max-w-full" type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label>Tijd (optioneel)</Label>
-                  <Input type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} disabled={!form.deadline} />
+                  <Input className="min-w-0 max-w-full" type="time" value={form.deadlineTijd} onChange={e => set('deadlineTijd', e.target.value)} disabled={!form.deadline} />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -623,7 +626,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
               </>}
             </section>
 
-            <section className="space-y-2">
+            <section className="min-w-0 space-y-2">
               <div className="flex min-h-9 items-center justify-between gap-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notities</h3>
                 {!isEdit&&!notesExpanded&&
@@ -638,7 +641,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
             </section>
 
             </div>
-            <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">
+            <div className="z-10 flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">
               <div>
                 {isEdit && (
                   <Button
