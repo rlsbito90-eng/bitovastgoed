@@ -614,6 +614,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
                 {form.deadline && !hasExactDeadline && (
                   <p className="text-xs text-muted-foreground">Zonder tijdstip wordt de melding op de geselecteerde dag verstuurd.</p>
                 )}
+              </div>
               {!isEdit&&
                 <button type="button" className="min-h-9 text-xs text-muted-foreground hover:text-foreground"
                   onClick={()=>{set('deadline','');setDeadlineExpanded(false);setReminderSelection('default');}}>
