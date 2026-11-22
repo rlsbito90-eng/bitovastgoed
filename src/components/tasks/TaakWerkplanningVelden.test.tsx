@@ -32,8 +32,8 @@ describe('Werkplanning is geen harde deadline',()=>{
     expect(selectedWorkPlanChoice(plan,now)).toBeNull();
     const changed=vi.fn();
     render(<TaakWerkplanningVelden value={plan} onChange={changed}/>);
-    expect(screen.getByLabelText('Werkdatum')).toHaveValue('2026-12-03');
-    expect(screen.getByLabelText('Werktijd (optioneel)')).toHaveValue('15:20');
+    expect(screen.getByLabelText('Datum')).toHaveValue('2026-12-03');
+    expect(screen.getByLabelText('Tijd (optioneel)')).toHaveValue('15:20');
     expect(changed).not.toHaveBeenCalled();
   });
 
@@ -41,14 +41,14 @@ describe('Werkplanning is geen harde deadline',()=>{
     const change=vi.fn();
     const plan:ManualTaskPlanning={planDatum:null,planTijd:null,planningBucket:'open'};
     const {rerender}=render(<TaakWerkplanningVelden value={plan} onChange={change}/>);
-    expect(screen.getByLabelText('Werktijd (optioneel)')).toBeDisabled();
+    expect(screen.getByLabelText('Tijd (optioneel)')).toBeDisabled();
     fireEvent.click(screen.getByRole('button',{name:'Vandaag'}));
     const next=change.mock.calls[0][0] as ManualTaskPlanning;
     expect(next.planDatum).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect('deadline' in next).toBe(false);
     rerender(<TaakWerkplanningVelden value={next} onChange={change}/>);
-    expect(screen.getByLabelText('Werktijd (optioneel)')).not.toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Werktijd (optioneel)'),{
+    expect(screen.getByLabelText('Tijd (optioneel)')).not.toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Tijd (optioneel)'),{
       target:{value:'14:30'},
     });
     expect(change).toHaveBeenLastCalledWith({...next,planTijd:'14:30',reminderMode:'none'});
@@ -59,7 +59,7 @@ describe('Werkplanning is geen harde deadline',()=>{
     render(<TaakWerkplanningVelden
       value={{planDatum:'2026-11-25',planTijd:'10:45',planningBucket:'open'}}
       onChange={change}/>);
-    fireEvent.change(screen.getByLabelText('Werkdatum'),{target:{value:''}});
+    fireEvent.change(screen.getByLabelText('Datum'),{target:{value:''}});
     expect(change).toHaveBeenCalledWith({
       planDatum:null,planTijd:null,planningBucket:'open',reminderMode:'none',
     });

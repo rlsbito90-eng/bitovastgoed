@@ -43,16 +43,16 @@ describe('Planning in Bito CRM',()=>{
   it('staat bij een werkdatum zonder werktijd een dagherinnering toe',()=>{
     const onChange=vi.fn();
     render(<WorkPlanReminderSelect value="none" onChange={onChange} hasDate hasTime={false}/>);
-    const select=screen.getByLabelText('Herinnering bij werkplanning') as HTMLSelectElement;
+    const select=screen.getByLabelText('Herinnering') as HTMLSelectElement;
     expect(select.disabled).toBe(false);
     fireEvent.change(select,{target:{value:'on_day'}});
     expect(onChange).toHaveBeenCalledWith('on_day');
-    expect(screen.getByText('Op de werkdag om 09:00 uur')).toBeTruthy();
-    expect(screen.queryByText('Op de gekozen werktijd')).toBeNull();
+    expect(screen.getByText('Op de geplande dag om 09:00 uur')).toBeTruthy();
+    expect(screen.queryByText('Op de gekozen tijd')).toBeNull();
   });
   it('geen werkdatum: herinnering uitgeschakeld, zonder automatische melding',()=>{
     render(<WorkPlanReminderSelect value="on_day" onChange={()=>{}} hasDate={false} hasTime={false}/>);
-    const select=screen.getByLabelText('Herinnering bij werkplanning') as HTMLSelectElement;
+    const select=screen.getByLabelText('Herinnering') as HTMLSelectElement;
     expect(select.disabled).toBe(true);
     expect(select.value).toBe('none');
   });

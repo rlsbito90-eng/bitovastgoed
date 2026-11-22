@@ -551,7 +551,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
 
             <section className="space-y-3">
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Uiterste datum</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deadline</h3>
                 <p className="mt-1 text-xs text-muted-foreground">Optioneel. Alleen als de taak een harde deadline heeft.</p>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">

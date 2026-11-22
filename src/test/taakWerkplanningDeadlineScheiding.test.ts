@@ -19,7 +19,7 @@ describe('Volledig taakformulier: dezelfde werkplanning als snelle invoer',()=>{
 
   it('heeft een aparte werkplan-editor en harde deadline',()=>{
     expect(form).toContain('<TaakWerkplanningVelden');
-    expect(form).toContain('Uiterste datum</h3>');
+    expect(form).toContain('Deadline</h3>');
     expect(form).toContain('Datum (optioneel)');
     expect(form).toContain('setWorkPlanDirty(true)');
     expect(form).toContain('workPlanDirty');
@@ -30,8 +30,8 @@ describe('Volledig taakformulier: dezelfde werkplanning als snelle invoer',()=>{
     expect(form).toContain('<fieldset disabled={!linksLoaded||bezig}');
     expect(form.indexOf('>Taakgegevens</h3>')).toBeLessThan(form.indexOf('<TaakWerkplanningVelden'));
     expect(form.indexOf('<TaakWerkplanningVelden')).toBeLessThan(form.indexOf('>Koppelingen</h3>'));
-    expect(form.indexOf('>Koppelingen</h3>')).toBeLessThan(form.indexOf('>Uiterste datum</h3>'));
-    expect(form.indexOf('>Uiterste datum</h3>')).toBeLessThan(form.indexOf('>Notities</h3>'));
+    expect(form.indexOf('>Koppelingen</h3>')).toBeLessThan(form.indexOf('>Deadline</h3>'));
+    expect(form.indexOf('>Deadline</h3>')).toBeLessThan(form.indexOf('>Notities</h3>'));
     expect(form).not.toContain('Collapsible');
   });
 
