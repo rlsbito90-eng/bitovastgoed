@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Building2, Check, ChevronDown, Link2, Search, UsersRound } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Building2, Check, ChevronDown, Search, UsersRound } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
 import { useOffMarketSignalen } from '@/hooks/useOffMarketSignalen';
 import { getRelatieNamen, getRelatieNaamCompact } from '@/lib/relatieNaam';
@@ -82,6 +82,29 @@ export function visibleTaskLinkRows(
   return [...chosen, ...remaining.slice(0, Math.max(0, limit - chosen.length))];
 }
 
+type ScrollGesture = {
+  totalX: number;
+  totalY: number;
+  stepY: number;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+};
+
+/**
+ * Laat normaal verticaal bladeren ongemoeid. Blokkeer zijwaarts slepen en
+ * het doorschieten langs de boven-/onderrand naar de iOS-pagina erachter.
+ */
+export function shouldBlockTaskLinksTouch(gesture: ScrollGesture): boolean {
+  const { totalX, totalY, stepY, scrollTop, scrollHeight, clientHeight } = gesture;
+  if (Math.abs(totalX) > 6 && Math.abs(totalX) > Math.abs(totalY)) return true;
+  if (Math.abs(totalY) < 3) return false;
+  if (scrollHeight <= clientHeight + 1) return true;
+  if (stepY > 0 && scrollTop <= 0) return true;
+  if (stepY < 0 && scrollTop + clientHeight >= scrollHeight - 1) return true;
+  return false;
+}
+
 export default function TaskLinksPickerDialog({
   open, onOpenChange, value, onChange,
   title = 'Koppelingen kiezen', onConfirm, confirming = false,
@@ -98,6 +121,7 @@ export default function TaskLinksPickerDialog({
   const [draft, setDraft] = useState<TaskLinkSelection>(() => cloneSelection(value));
   const [activeTab, setActiveTab] = useState<TaskLinkEntityType>(() => firstTab(value));
   const [query, setQuery] = useState('');
+  const resultsRef = useRef<HTMLDivElement>(null);
   const { data: signalen = [] } = useOffMarketSignalen(activeTab === 'signaal');
 
   // Een popup is een afzonderlijke bewerksessie: sluiten zonder toepassen wijzigt niets.
@@ -109,6 +133,47 @@ export default function TaskLinksPickerDialog({
     }
     // De popup wordt op alle drie plekken opnieuw gemount bij openen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // iOS Safari kan bij een swipe aan de rand van een lange lijst de hele
+  // modal/achtergrond laten 'rubber-banden'. Alleen de resultaten mogen scrollen.
+  // Een niet-passieve listener is nodig om die native overscroll te blokkeren.
+  useEffect(() => {
+    if (!open) return;
+    const results = resultsRef.current;
+    if (!results) return;
+
+    let touch: { startX: number; startY: number; previousY: number } | null = null;
+    const onStart = (event: TouchEvent) => {
+      const point = event.touches.length === 1 ? event.touches[0] : null;
+      touch = point ? { startX: point.clientX, startY: point.clientY, previousY: point.clientY } : null;
+    };
+    const onMove = (event: TouchEvent) => {
+      if (!touch || event.touches.length !== 1 || !event.cancelable) return;
+      const point = event.touches[0];
+      const block = shouldBlockTaskLinksTouch({
+        totalX: point.clientX - touch.startX,
+        totalY: point.clientY - touch.startY,
+        stepY: point.clientY - touch.previousY,
+        scrollTop: results.scrollTop,
+        scrollHeight: results.scrollHeight,
+        clientHeight: results.clientHeight,
+      });
+      touch.previousY = point.clientY;
+      if (block) event.preventDefault();
+    };
+    const onEnd = () => { touch = null; };
+
+    results.addEventListener('touchstart', onStart, { passive: true });
+    results.addEventListener('touchmove', onMove, { passive: false });
+    results.addEventListener('touchend', onEnd, { passive: true });
+    results.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      results.removeEventListener('touchstart', onStart);
+      results.removeEventListener('touchmove', onMove);
+      results.removeEventListener('touchend', onEnd);
+      results.removeEventListener('touchcancel', onEnd);
+    };
   }, [open]);
 
   const groups = useMemo<Record<TaskLinkEntityType, ChoiceGroup>>(() => ({
@@ -173,6 +238,7 @@ export default function TaskLinksPickerDialog({
   function changeTab(tab: TaskLinkEntityType) {
     setActiveTab(tab);
     setQuery('');
+    if (resultsRef.current) resultsRef.current.scrollTop = 0;
   }
   function toggle(id: string) {
     setDraft(prev => {
@@ -198,17 +264,17 @@ export default function TaskLinksPickerDialog({
   return (
     <Dialog open={open} onOpenChange={next => { if (!confirming) onOpenChange(next); }}>
       <DialogContent
-        className="flex h-[min(88dvh,780px)] w-[calc(100vw-1rem)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:w-full"
+        className="flex h-[min(88svh,780px)] min-w-0 w-[calc(100vw-1rem)] max-w-lg flex-col gap-0 overflow-hidden overscroll-none touch-pan-y p-0 sm:w-full"
         style={{ paddingBottom: 0 }}
       >
-        <DialogHeader className="shrink-0 border-b border-border/60 px-4 pb-3 pt-5 sm:px-5">
+        <DialogHeader className="shrink-0 touch-none border-b border-border/60 px-4 pb-3 pt-5 sm:px-5">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             Selecteer de objecten en relaties die bij deze taak horen.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="shrink-0 space-y-3 border-b border-border/60 px-4 py-3 sm:px-5">
+        <div className="shrink-0 min-w-0 touch-none space-y-3 border-b border-border/60 px-4 py-3 sm:px-5">
           <div className="flex rounded-xl bg-muted/55 p-1" role="tablist" aria-label="Soort koppeling">
             <button type="button" role="tab" aria-selected={activeTab === 'object'}
               onClick={() => changeTab('object')} className={tabStyle(activeTab === 'object')}>
@@ -250,7 +316,10 @@ export default function TaskLinksPickerDialog({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
-              onChange={event => setQuery(event.target.value)}
+              onChange={event => {
+                setQuery(event.target.value);
+                if (resultsRef.current) resultsRef.current.scrollTop = 0;
+              }}
               aria-label={'Zoek ' + groups[activeTab].label.toLowerCase()}
               placeholder={'Zoek binnen ' + groups[activeTab].label.toLowerCase() + '…'}
               className="h-11 w-full rounded-xl border border-border bg-background/55 pl-9 pr-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -258,7 +327,7 @@ export default function TaskLinksPickerDialog({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4"
+        <div ref={resultsRef} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-3 py-3 sm:px-4"
           role="tabpanel" aria-label={groups[activeTab].label}>
           <div className="flex items-center justify-between px-2 pb-2">
             <span className="text-xs font-medium text-muted-foreground">
@@ -304,7 +373,7 @@ export default function TaskLinksPickerDialog({
           )}
         </div>
 
-        <div className="z-10 flex shrink-0 items-center gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-5">
+        <div className="z-10 flex min-w-0 shrink-0 touch-none items-center gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-5">
           <span className="mr-auto hidden text-xs text-muted-foreground sm:inline">{total} geselecteerd</span>
           <button type="button" disabled={confirming} onClick={() => onOpenChange(false)}
             className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted/40">
