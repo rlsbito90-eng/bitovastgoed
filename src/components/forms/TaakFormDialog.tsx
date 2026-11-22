@@ -121,6 +121,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
   const [workPlanLoaded,setWorkPlanLoaded] = useState(true);
   const [workPlanError,setWorkPlanError] = useState<string|null>(null);
   const [workPlanDirty,setWorkPlanDirty] = useState(false);
+  const [workReminderTouched,setWorkReminderTouched] = useState(false);
   const pendingCreatedTaskId = useRef<string|null>(null);
   const [taskLinks, setTaskLinks] = useState<TaskLinkSelection>(EMPTY_TASK_LINK_SELECTION);
   const [taskLinksOpen, setTaskLinksOpen] = useState(false);
@@ -218,6 +219,7 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
     }
     setWorkPlan({planDatum:null,planTijd:null,planningBucket:'open',reminderMode:'none'});
     setWorkPlanDirty(false);
+    setWorkReminderTouched(Boolean(taak?.id));
     setWorkPlanError(null);
     setWorkPlanLoaded(!taak?.id);
     if(!taak?.id)return;
@@ -488,6 +490,8 @@ export default function TaakFormDialog({ open, onOpenChange, onSaved, taak, defa
 
             <section className="space-y-3">
               <TaakWerkplanningVelden value={workPlan} onChange={handleWorkPlanChange}
+                autoReminderOnTime={!workReminderTouched&&!isEdit}
+                onReminderTouched={()=>setWorkReminderTouched(true)}
                 disabled={!workPlanLoaded||bezig}/>
               {!workPlanLoaded&&<p role="status" className="text-xs text-muted-foreground">
                 {workPlanError || 'Bestaande werkplanning laden…'}
