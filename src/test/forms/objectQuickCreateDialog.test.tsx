@@ -148,7 +148,7 @@ describe('ObjectQuickCreateDialog', () => {
     // Open picker
     await user.click(screen.getByRole('button', { name: /Kiezen/i }));
     // Zoek naar de relatie in de picker
-    const picker = await screen.findByRole('dialog', { name: /Kies verkoper of eigenaar/i });
+    const picker = await screen.findByRole('dialog', { name: /Kies betrokken relatie/i });
     const utils = within(picker);
     expect(utils.getByText('Jan de Vries')).toBeInTheDocument();
     expect(utils.getByText('Voorbeeld BV')).toBeInTheDocument();
@@ -156,7 +156,7 @@ describe('ObjectQuickCreateDialog', () => {
     expect(utils.queryByText(/jan@geheim\.nl/i)).not.toBeInTheDocument();
   });
 
-  it('quick-create met gekoppelde relatie stuurt eigenaarRelatieId als FK en géén verkoperNaam', async () => {
+  it('quick-create met gekoppelde relatie vraagt expliciete rol voordat hij deze koppelt', async () => {
     relatiesMock = [
       {
         id: 'r-1',
@@ -180,9 +180,14 @@ describe('ObjectQuickCreateDialog', () => {
     const picker = await screen.findByRole('dialog', { name: /Kies verkoper of eigenaar/i });
     await user.click(within(picker).getByText('Jan de Vries'));
     await user.click(screen.getByRole('button', { name: /Object aanmaken/i }));
+    expect(addObjectMock).not.toHaveBeenCalled();
+    await user.selectOptions(screen.getByLabelText('Rol bij dit object *'),'aanbieder');
+    await user.click(screen.getByRole('button', { name: /Object aanmaken/i }));
     await waitFor(() => expect(addObjectMock).toHaveBeenCalled());
     const payload = addObjectMock.mock.calls[0][0];
-    expect(payload.eigenaarRelatieId).toBe('r-1');
+    expect(payload.aanbiederRelatieId).toBe('r-1');
+    expect(payload.eigenaarRelatieId).toBeUndefined();
+    expect(payload.verkoperRelatieId).toBeUndefined();
     expect(payload.verkoperNaam).toBeUndefined();
   });
 
