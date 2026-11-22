@@ -15,7 +15,10 @@ export async function bulkUpdateTaskPlanning(
   const taskIds = uniqueIds(ids);
   if (taskIds.length === 0) return;
   const payload: Record<string, unknown> = {};
-  if (patch.planDatum !== undefined) payload.plan_datum = patch.planDatum;
+  if (patch.planDatum !== undefined) {
+    payload.plan_datum = patch.planDatum;
+    if(patch.planDatum===null) payload.plan_tijd = null;
+  }
   if (patch.planningBucket !== undefined) payload.planning_bucket = patch.planningBucket;
   if (Object.keys(payload).length === 0) return;
 

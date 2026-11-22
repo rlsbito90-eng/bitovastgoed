@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type {WorkReminderMode} from '@/lib/tasks/planning';
 
 export type TaskReminderPolicy = 'default' | 'none' | 'custom';
 export type TaskReminderSelection = 'default' | 'none' | `${number}`;
@@ -58,6 +59,7 @@ export interface ManualTaskPlanning {
   planDatum: string | null;
   planTijd?: string | null;
   planningBucket: 'open' | 'inbox' | 'later';
+  reminderMode?: WorkReminderMode;
 }
 
 function taskPayload(input: ManualTaskInput) {
@@ -90,6 +92,8 @@ export async function createManualTaskWithReminder(input: ManualTaskInput, plann
         plan_datum: planning.planDatum,
         plan_tijd: planning.planDatum ? (planning.planTijd ?? null) : null,
         planning_bucket: planning.planningBucket,
+        // Bestaande taken blijven at_time; nieuwe taken staan standaard op Geen.
+        plan_reminder_mode: planning.reminderMode ?? 'none',
       }
     : taskPayload(input);
   const { data, error } = await db.from('taken').insert(payload).select('id').single();

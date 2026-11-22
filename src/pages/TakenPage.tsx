@@ -45,6 +45,7 @@ import {
   isTaskInTodayView,
   isTaskRolledOver,
   isTaskUpcoming,
+  isTaskUnplanned,
   localDateKey,
   planningForTask,
   taskSourceLabel,
@@ -57,11 +58,9 @@ import {
 } from '@/lib/tasks/bulk';
 
 const TABS: { value: TakenTab; label: string }[] = [
-  { value: 'inbox', label: 'Inbox' },
   { value: 'vandaag', label: 'Vandaag' },
   { value: 'komend', label: 'Komend' },
-  { value: 'openstaand', label: 'Openstaand' },
-  { value: 'later', label: 'Later' },
+  { value: 'ongepland', label: 'Niet ingepland' },
   { value: 'wachten', label: 'Wachten' },
   { value: 'alles', label: 'Alles' },
   { value: 'afgerond', label: 'Afgerond' },
@@ -185,15 +184,10 @@ export default function TakenPage() {
     const open = taken.filter(t => isOpenTaskStatus(t.status));
     const active = open.filter(t => t.status !== 'wacht_op_reactie');
     return {
-      inbox: active.filter(t => !isTaskInTodayView(t, planningFor(t), now) && planningFor(t).planningBucket === 'inbox').length,
       vandaag: active.filter(t => isTaskPlannedToday(t, planningFor(t), now)).length,
       teLaat: active.filter(t => isTaskOverdue(t, now)).length,
       komend: active.filter(t => isTaskUpcoming(t, planningFor(t), now)).length,
-      openstaand: active.filter(t => {
-        const p = planningFor(t);
-        return !isTaskInTodayView(t, p, now) && p.planningBucket === 'open' && !p.planDatum && !t.deadline;
-      }).length,
-      later: active.filter(t => !isTaskInTodayView(t, planningFor(t), now) && planningFor(t).planningBucket === 'later').length,
+      ongepland: active.filter(t => isTaskUnplanned(t, planningFor(t), now)).length,
       wachten: taken.filter(t => t.status === 'wacht_op_reactie').length,
       afgerond: taken.filter(t => t.status === 'afgerond').length,
       open: open.length,
@@ -203,24 +197,14 @@ export default function TakenPage() {
   const zichtbaar = useMemo(() => {
     let list = taken.filter(filterFn);
     switch (tab) {
-      case 'inbox':
-        list = list.filter(t => isOpenTaskStatus(t.status) && t.status !== 'wacht_op_reactie' && !isTaskInTodayView(t, planningFor(t), now) && planningFor(t).planningBucket === 'inbox');
-        break;
       case 'vandaag':
         list = list.filter(t => isTaskInTodayView(t, planningFor(t), now));
         break;
       case 'komend':
         list = list.filter(t => isTaskUpcoming(t, planningFor(t), now));
         break;
-      case 'openstaand':
-        list = list.filter(t => {
-          if (!isOpenTaskStatus(t.status) || t.status === 'wacht_op_reactie') return false;
-          const p = planningFor(t);
-          return !isTaskInTodayView(t, p, now) && p.planningBucket === 'open' && !p.planDatum && !t.deadline;
-        });
-        break;
-      case 'later':
-        list = list.filter(t => isOpenTaskStatus(t.status) && t.status !== 'wacht_op_reactie' && !isTaskInTodayView(t, planningFor(t), now) && planningFor(t).planningBucket === 'later');
+      case 'ongepland':
+        list = list.filter(t => isTaskUnplanned(t, planningFor(t), now));
         break;
       case 'wachten':
         list = list.filter(t => t.status === 'wacht_op_reactie');
@@ -454,12 +438,12 @@ export default function TakenPage() {
       <div className="flex gap-1.5 -mx-1 px-1 overflow-x-auto pb-0.5">
         {TABS.map(item => {
           const active = tab === item.value;
-          const count = item.value === 'inbox' ? stats.inbox : item.value === 'vandaag' ? stats.vandaag : item.value === 'komend' ? stats.komend : item.value === 'openstaand' ? stats.openstaand : item.value === 'later' ? stats.later : item.value === 'wachten' ? stats.wachten : item.value === 'alles' ? stats.open : stats.afgerond;
+          const count = item.value === 'vandaag' ? stats.vandaag : item.value === 'komend' ? stats.komend : item.value === 'ongepland' ? stats.ongepland : item.value === 'wachten' ? stats.wachten : item.value === 'alles' ? stats.open : stats.afgerond;
           return <button key={item.value} onClick={() => setTab(item.value)} className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors whitespace-nowrap ${active ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border hover:text-foreground hover:border-foreground/40'}`}>{item.label}<span className="ml-1.5 tabular-nums opacity-80">{count}</span></button>;
         })}
       </div>
 
-      <QuickTaskCapture defaultTarget={tab === 'inbox' ? 'inbox' : tab === 'later' ? 'later' : tab === 'openstaand' ? 'open' : 'today'} />
+      <QuickTaskCapture defaultTarget={tab === 'ongepland' ? 'open' : 'today'} />
 
       <div className="flex gap-2 items-center">
         <div className="relative flex-1 max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Zoek in taken…" className="pl-9 h-10" value={zoek} onChange={e => setZoek(e.target.value)} /></div>
@@ -478,7 +462,7 @@ export default function TakenPage() {
       </>}
 
       {zichtbaar.length === 0 ? (
-        <EmptyState icon={<ListChecks />} title="Niets in deze weergave" description={tab === 'vandaag' ? 'Je hebt geen geplande of achterstallige taken in deze weergave.' : tab === 'inbox' ? 'Je Inbox is leeg. Zet losse ideeën of nog te plannen acties hier tijdelijk neer.' : tab === 'later' ? 'Hier staan taken die bewust nog geen aandacht vragen.' : 'Wissel van weergave, pas je filters aan of maak een nieuwe taak aan.'} action={<button type="button" onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>} />
+        <EmptyState icon={<ListChecks />} title="Niets in deze weergave" description={tab === 'vandaag' ? 'Je hebt geen geplande of achterstallige taken in deze weergave.' : tab === 'ongepland' ? 'Geen taken zonder werkdatum. Je kunt taken vanuit hier plannen.' : 'Wissel van weergave, pas je filters aan of maak een nieuwe taak aan.'} action={<button type="button" onClick={() => { setEditTaak(null); setFormOpen(true); }} className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors shadow-sm"><Plus className="h-4 w-4" /> Nieuwe taak</button>} />
       ) : tab === 'vandaag' && vandaagSecties ? (
         <div className="space-y-3">
           {renderSection('Doorgeschoven', vandaagSecties.doorgeschoven, { icon: <Redo2 className="h-4 w-4 text-muted-foreground" /> })}
@@ -508,8 +492,7 @@ export default function TakenPage() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => bulkPlan(0)}>Vandaag</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => bulkPlan(1)}>Morgen</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPlanning(Array.from(selectedIds), { planningBucket: 'open', planDatum: null }), 'Naar Openstaand')}>Openstaand</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPlanning(Array.from(selectedIds), { planningBucket: 'later', planDatum: null }), 'Naar Later')}>Later</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => runBulk(() => bulkUpdateTaskPlanning(Array.from(selectedIds), { planningBucket: 'open', planDatum: null }), 'Niet ingepland')}>Niet ingepland</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>

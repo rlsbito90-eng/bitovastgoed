@@ -27,8 +27,9 @@ describe('Taken — Quick Capture v2', () => {
   it('biedt compacte planning vanuit de balk zonder native datumvelden zichtbaar te maken', () => {
     expect(capture).toContain("['today', 'Vandaag']");
     expect(capture).toContain("['tomorrow', 'Morgen']");
-    expect(capture).toContain("['open', 'Openstaand']");
-    expect(capture).toContain("['later', 'Later']");
+    expect(capture).toContain("['open', 'Niet ingepland']");
+    expect(capture).not.toContain("['later', 'Later']");
+    expect(capture).toContain('WorkPlanReminderSelect');
     expect(capture).toContain('label="Datum"');
     expect(capture).toContain('label="Tijd"');
     expect(capture).not.toContain('label="Werkdatum"');

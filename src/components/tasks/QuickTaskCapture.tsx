@@ -3,7 +3,8 @@ import { ArrowUp, CalendarDays, Check, Clock3, Link2, Plus, X } from 'lucide-rea
 import { toast } from 'sonner';
 import { useDataStore } from '@/hooks/useDataStore';
 import { createManualTaskWithReminder } from '@/lib/tasks/reminders';
-import { updateTaskPlanning, type TaskPlanningBucket } from '@/lib/tasks/planning';
+import { updateTaskPlanning, type TaskPlanningBucket, type WorkReminderMode } from '@/lib/tasks/planning';
+import WorkPlanReminderSelect from '@/components/tasks/WorkPlanReminderSelect';
 import { replaceTaskLinks, type TaskLinkEntityType, type TaskLinkInput } from '@/lib/tasks/links';
 import TaskLinksPickerDialog, {
   countTaskLinks,
@@ -14,10 +15,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 
-export type QuickTaskTarget = 'today' | 'inbox' | 'open' | 'later';
+export type QuickTaskTarget = 'today' | 'open';
 
 const TARGET_LABELS: Record<QuickTaskTarget, string> = {
-  today: 'Vandaag', inbox: 'Inbox', open: 'Openstaand', later: 'Later',
+  today: 'Vandaag', open: 'Niet ingepland',
 };
 
 function localDateKey(date: Date): string {
@@ -33,15 +34,15 @@ function plusDays(days: number): string {
   return localDateKey(d);
 }
 
-function planningForTarget(target: QuickTaskTarget, customDate: string | null, planTime: string | null) {
+function planningForTarget(target: QuickTaskTarget, customDate: string | null, planTime: string | null, reminderMode: WorkReminderMode = 'none') {
   let planDatum = customDate;
   let planningBucket: TaskPlanningBucket = 'open';
   if (!customDate) {
     if (target === 'today') planDatum = localDateKey(new Date());
-    if (target === 'inbox') planningBucket = 'inbox';
-    if (target === 'later') planningBucket = 'later';
+
   }
-  return { planDatum, planTijd: planDatum ? planTime : null, planningBucket };
+  return { planDatum, planTijd: planDatum ? planTime : null, planningBucket,
+    reminderMode: planDatum ? reminderMode : 'none' as WorkReminderMode };
 }
 
 function planLabel(target: QuickTaskTarget, date: string | null, time: string | null) {
@@ -64,12 +65,13 @@ function dateLabel(value: string | null, fallback: string): string {
   });
 }
 
-export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultTarget?: QuickTaskTarget }) {
+export default function QuickTaskCapture({ defaultTarget = 'open' }: { defaultTarget?: QuickTaskTarget }) {
   const { refresh } = useDataStore();
   const [titel, setTitel] = useState('');
   const [target, setTarget] = useState<QuickTaskTarget>(defaultTarget);
   const [planDate, setPlanDate] = useState<string | null>(null);
   const [planTime, setPlanTime] = useState<string | null>(null);
+  const [workReminderMode, setWorkReminderMode] = useState<WorkReminderMode>('none');
   const [deadline, setDeadline] = useState<string | null>(null);
   const [deadlineTime, setDeadlineTime] = useState<string | null>(null);
   const [deadlineExpanded, setDeadlineExpanded] = useState(false);
@@ -85,6 +87,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
     setTarget(defaultTarget);
     setPlanDate(null);
     setPlanTime(null);
+    setWorkReminderMode('none');
   }, [defaultTarget]);
 
   const submit = async (event: React.FormEvent) => {
@@ -107,7 +110,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
         prioriteit: 'normaal',
         status: 'open',
         reminderSelection: 'default',
-      }, planningForTarget(target, planDate, planTime));
+      }, planningForTarget(target, planDate, planTime, workReminderMode));
       pendingTaskIdRef.current = taskId;
       if (linkCount > 0) {
         const rows = (Object.entries(taskLinks) as [TaskLinkEntityType, string[]][])
@@ -119,12 +122,13 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
       // Alleen bij opnieuw proberen is een tweede planning-update nodig.
       // Nieuwe taken krijgen hun werkdatum atomair in dezelfde insert.
       if (restoringExistingTask) {
-        await updateTaskPlanning(taskId, planningForTarget(target, planDate, planTime));
+        await updateTaskPlanning(taskId, planningForTarget(target, planDate, planTime, workReminderMode));
       }
       await refresh();
       pendingTaskIdRef.current = null;
       setTitel('');
       setTaskLinks({ relatie: [], object: [], deal: [], signaal: [] });
+      setWorkReminderMode('none');
       setDeadline(null);
       setDeadlineTime(null);
       setDeadlineExpanded(false);
@@ -142,7 +146,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
   const tomorrow = plusDays(1);
   const effectivePlanDate = planDate || (target === 'today' ? today : null);
 
-  const choose = (value: 'today' | 'tomorrow' | 'open' | 'later') => {
+  const choose = (value: 'today' | 'tomorrow' | 'open') => {
     if (value === 'today') {
       setTarget('today');
       setPlanDate(today);
@@ -157,22 +161,18 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
       setTarget('open');
       setPlanDate(null);
       setPlanTime(null);
+      setWorkReminderMode('none');
       return;
     }
-    setTarget('later');
-    setPlanDate(null);
-    setPlanTime(null);
   };
 
   const selectedChoice = planDate === tomorrow
     ? 'tomorrow'
     : planDate === today || (!planDate && target === 'today')
       ? 'today'
-      : !planDate && target === 'later'
-        ? 'later'
-        : !planDate && target === 'open'
-          ? 'open'
-          : null;
+      : !planDate && target === 'open'
+        ? 'open'
+        : null;
 
   return (
     <>
@@ -228,8 +228,7 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
             {([
               ['today', 'Vandaag'],
               ['tomorrow', 'Morgen'],
-              ['open', 'Openstaand'],
-              ['later', 'Later'],
+              ['open', 'Niet ingepland'],
             ] as const).map(([value, label]) => {
               const selected = selectedChoice === value;
               return (
@@ -260,12 +259,16 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
               onChange={(value) => {
                 setTarget('open');
                 setPlanDate(value || null);
-                if (!value) setPlanTime(null);
+                if (!value) {
+                  setPlanTime(null);
+                  setWorkReminderMode('none');
+                }
               }}
               onClear={effectivePlanDate ? () => {
                 setTarget('open');
                 setPlanDate(null);
                 setPlanTime(null);
+                setWorkReminderMode('none');
               } : undefined}
               clearLabel="Datum wissen"
             />
@@ -276,11 +279,18 @@ export default function QuickTaskCapture({ defaultTarget = 'inbox' }: { defaultT
               value={planTime ?? ''}
               disabled={!effectivePlanDate}
               icon={<Clock3 className="h-4 w-4" />}
-              onChange={(value) => setPlanTime(value || null)}
+              onChange={(value) => {
+                setPlanTime(value || null);
+                if (!value && workReminderMode==='at_time') setWorkReminderMode('none');
+              }}
               onClear={planTime ? () => setPlanTime(null) : undefined}
               clearLabel="Tijd wissen"
             />
           </div>
+
+          <WorkPlanReminderSelect value={workReminderMode}
+            hasDate={Boolean(effectivePlanDate)} hasTime={Boolean(planTime)}
+            onChange={setWorkReminderMode} />
 
           {!deadlineExpanded ? (
             <button

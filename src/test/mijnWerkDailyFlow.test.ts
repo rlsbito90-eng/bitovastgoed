@@ -25,7 +25,9 @@ function planning(overrides: Partial<TaskPlanningMeta> = {}): TaskPlanningMeta {
   return {
     id: 'task-1',
     planDatum: null,
+    planTijd: null,
     planningBucket: 'open',
+    reminderMode: 'at_time',
     ...overrides,
   };
 }
@@ -48,8 +50,8 @@ describe('Mijn werk dagelijkse werklogica', () => {
     expect(isTaskUpcoming(task, planning({ planDatum: '2026-09-01' }), now)).toBe(true);
   });
 
-  it('laat Later niet lekken naar Komend', () => {
+  it('laat een oude Later-taak met toekomstige harde deadline wel bij Komend zien', () => {
     const task = taak({ deadline: '2026-09-01' });
-    expect(isTaskUpcoming(task, planning({ planningBucket: 'later' }), now)).toBe(false);
+    expect(isTaskUpcoming(task, planning({ planningBucket: 'later' }), now)).toBe(true);
   });
 });

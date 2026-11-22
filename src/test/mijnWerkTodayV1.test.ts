@@ -11,11 +11,11 @@ const workView = readFileSync(resolve(process.cwd(), 'src/lib/tasks/workView.ts'
 describe('Taken — Today v1', () => {
   it('start standaard op Vandaag en behoudt de rustige werkweergaven', () => {
     expect(state).toContain("tab: 'vandaag'");
-    expect(state).toContain("'inbox' | 'vandaag' | 'komend' | 'openstaand' | 'later' | 'wachten' | 'alles' | 'afgerond'");
+    expect(state).toContain("'vandaag' | 'komend' | 'ongepland' | 'wachten' | 'alles' | 'afgerond'");
     expect(page).toContain('title="Taken"');
     expect(page).toContain("{ value: 'vandaag', label: 'Vandaag' }");
     expect(page).toContain("{ value: 'komend', label: 'Komend' }");
-    expect(page).toContain("{ value: 'openstaand', label: 'Openstaand' }");
+    expect(page).toContain("{ value: 'ongepland', label: 'Niet ingepland' }");
   });
 
   it('scheidt geplande dagfocus van achterstallige deadlines en groepeert Vandaag op dagdelen', () => {

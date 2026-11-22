@@ -1,12 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export type TaskPlanningBucket = 'open' | 'inbox' | 'later';
+export type WorkReminderMode = 'none' | 'on_day' | 'day_before' | 'at_time';
 
 export interface TaskPlanningMeta {
   id: string;
   planDatum: string | null;
   planTijd: string | null;
   planningBucket: TaskPlanningBucket;
+  reminderMode: WorkReminderMode;
 }
 
 const db = supabase as any;
@@ -14,7 +16,7 @@ const db = supabase as any;
 export async function listTaskPlanning(): Promise<TaskPlanningMeta[]> {
   const { data, error } = await db
     .from('taken')
-    .select('id,plan_datum,plan_tijd,planning_bucket')
+    .select('id,plan_datum,plan_tijd,planning_bucket,plan_reminder_mode')
     .is('soft_deleted_at', null);
   if (error) throw error;
   return (data ?? []).map((row: any) => ({
@@ -22,13 +24,14 @@ export async function listTaskPlanning(): Promise<TaskPlanningMeta[]> {
     planDatum: row.plan_datum ?? null,
     planTijd: row.plan_tijd ?? null,
     planningBucket: (row.planning_bucket ?? 'open') as TaskPlanningBucket,
+    reminderMode: (row.plan_reminder_mode ?? 'at_time') as WorkReminderMode,
   }));
 }
 
 export async function getTaskPlanning(taskId: string): Promise<TaskPlanningMeta> {
   const { data, error } = await db
     .from('taken')
-    .select('id,plan_datum,plan_tijd,planning_bucket')
+    .select('id,plan_datum,plan_tijd,planning_bucket,plan_reminder_mode')
     .eq('id', taskId)
     .single();
   if (error) throw error;
@@ -37,17 +40,22 @@ export async function getTaskPlanning(taskId: string): Promise<TaskPlanningMeta>
     planDatum: data.plan_datum ?? null,
     planTijd: data.plan_tijd ?? null,
     planningBucket: (data.planning_bucket ?? 'open') as TaskPlanningBucket,
+    reminderMode: (data.plan_reminder_mode ?? 'at_time') as WorkReminderMode,
   };
 }
 
 export async function updateTaskPlanning(
   taskId: string,
-  patch: { planDatum?: string | null; planTijd?: string | null; planningBucket?: TaskPlanningBucket },
+  patch: { planDatum?: string | null; planTijd?: string | null; planningBucket?: TaskPlanningBucket; reminderMode?: WorkReminderMode },
 ): Promise<void> {
   const payload: Record<string, unknown> = {};
-  if (patch.planDatum !== undefined) payload.plan_datum = patch.planDatum;
+  if (patch.planDatum !== undefined) {
+    payload.plan_datum = patch.planDatum;
+    if(patch.planDatum===null && patch.planTijd===undefined) payload.plan_tijd = null;
+  }
   if (patch.planTijd !== undefined) payload.plan_tijd = patch.planTijd;
   if (patch.planningBucket !== undefined) payload.planning_bucket = patch.planningBucket;
+  if (patch.reminderMode !== undefined) payload.plan_reminder_mode = patch.reminderMode;
   if (Object.keys(payload).length === 0) return;
 
   const { error } = await db.from('taken').update(payload).eq('id', taskId);
