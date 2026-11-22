@@ -21,7 +21,7 @@ describe('notification-push-send — compacte taakpresentatie', () => {
   it('geeft object/signaal voorrang en voegt de primaire relatie toe als maximaal één contextregel', () => {
     expect(source).toContain(".select('id, titel, type_taak, deadline, deadline_tijd, relatie_id, object_id, off_market_signaal_id')");
     expect(source).toContain('task?.type_taak');
-    expect(source).toContain('const pand = signaalLabel(context.signaal) || objectLabel(context.object)');
+    expect(source).toContain('const pand = objectLabel(context.object) || signaalLabel(context.signaal)');
     expect(source).toContain('const relatie = relatieLabel(context.relatie, context.primaireContactNaam)');
     expect(source).toContain(".from('relatie_contactpersonen')");
     expect(source).toContain(".select('relatie_id, naam, is_primair')");
