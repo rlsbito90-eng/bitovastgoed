@@ -50,6 +50,8 @@ export interface CrmRelatieInput {
   contactEmails?: readonly string[] | null;
   /** Vrije criteria zijn geen machineleesbare knock-outs. */
   uitsluitingen?: string | null;
+  hardeAankoopvoorwaarden?: string | null;
+  aankoopvoorkeuren?: string | null;
   gewensteSituatie?: readonly string[] | null;
   rendementsdoelToelichting?: string | null;
   strategieToelichting?: string | null;
@@ -86,6 +88,8 @@ export interface CrmObjectInput {
   vraagprijs?: number | null;
   /** De aanbieder/eigenaar van dit object is nooit een aankoopvoorstel voor hetzelfde object. */
   eigenaarRelatieId?: string | null;
+  verkoperRelatieId?: string | null;
+  aanbiederRelatieId?: string | null;
   verkoperNaam?: string | null;
   verkoperEmail?: string | null;
   contactNaam?: string | null;
@@ -308,6 +312,15 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   // Letterlijke wensen en uitsluitingen nooit stilzwijgend als geverifieerd
   // behandelen. Ze zijn niet gestructureerd genoeg voor een automatische
   // afwijzing, maar verhinderen wel een onterecht groen 'passend'.
+  if(!p&&r.hardeAankoopvoorwaarden?.trim()){
+    controleer.push('Harde aankoopvoorwaarden van de relatie verifiëren vóór benadering');
+    controleNodig=true;
+  }
+  // Voorkeuren leveren geen hard negatief oordeel op. We kennen hun relatie
+  // tot de objectkenmerken nog niet betrouwbaar uit ongestructureerde tekst.
+  if(!p&&r.aankoopvoorkeuren?.trim()){
+    controleer.push('Niet-bindende aankoopvoorkeuren handmatig afwegen');
+  }
   if(r.uitsluitingen?.trim()){
     controleer.push('Expliciete uitsluitingen van de relatie handmatig toetsen');
     controleNodig=true;
@@ -392,7 +405,7 @@ export function maakKandidaatConcept(
   if(gekozen.kwalificatie==='afwijkend')return {ok:false as const,reden:'Harde criteria wijken af'};
   // Eerdere UI-concepten mogen geen aanbieders aan de koperspipeline toevoegen.
   // De definitieve selectie valideert bovendien opnieuw tegen actuele CRM-data.
-  if(voorstel.relatieId===object.eigenaarRelatieId)return {ok:false as const,reden:'Aanbieder of verkoper van dit object'};
+  if([object.eigenaarRelatieId,object.verkoperRelatieId,object.aanbiederRelatieId].includes(voorstel.relatieId))return {ok:false as const,reden:'Aanbieder of verkoper van dit object'};
   return {ok:true as const,concept:{objectId:object.id,contactRelatieId:voorstel.relatieId,
       gekozenMandaatId:gekozen.zoekprofielId,contactRoute:gekozen.route,
       koperRelatieId:gekozen.koperRelatieId,controles:gekozen.toelichting.controleer,
