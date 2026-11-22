@@ -101,7 +101,7 @@ export default function TaakPlanningDetail({
       }else{
         await updateTask({
           deadline:draftDate,
-          deadlineTijd:draftDate?(draftTime||undefined):undefined,
+          deadlineTijd:draftDate?draftTime:'',
         });
       }
       setEditing(null);
