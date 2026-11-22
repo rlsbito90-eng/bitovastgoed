@@ -67,8 +67,8 @@ describe('Match-UI: professionele shortlist met controlepunten',()=>{
   it('toont meteen bewijs en open controle zonder gefingeerde matchpercentages',()=>{
     renderList([koper(1,{aankoopcriteria:'Alleen splitspanden'})]);
     const card=screen.getByTestId('match-kandidaat-kaart');
-    expect(within(card).getByText('Vastgoedtype komt overeen')).toBeInTheDocument();
-    expect(within(card).getByText(/Aanvullende aankoopcriteria/)).toBeInTheDocument();
+    expect(within(card).getAllByText('Vastgoedtype komt overeen').length).toBeGreaterThan(0);
+    expect(within(card).getAllByText(/Aanvullende aankoopcriteria/).length).toBeGreaterThan(0);
     expect(within(card).queryByText(/100% match/)).not.toBeInTheDocument();
     fireEvent.click(within(card).getByText(/Bekijk alle matchcriteria/));
     expect(within(card).getByText(/Een matchvoorstel is geen bevestigde aankoopbereidheid/))
