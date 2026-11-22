@@ -49,7 +49,7 @@ describe('Koppelingen: app-achtige picker met vaste acties', () => {
     fireEvent.click(within(tabs).getByRole('tab', { name: /Meer/ }));
     expect(screen.getByRole('button', { name: 'Radar-signalen' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Deals' })).toBeInTheDocument();
-    expect(screen.getByText('4 beschikbaar · 1 geselecteerd')).not.toBeInTheDocument();
+    expect(screen.queryByText('4 beschikbaar · 1 geselecteerd')).not.toBeInTheDocument();
   });
 
   it('annuleert selectie zonder het ouderformulier te wijzigen, past alleen bevestigd toe', () => {
