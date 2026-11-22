@@ -26,7 +26,8 @@ export function isObjectAanbiederRelatie(
 ): boolean {
   if (!object?.id || !relatie?.id) return false;
 
-  if (object.eigenaarRelatieId && object.eigenaarRelatieId === relatie.id) return true;
+  if ([object.eigenaarRelatieId, object.verkoperRelatieId, object.aanbiederRelatieId]
+    .some(id => id != null && id === relatie.id)) return true;
 
   const objectEmails = [object.verkoperEmail, object.contactEmail]
     .map(normaliseerEmail)
