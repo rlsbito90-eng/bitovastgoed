@@ -96,55 +96,7 @@ function datumSleutel(date: Date, timeZone: string): string {
   }).format(date);
 }
 
-function lokaleDatumTijd(deadline: string, deadlineTijd: string | null, timeZone: string): Date | null {
-  if (!deadline) return null;
-  const tijd = deadlineTijd ? deadlineTijd.slice(0, 5) : '12:00';
-  const parsed = new Date(`${deadline}T${tijd}:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function taakTijdLabel(task: any, event: any, timeZone: string): string | null {
-  const deadline = schoon(task?.deadline) || schoon(event?.metadata?.deadline);
-  const deadlineTijd = schoon(task?.deadline_tijd) || schoon(event?.metadata?.deadline_tijd);
-  if (!deadline) return null;
-
-  const today = datumSleutel(new Date(), timeZone);
-  const tomorrowDate = new Date();
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrow = datumSleutel(tomorrowDate, timeZone);
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterday = datumSleutel(yesterdayDate, timeZone);
-
-  const tijd = deadlineTijd ? deadlineTijd.slice(0, 5) : null;
-  const eventType = schoon(event?.event_type);
-  const isOverdue = eventType === 'task_overdue' || deadline < today;
-
-  if (deadline === today) {
-    if (isOverdue) return tijd ? `Vandaag sinds ${tijd} te laat` : 'Vandaag te laat';
-    return tijd ? `Vandaag om ${tijd}` : 'Vandaag';
-  }
-  if (deadline === tomorrow) return tijd ? `Morgen om ${tijd}` : 'Morgen';
-  if (deadline === yesterday) return tijd ? `Gisteren sinds ${tijd} te laat` : 'Sinds gisteren te laat';
-
-  const parsed = lokaleDatumTijd(deadline, deadlineTijd, timeZone);
-  if (!parsed) return tijd ? `${deadline} om ${tijd}` : deadline;
-  const datumLabel = new Intl.DateTimeFormat('nl-NL', {
-    timeZone,
-    day: 'numeric',
-    month: 'short',
-  }).format(parsed);
-  if (isOverdue) return tijd ? `Sinds ${datumLabel} ${tijd} te laat` : `Sinds ${datumLabel} te laat`;
-  return tijd ? `${datumLabel} om ${tijd}` : datumLabel;
-}
-
-function taakIsTeLaat(task: any, event: any, timeZone: string): boolean {
-  const deadline = schoon(task?.deadline) || schoon(event?.metadata?.deadline);
-  if (!deadline) return schoon(event?.event_type) === 'task_overdue';
-  return schoon(event?.event_type) === 'task_overdue' || deadline < datumSleutel(new Date(), timeZone);
-}
-
-function compacteTaakCategorie(task: any, event: any, timeZone: string): string {
+function compacteTaakCategorie(task: any, event: any): string {
   const titel = (schoon(task?.titel) || schoon(event?.title) || '').toLocaleLowerCase('nl-NL');
   const type = (schoon(task?.type_taak) || '').toLocaleLowerCase('nl-NL');
   const samen = `${type} ${titel}`.trim();
@@ -155,19 +107,41 @@ function compacteTaakCategorie(task: any, event: any, timeZone: string): string 
   if (isBrief) return 'Brief voorbereiden';
   if (/\bbel(?:len|afspraak)?\b|telefoon|telefonisch|\bcall\b/.test(samen)) return 'Bellen';
   if (isOpvolging) return 'Opvolging';
+  return 'Taak';
+}
 
-  if (taakIsTeLaat(task, event, timeZone)) return 'Taak te laat';
+/** Gebruik het werkplan bij planningsmeldingen, nooit een eventuele andere deadline. */
+function taakTimingLabel(event: any, task: any, timeZone: string): string | null {
+  const type = schoon(event?.event_type);
+  const today = datumSleutel(new Date(), timeZone);
+  // Kalenderdag rekenen voorkomt zomer-/wintertijdverschuivingen rond middernacht.
+  const [year, month, day] = today.split('-').map(Number);
+  const tomorrow = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+  const dateLabel = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d, 12));
+    return new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date);
+  };
 
-  const deadline = schoon(task?.deadline) || schoon(event?.metadata?.deadline);
-  if (deadline) {
-    const today = datumSleutel(new Date(), timeZone);
-    if (deadline === today) return 'Taak vandaag';
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    if (deadline === datumSleutel(tomorrowDate, timeZone)) return 'Taak morgen';
+  if (type === 'task_plan_reminder') {
+    const date = schoon(event?.metadata?.plan_datum);
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    if (date === today) return 'Vandaag gepland';
+    if (date === tomorrow) return 'Morgen gepland';
+    return `Gepland ${dateLabel(date)}`;
   }
 
-  return 'Taak';
+  if (type === 'task_overdue') return 'Deadline verstreken';
+  if (type === 'task_reminder' || type === 'task_due_today') {
+    const date = schoon(task?.deadline) || schoon(event?.metadata?.deadline);
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+    if (date < today) return 'Deadline verstreken';
+    if (date === today) return 'Deadline vandaag';
+    if (date === tomorrow) return 'Deadline morgen';
+    return `Deadline ${dateLabel(date)}`;
+  }
+
+  return null;
 }
 
 function verkortPushRegel(value: string, max = 76): string {
@@ -183,37 +157,23 @@ function taakPushPresentatie(
   timeZone: string,
 ): { title: string; body: string } {
   const bronTitel = schoon(task?.titel) || schoon(event?.title) || 'Taak';
-  const title = compacteTaakCategorie(task, event, timeZone);
+  const categorie = compacteTaakCategorie(task, event);
+  const timing = taakTimingLabel(event, task, timeZone);
+  const title = timing ? `${categorie} · ${timing}` : categorie;
+
+  // De concrete taak staat altijd vooraan. Dat blijft nodig wanneer de kop
+  // alleen de categorie 'Bellen' of 'Opvolging' bevat.
+  const regels = [verkortPushRegel(bronTitel, 96)];
   const contextParts: string[] = [];
   const pand = signaalLabel(context.signaal) || objectLabel(context.object);
   const relatie = relatieLabel(context.relatie);
   if (pand) contextParts.push(pand);
-  if (relatie && !contextParts.some((deel) => deel.toLocaleLowerCase('nl-NL') === relatie.toLocaleLowerCase('nl-NL'))) {
+  if (relatie && !contextParts.some(deel => deel.toLocaleLowerCase('nl-NL') === relatie.toLocaleLowerCase('nl-NL'))) {
     contextParts.push(relatie);
   }
-
-  const tijdLabel = taakTijdLabel(task, event, timeZone);
-  const regels: string[] = [];
-  const isSpecialeCategorie = title === 'Brief opvolgen'
-    || title === 'Brief voorbereiden'
-    || title === 'Bellen'
-    || title === 'Opvolging';
-
-  if (!isSpecialeCategorie) {
-    regels.push(verkortPushRegel(bronTitel));
-  }
-
   if (contextParts.length) {
-    const briefNummer = isSpecialeCategorie && title.startsWith('Brief')
-      ? bronTitel.match(/\bbrief\s*(\d+)/i)?.[1]
-      : null;
-    const contextRegel = contextParts.join(' · ');
-    regels.push(verkortPushRegel(briefNummer ? `Brief ${briefNummer} · ${contextRegel}` : contextRegel, 96));
-  } else if (isSpecialeCategorie) {
-    regels.push(verkortPushRegel(bronTitel));
+    regels.push(verkortPushRegel(contextParts.join(' · '), 96));
   }
-
-  if (tijdLabel) regels.push(tijdLabel);
 
   return {
     title,
