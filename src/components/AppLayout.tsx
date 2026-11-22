@@ -39,7 +39,7 @@ import MatchAlertBadge from "@/components/MatchAlertBadge";
 import NotificationsBell from "@/components/NotificationsBell";
 import NotificationsBellV2 from "@/components/NotificationsBellV2";
 import PullToRefresh from "@/components/PullToRefresh";
-import { isTaskPageScrollRoute, useTaskPageScrollBoundary } from "@/hooks/useTaskPageScrollBoundary";
+import { isTaskPageScrollRoute, isRelatiePageScrollRoute, useTaskPageScrollBoundary } from "@/hooks/useTaskPageScrollBoundary";
 import RefreshButton from "@/components/RefreshButton";
 import TaakFormDialog from "@/components/forms/TaakFormDialog";
 import { QuickCreateRelationDialog } from "@/components/forms/QuickCreateRelationDialog";
@@ -212,7 +212,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const mainScrollRef = useRef<HTMLElement>(null);
   const isTaskPage = isTaskPageScrollRoute(location.pathname);
-  useTaskPageScrollBoundary(mainScrollRef, isTaskPage);
+  const isRelatiePage = isRelatiePageScrollRoute(location.pathname);
+  const boundedPage = isTaskPage || isRelatiePage;
+  useTaskPageScrollBoundary(mainScrollRef, boundedPage);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nieuweTaakOpen,setNieuweTaakOpen] = useState(false);
   const [nieuweRelatieOpen,setNieuweRelatieOpen] = useState(false);
@@ -437,7 +439,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         )}
 
         <main ref={mainScrollRef} data-task-scroll-boundary={isTaskPage ? "true" : undefined}
-          className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${isTaskPage ? "overscroll-y-none" : "overscroll-y-contain"}`}>
+          data-relatie-scroll-boundary={isRelatiePage ? "true" : undefined}
+          className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${boundedPage ? "overscroll-y-none" : "overscroll-y-contain"}`}>
           <PullToRefresh>{children}</PullToRefresh>
         </main>
       </div>
