@@ -14,13 +14,12 @@ const workView = read('src/lib/tasks/workView.ts');
 const migration = read('supabase/migrations/20260828104500_task_work_planning_fields.sql');
 
 describe('Mijn werk planning v2', () => {
-  it('heeft Inbox, Vandaag, Komend, Openstaand en Later als aparte werkbakken', () => {
-    expect(viewState).toContain("'inbox'");
+  it('heeft Vandaag, Komend en één Niet ingepland-voorraad', () => {
     expect(viewState).toContain("'vandaag'");
     expect(viewState).toContain("'komend'");
-    expect(viewState).toContain("'openstaand'");
-    expect(viewState).toContain("'later'");
+    expect(viewState).toContain("'ongepland'");
     expect(viewState).toContain("tab: 'vandaag'");
+    expect(page).toContain("isTaskUnplanned(t, planningFor(t), now)");
   });
 
   it('houdt werkdatum en harde deadline technisch gescheiden', () => {
@@ -45,8 +44,8 @@ describe('Mijn werk planning v2', () => {
 
   it('biedt snelle planning zonder de deadline te verschuiven', () => {
     expect(page).toContain('Planning</DropdownMenuLabel>');
-    expect(page).toContain("planningBucket: 'inbox'");
-    expect(page).toContain("planningBucket: 'later'");
+    expect(page).not.toContain("planningBucket: 'inbox'");
+    expect(page).not.toContain("planningBucket: 'later'");
     expect(page).toContain("planningBucket: 'open', planDatum: null");
     expect(page).toContain('planAfterDays(event as any, task, 1)');
   });
