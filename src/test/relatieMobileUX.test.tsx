@@ -20,7 +20,7 @@ describe('Relaties UX: stabiele pagina, direct bewerken en vaste acties', () => 
     for (const path of ['/', '/taken', '/objecten', '/relaties-extra', '/relaties/a/b']) {
       expect(isRelatiePageScrollRoute(path)).toBe(false);
     }
-    expect(layout).toContain('const boundedPage = isTaskPage || isRelatiePage;');
+    expect(layout).toContain('const boundedPage = isTaskPage || isRelatiePage || isObjectPage;');
     expect(layout).toContain('useTaskPageScrollBoundary(mainScrollRef, boundedPage)');
     expect(layout).toContain('data-relatie-scroll-boundary={isRelatiePage ? "true" : undefined}');
   });

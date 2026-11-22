@@ -11,8 +11,9 @@
 // - EntityPicker toont uitsluitend naam + bedrijf; geen e-mail in het label.
 // - Bestaande submit-flow (useDataStore.addObject) wordt hergebruikt.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { toast } from 'sonner';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -79,6 +80,8 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
   const [prijsindicatie, setPrijsindicatie] = useState('');
   const [notitie, setNotitie] = useState('');
   const [bezig, setBezig] = useState(false);
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+  useModalScrollContainment(bodyScrollRef, open);
 
   // EntityPicker items voor relaties: label = alleen naam + bedrijf.
   // getRelatieNamen valt nooit terug op e-mail; secundair = bedrijfsnaam of null.
@@ -189,12 +192,13 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="flex h-[min(88svh,780px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]" style={{ paddingBottom: 0 }}>
+        <DialogHeader className="shrink-0 touch-none border-b border-border px-4 pb-3 pt-5 sm:px-6">
           <DialogTitle>Nieuw object</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto pr-1" style={{ maxHeight: '70vh' }}>
+        <div ref={bodyScrollRef} data-testid="quick-object-form-scroll"
+          className="min-h-0 min-w-0 w-full max-w-full flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-4 py-4 sm:px-6">
           {/* Titel */}
           <div className="space-y-1.5">
             <Label htmlFor="quick-titel">
@@ -394,11 +398,11 @@ export default function ObjectQuickCreateDialog({ open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <DialogFooter className="pt-2">
-          <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={bezig}>
+        <DialogFooter className="z-10 grid min-w-0 shrink-0 grid-cols-2 gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:flex sm:flex-row sm:justify-end sm:px-6">
+          <Button type="button" variant="outline" onClick={() => handleClose(false)} disabled={bezig} className="min-w-0">
             Annuleren
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={bezig}>
+          <Button type="button" onClick={handleSubmit} disabled={bezig} className="min-w-0">
             {bezig ? 'Bezig…' : 'Object aanmaken'}
           </Button>
         </DialogFooter>

@@ -13,6 +13,11 @@ export function isRelatiePageScrollRoute(pathname: string): boolean {
   return /^\/relaties(?:\/[^/]+)?\/?$/.test(pathname);
 }
 
+/** Identieke iOS-scrollgrenzen voor het objectenoverzicht en alle objectdossiers. */
+export function isObjectPageScrollRoute(pathname: string): boolean {
+  return /^\/objecten(?:\/[^/]+)?\/?$/.test(pathname);
+}
+
 export type TaskPageGesture = {
   totalX: number;
   totalY: number;
