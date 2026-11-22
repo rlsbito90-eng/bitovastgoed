@@ -95,10 +95,10 @@ export default function TaskLinksPickerDialog({
   confirming?: boolean;
 }) {
   const { relaties, deals, objecten, getObjectById, getRelatieById, contactpersonen } = useDataStore();
-  const { data: signalen = [] } = useOffMarketSignalen();
   const [draft, setDraft] = useState<TaskLinkSelection>(() => cloneSelection(value));
   const [activeTab, setActiveTab] = useState<TaskLinkEntityType>(() => firstTab(value));
   const [query, setQuery] = useState('');
+  const { data: signalen = [] } = useOffMarketSignalen(activeTab === 'signaal');
 
   // Een popup is een afzonderlijke bewerksessie: sluiten zonder toepassen wijzigt niets.
   useEffect(() => {
