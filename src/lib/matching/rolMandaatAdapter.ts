@@ -41,6 +41,11 @@ export interface CrmRelatieInput {
   budgetMin?: number | null;
   budgetMax?: number | null;
   aankoopcriteria?: string | null;
+  /** Vrije criteria zijn geen machineleesbare knock-outs. */
+  uitsluitingen?: string | null;
+  gewensteSituatie?: readonly string[] | null;
+  rendementsdoelToelichting?: string | null;
+  strategieToelichting?: string | null;
 }
 export interface CrmMandaatInput {
   id: string;
@@ -55,6 +60,7 @@ export interface CrmMandaatInput {
   steden?: readonly string[] | null;
   prijsMin?: number | null;
   prijsMax?: number | null;
+  aanvullendeCriteria?: string | null;
   mandateType?: MandaatType | null; // Future field
   mandateConfirmed?: boolean | null; // Future field
   principalRelatieId?: string | null; // Future field: do NOT assume seller/buyer identity from contact.
@@ -285,6 +291,29 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       if((min!=null&&o.vraagprijs<min)||(max!=null&&o.vraagprijs>max))afwijkend.push('Vraagprijs buiten opgegeven budgetgrenzen');
       else{matcht.push('Vraagprijs binnen budget');geverifieerd++;bewijs.budget=true;}
     }else{controleer.push('Vraagprijs van object ontbreekt');controleNodig=true}
+  }
+  // Letterlijke wensen en uitsluitingen nooit stilzwijgend als geverifieerd
+  // behandelen. Ze zijn niet gestructureerd genoeg voor een automatische
+  // afwijzing, maar verhinderen wel een onterecht groen 'passend'.
+  if(r.uitsluitingen?.trim()){
+    controleer.push('Expliciete uitsluitingen van de relatie handmatig toetsen');
+    controleNodig=true;
+  }
+  if(p?.aanvullendeCriteria?.trim()){
+    controleer.push('Aanvullende voorwaarden van dit zoekprofiel handmatig toetsen');
+    controleNodig=true;
+  }
+  if(!p&&r.aankoopcriteria?.trim()){
+    controleer.push('Aanvullende aankoopcriteria van de relatie handmatig toetsen');
+    controleNodig=true;
+  }
+  if(!p&&r.rendementsdoelToelichting?.trim()){
+    controleer.push('Opgegeven rendementsdoel en berekeningsmethode handmatig toetsen');
+    controleNodig=true;
+  }
+  if(!p&&(r.gewensteSituatie?.length||r.strategieToelichting?.trim())){
+    controleer.push('Gewenste object-/huursituatie en investeringsstrategie verifiëren');
+    controleNodig=true;
   }
   let koperRelatieId:string|null=null;
   // De contactpartij kan zelf koper zijn, maar een makelaar is niet automatisch de eindkoper.

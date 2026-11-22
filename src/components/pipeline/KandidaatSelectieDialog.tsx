@@ -26,6 +26,7 @@ import { useObjectMatchBesluiten } from '@/hooks/useObjectMatchBesluiten';
 import { supabase } from '@/integrations/supabase/client';
 import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstellenR2';
 import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen } from '@/lib/matching/rolMandaatAdapter';
 
 
@@ -104,6 +105,10 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   const [r2Concept, setR2Concept] = useState<R2Concept | null>(null);
   const r2Actief = MATCH_R2_PREVIEW_ENABLED && toonR2;
   const zoekRef = useRef<HTMLInputElement>(null);
+  const r2ScrollRef = useRef<HTMLDivElement>(null);
+  const alleRelatiesScrollRef = useRef<HTMLDivElement>(null);
+  useModalScrollContainment(r2ScrollRef, open && r2Actief);
+  useModalScrollContainment(alleRelatiesScrollRef, open && !r2Actief);
   const matchingBesluiten = useObjectMatchBesluiten(objectId,open);
   const afgewezenRelaties = useMemo(()=>new Set(
     Object.entries(matchingBesluiten.besluiten)
@@ -381,8 +386,8 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
 
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-5 py-4 border-b border-border">
+      <DialogContent className="flex h-[min(90svh,880px)] max-h-[90dvh] w-[calc(100vw-1rem)] min-w-0 max-w-6xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]" style={{ paddingBottom: 0 }}>
+        <DialogHeader className="shrink-0 touch-none border-b border-border px-4 py-4 sm:px-5">
           <DialogTitle>Kandidaat toevoegen</DialogTitle>
           <p className="text-xs text-muted-foreground mt-1">
             Selecteer één of meerdere relaties om als kandidaat aan dit object te koppelen.
@@ -391,7 +396,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         </DialogHeader>
 
         {MATCH_R2_PREVIEW_ENABLED && (
-          <nav className="px-5 py-2 flex flex-wrap gap-2 border-b border-border" aria-label="Kandidaatselectie">
+          <nav className="flex min-w-0 shrink-0 flex-wrap gap-2 border-b border-border px-4 py-2 sm:px-5" aria-label="Kandidaatselectie">
             <button type="button" aria-pressed={r2Actief}
               onClick={() => {setToonR2(true);setR2Concept(null);setGeselecteerd(new Set());}}
               className={`rounded-md px-3 py-2 text-sm border ${r2Actief?'bg-accent/10 border-accent':'border-border'}`}>
@@ -406,7 +411,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         )}
 
         {r2Actief && (
-          <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4 space-y-4">
+          <div ref={r2ScrollRef} data-testid="kandidaat-voorstellen-scroll" className="min-h-0 min-w-0 w-full max-w-full flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-3 py-3 sm:px-5 sm:py-4">
             <p className="text-xs text-muted-foreground">Beoordeel een voorstel of kies expliciet een kandidaat. Er worden geen aanbiedingen of berichten automatisch verstuurd.</p>
             {object ? <KandidaatVoorstellenR2
               object={object} relaties={relaties} zoekprofielen={zoekprofielen}
@@ -416,6 +421,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
               }}
               onConceptGekozen={setR2Concept}
+              geselecteerdeRelatieId={r2Concept?.contactRelatieId ?? null}
               besluiten={matchingBesluiten.besluiten}
               besluitenGeladen={!matchingBesluiten.loading && !matchingBesluiten.fout}
               beoordelingenFout={matchingBesluiten.fout}
@@ -557,7 +563,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         </div>}
 
         {/* Lijst */}
-        {!r2Actief && !matchingBesluiten.loading && !matchingBesluiten.fout && <div className="flex-1 overflow-y-auto min-h-[200px]">
+        {!r2Actief && !matchingBesluiten.loading && !matchingBesluiten.fout && <div ref={alleRelatiesScrollRef} data-testid="kandidaat-alle-relaties-scroll" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y">
           {gesorteerd.length === 0 ? (
             <div className="p-8 text-sm text-muted-foreground text-center space-y-3">
               <p>{filtersActief ? 'Geen relaties voldoen aan de criteria.' : 'Geen beschikbare relaties.'}</p>
@@ -644,19 +650,19 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
           )}
         </div>}
 
-        <DialogFooter className="px-5 py-3 border-t border-border bg-card shrink-0">
+        <DialogFooter className="z-10 grid min-w-0 shrink-0 grid-cols-2 items-center gap-2 border-t border-border bg-card px-3 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:flex sm:flex-row sm:px-5">
           {r2Actief ? (
             <>
-              <p className="text-xs text-muted-foreground mr-auto self-center">Alleen een expliciete klik op ‘Kandidaat toevoegen’ legt de koppeling vast. Geen automatische verzending.</p>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-              <Button onClick={handleR2Toevoegen} disabled={!r2Concept||bezig}>
+              <p className="col-span-2 text-xs text-muted-foreground sm:mr-auto sm:self-center">De kandidaat wordt pas na bevestiging gekoppeld; geen automatische verzending.</p>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig} className="min-w-0">Annuleren</Button>
+              <Button onClick={handleR2Toevoegen} disabled={!r2Concept||bezig} className="min-w-0">
                 {bezig?'Bezig…':'Kandidaat toevoegen'}
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig}>Annuleren</Button>
-              <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig || matchingBesluiten.loading || !!matchingBesluiten.fout}>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bezig} className="min-w-0">Annuleren</Button>
+              <Button onClick={handleToevoegen} disabled={geselecteerd.size === 0 || bezig || matchingBesluiten.loading || !!matchingBesluiten.fout} className="min-w-0">
                 {bezig ? 'Bezig…' : `Toevoegen${geselecteerd.size > 0 ? ` (${geselecteerd.size})` : ''}`}
               </Button>
             </>
