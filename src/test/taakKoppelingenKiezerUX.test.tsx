@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import TaskLinksPickerDialog, {
-  type TaskLinkSelection, visibleTaskLinkRows,
+  type TaskLinkSelection, visibleTaskLinkRows, shouldBlockTaskLinksTouch,
 } from '@/components/tasks/TaskLinksPickerDialog';
 
 vi.mock('@/hooks/useDataStore', () => ({
@@ -97,13 +97,51 @@ describe('Koppelingen: app-achtige picker met vaste acties', () => {
     expect(visibleTaskLinkRows(rows, ['o99'], 'object 98').map(x => x.id)).toEqual(['o98']);
   });
 
+  it('houdt een verticale veeg in de lijst vrij, ook bij snel scrollen', () => {
+    expect(shouldBlockTaskLinksTouch({
+      totalX: 4, totalY: -90, stepY: -15,
+      scrollTop: 200, scrollHeight: 1000, clientHeight: 350,
+    })).toBe(false);
+    expect(shouldBlockTaskLinksTouch({
+      totalX: 3, totalY: 90, stepY: 10,
+      scrollTop: 100, scrollHeight: 1000, clientHeight: 350,
+    })).toBe(false);
+  });
+
+  it('blokkeert horizontale swipes en overscroll op beide iPhone-randen', () => {
+    const base = { totalX: 0, totalY: 50, stepY: 12, scrollTop: 50, scrollHeight: 1000, clientHeight: 350 };
+    expect(shouldBlockTaskLinksTouch({ ...base, totalX: 70, totalY: 5 })).toBe(true);
+    expect(shouldBlockTaskLinksTouch({ ...base, scrollTop: 0 })).toBe(true);
+    expect(shouldBlockTaskLinksTouch({ ...base, totalY: -50, stepY: -12, scrollTop: 650 })).toBe(true);
+    expect(shouldBlockTaskLinksTouch({ ...base, scrollHeight: 350, clientHeight: 350 })).toBe(true);
+    expect(shouldBlockTaskLinksTouch({ ...base, totalX: 2, totalY: 1, scrollTop: 0 })).toBe(false);
+  });
+
+  it('reset scrollpositie bij het wisselen van tab en bij zoeken', () => {
+    render(<TaskLinksPickerDialog open onOpenChange={vi.fn()} value={sample} onChange={vi.fn()}/>);
+    const list = screen.getByRole('tabpanel', { name: 'Objecten' });
+    list.scrollTop = 280;
+    fireEvent.click(screen.getByRole('tab', { name: /Relaties/ }));
+    expect(screen.getByRole('tabpanel', { name: 'Relaties' }).scrollTop).toBe(0);
+    const relations = screen.getByRole('tabpanel', { name: 'Relaties' });
+    relations.scrollTop = 180;
+    fireEvent.change(screen.getByRole('textbox', { name: 'Zoek relaties' }), { target: { value: 'Peter' } });
+    expect(relations.scrollTop).toBe(0);
+  });
+
   it('scheidt kop, zoekfunctie en acties van de scrollbare resultatenlijst', () => {
     const { container } = render(
       <TaskLinksPickerDialog open onOpenChange={vi.fn()} value={sample} onChange={vi.fn()}/>,
     );
     const panel = screen.getByRole('tabpanel', { name: 'Objecten' });
     expect(panel.className).toContain('overflow-y-auto');
+    expect(panel.className).toContain('overflow-x-hidden');
+    expect(panel.className).toContain('overscroll-none');
+    expect(panel.className).toContain('touch-pan-y');
     expect(panel.className).toContain('min-h-0');
+    const outer = container.querySelector('[class*="88svh"]');
+    expect(outer).not.toBeNull();
+    expect(outer?.className).toContain('overflow-hidden');
     const search = screen.getByRole('textbox', { name: 'Zoek objecten' });
     expect(panel.contains(search)).toBe(false);
     const apply = screen.getByRole('button', { name: 'Toepassen · 4' });
