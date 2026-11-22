@@ -1,11 +1,16 @@
 import { useEffect, type RefObject } from 'react';
 
 /**
- * Taakschermen hebben het gewone pagina-scrollgebied nodig, maar niet het
+ * Dossiers en overzichten hebben het gewone pagina-scrollgebied nodig, maar niet het
  * 'rubber-band' uitrekken van de hele pagina op iOS Safari.
  */
 export function isTaskPageScrollRoute(pathname: string): boolean {
   return /^\/taken(?:\/[^/]+)?\/?$/.test(pathname);
+}
+
+/** Zelfde stabiele scrollbediening voor relatie-overzicht en relatiedossier. */
+export function isRelatiePageScrollRoute(pathname: string): boolean {
+  return /^\/relaties(?:\/[^/]+)?\/?$/.test(pathname);
 }
 
 export type TaskPageGesture = {
@@ -32,7 +37,7 @@ export function shouldPreventTaskPageBounce({
 
 /**
  * Safari heeft naast overscroll-behavior:none soms een native touchmove
- * boundary nodig bij de eigen scrollcontainer. Alleen actief op /taken/*;
+ * boundary nodig bij de eigen scrollcontainer. Actief op Taken en Relaties;
  * normale verticale beweging en horizontaal wisselen van tabs blijven intact.
  */
 export function useTaskPageScrollBoundary(
