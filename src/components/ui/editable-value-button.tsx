@@ -10,6 +10,7 @@ interface Props {
   className?: string;
   /** Geen extra icoontjes die de waarde verdringen bij lange teksten. */
   multiline?: boolean;
+  showPencil?: boolean;
 }
 
 /**
@@ -21,7 +22,7 @@ interface Props {
  * juridische/transactieconsequenties of velden met interactieve kinderen.
  */
 export default function EditableValueButton({
-  label,children,onClick,disabled=false,className,multiline=false,
+  label,children,onClick,disabled=false,className,multiline=false,showPencil=true,
 }:Props){
   return <button type="button"
     aria-label={`Wijzig ${label}`}
@@ -40,6 +41,6 @@ export default function EditableValueButton({
     )}>
       {children}
     </span>
-    <Pencil aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 opacity-40 transition-opacity group-hover/editvalue:opacity-100 group-focus-visible/editvalue:opacity-100"/>
+    {showPencil && <Pencil aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 opacity-40 transition-opacity group-hover/editvalue:opacity-100 group-focus-visible/editvalue:opacity-100"/>}
   </button>;
 }
