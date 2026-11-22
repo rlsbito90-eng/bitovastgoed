@@ -93,6 +93,8 @@ export function objectToDbPayload(o: Partial<ObjectVastgoed>): Record<string, un
     verkoper_telefoon: o.verkoperTelefoon !== undefined ? (o.verkoperTelefoon || null) : undefined,
     verkoper_email: o.verkoperEmail !== undefined ? (o.verkoperEmail || null) : undefined,
     eigenaar_relatie_id: o.eigenaarRelatieId !== undefined ? (o.eigenaarRelatieId || null) : undefined,
+    verkoper_relatie_id: o.verkoperRelatieId !== undefined ? (o.verkoperRelatieId || null) : undefined,
+    aanbieder_relatie_id: o.aanbiederRelatieId !== undefined ? (o.aanbiederRelatieId || null) : undefined,
     verkoopmotivatie: o.verkoopmotivatie !== undefined ? (o.verkoopmotivatie || null) : undefined,
 
     is_portefeuille: o.isPortefeuille,
