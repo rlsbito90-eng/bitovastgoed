@@ -70,7 +70,7 @@ describe('Taak aanmaken: compact en herinnering op gekozen tijd',()=>{
     expect(form).toContain('notesExpanded');
   });
   it('backend verwerkt minuten/uren en kalenderdagen zonder DST-verschuiving',()=>{
-    const sql=read('supabase/migrations/20261122041000_task_planning_reminder_offsets.sql');
+    const sql=read('supabase/migrations/20261122014709_task_planning_reminder_offsets.sql');
     expect(sql).toContain('v_offset_minutes := substring(v_mode from 8)::integer');
     expect(sql).toContain("coalesce(t.plan_tijd, time '09:00')");
     expect(sql).toContain("make_interval(mins => v_offset_minutes)");
