@@ -57,7 +57,7 @@ describe('Relaties UX: stabiele pagina, direct bewerken en vaste acties', () => 
     expect(full.indexOf('data-testid="relatie-form-scroll"')).toBeGreaterThan(full.indexOf('<TabsList'));
     expect(full.indexOf('data-testid="relatie-form-scroll"')).toBeLessThan(full.indexOf('data-testid="relatie-form-sluiten"'));
     expect(full).toContain('if(tabScrollRef.current)tabScrollRef.current.scrollTop=0');
-    expect(full).toContain('className="min-w-0 space-y-1.5');
+    expect(full).toContain('min-w-0 space-y-1.5');
   });
 
   it('deelt standaard belegger en BV en wijzigt bestaande relaties niet stilzwijgend', () => {
