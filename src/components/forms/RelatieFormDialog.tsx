@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, ReactNode } from 'react';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -163,6 +164,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
   // Radix Tabs binnen één scrollcontainer hergebruiken anders de vorige
   // scrollpositie. Elke geopende tab begint bewust bovenaan.
   const tabScrollRef = useRef<HTMLDivElement|null>(null);
+  useModalScrollContainment(tabScrollRef, open);
   const wisselTab = (next:string) => {
     setTab(next);
     if(tabScrollRef.current)tabScrollRef.current.scrollTop=0;
@@ -394,15 +396,15 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-border">
+      <DialogContent className="flex h-[min(88svh,800px)] max-h-[88dvh] w-[calc(100vw-1rem)] min-w-0 max-w-4xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-[95vw]">
+        <DialogHeader className="shrink-0 touch-none border-b border-border px-4 pb-3 pt-5 sm:px-6 sm:pt-6">
           <DialogTitle>
             {isEdit ? 'Relatie bewerken' : (gemaaktId ? 'Relatie bewerken' : 'Nieuwe relatie')}
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={wisselTab} className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 px-6 pt-3 border-b border-border overflow-x-auto bg-background">
+        <Tabs value={tab} onValueChange={wisselTab} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="min-w-0 shrink-0 overflow-x-auto overscroll-x-contain border-b border-border bg-background px-4 pt-3 sm:px-6">
             <TabsList className="inline-flex">
               <TabsTrigger value="algemeen">Algemeen</TabsTrigger>
               <TabsTrigger value="vastgoed">
@@ -415,7 +417,7 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
           </div>
 
           <div ref={tabScrollRef} data-testid="relatie-form-scroll"
-            className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+            className="min-h-0 min-w-0 w-full max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-4 py-4 sm:px-6">
             {/* ALGEMEEN — nieuwe volgorde: Contactpersoon → Bedrijf → KVK */}
             <TabsContent value="algemeen" className="space-y-5 mt-0">
 
@@ -894,11 +896,11 @@ export default function RelatieFormDialog({ open, onOpenChange, relatie, onCreat
           </div>
 
           {/* Footer */}
-          <div className="shrink-0 border-t border-border px-6 py-3 flex justify-end items-center gap-2 bg-background">
-            <Button variant="outline" data-testid="relatie-form-sluiten" onClick={() => guardedOnOpenChange(false)} disabled={bezig}>
+          <div className="z-10 flex min-w-0 shrink-0 items-center justify-end gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">
+            <Button type="button" variant="outline" data-testid="relatie-form-sluiten" onClick={() => guardedOnOpenChange(false)} disabled={bezig} className="min-w-0 shrink-0">
               {(isEdit || gemaaktId) ? 'Sluiten' : 'Annuleren'}
             </Button>
-            <Button onClick={handleSave} disabled={bezig}>
+            <Button type="button" onClick={handleSave} disabled={bezig} className="min-w-0 flex-1 sm:flex-none">
               {bezig ? 'Bezig…' : (isEdit || gemaaktId ? 'Opslaan' : 'Aanmaken')}
             </Button>
           </div>
@@ -944,14 +946,14 @@ function Sectie({
         {Icon && <Icon className="h-3.5 w-3.5" />}
         {titel}
       </h3>
-      <div className="space-y-3">{children}</div>
+      <div className="min-w-0 space-y-3">{children}</div>
     </div>
   );
 }
 
 function Veld({ label, children, span = 1 }: { label: string; children: ReactNode; span?: 1 | 2 }) {
   return (
-    <div className={`space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
+    <div className={`min-w-0 space-y-1.5 ${span === 2 ? 'sm:col-span-2' : ''}`}>
       <Label>{label}</Label>
       {children}
     </div>
