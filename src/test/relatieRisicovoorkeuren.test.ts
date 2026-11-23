@@ -43,7 +43,7 @@ describe('Risicovoorkeuren in CRM',()=>{
     const page=read('src/pages/RelatieDetailPage.tsx');
     const store=read('src/hooks/useDataStore.tsx');
     const model=read('src/data/mock-data.ts');
-    const sql=read('supabase/migrations/20261123015000_relatie_risicovoorkeuren_en_horizon.sql');
+    const sql=read('supabase/migrations/20261123002840_relatie_risicovoorkeuren_en_horizon.sql');
     expect(page).toContain('<RisicovoorkeurenPanel');
     expect(page).toContain('<RendementscriteriaPanel');
     expect(page).toContain('InlineRelatieClassificatie');
