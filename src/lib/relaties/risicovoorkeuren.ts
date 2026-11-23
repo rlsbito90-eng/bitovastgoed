@@ -45,7 +45,7 @@ export function valideerRisicoInvoer(
   type:Risicotype,bereidheid:Risicobereidheid,bevestigd:boolean,bron:string|null
 ):string|null {
   if(!RISICO_CATEGORIEEN.some(x=>x.waarde===type))return 'Onbekend risicotype';
-  if(!Object.hasOwn(RISICO_BEREIDHEID,bereidheid))return 'Ongeldige bereidheid';
+  if(!Object.prototype.hasOwnProperty.call(RISICO_BEREIDHEID,bereidheid))return 'Ongeldige bereidheid';
   if(bevestigd && !bron?.trim())return 'Vermeld het gesprek of de bron voordat je iets bevestigt';
   return null;
 }
