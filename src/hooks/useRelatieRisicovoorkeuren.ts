@@ -9,6 +9,7 @@ export type RisicovoorkeurInvoer = {
   bereidheid:Risicobereidheid;
   bevestigd:boolean;
   bron:string|null;
+  bronDatum:string|null;
   toelichting:string|null;
 };
 
@@ -50,7 +51,7 @@ export function useRelatieRisicovoorkeuren(relatieId:string){
       bereidheid:input.bereidheid,
       bevestigd:input.bevestigd,
       bron:input.bron?.trim()||null,
-      bron_datum:input.bevestigd ? nu.slice(0,10) : null,
+      bron_datum:input.bronDatum||null,
       toelichting:input.toelichting?.trim()||null,
       updated_at:nu,
     };
