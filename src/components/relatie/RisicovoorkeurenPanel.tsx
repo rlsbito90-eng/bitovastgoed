@@ -12,13 +12,14 @@ type Draft={
   bereidheid:Risicobereidheid|'onbekend';
   bevestigd:boolean;
   bron:string;
+  bronDatum:string;
   toelichting:string;
 };
-const leeg:Draft={bereidheid:'onbekend',bevestigd:false,bron:'',toelichting:''};
+const leeg:Draft={bereidheid:'onbekend',bevestigd:false,bron:'',bronDatum:'',toelichting:''};
 function uitVoorkeur(v?:Risicovoorkeur):Draft{
   return v?{
     bereidheid:v.bereidheid,bevestigd:v.bevestigd,
-    bron:v.bron??'',toelichting:v.toelichting??'',
+    bron:v.bron??'',bronDatum:v.bronDatum??'',toelichting:v.toelichting??'',
   }:{...leeg};
 }
 
@@ -61,7 +62,8 @@ export default function RisicovoorkeurenPanel({
         await onSave({
           risicotype:editing,bereidheid:draft.bereidheid,
           bevestigd:draft.bevestigd,
-          bron:draft.bron.trim()||null,toelichting:draft.toelichting.trim()||null,
+          bron:draft.bron.trim()||null,bronDatum:draft.bronDatum||null,
+          toelichting:draft.toelichting.trim()||null,
         });
       }
       setEditing(null);basis.current={...draft};
@@ -130,6 +132,12 @@ export default function RisicovoorkeurenPanel({
                 <input value={draft.bron}
                   onChange={e=>setDraft(d=>({...d,bron:e.target.value}))}
                   placeholder="Bijv. telefoongesprek of e-mail van 23-11-2026"
+                  className="w-full rounded-md border border-input bg-background p-2 text-sm"/>
+              </label>
+              <label className="block space-y-1 text-xs">
+                <span>Datum van uitspraak (optioneel)</span>
+                <input type="date" value={draft.bronDatum}
+                  onChange={e=>setDraft(d=>({...d,bronDatum:e.target.value}))}
                   className="w-full rounded-md border border-input bg-background p-2 text-sm"/>
               </label>
               <label className="block space-y-1 text-xs">
