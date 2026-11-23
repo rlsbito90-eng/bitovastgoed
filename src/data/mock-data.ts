@@ -267,6 +267,10 @@ export interface Relatie {
   gewensteObjectomvang?: string;
   gewensteSituatie?: string[];
   aankooptermijn?: string;
+  /** Houdperiode na aankoop; niet verwarren met de gewenste aankooptermijn. */
+  beleggingshorizon?: 'kort'|'middellang'|'lang'|'flexibel';
+  /** Primaire voorkeur, geen harde rendementseis. */
+  investeringsdoel?: 'cashflow'|'waardecreatie'|'beide'|'per_object';
   financieringsstructuur?: string;
   financieringsstatus?: string;
   besluitvorming?: string;
