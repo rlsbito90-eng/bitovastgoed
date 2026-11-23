@@ -30,6 +30,8 @@ import WebsiteProfielHerkomst from '@/components/relatie/WebsiteProfielHerkomst'
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import RendementscriteriaPanel from '@/components/relatie/RendementscriteriaPanel';
+import RisicovoorkeurenPanel from '@/components/relatie/RisicovoorkeurenPanel';
+import {useRelatieRisicovoorkeuren} from '@/hooks/useRelatieRisicovoorkeuren';
 import ObjectvoorstellenPanel from '@/components/relatie/ObjectvoorstellenPanel';
 import { useRelatieMatchingData } from '@/hooks/useRelatieMatchingData';
 import RelatiePipelineSectie from '@/components/pipeline/RelatiePipelineSectie';
@@ -77,6 +79,20 @@ const VESTIGINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'vestigingspostcode',label:'Postcode'},
   {key:'vestigingsplaats',label:'Plaats'},
   {key:'vestigingsland',label:'Land'},
+];
+const BELEGGINGSAANPAKVELDEN: readonly InlineRelatieVeld[] = [
+  {key:'beleggingshorizon',label:'Beleggingshorizon',kind:'select',options:[
+    {value:'kort',label:'Handel / korte termijn (tot 2 jaar)'},
+    {value:'middellang',label:'Middellang (2–5 jaar)'},
+    {value:'lang',label:'Langetermijn (5+ jaar)'},
+    {value:'flexibel',label:'Afhankelijk van de transactie'},
+  ],note:'Houdperiode ná aankoop. Los van de gewenste aankooptermijn.'},
+  {key:'investeringsdoel',label:'Primaire rendementsfocus',kind:'select',options:[
+    {value:'cashflow',label:'Jaarlijkse cashflow'},
+    {value:'waardecreatie',label:'Waardecreatie / verkoopwinst'},
+    {value:'beide',label:'Combinatie'},
+    {value:'per_object',label:'Afhankelijk van het object'},
+  ],note:'Rendementseisen in percentages en methoden staan afzonderlijk bij Rendementscriteria.'},
 ];
 const INVESTERINGSVELDEN: readonly InlineRelatieVeld[] = [
   {key:'regio',label:'Regio’s en provincies',kind:'multi',
@@ -148,6 +164,7 @@ export default function RelatieDetailPage() {
   const store = useDataStore();
   const relatie = store.getRelatieById(id!);
   const matchingData = useRelatieMatchingData(id ?? '');
+  const risicoData = useRelatieRisicovoorkeuren(id ?? '');
   const [editOpen, setEditOpen] = useState(false);
   const [zpOpen, setZpOpen] = useState(false);
   const [zpBewerken, setZpBewerken] = useState<Zoekprofiel | null>(null);
@@ -304,6 +321,9 @@ export default function RelatieDetailPage() {
             relatie={relatie} velden={MATCHVOORWAARDENVELDEN}
             toonAlleVeldenInitieel
             onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <InlineRelatieSectie titel="Beleggingshorizon en rendementsfocus" relatie={relatie}
+            velden={BELEGGINGSAANPAKVELDEN} toonAlleVeldenInitieel
+            onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
           <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
             velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
           {relatie.zoekRadiusCentrum?.trim()&&relatie.zoekRadiusWaarde!=null&&
@@ -391,6 +411,9 @@ export default function RelatieDetailPage() {
         </div>
 
         <div className="space-y-4 lg:space-y-6 min-w-0">
+          <RisicovoorkeurenPanel relatieId={relatie.id}
+            voorkeuren={risicoData.voorkeuren} loading={risicoData.loading} fout={risicoData.fout}
+            onSave={risicoData.bewaar} onDelete={risicoData.verwijder}/>
           <RendementscriteriaPanel
             criteria={matchingData.criteria}
             zoekprofielen={zoekprofielen}
