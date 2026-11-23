@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.relatie_risicovoorkeuren (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (relatie_id, risicotype),
-  CONSTRAINT risico_bevestiging_heeft_bron CHECK (NOT bevestigd OR nullif(btrim(bron),'') IS NOT NULL)
+  CONSTRAINT risico_bevestiging_heeft_bron CHECK (NOT bevestigd OR coalesce(length(btrim(bron)),0) > 0)
 );
 CREATE INDEX IF NOT EXISTS idx_relatie_risicovoorkeuren_relatie
   ON public.relatie_risicovoorkeuren(relatie_id);
