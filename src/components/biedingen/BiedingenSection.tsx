@@ -370,6 +370,7 @@ export default function BiedingenSection({
                                 {bieding.geldigTot && <span className="text-[11px] text-muted-foreground">Geldig t/m {fmtDate(bieding.geldigTot)}</span>}
                               </div>
                               {bieding.voorwaarden && <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{bieding.voorwaarden}</p>}
+                              {bieding.origineleCommunicatie && <details className="mt-2 text-xs"><summary className="cursor-pointer font-medium">Originele biedingscommunicatie</summary><p className="whitespace-pre-wrap mt-1 text-muted-foreground">{bieding.origineleCommunicatie}</p></details>}
                               {bieding.notities && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{bieding.notities}</p>}
                               <VoorwaardenSummary b={bieding} />
                               {parent && <VoorwaardenVergelijking before={parent} after={bieding} beforeLabel="Vorig voorstel" afterLabel="Dit voorstel" />}
@@ -441,6 +442,11 @@ function VoorwaardenSummary({ b }: { b: Bieding }) {
   else if (b.gewensteLevering) voorwaarden.push('Levering: ' + fmtDate(b.gewensteLevering));
   if (b.kostenType === 'kk') voorwaarden.push('k.k.');
   if (b.kostenType === 'von') voorwaarden.push('v.o.n.');
+  for (const key of ['financiering','dd'] as const) {
+    const status=key==='financiering'?b.financieringsvoorbehoud:b.ddVoorbehoud;
+    const d=b.voorbehoudDetails?.[key];
+    if(status==='ja' && d && (d.toelichting || d.deadline)) voorwaarden.push([key==='financiering'?'Financiering':'DD',d.toelichting,d.deadline?'Uiterlijk '+fmtDate(d.deadline):null].filter(Boolean).join(' · '));
+  }
   const extra = b.extraVoorwaarden;
   return <div className="space-y-1 mt-2 text-xs text-muted-foreground">
     {voorwaarden.length > 0 && <p>{voorwaarden.join(' · ')}</p>}
