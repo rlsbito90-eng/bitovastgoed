@@ -12,6 +12,7 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
 import {
+  EXTRA_VOORWAARDEN_LABELS, type ExtraVoorwaarde, type ExtraVoorwaardeType,
   BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, BOD_KARAKTER_LABELS, VOORBEHOUD_LABELS,
   KOSTEN_LABELS, BRON_LABELS, BIEDING_RICHTING_LABELS_LONG,
   type Bieding, type BiedingStatus, type BiedingType, type BodKarakter,
@@ -60,6 +61,7 @@ interface FormState {
   waarborgsomPct: string;
   kostenType: KostenType | '';
   voorwaarden: string;
+  extraVoorwaarden: ExtraVoorwaarde[] | null;
   notities: string;
   interneNotities: string;
   bron: BiedingBron | '';
@@ -86,6 +88,7 @@ const emptyForm = (): FormState => ({
   waarborgsomPct: '',
   kostenType: 'kk',
   voorwaarden: '',
+  extraVoorwaarden: null,
   notities: '',
   interneNotities: '',
   bron: '',
@@ -131,6 +134,7 @@ export default function OfferFormDialog({
         waarborgsomPct: bieding.waarborgsomPct != null ? String(bieding.waarborgsomPct) : '',
         kostenType: (bieding.kostenType as KostenType) || '',
         voorwaarden: bieding.voorwaarden ?? '',
+        extraVoorwaarden: bieding.extraVoorwaarden ?? null,
         notities: bieding.notities ?? '',
         interneNotities: bieding.interneNotities ?? '',
         bron: (bieding.bron as BiedingBron) || '',
@@ -158,6 +162,7 @@ export default function OfferFormDialog({
               waarborgsomBedrag: counterTo.waarborgsomBedrag != null ? String(counterTo.waarborgsomBedrag) : '',
               waarborgsomPct: counterTo.waarborgsomPct != null ? String(counterTo.waarborgsomPct) : '',
               voorwaarden: counterTo.voorwaarden ?? '',
+              extraVoorwaarden: counterTo.extraVoorwaarden ?? null,
               gewensteLevering: counterTo.gewensteLevering ?? '',
             }
           : {}),
@@ -252,6 +257,7 @@ export default function OfferFormDialog({
         waarborgsomPct: parseDutchNumber(form.waarborgsomPct),
         kostenType: form.kostenType || null,
         voorwaarden: form.voorwaarden || null,
+        extraVoorwaarden: form.extraVoorwaarden,
         notities: form.notities || null,
         interneNotities: form.interneNotities || null,
         bron: form.bron || null,
@@ -497,8 +503,31 @@ export default function OfferFormDialog({
                   value={form.waarborgsomPct} onChange={e => set('waarborgsomPct', e.target.value)} />
               </div>
             </div>
+            <div className="sm:col-span-2 space-y-2 rounded-lg border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Overige gestructureerde voorwaarden</Label>
+                <Select value={form.extraVoorwaarden == null ? 'onbekend' : form.extraVoorwaarden.length ? 'aanwezig' : 'geen'}
+                  onValueChange={v => set('extraVoorwaarden', v === 'onbekend' ? null : v === 'geen' ? [] : [{type: 'bezichtiging', karakter: 'onbekend', toelichting: '', deadline: null}])}>
+                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="onbekend">Onbekend</SelectItem><SelectItem value="geen">Geen</SelectItem><SelectItem value="aanwezig">Aanwezig</SelectItem></SelectContent>
+                </Select>
+              </div>
+              {(form.extraVoorwaarden ?? []).map((condition, index) => {
+                const patch = (value: Partial<ExtraVoorwaarde>) => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).map((item, i) => i === index ? {...item, ...value} : item)}));
+                return <div key={index} className="rounded-md border bg-background p-2 space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div><Label>Type voorwaarde</Label><Select value={condition.type} onValueChange={v => patch({type: v as ExtraVoorwaardeType})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(EXTRA_VOORWAARDEN_LABELS).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+                    <div><Label>Karakter</Label><Select value={condition.karakter} onValueChange={v => patch({karakter: v as ExtraVoorwaarde['karakter']})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="onbekend">Niet vastgesteld</SelectItem><SelectItem value="voorbehoud">Voorbehoud</SelectItem><SelectItem value="transactiebepaling">Transactiebepaling</SelectItem></SelectContent></Select></div>
+                    <div><Label>Toelichting</Label><Input value={condition.toelichting} onChange={e => patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
+                    <div><Label>Uiterste datum</Label><Input type="date" value={condition.deadline ?? ''} onChange={e => patch({deadline:e.target.value || null})} /></div>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).filter((_,i) => i !== index)}))}>Voorwaarde verwijderen</Button>
+                </div>;
+              })}
+              <Button type="button" variant="outline" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: [...(old.extraVoorwaarden ?? []), {type:'overig', karakter:'onbekend', toelichting:'', deadline:null}]}))}>+ Voorwaarde toevoegen</Button>
+            </div>
             <div className="sm:col-span-2 space-y-1.5">
-              <Label htmlFor="voorwaarden">Extra voorwaarden</Label>
+              <Label htmlFor="voorwaarden">Aanvullende vrije tekst</Label>
               <Textarea id="voorwaarden" rows={2}
                 value={form.voorwaarden} onChange={e => set('voorwaarden', e.target.value)} />
             </div>
