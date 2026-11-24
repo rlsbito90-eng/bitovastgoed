@@ -18,6 +18,7 @@ import {
   type Bieding, type BiedingStatus, type BiedingType, type BodKarakter,
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
+import { matchingOfferDeals, matchingOfferCandidates, resolveOfferLink } from '@/lib/biedingen/offerLinks';
 import { calculateBAR, calculateFactor } from '@/lib/derivations/financial';
 import { parseDutchNumber } from '@/lib/format/nl';
 import { antwoordRichtingVoorBod, counterStatusForDirection } from '@/lib/biedingen/progression';
@@ -100,16 +101,17 @@ export default function OfferFormDialog({
   counterTo, onSaved,
 }: Props) {
 
-  const { relaties, contactpersonen, objecten, deals, getObjectById } = useDataStore();
+  const { relaties, contactpersonen, objecten, deals, pipelineKandidaten, getObjectById } = useDataStore();
   const isEdit = !!bieding;
   const [form, setForm] = useState<FormState>(emptyForm);
   const [bezig, setBezig] = useState(false);
 
   // We need a hook scope to call create/update — gebruik object/deal/relatie van form/bieding
-  const scopeObjectId = bieding?.objectId ?? defaultObjectId ?? '';
+  const scopeObjectId = form.objectId || bieding?.objectId || counterTo?.objectId || defaultObjectId || '';
   const { create, update } = useBiedingen(scopeObjectId ? { objectId: scopeObjectId } : { all: true });
 
-  const objectPipelineId = bieding?.objectPipelineId ?? counterTo?.objectPipelineId ?? defaultObjectPipelineId ?? null;
+  const candidateMatches = matchingOfferCandidates(pipelineKandidaten, form.objectId, form.relatieId);
+  const objectPipelineId = isEdit ? bieding?.objectPipelineId ?? resolveOfferLink(candidateMatches) : resolveOfferLink(candidateMatches, counterTo?.objectPipelineId ?? defaultObjectPipelineId);
   const counterOfferToId = bieding?.counterOfferToId ?? counterTo?.id ?? null;
 
   useEffect(() => {
@@ -189,15 +191,17 @@ export default function OfferFormDialog({
       searchHaystack: norm([o.titel, o.adres, o.plaats, o.internReferentienummer].filter(Boolean).join(' ')),
     })), [objecten]);
 
-  const dealItems = useMemo<EntityPickerItem[]>(() => deals.filter(d => !d.isArchived).map(d => {
+  const matchingDeals = useMemo(() => matchingOfferDeals(deals, form.objectId, form.relatieId), [deals, form.objectId, form.relatieId]);
+  const resolvedDealId = isEdit ? bieding?.dealId ?? null : resolveOfferLink(matchingDeals, form.dealId || counterTo?.dealId);
+  const dealItems = useMemo<EntityPickerItem[]>(() => matchingDeals.map(d => {
     const obj = getObjectById(d.objectId);
     return {
       id: d.id,
       primair: obj?.titel || obj?.adres || 'Deal',
-      secundair: 'Concrete transactie',
+      secundair: `Transactiefase: ${d.fase}`,
       searchHaystack: norm([obj?.titel, obj?.adres, 'concrete transactie'].filter(Boolean).join(' ')),
     };
-  }), [deals, getObjectById]);
+  }), [matchingDeals, getObjectById]);
 
   const selectedObject = getObjectById(form.objectId);
   const ask = selectedObject?.vraagprijs;
@@ -219,6 +223,8 @@ export default function OfferFormDialog({
     e?.preventDefault();
     if (!form.objectId) { toast.error('Object is verplicht.'); return; }
     if (!form.relatieId) { toast.error('Relatie/kandidaat is verplicht.'); return; }
+    if (!isEdit && matchingDeals.length > 1 && !resolvedDealId) { toast.error('Meerdere actieve deals gevonden. Kies de juiste deal.'); return; }
+    if (!isEdit && candidateMatches.length > 1 && !objectPipelineId) { toast.error('Meerdere kopertrajecten gevonden. Controleer de koppelingen eerst.'); return; }
     const ingevoerdBedrag = parseDutchNumber(form.bedrag);
     if (!isEdit && (counterTo ? antwoordRichtingVoorBod(counterTo) : form.richting) === 'van_koper' && !form.bodKarakter) {
       toast.error('Geef aan of het kopersbod indicatief of formeel is.');
@@ -237,7 +243,7 @@ export default function OfferFormDialog({
       const payload: Partial<Bieding> = {
         objectId: counterTo?.objectId ?? form.objectId,
         relatieId: counterTo?.relatieId ?? form.relatieId,
-        dealId: (counterTo ? counterTo.dealId : form.dealId) || null,
+        dealId: resolvedDealId,
         objectPipelineId: objectPipelineId,
         counterOfferToId: counterOfferToId,
         bedrag: ingevoerdBedrag == null ? null : Math.round(ingevoerdBedrag),
@@ -306,31 +312,37 @@ export default function OfferFormDialog({
           {/* 1 — Koppeling */}
           <SectionTitle>Koppeling</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {counterTo ? (
-              <div className="rounded-lg border border-border/60 bg-muted/25 p-3 text-sm space-y-1">
-                <p><span className="text-muted-foreground">Object:</span> {objectItems.find(o => o.id === counterTo.objectId)?.primair ?? 'Bestaand object'}</p>
-                <p><span className="text-muted-foreground">Koper:</span> {relatieItems.find(r => r.id === counterTo.relatieId)?.primair ?? 'Bestaande kandidaat'}</p>
+            {counterTo || isEdit ? (
+              <div className="sm:col-span-2 rounded-lg border border-border/60 bg-muted/25 p-3 text-sm space-y-1">
+                <p><span className="text-muted-foreground">Object:</span> {objectItems.find(o => o.id === form.objectId)?.primair ?? 'Bestaand object'}</p>
+                <p><span className="text-muted-foreground">Koper:</span> {relatieItems.find(r => r.id === form.relatieId)?.primair ?? 'Bestaande kandidaat'}</p>
                 <p className="text-xs text-muted-foreground">Deze koppeling ligt vast om het onderhandelingsverloop intact te houden.</p>
               </div>
             ) : (
               <>
                 <EntityPicker
                   label="Object" pickerTitle="Kies object"
-                  value={form.objectId} onChange={v => set('objectId', v)}
+                  value={form.objectId} onChange={v => setForm(old => ({...old, objectId:v, dealId:''}))}
                   items={objectItems}
                 />
                 <EntityPicker
                   label="Kandidaat / kopertraject" pickerTitle="Kies kandidaat"
-                  value={form.relatieId} onChange={v => set('relatieId', v)}
+                  value={form.relatieId} onChange={v => setForm(old => ({...old, relatieId:v, dealId:''}))}
                   items={relatieItems}
                 />
-                <EntityPicker
-                  label="Deal (optioneel)" pickerTitle="Kies deal"
-                  value={form.dealId} onChange={v => set('dealId', v)}
-                  items={dealItems}
-                  emptyLabel="Geen gekoppelde deal"
-                />
+
               </>
+            )}
+            {!isEdit && matchingDeals.length > 1 && (
+              <EntityPicker label="Kies bestaande deal" pickerTitle="Kies deal"
+                value={resolvedDealId ?? ''} onChange={v => set('dealId', v)}
+                items={dealItems} emptyLabel="Selecteer de juiste transactie" />
+            )}
+            {form.objectId && form.relatieId && (
+              <div className="sm:col-span-2 text-xs text-muted-foreground space-y-1">
+                <p>{objectPipelineId ? 'Kopertraject gekoppeld.' : 'Een concreet bod wordt verwerkt in het kopertraject.'}</p>
+                <p>{resolvedDealId ? 'Bestaande deal gekoppeld.' : matchingDeals.length > 1 && !isEdit ? 'Meerdere deals gevonden; kies de juiste.' : 'Een deal ontstaat bij acceptatie van een kopersbod.'}</p>
+              </div>
             )}
           </div>
 
