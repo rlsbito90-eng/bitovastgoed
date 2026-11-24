@@ -16,6 +16,7 @@ import { BIEDING_TYPE_LABELS, EXTRA_VOORWAARDEN_LABELS, type Bieding } from '@/l
 import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase, type BiedboekTraject } from '@/lib/biedingen/offerBook';
 import { antwoordRichtingVoorBod } from '@/lib/biedingen/progression';
 import { actueleBiedpositie, bodKarakterLabel } from '@/lib/biedingen/actuelePositie';
+import { compareConditions } from '@/lib/biedingen/compareConditions';
 import { OfferStatusBadge } from './OfferBadges';
 import OfferFormDialog from './OfferFormDialog';
 import BiedboekAuditPanel from './BiedboekAuditPanel';
@@ -237,6 +238,9 @@ export default function BiedingenSection({
                   </div>
                 </div>
 
+                {traject.laatsteKopersbod && traject.laatsteVerkopersvoorstel && (
+                  <VoorwaardenVergelijking before={traject.laatsteKopersbod} after={traject.laatsteVerkopersvoorstel} beforeLabel="Koper" afterLabel="Verkoper" />
+                )}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>Laatste stap: <span className="font-medium text-foreground">{laatste.status === 'aangepast_bod_gevraagd' ? 'Aangepast bod gevraagd' : laatsteMoment.label}</span> · {laatste.status === 'aangepast_bod_gevraagd' ? 'tijdstip in wijzigingslogboek' : laatsteMoment.datum ? fmtDate(laatsteMoment.datum) : 'datum onbekend'}</span>
                   {traject.verschil != null && <span>Verschil laatste voorstellen: <span className="font-semibold text-foreground">{fmtEur(Math.abs(traject.verschil))}</span></span>}
@@ -368,6 +372,7 @@ export default function BiedingenSection({
                               {bieding.voorwaarden && <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">{bieding.voorwaarden}</p>}
                               {bieding.notities && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{bieding.notities}</p>}
                               <VoorwaardenSummary b={bieding} />
+                              {parent && <VoorwaardenVergelijking before={parent} after={bieding} beforeLabel="Vorig voorstel" afterLabel="Dit voorstel" />}
                             </>
                           ) : (
                             <>
@@ -449,4 +454,23 @@ function VoorwaardenSummary({ b }: { b: Bieding }) {
       </li>)}
     </ul> : null}
   </div>;
+}
+
+function VoorwaardenVergelijking({before, after, beforeLabel, afterLabel}: {before: Bieding; after: Bieding; beforeLabel: string; afterLabel: string}) {
+  const rows = compareConditions(before, after);
+  const changes = rows.filter(r => r.status === 'verschillend').length;
+  return <details className="rounded-lg border border-border/60 p-2 text-xs">
+    <summary className="cursor-pointer font-medium">Voorwaarden vergelijken · {changes} vastgestelde verschil{changes === 1 ? '' : 'len'}</summary>
+    <div className="overflow-x-auto mt-2">
+      <table className="w-full table-fixed text-left text-xs">
+        <thead><tr className="text-muted-foreground"><th scope="col" className="w-1/3 py-2 pr-1 font-normal">Onderdeel</th><th scope="col" className="w-1/3 pr-1 font-normal">{beforeLabel}</th><th scope="col" className="w-1/3 font-normal">{afterLabel}</th></tr></thead>
+        <tbody>{rows.map(row => <tr key={row.label} className="border-t align-top">
+          <th scope="row" className="py-2 pr-1 font-normal break-words">{row.label}{row.status === 'verschillend' && <span className="block text-[10px] text-foreground font-semibold">Verschil</span>}{row.status === 'onbekend' && <span className="block text-[10px] text-muted-foreground">Niet volledig vergelijkbaar</span>}</th>
+          <td className="py-2 pr-1 whitespace-pre-wrap break-words">{row.before}</td>
+          <td className="py-2 whitespace-pre-wrap break-words">{row.after}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    <p className="mt-2 text-muted-foreground">Niet vastgelegd betekent niet dat een voorwaarde is vervallen.</p>
+  </details>;
 }
