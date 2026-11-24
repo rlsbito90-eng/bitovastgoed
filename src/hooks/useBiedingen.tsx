@@ -56,7 +56,7 @@ export function useBiedingen(scope: Scope) {
     if (!target) return;
 
     const existing = pipelineKandidaten.find(k => k.objectId === bieding.objectId && k.relatieId === bieding.relatieId);
-    const offerUniverse = [...items.filter(item => item.id !== bieding.id), bieding];
+    const offerUniverse = [...items.filter(item => item.id !== bieding.id && item.objectId === bieding.objectId && item.relatieId === bieding.relatieId), bieding];
     const latestBuyer = getNegotiationPositions(offerUniverse)
       .find(position => position.relatieId === bieding.relatieId)?.latestBuyer ?? null;
     const buyerProjection: Partial<PipelineKandidaat> = latestBuyer
@@ -68,6 +68,14 @@ export function useBiedingen(scope: Scope) {
           ...(latestBuyer.financieringsvoorbehoud === 'geen' ? { financieringsvoorbehoud: false } : {}),
         }
       : {};
+
+    const linkCandidate = async (candidateId: string) => {
+      if (bieding.objectPipelineId) return;
+      const { error } = await supabase.from('biedingen' as any)
+        .update({ object_pipeline_id: candidateId } as any)
+        .eq('id', bieding.id).is('object_pipeline_id', null);
+      if (error) throw error;
+    };
 
     if (!existing) {
       const created = await addPipelineKandidaat({
@@ -82,10 +90,14 @@ export function useBiedingen(scope: Scope) {
         feeAkkoord: false,
         ...buyerProjection,
       });
-      if (created) await updatePipelineKandidaat(created.id, { pipelineFase: target });
+      if (created) {
+        await linkCandidate(created.id);
+        if (shouldAdvanceCandidate(created.pipelineFase, target)) await updatePipelineKandidaat(created.id, { pipelineFase: target });
+      }
       return;
     }
 
+    await linkCandidate(existing.id);
     const patch: Partial<PipelineKandidaat> = { ...buyerProjection };
     if (shouldAdvanceCandidate(existing.pipelineFase, target)) {
       patch.pipelineFase = target;
