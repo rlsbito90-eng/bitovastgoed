@@ -23,6 +23,9 @@ export const biedingFromDb = (r: any): Bieding => ({
   kostenType: r.kosten_type ?? null,
   voorwaarden: r.voorwaarden ?? null,
   extraVoorwaarden: Array.isArray(r.extra_voorwaarden) ? r.extra_voorwaarden : null,
+  origineleCommunicatie: r.originele_communicatie ?? null,
+  voorbehoudDetails: r.voorbehoud_details ?? null,
+  afhandelingVoorwaarden: r.afhandeling_voorwaarden ?? null,
   notities: r.notities ?? null,
   interneNotities: r.interne_notities ?? null,
   bron: r.bron ?? null,
@@ -62,6 +65,9 @@ export const biedingToDb = (b: Partial<Bieding>) => {
   if (b.kostenType !== undefined) o.kosten_type = b.kostenType || null;
   if (b.extraVoorwaarden !== undefined) o.extra_voorwaarden = b.extraVoorwaarden;
   if (b.voorwaarden !== undefined) o.voorwaarden = b.voorwaarden || null;
+  if (b.origineleCommunicatie !== undefined) o.originele_communicatie = b.origineleCommunicatie || null;
+  if (b.voorbehoudDetails !== undefined) o.voorbehoud_details = b.voorbehoudDetails;
+  if (b.afhandelingVoorwaarden !== undefined) o.afhandeling_voorwaarden = b.afhandelingVoorwaarden;
   if (b.notities !== undefined) o.notities = b.notities || null;
   if (b.interneNotities !== undefined) o.interne_notities = b.interneNotities || null;
   if (b.bron !== undefined) o.bron = b.bron || null;
