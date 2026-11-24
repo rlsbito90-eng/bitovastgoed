@@ -22,7 +22,7 @@ export type AcceptOfferResult = {
 };
 
 export function useBiedingen(scope: Scope) {
-  const { pipelineKandidaten, addPipelineKandidaat, updatePipelineKandidaat } = useDataStore();
+  const { pipelineKandidaten, addPipelineKandidaat, updatePipelineKandidaat, refresh: refreshStore } = useDataStore();
   const [items, setItems] = useState<Bieding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +92,7 @@ export function useBiedingen(scope: Scope) {
       });
       if (created) {
         await linkCandidate(created.id);
-        if (shouldAdvanceCandidate(created.pipelineFase, target)) await updatePipelineKandidaat(created.id, { pipelineFase: target });
+        if (created.pipelineFase === target || shouldAdvanceCandidate(created.pipelineFase, target)) await updatePipelineKandidaat(created.id, { pipelineFase: target });
       }
       return;
     }
@@ -214,12 +214,13 @@ export function useBiedingen(scope: Scope) {
     });
 
     await fetch();
+    try { await refreshStore(); } catch (e) { console.warn('Deal gestart; CRM-overzicht kon niet worden vernieuwd', e); }
     return {
       dealId,
       objectId: bieding.objectId,
       relatieId: bieding.relatieId,
     };
-  }, [items, fetch, syncKandidaatVeilig]);
+  }, [items, fetch, syncKandidaatVeilig, refreshStore]);
 
   const rejectOffer = useCallback(async (id: string, reden: string) => {
     await update(id, { status: 'afgewezen', rejectedAt: new Date().toISOString(), rejectedReason: reden });
