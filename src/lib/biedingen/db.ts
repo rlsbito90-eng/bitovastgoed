@@ -22,6 +22,7 @@ export const biedingFromDb = (r: any): Bieding => ({
   waarborgsomPct: r.waarborgsom_pct ?? null,
   kostenType: r.kosten_type ?? null,
   voorwaarden: r.voorwaarden ?? null,
+  extraVoorwaarden: Array.isArray(r.extra_voorwaarden) ? r.extra_voorwaarden : null,
   notities: r.notities ?? null,
   interneNotities: r.interne_notities ?? null,
   bron: r.bron ?? null,
@@ -59,6 +60,7 @@ export const biedingToDb = (b: Partial<Bieding>) => {
   if (b.waarborgsomBedrag !== undefined) o.waarborgsom_bedrag = b.waarborgsomBedrag ?? null;
   if (b.waarborgsomPct !== undefined) o.waarborgsom_pct = b.waarborgsomPct ?? null;
   if (b.kostenType !== undefined) o.kosten_type = b.kostenType || null;
+  if (b.extraVoorwaarden !== undefined) o.extra_voorwaarden = b.extraVoorwaarden;
   if (b.voorwaarden !== undefined) o.voorwaarden = b.voorwaarden || null;
   if (b.notities !== undefined) o.notities = b.notities || null;
   if (b.interneNotities !== undefined) o.interne_notities = b.interneNotities || null;
