@@ -19,7 +19,8 @@ import {
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
 import { matchingOfferDeals, matchingOfferCandidates, resolveOfferLink } from '@/lib/biedingen/offerLinks';
-import { calculateBAR, calculateFactor } from '@/lib/derivations/financial';
+import { useObjectFeeForecast } from '@/hooks/useObjectFeeForecast';
+import { calculateBAR, calculateFactor, getBerekenM2Bron, calculatePricePerM2 } from '@/lib/derivations/financial';
 import { parseDutchNumber } from '@/lib/format/nl';
 import { antwoordRichtingVoorBod, counterStatusForDirection } from '@/lib/biedingen/progression';
 
@@ -108,7 +109,7 @@ export default function OfferFormDialog({
 
   // We need a hook scope to call create/update — gebruik object/deal/relatie van form/bieding
   const scopeObjectId = form.objectId || bieding?.objectId || counterTo?.objectId || defaultObjectId || '';
-  const { create, update } = useBiedingen(scopeObjectId ? { objectId: scopeObjectId } : { all: true });
+  const { create, update, items } = useBiedingen(scopeObjectId ? { objectId: scopeObjectId } : { all: true });
 
   const candidateMatches = matchingOfferCandidates(pipelineKandidaten, form.objectId, form.relatieId);
   const objectPipelineId = isEdit ? bieding?.objectPipelineId ?? resolveOfferLink(candidateMatches) : resolveOfferLink(candidateMatches, counterTo?.objectPipelineId ?? defaultObjectPipelineId);
@@ -213,10 +214,16 @@ export default function OfferFormDialog({
   const rent = positive(annualRent);
   const euro = (v: number | null) => v == null ? '—' : new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
   const metric = (v: number | null, suffix: string) => v == null ? '—' : v.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + suffix;
+  const area = getBerekenM2Bron(selectedObject, selectedObject?.type);
+  const marketValue = positive(selectedObject?.marktwaardeIndicatie);
+  const recent = items.filter(b => b.objectId === form.objectId && b.relatieId === form.relatieId && b.id !== bieding?.id && !['concept','afgewezen','ingetrokken','verlopen'].includes(b.status));
+  const latestBuyer = recent.find(b => b.richting === 'van_koper' && b.bedrag != null);
+  const latestSeller = recent.find(b => ['van_verkoper','namens_verkoper'].includes(b.richting) && b.bedrag != null);
   const comparisonRows = [
     { label: 'Koopsom', ask: euro(askingPrice), bid: euro(bidPrice) },
     { label: 'BAR', ask: metric(rent ? calculateBAR(rent, askingPrice) : null, '%'), bid: metric(rent ? calculateBAR(rent, bidPrice) : null, '%') },
     { label: 'Factor', ask: metric(calculateFactor(askingPrice, rent), '×'), bid: metric(calculateFactor(bidPrice, rent), '×') },
+    ...(area.m2 ? [{label: `€/m² (${area.bron.toUpperCase()})`, ask:euro(calculatePricePerM2(askingPrice,area.m2)), bid:euro(calculatePricePerM2(bidPrice,area.m2))}] : []),
   ];
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -452,6 +459,10 @@ export default function OfferFormDialog({
                 <tbody>{comparisonRows.map(row => <tr key={row.label} className="border-t"><th scope="row" className="text-left font-normal py-1.5">{row.label}</th><td className="text-right">{row.ask}</td><td className="text-right font-medium">{row.bid}</td></tr>)}</tbody>
               </table>
               {askingPrice && bidPrice ? <p className="text-xs text-muted-foreground">Verschil vraagprijs: {euro(bidPrice - askingPrice)} ({metric((bidPrice / askingPrice - 1) * 100, '%')})</p> : null}
+              {marketValue && <p className="text-xs">Interne marktwaarde: {euro(marketValue)}{bidPrice ? ' · Bod: ' + metric(bidPrice / marketValue * 100,'%') + ' van marktwaarde' : ''}</p>}
+              {(latestBuyer || latestSeller) && <p className="text-xs">Laatste kopersbod: {euro(latestBuyer?.bedrag ?? null)} · Laatste verkopersvoorstel: {euro(latestSeller?.bedrag ?? null)}</p>}
+              {latestBuyer?.bedrag != null && latestSeller?.bedrag != null && <p className="text-xs">Verschil laatste voorstellen: {euro(latestSeller.bedrag-latestBuyer.bedrag)}</p>}
+              <OfferFeeEstimate key={form.objectId} objectId={form.objectId} bidPrice={bidPrice} dealPct={matchingDeals.find(d=>d.id===resolvedDealId)?.commissiePct} />
               <p className="text-[11px] text-muted-foreground">{rent ? 'BAR en factor op basis van bruto jaarhuur en koopsom, exclusief bijkomende aankoopkosten.' : 'Geen positieve jaarhuur vastgelegd; BAR en factor zijn niet berekenbaar.'}</p>
             </section>
           )}
@@ -569,4 +580,12 @@ export default function OfferFormDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function OfferFeeEstimate({objectId,bidPrice,dealPct}: {objectId:string;bidPrice:number|null;dealPct?:number}) {
+  const {forecast,loading} = useObjectFeeForecast(objectId);
+  const pct = dealPct ?? forecast.percentage;
+  if (loading || bidPrice == null || pct == null || !Number.isFinite(pct) || pct < 0) return null;
+  const amount = bidPrice * pct / 100;
+  return <p className="text-xs">Indicatieve courtage ({pct.toLocaleString('nl-NL')}%): {amount.toLocaleString('nl-NL',{style:'currency',currency:'EUR',maximumFractionDigits:0})} excl. btw · {dealPct != null ? 'dealpercentage' : 'objectprognose'}</p>;
 }
