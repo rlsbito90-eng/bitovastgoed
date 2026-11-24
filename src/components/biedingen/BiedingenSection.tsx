@@ -12,7 +12,7 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { useDataStore } from '@/hooks/useDataStore';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { fmtDate, fmtEur, vraagprijsDelta } from '@/lib/biedingen/format';
-import { BIEDING_TYPE_LABELS, type Bieding } from '@/lib/biedingen/types';
+import { BIEDING_TYPE_LABELS, EXTRA_VOORWAARDEN_LABELS, type Bieding } from '@/lib/biedingen/types';
 import { BIEDBOEK_FASE_LABELS, biedRondeLabel, bouwBiedboek, type BiedboekFase, type BiedboekTraject } from '@/lib/biedingen/offerBook';
 import { antwoordRichtingVoorBod } from '@/lib/biedingen/progression';
 import { actueleBiedpositie, bodKarakterLabel } from '@/lib/biedingen/actuelePositie';
@@ -436,6 +436,17 @@ function VoorwaardenSummary({ b }: { b: Bieding }) {
   else if (b.gewensteLevering) voorwaarden.push('Levering: ' + fmtDate(b.gewensteLevering));
   if (b.kostenType === 'kk') voorwaarden.push('k.k.');
   if (b.kostenType === 'von') voorwaarden.push('v.o.n.');
-  if (voorwaarden.length === 0) return null;
-  return <p className="text-xs text-muted-foreground mt-2">{voorwaarden.join(' · ')}</p>;
+  const extra = b.extraVoorwaarden;
+  return <div className="space-y-1 mt-2 text-xs text-muted-foreground">
+    {voorwaarden.length > 0 && <p>{voorwaarden.join(' · ')}</p>}
+    {extra?.length === 0 && <p>Geen aanvullende gestructureerde voorwaarden</p>}
+    {extra?.length ? <ul className="space-y-1">
+      {extra.map((v, i) => <li key={i} className="rounded border border-border/60 px-2 py-1.5">
+        <span className="font-medium text-foreground">{EXTRA_VOORWAARDEN_LABELS[v.type] ?? v.type}</span>
+        {v.karakter !== 'onbekend' && <span> · {v.karakter === 'voorbehoud' ? 'Voorbehoud' : 'Transactiebepaling'}</span>}
+        {v.deadline && <span> · Uiterlijk {fmtDate(v.deadline)}</span>}
+        {v.toelichting && <p className="whitespace-pre-wrap mt-0.5">{v.toelichting}</p>}
+      </li>)}
+    </ul> : null}
+  </div>;
 }
