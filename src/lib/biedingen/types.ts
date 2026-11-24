@@ -72,6 +72,10 @@ export interface ExtraVoorwaarde {
   toelichting: string;
   deadline: string | null;
 }
+export type VoorbehoudDetails = Partial<Record<'financiering' | 'dd', {toelichting: string; deadline: string | null}>>;
+export type VoorwaardeAfhandeling = 'open' | 'vervuld' | 'vervallen' | 'niet_voldaan';
+export type VoorwaardeAfhandelingMap = Record<string, VoorwaardeAfhandeling>;
+
 export interface Bieding {
   id: string;
   objectId: string;
@@ -96,6 +100,9 @@ export interface Bieding {
   kostenType?: KostenType | null;
   voorwaarden?: string | null;
   extraVoorwaarden?: ExtraVoorwaarde[] | null;
+  origineleCommunicatie?: string | null;
+  voorbehoudDetails?: VoorbehoudDetails | null;
+  afhandelingVoorwaarden?: VoorwaardeAfhandelingMap | null;
   notities?: string | null;
   interneNotities?: string | null;
   bron?: BiedingBron | null;
