@@ -17,6 +17,7 @@ import {
   type Bieding, type BiedingStatus, type BiedingType, type BodKarakter,
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
+import { calculateBAR, calculateFactor } from '@/lib/derivations/financial';
 import { parseDutchNumber } from '@/lib/format/nl';
 import { antwoordRichtingVoorBod, counterStatusForDirection } from '@/lib/biedingen/progression';
 
@@ -83,7 +84,7 @@ const emptyForm = (): FormState => ({
   gewensteLeveringTekst: '',
   waarborgsomBedrag: '',
   waarborgsomPct: '',
-  kostenType: '',
+  kostenType: 'kk',
   voorwaarden: '',
   notities: '',
   interneNotities: '',
@@ -140,6 +141,7 @@ export default function OfferFormDialog({
         objectId: defaultObjectId ?? '',
         relatieId: defaultRelatieId ?? '',
         dealId: defaultDealId ?? '',
+        bron: defaultObjectPipelineId ? 'kandidaat' : '',
         ...(counterTo
           ? {
               objectId: counterTo.objectId,
@@ -149,13 +151,19 @@ export default function OfferFormDialog({
               status: counterStatusForDirection(antwoordRichtingVoorBod(counterTo)),
               richting: antwoordRichtingVoorBod(counterTo),
               bedrag: '',
+              financieringsvoorbehoud: counterTo.financieringsvoorbehoud,
+              ddVoorbehoud: counterTo.ddVoorbehoud,
+              kostenType: counterTo.kostenType ?? '',
+              gewensteLeveringTekst: counterTo.gewensteLeveringTekst ?? '',
+              waarborgsomBedrag: counterTo.waarborgsomBedrag != null ? String(counterTo.waarborgsomBedrag) : '',
+              waarborgsomPct: counterTo.waarborgsomPct != null ? String(counterTo.waarborgsomPct) : '',
               voorwaarden: counterTo.voorwaarden ?? '',
               gewensteLevering: counterTo.gewensteLevering ?? '',
             }
           : {}),
       });
     }
-  }, [open, bieding?.id, counterTo?.id, defaultObjectId, defaultRelatieId, defaultDealId]);
+  }, [open, bieding?.id, counterTo?.id, defaultObjectId, defaultRelatieId, defaultDealId, defaultObjectPipelineId]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }));
 
@@ -185,6 +193,22 @@ export default function OfferFormDialog({
       searchHaystack: norm([obj?.titel, obj?.adres, 'concrete transactie'].filter(Boolean).join(' ')),
     };
   }), [deals, getObjectById]);
+
+  const selectedObject = getObjectById(form.objectId);
+  const ask = selectedObject?.vraagprijs;
+  const annualRent = selectedObject?.huurinkomsten;
+  const enteredBid = parseDutchNumber(form.bedrag);
+  const positive = (v: number | null | undefined) => v != null && Number.isFinite(v) && v > 0 ? v : null;
+  const bidPrice = positive(enteredBid);
+  const askingPrice = positive(ask);
+  const rent = positive(annualRent);
+  const euro = (v: number | null) => v == null ? '—' : new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+  const metric = (v: number | null, suffix: string) => v == null ? '—' : v.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + suffix;
+  const comparisonRows = [
+    { label: 'Koopsom', ask: euro(askingPrice), bid: euro(bidPrice) },
+    { label: 'BAR', ask: metric(rent ? calculateBAR(rent, askingPrice) : null, '%'), bid: metric(rent ? calculateBAR(rent, bidPrice) : null, '%') },
+    { label: 'Factor', ask: metric(calculateFactor(askingPrice, rent), '×'), bid: metric(calculateFactor(bidPrice, rent), '×') },
+  ];
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -257,7 +281,7 @@ export default function OfferFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Bieding bewerken' : counterTo
             ? antwoordRichtingVoorBod(counterTo) === 'van_koper'
@@ -271,10 +295,11 @@ export default function OfferFormDialog({
           )}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="min-h-0 flex flex-col">
+          <div className="min-h-0 overflow-y-auto space-y-3 px-1 pb-3">
           {/* 1 — Koppeling */}
           <SectionTitle>Koppeling</SectionTitle>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {counterTo ? (
               <div className="rounded-lg border border-border/60 bg-muted/25 p-3 text-sm space-y-1">
                 <p><span className="text-muted-foreground">Object:</span> {objectItems.find(o => o.id === counterTo.objectId)?.primair ?? 'Bestaand object'}</p>
@@ -309,7 +334,8 @@ export default function OfferFormDialog({
             <div className="space-y-1.5">
               <Label htmlFor="bedrag">Biedbedrag (€)</Label>
               <Input id="bedrag" inputMode="decimal" placeholder="1.000.000"
-                value={form.bedrag} onChange={e => set('bedrag', e.target.value)} />
+                value={form.bedrag} onChange={e => set('bedrag', e.target.value)}
+                onBlur={() => { const n = parseDutchNumber(form.bedrag); if (n != null && Number.isFinite(n)) set('bedrag', n.toLocaleString('nl-NL', { maximumFractionDigits: 2 })); }} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bieddatum">Bieddatum</Label>
@@ -397,6 +423,21 @@ export default function OfferFormDialog({
             </div>
           </div>
 
+          {selectedObject && (
+            <section className="rounded-lg border bg-muted/20 p-3 space-y-2" aria-label="Biedingsanalyse">
+              <div className="flex flex-wrap items-baseline justify-between gap-1">
+                <h3 className="text-sm font-semibold">Biedingsanalyse</h3>
+                <span className="text-xs text-muted-foreground">Jaarhuur object: {euro(rent)}</span>
+              </div>
+              <table className="w-full text-sm tabular-nums">
+                <thead className="text-xs text-muted-foreground"><tr><th scope="col" className="text-left font-normal">Kengetal</th><th scope="col" className="text-right font-normal">Vraagprijs</th><th scope="col" className="text-right font-normal">Bieding</th></tr></thead>
+                <tbody>{comparisonRows.map(row => <tr key={row.label} className="border-t"><th scope="row" className="text-left font-normal py-1.5">{row.label}</th><td className="text-right">{row.ask}</td><td className="text-right font-medium">{row.bid}</td></tr>)}</tbody>
+              </table>
+              {askingPrice && bidPrice ? <p className="text-xs text-muted-foreground">Verschil vraagprijs: {euro(bidPrice - askingPrice)} ({metric((bidPrice / askingPrice - 1) * 100, '%')})</p> : null}
+              <p className="text-[11px] text-muted-foreground">{rent ? 'BAR en factor op basis van bruto jaarhuur en koopsom, exclusief bijkomende aankoopkosten.' : 'Geen positieve jaarhuur vastgelegd; BAR en factor zijn niet berekenbaar.'}</p>
+            </section>
+          )}
+
           {/* 3 — Voorwaarden */}
           <SectionTitle>Voorwaarden</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -478,7 +519,8 @@ export default function OfferFormDialog({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          </div>
+          <div className="flex shrink-0 justify-end gap-2 border-t pt-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
             <Button type="submit" disabled={bezig}>{bezig ? 'Opslaan…' : isEdit ? 'Bijwerken' : 'Toevoegen'}</Button>
           </div>
