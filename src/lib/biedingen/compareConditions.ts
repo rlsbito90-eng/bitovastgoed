@@ -31,6 +31,16 @@ export function compareConditions(before: Bieding, after: Bieding): ConditionCom
     !['ja','geen'].includes(before.financieringsvoorbehoud) || !['ja','geen'].includes(after.financieringsvoorbehoud));
   add('Due diligence', reserved(before.ddVoorbehoud), reserved(after.ddVoorbehoud),
     !['ja','geen'].includes(before.ddVoorbehoud) || !['ja','geen'].includes(after.ddVoorbehoud));
+  for (const [key,label] of [['financiering','Financiering'],['dd','Due diligence']] as const) {
+    const a = before.voorbehoudDetails?.[key];
+    const b = after.voorbehoudDetails?.[key];
+    const hasA = (key === 'financiering' ? before.financieringsvoorbehoud : before.ddVoorbehoud) === 'ja';
+    const hasB = (key === 'financiering' ? after.financieringsvoorbehoud : after.ddVoorbehoud) === 'ja';
+    if (hasA || hasB) {
+      if (a?.deadline || b?.deadline) add(label+' · deadline', hasA ? date(a?.deadline) : null, hasB ? date(b?.deadline) : null);
+      if (a?.toelichting || b?.toelichting) add(label+' · toelichting', hasA ? normalize(a?.toelichting) : null, hasB ? normalize(b?.toelichting) : null);
+    }
+  }
   add('Aanvullende voorwaarden', conditionList(before.extraVoorwaarden), conditionList(after.extraVoorwaarden));
   add('Vrije tekstvoorwaarden', normalize(before.voorwaarden), normalize(after.voorwaarden));
   add('Kosten', before.kostenType ? KOSTEN_LABELS[before.kostenType] : null, after.kostenType ? KOSTEN_LABELS[after.kostenType] : null);
