@@ -12,7 +12,7 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
 import {
-  EXTRA_VOORWAARDEN_LABELS, type ExtraVoorwaarde, type ExtraVoorwaardeType,
+  EXTRA_VOORWAARDEN_LABELS, type ExtraVoorwaarde, type ExtraVoorwaardeType, type VoorbehoudDetails,
   BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, BOD_KARAKTER_LABELS, VOORBEHOUD_LABELS,
   KOSTEN_LABELS, BRON_LABELS, BIEDING_RICHTING_LABELS_LONG,
   type Bieding, type BiedingStatus, type BiedingType, type BodKarakter,
@@ -64,6 +64,8 @@ interface FormState {
   kostenType: KostenType | '';
   voorwaarden: string;
   extraVoorwaarden: ExtraVoorwaarde[] | null;
+  origineleCommunicatie: string;
+  voorbehoudDetails: VoorbehoudDetails;
   notities: string;
   interneNotities: string;
   bron: BiedingBron | '';
@@ -91,6 +93,8 @@ const emptyForm = (): FormState => ({
   kostenType: 'kk',
   voorwaarden: '',
   extraVoorwaarden: null,
+  origineleCommunicatie: '',
+  voorbehoudDetails: {},
   notities: '',
   interneNotities: '',
   bron: '',
@@ -138,6 +142,8 @@ export default function OfferFormDialog({
         kostenType: (bieding.kostenType as KostenType) || '',
         voorwaarden: bieding.voorwaarden ?? '',
         extraVoorwaarden: bieding.extraVoorwaarden ?? null,
+        origineleCommunicatie: bieding.origineleCommunicatie ?? '',
+        voorbehoudDetails: bieding.voorbehoudDetails ?? {},
         notities: bieding.notities ?? '',
         interneNotities: bieding.interneNotities ?? '',
         bron: (bieding.bron as BiedingBron) || '',
@@ -166,6 +172,7 @@ export default function OfferFormDialog({
               waarborgsomPct: counterTo.waarborgsomPct != null ? String(counterTo.waarborgsomPct) : '',
               voorwaarden: counterTo.voorwaarden ?? '',
               extraVoorwaarden: counterTo.extraVoorwaarden ?? null,
+              voorbehoudDetails: counterTo.voorbehoudDetails ?? {},
               gewensteLevering: counterTo.gewensteLevering ?? '',
             }
           : {}),
@@ -271,6 +278,8 @@ export default function OfferFormDialog({
         kostenType: form.kostenType || null,
         voorwaarden: form.voorwaarden || null,
         extraVoorwaarden: form.extraVoorwaarden,
+        origineleCommunicatie: form.origineleCommunicatie || null,
+        voorbehoudDetails: Object.fromEntries(Object.entries(form.voorbehoudDetails).filter(([key])=>key === 'financiering' ? form.financieringsvoorbehoud !== 'geen' : form.ddVoorbehoud !== 'geen')),
         notities: form.notities || null,
         interneNotities: form.interneNotities || null,
         bron: form.bron || null,
@@ -492,6 +501,14 @@ export default function OfferFormDialog({
                 </SelectContent>
               </Select>
             </div>
+            {(['financiering','dd'] as const).filter(key => (key === 'financiering' ? form.financieringsvoorbehoud : form.ddVoorbehoud) === 'ja').map(key => {
+              const value = form.voorbehoudDetails[key] ?? {toelichting:'',deadline:null};
+              const patch = (next: Partial<typeof value>)=>setForm(old=>({...old,voorbehoudDetails:{...old.voorbehoudDetails,[key]:{...value,...next}}}));
+              return <div key={key} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-2">
+                <div><Label>{key==='financiering'?'Financiering':'DD'} · toelichting</Label><Input value={value.toelichting} onChange={e=>patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
+                <div><Label>Uiterste datum</Label><Input type="date" value={value.deadline??''} onChange={e=>patch({deadline:e.target.value||null})} /></div>
+              </div>;
+            })}
             <div className="space-y-1.5">
               <Label htmlFor="gewensteLevering">Gewenste levering (datum)</Label>
               <Input id="gewensteLevering" type="date"
@@ -559,6 +576,10 @@ export default function OfferFormDialog({
           {/* 4 — Notities */}
           <SectionTitle>Notities</SectionTitle>
           <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="origineleCommunicatie">Originele biedingscommunicatie</Label>
+              <Textarea id="origineleCommunicatie" rows={2} placeholder="Plak het oorspronkelijke bericht of de e-mail" value={form.origineleCommunicatie} onChange={e=>set('origineleCommunicatie',e.target.value)} />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="notities">Notities</Label>
               <Textarea id="notities" rows={2}
