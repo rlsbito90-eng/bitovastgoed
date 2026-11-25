@@ -463,6 +463,9 @@ export default function RelatieDetailPage() {
             objecten={store.objecten}
             zoekprofielen={store.zoekprofielen}
             criteria={matchingData.criteria}
+            risicovoorkeuren={risicoData.voorkeuren}
+            risicoLoading={risicoData.loading}
+            risicoFout={risicoData.fout}
             besluiten={matchingData.besluiten}
             loading={matchingData.loading}
             fout={matchingData.fout}
