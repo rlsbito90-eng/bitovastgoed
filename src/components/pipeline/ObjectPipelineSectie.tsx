@@ -7,9 +7,12 @@ import ObjectPipelineActies from './ObjectPipelineActies';
 import { PipelineFaseBadge, InteresseNiveauBadge } from './PipelineBadges';
 import PipelineKandidaatDialog from './PipelineKandidaatDialog';
 import KandidaatSelectieDialog from './KandidaatSelectieDialog';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import KandidaatOpvolgingPanel from './KandidaatOpvolgingPanel';
+import { kandidaatOpvolging } from '@/lib/pipeline/kandidaatOpvolging';
 import AanbiedingRegistrerenDialog from '@/components/forms/AanbiedingRegistrerenDialog';
 import AanbiedingsReactieDialog from '@/components/forms/AanbiedingsReactieDialog';
-import { laatsteReactie, marktsignaalVoorObject, REACTIE_STATUS_LABELS } from '@/lib/relaties/aanbiedingsReacties';
+import { marktsignaalVoorObject } from '@/lib/relaties/aanbiedingsReacties';
 import { VOLGENDE_ACTIE_LABELS, type PipelineKandidaat } from '@/data/mock-data';
 import { toast } from 'sonner';
 import { getRelatieDropdownLabel } from '@/lib/relatieNaam';
@@ -24,10 +27,13 @@ const fmtBedrag = (n?: number) => n != null ? new Intl.NumberFormat('nl-NL', { s
 
 export default function ObjectPipelineSectie({ objectId }: Props) {
   const {
-    relaties, contactpersonen, contactMoments, getPipelineVoorObject, removePipelineKandidaat,
+    relaties, contactpersonen, contactMoments, getPipelineVoorObject, removePipelineKandidaat, taken, deals, getObjectById,
   } = useDataStore();
 
   const kandidaten = getPipelineVoorObject(objectId);
+  const opvolging = useMemo(()=>new Map(kandidaten.map(k=>[k.id,kandidaatOpvolging(k,contactMoments??[],taken??[],deals??[])])),[kandidaten,contactMoments,taken,deals]);
+  const [taakKandidaat,setTaakKandidaat]=useState<PipelineKandidaat|null>(null);
+  const taakInfo=taakKandidaat?opvolging.get(taakKandidaat.id):undefined;
   const [sortering,setSortering] = useState<KandidaatSorteerwijze>('aanbevolen');
   const gesorteerdeKandidaten = useMemo(
     ()=>sorteerObjectKandidaten(kandidaten,sortering,k=>{
@@ -170,12 +176,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                     <PipelineFaseBadge fase={k.pipelineFase} />
                     <InteresseNiveauBadge niveau={k.interesseNiveau} />
                     </div>
-                  {laatsteReactie(k.relatieId,objectId,contactMoments??[])&&
-                    <p className="text-xs text-muted-foreground mt-1.5">
-                      Laatste reactieregistratie: {REACTIE_STATUS_LABELS[
-                        laatsteReactie(k.relatieId,objectId,contactMoments??[])!.aanbiedingReactie!.status
-                      ]}
-                    </p>}
+                  <div className="mt-2 border-t border-border/70 pt-2"><KandidaatOpvolgingPanel info={opvolging.get(k.id)!} onTaak={()=>setTaakKandidaat(k)}/></div>
                   {k.volgendeActie && (
                     <p className="text-xs text-muted-foreground mt-1.5">
                       <span className="font-medium text-foreground">{VOLGENDE_ACTIE_LABELS[k.volgendeActie]}</span>
@@ -224,6 +225,7 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                       <td className="py-2 px-2"><InteresseNiveauBadge niveau={k.interesseNiveau} /></td>
                       <td className="py-2 px-2 text-right font-mono-data text-xs">{fmtBedrag(k.biedingBedrag)}</td>
                       <td className="py-2 px-2 text-xs">
+                        <KandidaatOpvolgingPanel info={opvolging.get(k.id)!} onTaak={()=>setTaakKandidaat(k)}/>
                         {k.volgendeActie ? (
                           <span>
                             <span className="font-medium">{VOLGENDE_ACTIE_LABELS[k.volgendeActie]}</span>
@@ -233,12 +235,6 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
                       </td>
                       <td className="py-2 px-2 text-xs text-muted-foreground">
                         {fmtDatum(k.laatsteContactdatum)}
-                        {laatsteReactie(k.relatieId,objectId,contactMoments??[])&&
-                          <span className="block mt-1">
-                            {REACTIE_STATUS_LABELS[
-                              laatsteReactie(k.relatieId,objectId,contactMoments??[])!.aanbiedingReactie!.status
-                            ]}
-                          </span>}
                       </td>
                       <td className="py-2 px-2 text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="sm" onClick={()=>openReactie(k.relatieId)}
@@ -267,6 +263,10 @@ export default function ObjectPipelineSectie({ objectId }: Props) {
         </>
       )}
 
+      {taakKandidaat&&taakInfo&&<TaakFormDialog open={true} onOpenChange={open=>{if(!open)setTaakKandidaat(null);}}
+        taak={taakInfo.taak??null} defaultObjectId={objectId} defaultRelatieId={taakKandidaat.relatieId}
+        defaultTitel={taakInfo.voorstel+' · '+(getObjectById(objectId)?.titel??'Object')+' · '+(relaties.find(r=>r.id===taakKandidaat.relatieId)?.bedrijfsnaam||'Relatie')}
+        defaultType="Follow-up"/>}
       <AanbiedingRegistrerenDialog open={aanbiedOpen} onOpenChange={setAanbiedOpen}
         defaultObjectId={objectId} defaultRelatieId={aanbiedRelatieId}/>
       <AanbiedingsReactieDialog open={reactieOpen} onOpenChange={setReactieOpen}
