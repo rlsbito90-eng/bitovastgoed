@@ -31,6 +31,8 @@ import WebsiteProfielHerkomst from '@/components/relatie/WebsiteProfielHerkomst'
 import { GEWENSTE_SITUATIES } from '@/lib/relaties/investeringsprofielOpties';
 import { labelPartijprofiel } from '@/lib/relaties/partijprofiel';
 import RendementscriteriaPanel from '@/components/relatie/RendementscriteriaPanel';
+import KopersprofielCheckPanel from '@/components/relatie/KopersprofielCheckPanel';
+import { controleerKopersprofiel } from '@/lib/matching/kopersprofielCheck';
 import RisicovoorkeurenPanel from '@/components/relatie/RisicovoorkeurenPanel';
 import {useRelatieRisicovoorkeuren} from '@/hooks/useRelatieRisicovoorkeuren';
 import ObjectvoorstellenPanel from '@/components/relatie/ObjectvoorstellenPanel';
@@ -323,17 +325,27 @@ export default function RelatieDetailPage() {
             <h2 className="section-title">Contactpersonen ({contactpersonen.length})</h2>
             <ContactpersonenPanel relatieId={relatie.id}/>
           </section>
-          <InlineVastgoedVoorkeuren relatie={relatie}
-            onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
-          <InlineRelatieSectie titel="Matchvoorwaarden — hard versus voorkeur"
+          <KopersprofielCheckPanel routes={controleerKopersprofiel(relatie,zoekprofielen,matchingData.criteria,risicoData.voorkeuren)}
+            loading={matchingData.loading||risicoData.loading} fout={!!(matchingData.fout||risicoData.fout)}
+            onGaNaar={(punt,profielId)=>{
+              if(punt.doel==='zoekprofiel'){
+                const profiel=zoekprofielen.find(p=>p.id===profielId);
+                if(profiel){setZpBewerken(profiel);setZpOpen(true);}
+                return;
+              }
+              document.getElementById('kopersprofiel-'+punt.doel)?.scrollIntoView({behavior:'smooth',block:'start'});
+            }}/>
+          <div id="kopersprofiel-vastgoed" className="scroll-mt-24"><InlineVastgoedVoorkeuren relatie={relatie}
+            onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/></div>
+          <div id="kopersprofiel-voorwaarden" className="scroll-mt-24"><InlineRelatieSectie titel="Matchvoorwaarden — hard versus voorkeur"
             relatie={relatie} velden={MATCHVOORWAARDENVELDEN}
             toonAlleVeldenInitieel
-            onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+            onSave={(p)=>store.updateRelatie(relatie.id,p)}/></div>
           <InlineRelatieSectie titel="Beleggingshorizon en rendementsfocus" relatie={relatie}
             velden={BELEGGINGSAANPAKVELDEN} toonAlleVeldenInitieel
             onSave={(patch)=>store.updateRelatie(relatie.id,patch)}/>
-          <InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
-            velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/>
+          <div id="kopersprofiel-financiering" className="scroll-mt-24"><InlineRelatieSectie titel="Investering en financiering" relatie={relatie}
+            velden={INVESTERINGSVELDEN} onSave={(p)=>store.updateRelatie(relatie.id,p)}/></div>
           {relatie.zoekRadiusCentrum?.trim()&&relatie.zoekRadiusWaarde!=null&&
             <section className="section-card p-5 sm:p-6">
               <PdokLocatieVerifier mode="woonplaats" recordId={relatie.id}
@@ -419,17 +431,17 @@ export default function RelatieDetailPage() {
         </div>
 
         <div className="space-y-4 lg:space-y-6 min-w-0">
-          <RisicovoorkeurenPanel relatieId={relatie.id}
+          <div id="kopersprofiel-risico" className="scroll-mt-24"><RisicovoorkeurenPanel relatieId={relatie.id}
             voorkeuren={risicoData.voorkeuren} loading={risicoData.loading} fout={risicoData.fout}
-            onSave={risicoData.bewaar} onDelete={risicoData.verwijder}/>
-          <RendementscriteriaPanel
+            onSave={risicoData.bewaar} onDelete={risicoData.verwijder}/></div>
+          <div id="kopersprofiel-rendement" className="scroll-mt-24"><RendementscriteriaPanel
             criteria={matchingData.criteria}
             zoekprofielen={zoekprofielen}
             loading={matchingData.loading}
             fout={matchingData.fout}
             onSave={matchingData.bewaarCriterium}
             onDelete={matchingData.verwijderCriterium}
-          />
+          /></div>
           <section className="section-card">
             <header className="section-header">
               <h2 className="section-title">Aanvullende zoekprofielen ({zoekprofielen.length})</h2>
