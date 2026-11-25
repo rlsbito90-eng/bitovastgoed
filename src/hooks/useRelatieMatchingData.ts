@@ -125,3 +125,34 @@ export function useRelatieMatchingData(relatieId: string) {
   return {criteria,besluiten,loading,fout,refresh,bewaarCriterium,verwijderCriterium,
     beoordeelObject,wisObjectBeoordeling};
 }
+
+/** Fetch all active financial criteria in pages, once per opened matching panel. */
+export function useMatchingRendementscriteria(actief:boolean) {
+  const [state,setState]=useState<{criteria:Rendementscriterium[];loading:boolean;fout:string|null}>({criteria:[],loading:true,fout:null});
+  useEffect(()=>{
+    let geldig=true;
+    setState({criteria:[],loading:actief,fout:null});
+    if(!actief)return ()=>{geldig=false;};
+    async function laad(){
+      try {
+        const criteria:Rendementscriterium[]=[];
+        const limiet=500;
+        for(let offset=0;;offset+=limiet){
+          const {data,error}=await supabase.from('relatie_rendementscriteria' as any)
+            .select('*').eq('status','actief').order('id',{ascending:true}).range(offset,offset+limiet-1);
+          if(error)throw error;
+          if(!geldig)return;
+          const page=(data??[]) as any[];
+          criteria.push(...page.map(criteriumUitDb));
+          if(page.length<limiet)break;
+        }
+        if(geldig)setState({criteria,loading:false,fout:null});
+      }catch{
+        if(geldig)setState({criteria:[],loading:false,fout:'Rendementscriteria konden niet worden geladen. Open de selectie opnieuw.'});
+      }
+    }
+    void laad();
+    return ()=>{geldig=false;};
+  },[actief]);
+  return state;
+}
