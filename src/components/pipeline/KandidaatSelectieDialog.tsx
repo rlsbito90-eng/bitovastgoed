@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { KandidaatTerugkeer } from '@/lib/matching/kandidaatSelectieTerugkeer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,7 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   objectId: string;
   focusRelatieId?: string | null;
+  terugkeer?: KandidaatTerugkeer | null;
   /** relatieIds die al gekoppeld zijn (worden uitgesloten) */
   reedsGekoppeld: Set<string>;
   /** Wordt aangeroepen na succesvol toevoegen */
@@ -83,7 +85,7 @@ const fmtBudgetRange = (min?: number, max?: number): string => {
 };
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
 
-export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd, focusRelatieId }: Props) {
+export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd, focusRelatieId, terugkeer }: Props) {
   const navigate = useNavigate();
   const {
     relaties, contactpersonen, getObjectById,
@@ -475,7 +477,8 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
               }}
               onConceptGekozen={setR2Concept}
               focusRelatieId={focusRelatieId}
-              onOpenRelatie={id => { onOpenChange(false); navigate(`/relaties/${id}?matchObject=${encodeURIComponent(objectId)}`); }}
+              terugkeer={terugkeer}
+              onOpenRelatie={(id,kandidaatTerugkeer) => { onOpenChange(false); navigate(`/relaties/${id}?matchObject=${encodeURIComponent(objectId)}`,{state:{kandidaatTerugkeer}}); }}
               geselecteerdeRelatieId={r2Concept?.contactRelatieId ?? null}
               besluiten={matchingBesluiten.besluiten}
               besluitenGeladen={!matchingBesluiten.loading && !matchingBesluiten.fout}
