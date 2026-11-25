@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { leesKandidaatTerugkeer } from '@/lib/matching/kandidaatSelectieTerugkeer';
 import { useDataStore } from '@/hooks/useDataStore';
 import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import {
@@ -228,7 +229,7 @@ export default function RelatieDetailPage() {
     <div className="page-shell-detail">
       {matchObject && <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-3">
         <div className="min-w-0"><p className="text-xs text-muted-foreground">Kopersprofiel aanpassen vanuit kandidaatselectie</p><p className="break-words text-sm font-medium">{matchObject.titel}</p></div>
-        <Link to={`/objecten/${encodeURIComponent(matchObject.id)}?tab=kandidaten&matchRelatie=${encodeURIComponent(relatie.id)}`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><ArrowLeft className="h-4 w-4 shrink-0"/> Terug naar kandidaatselectie</Link>
+        <Link to={`/objecten/${encodeURIComponent(matchObject.id)}?tab=kandidaten&matchRelatie=${encodeURIComponent(relatie.id)}`} state={{kandidaatTerugkeer:leesKandidaatTerugkeer(location.state,matchObject.id,relatie.id)}} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><ArrowLeft className="h-4 w-4 shrink-0"/> Terug naar kandidaatselectie</Link>
       </div>}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
