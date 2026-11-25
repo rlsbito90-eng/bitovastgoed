@@ -116,3 +116,30 @@ describe('Handmatige keuze en terugkeer vanuit kopersprofiel',()=>{
     expect(onHerstel).toHaveBeenCalledWith('koper-2');
   });
 });
+
+describe('Terugkeer naar de eerdere werkpositie',()=>{
+  it('herstelt filter, geladen aantal en volgorde met bijgewerkte criteria',()=>{
+    const relaties=Array.from({length:20},(_,i)=>koper(i,{propertyTypeIds:i===10?['woning']:['kantoor']}));
+    const volgorde=relaties.map(r=>r.id);
+    renderList(relaties,{focusRelatieId:'koper-10',terugkeer:{
+      objectId:'obj',relatieId:'koper-10',filter:'overig',zoek:'koper-',limiet:16,
+      volgorde,scrollTop:600,kaartOffset:-20,openDetails:{},
+    }});
+    expect(screen.getByRole('button',{name:/^Overig/})).toHaveAttribute('aria-pressed','true');
+    expect(screen.getByPlaceholderText('Zoek koper of zoekprofiel')).toHaveValue('koper-');
+    const kaarten=screen.getAllByTestId('match-kandidaat-kaart');
+    expect(kaarten).toHaveLength(16);
+    expect(kaarten[10]).toHaveAttribute('data-relatie-id','koper-10');
+    expect(within(kaarten[10]).getByText(/tijdelijk zichtbaar op je vorige plek/)).toBeInTheDocument();
+  });
+  it('geeft de actuele lijstpositie door bij openen van een profiel',()=>{
+    const onOpenRelatie=vi.fn();
+    renderList(Array.from({length:12},(_,i)=>koper(i)),{onOpenRelatie});
+    fireEvent.click(screen.getByRole('button',{name:/Toon volgende/}));
+    const card=screen.getAllByTestId('match-kandidaat-kaart')[10];
+    fireEvent.click(within(card).getByRole('button',{name:/Kopersprofiel/}));
+    expect(onOpenRelatie).toHaveBeenCalledWith('koper-10',expect.objectContaining({
+      objectId:'obj',relatieId:'koper-10',filter:'relevant',limiet:16,
+    }));
+  });
+});
