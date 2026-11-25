@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDataStore } from '@/hooks/useDataStore';
 import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import {
@@ -161,7 +161,10 @@ const NOTITIEVELDEN: readonly InlineRelatieVeld[] = [
 export default function RelatieDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const store = useDataStore();
+  const matchObjectId=new URLSearchParams(location.search).get('matchObject');
+  const matchObject=matchObjectId?store.getObjectById(matchObjectId):undefined;
   const relatie = store.getRelatieById(id!);
   const matchingData = useRelatieMatchingData(id ?? '');
   const risicoData = useRelatieRisicovoorkeuren(id ?? '');
@@ -223,6 +226,10 @@ export default function RelatieDetailPage() {
 
   return (
     <div className="page-shell-detail">
+      {matchObject && <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-3">
+        <div className="min-w-0"><p className="text-xs text-muted-foreground">Kopersprofiel aanpassen vanuit kandidaatselectie</p><p className="break-words text-sm font-medium">{matchObject.titel}</p></div>
+        <Link to={`/objecten/${encodeURIComponent(matchObject.id)}?tab=kandidaten&matchRelatie=${encodeURIComponent(relatie.id)}`} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"><ArrowLeft className="h-4 w-4 shrink-0"/> Terug naar kandidaatselectie</Link>
+      </div>}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <Link to="/relaties" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" /> Relaties
