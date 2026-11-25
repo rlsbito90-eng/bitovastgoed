@@ -424,18 +424,19 @@ export function maakKandidaatVoorstellen(
  * Existing object_pipeline only supports one row/object/relation; do not add a phantom buyer.
  */
 export function maakKandidaatConcept(
-  object:CrmObjectInput, voorstel:KandidaatVoorstel,gekozenRouteKey:string
+  object:CrmObjectInput, voorstel:KandidaatVoorstel,gekozenRouteKey:string, opties:{handmatigeAfwijking?:boolean}={}
 ) {
   const gekozen=voorstel.alleRoutes.find(x=>x.key===gekozenRouteKey);
   if(!gekozen) return {ok:false as const,reden:'Zoekmandaat niet gevonden'};
   if(!isAanbiedbaar(object))return {ok:false as const,reden:'Object is niet beschikbaar'};
-  if(gekozen.kwalificatie==='afwijkend')return {ok:false as const,reden:'Harde criteria wijken af'};
+  if(gekozen.kwalificatie==='afwijkend'&&!opties.handmatigeAfwijking)return {ok:false as const,reden:'Harde criteria wijken af'};
   // Eerdere UI-concepten mogen geen aanbieders aan de koperspipeline toevoegen.
   // De definitieve selectie valideert bovendien opnieuw tegen actuele CRM-data.
   if([object.eigenaarRelatieId,object.verkoperRelatieId,object.aanbiederRelatieId].includes(voorstel.relatieId))return {ok:false as const,reden:'Aanbieder of verkoper van dit object'};
   return {ok:true as const,concept:{objectId:object.id,contactRelatieId:voorstel.relatieId,
       gekozenMandaatId:gekozen.zoekprofielId,contactRoute:gekozen.route,
-      koperRelatieId:gekozen.koperRelatieId,controles:gekozen.toelichting.controleer,
+      koperRelatieId:gekozen.koperRelatieId,controles:[...gekozen.toelichting.controleer,...gekozen.toelichting.afwijkend],
+      handmatigeAfwijking:gekozen.kwalificatie==='afwijkend'&&!!opties.handmatigeAfwijking,
       // Deliberately no bid, contract, NDA, fee, or contact log side-effects.
       kanAutomatischVersturen:false as const,kanAutomatischBodMaken:false as const}};
 }

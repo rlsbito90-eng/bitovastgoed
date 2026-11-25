@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
+import { leesKandidaatTerugkeer, type KandidaatTerugkeer } from '@/lib/matching/kandidaatSelectieTerugkeer';
 import { useDataStore } from '@/hooks/useDataStore';
 import PdokLocatieVerifier from '@/components/geo/PdokLocatieVerifier';
 import { getRelationDisplayName } from '@/lib/relatieNaam';
@@ -690,6 +691,18 @@ export default function ObjectDetailPage() {
   const [focusPointOpen, setFocusPointOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
+  const [matchFocusRelatie, setMatchFocusRelatie] = useState<string|null>(null);
+  const [matchTerugkeer,setMatchTerugkeer]=useState<KandidaatTerugkeer|null>(null);
+  useEffect(()=>{
+    const params=new URLSearchParams(location.search);
+    const focus=params.get('matchRelatie');
+    if(!focus || !id)return;
+    setMatchFocusRelatie(focus);
+    setMatchTerugkeer(leesKandidaatTerugkeer(location.state,id,focus));
+    setKandidaatDialogOpen(true);
+    params.delete('matchRelatie');
+    navigate({pathname:location.pathname,search:params.toString()?`?${params.toString()}`:'',hash:location.hash},{replace:true});
+  },[id,location.pathname,location.search,location.hash,location.state,navigate]);
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
   const [taakDialogOpen, setTaakDialogOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<any>(null);
@@ -2438,7 +2451,9 @@ export default function ObjectDetailPage() {
 
       <KandidaatSelectieDialog
         open={kandidaatDialogOpen}
-        onOpenChange={setKandidaatDialogOpen}
+        onOpenChange={open=>{setKandidaatDialogOpen(open);if(!open){setMatchFocusRelatie(null);setMatchTerugkeer(null);}}}
+        focusRelatieId={matchFocusRelatie}
+        terugkeer={matchTerugkeer}
         objectId={object.id}
         reedsGekoppeld={reedsGekoppeldRelaties}
         onToegevoegd={() => toast.success('Kandidaat toegevoegd aan pipeline')}
