@@ -690,6 +690,16 @@ export default function ObjectDetailPage() {
   const [focusPointOpen, setFocusPointOpen] = useState(false);
   const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({});
   const [kandidaatDialogOpen, setKandidaatDialogOpen] = useState(false);
+  const [matchFocusRelatie, setMatchFocusRelatie] = useState<string|null>(null);
+  useEffect(()=>{
+    const params=new URLSearchParams(location.search);
+    const focus=params.get('matchRelatie');
+    if(!focus || !id)return;
+    setMatchFocusRelatie(focus);
+    setKandidaatDialogOpen(true);
+    params.delete('matchRelatie');
+    navigate({pathname:location.pathname,search:params.toString()?`?${params.toString()}`:'',hash:location.hash},{replace:true});
+  },[id,location.pathname,location.search,location.hash,navigate]);
   const [notitieDialogOpen, setNotitieDialogOpen] = useState(false);
   const [taakDialogOpen, setTaakDialogOpen] = useState(false);
   const [editTaak, setEditTaak] = useState<any>(null);
@@ -2438,7 +2448,8 @@ export default function ObjectDetailPage() {
 
       <KandidaatSelectieDialog
         open={kandidaatDialogOpen}
-        onOpenChange={setKandidaatDialogOpen}
+        onOpenChange={open=>{setKandidaatDialogOpen(open);if(!open)setMatchFocusRelatie(null);}}
+        focusRelatieId={matchFocusRelatie}
         objectId={object.id}
         reedsGekoppeld={reedsGekoppeldRelaties}
         onToegevoegd={() => toast.success('Kandidaat toegevoegd aan pipeline')}
