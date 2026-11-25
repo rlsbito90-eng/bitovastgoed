@@ -85,3 +85,22 @@ describe('Factor en gecombineerde aankoopcriteria',()=>{
     expect(r.uitleg).toContain('BAR');
   });
 });
+
+describe('Indicatieve aankoopgrens',()=>{
+  const bar:Rendementscriterium={...basis,methode:'bar',methodeBevestigd:true,criteriumType:'minimum',percentage:8};
+  const factor:Rendementscriterium={...basis,id:'factor',methode:'factor',methodeBevestigd:true,criteriumType:'maximum',percentage:12};
+  it('uses the strictest confirmed price criterion, not an average',()=>{
+    expect(beoordeelObjectRendement({vraagprijs:1250000,huurinkomsten:100000},[bar,factor]).prijsindicatie).toEqual({
+      maximum:1200000,grondslag:'Factor',verschilVraagprijs:50000,overigeCriteriaOngetoetst:false,
+    });
+  });
+  it('does not convert unconfirmed or aspirational criteria into hard ceilings',()=>{
+    expect(beoordeelObjectRendement({huurinkomsten:100000},[{...bar,methodeBevestigd:false},{...factor,criteriumType:'doel'}]).prijsindicatie).toBeUndefined();
+  });
+  it('does not invent rent or convert NAR, and flags incomplete coverage',()=>{
+    expect(beoordeelObjectRendement({vraagprijs:1250000},[bar,factor]).prijsindicatie).toBeUndefined();
+    const nar:Rendementscriterium={...basis,id:'nar',methode:'nar',methodeBevestigd:true};
+    expect(beoordeelObjectRendement({huurinkomsten:100000},[nar]).prijsindicatie).toBeUndefined();
+    expect(beoordeelObjectRendement({huurinkomsten:100000},[bar,nar]).prijsindicatie).toMatchObject({maximum:1250000,verschilVraagprijs:null,overigeCriteriaOngetoetst:true});
+  });
+});
