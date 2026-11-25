@@ -106,6 +106,35 @@ describe('Nieuwe matching: vrije aankoopvoorwaarden zijn nooit onterecht groen',
     }
   });
 
+  it('geeft letterlijke harde voorwaarden, uitsluitingen en voorkeuren door in beide zoekroutes', () => {
+    const p:CrmMandaatInput = {id:'p',relatieId:'koper-1',status:'actief',
+      propertyTypeIds:['woning'],aanvullendeCriteria:'Positieve bezichtiging'};
+    const m=matches({...relatie,hardeAankoopvoorwaarden:'  Minimaal 70% bedrijfsruimte  ',
+      uitsluitingen:'Geen erfpacht', aankoopvoorkeuren:'Bij voorkeur verhuurd',
+      aankoopcriteria:'Algemeen criterium'},[p]);
+    const basis=m[0].alleRoutes.find(r=>r.bron==='relatie_basis');
+    const profiel=m[0].alleRoutes.find(r=>r.zoekprofielId==='p');
+    for(const route of [basis,profiel]){
+      expect(route?.toelichting.voorwaarden).toEqual(expect.arrayContaining([
+        {soort:'hard',tekst:'Minimaal 70% bedrijfsruimte'},
+        {soort:'uitsluiting',tekst:'Geen erfpacht'},
+        {soort:'voorkeur',tekst:'Bij voorkeur verhuurd'},
+      ]));
+      expect(route?.kwalificatie).toBe('te_verifieren');
+      expect(route?.toelichting.afwijkend).toHaveLength(0);
+    }
+    expect(basis?.toelichting.voorwaarden).toContainEqual({soort:'aanvullend',tekst:'Algemeen criterium'});
+    expect(profiel?.toelichting.voorwaarden).not.toContainEqual({soort:'aanvullend',tekst:'Algemeen criterium'});
+    expect(profiel?.toelichting.voorwaarden).toContainEqual({soort:'profiel',tekst:'Positieve bezichtiging'});
+  });
+
+  it('maakt geen voorwaarden aan uit lege tekst en verandert voorkeuren niet in harde criteria', () => {
+    expect(matches({...relatie,hardeAankoopvoorwaarden:'   '})[0].besteRoute.toelichting.voorwaarden).toBeUndefined();
+    const route=matches({...relatie,aankoopvoorkeuren:'Bij voorkeur verhuurd'})[0].besteRoute;
+    expect(route.toelichting.voorwaarden).toEqual([{soort:'voorkeur',tekst:'Bij voorkeur verhuurd'}]);
+    expect(route.kwalificatie).toBe('passend');
+  });
+
   it('bestaande koopuitwisselingsveiligheid blijft behouden', () => {
     const m=matches(relatie);
     expect(m[0].kanAutomatischVersturen).toBe(false);
