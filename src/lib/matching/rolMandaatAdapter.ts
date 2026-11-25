@@ -116,6 +116,9 @@ export interface MatchToelichting {
   /** Letterlijke profielinformatie; nooit een automatisch geverifieerd objectfeit. */
   voorwaarden?: MatchVoorwaarde[];
 }
+export type MatchCriteriumStatus = 'passend'|'afwijkend'|'controle'|'niet_ingevuld';
+export type MatchCriterium = 'vastgoed'|'strategie'|'locatie'|'budget';
+export type MatchCriteriaStatus = Record<MatchCriterium,MatchCriteriumStatus>;
 export interface MatchBewijs { vastgoedtype: boolean; subcategorie: boolean; dealtype: boolean; locatie: boolean; budget: boolean }
 export interface ProfielRoute {
   /** Stable key in read model. For relation virtual profile do not persist as UUID. */
@@ -131,6 +134,7 @@ export interface ProfielRoute {
   toelichting: MatchToelichting;
   /** Feitelijke positieve criteria, zonder de vraagprijs als inhoudelijke match te presenteren. */
   bewijs?: MatchBewijs;
+  criteriaStatus?: MatchCriteriaStatus;
 }
 export interface KandidaatVoorstel {
   /** One row for every contact relation, never a fabricated buyer relation. */
@@ -218,6 +222,12 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   const min = p ? p.prijsMin : r.budgetMin;
   const max = p ? p.prijsMax : r.budgetMax;
   let geverifieerd=0,controleNodig=false;
+  const criteriaStatus:MatchCriteriaStatus={vastgoed:'niet_ingevuld',strategie:'niet_ingevuld',locatie:'niet_ingevuld',budget:'niet_ingevuld'};
+  let startAfwijkend=afwijkend.length,startControle=controleer.length,startMatch=matcht.length;
+  const sluitCriterium=(key:MatchCriterium,ingevuld:boolean,positief=true)=>{
+    criteriaStatus[key]=!ingevuld?'niet_ingevuld':afwijkend.length>startAfwijkend?'afwijkend':controleer.length>startControle?'controle':positief&&matcht.length>startMatch?'passend':'controle';
+    startAfwijkend=afwijkend.length;startControle=controleer.length;startMatch=matcht.length;
+  };
   if(gevuld(types)){
     if(o.propertyTypeId){
       if(types.includes(o.propertyTypeId)){matcht.push('Vastgoedtype komt overeen');geverifieerd++;bewijs.vastgoedtype=true;}
@@ -236,12 +246,14 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       else{controleer.push('Subcategorieën verschillen; handmatig beoordelen');controleNodig=true}
     }else{controleer.push('Subcategorie object ontbreekt');controleNodig=true}
   }
+  sluitCriterium('vastgoed',gevuld(types)||gevuld(legacy)||gevuld(subtypes));
   if(gevuld(dealTypes)){
     if(gevuld(o.dealTypeIds)){
       if(overlap(dealTypes,o.dealTypeIds)){matcht.push('Dealtype of strategie overlapt');geverifieerd++;bewijs.dealtype=true;}
       else{controleer.push('Dealtype of strategie verschilt; handmatig beoordelen');controleNodig=true}
     }else{controleer.push('Dealtype object ontbreekt');controleNodig=true}
   }
+  sluitCriterium('strategie',gevuld(dealTypes));
   const gekozenGemeenten=(rawCities??[]).filter(isGemeenteToken).map(gemeenteUitToken);
   const gekozenPlaatsen=(rawCities??[]).filter(x=>!isGemeenteToken(x));
   const objectLocaties=[o.plaats,o.provincie].filter(Boolean).map(x=>normaliseerRegio(x!));
@@ -312,12 +324,14 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
       else afwijkend.push(`Buiten radius: ${km.toFixed(1)} km hemelsbreed, maximaal ${waarde} km vanaf ${centrum}`);
     }
   }
+  sluitCriterium('locatie',gekozenGemeenten.length>0||gekozenPlaatsen.length>0||gevuld(rawRegion)||!!radius,bewijs.locatie);
   if(min!=null||max!=null){
     if(typeof o.vraagprijs==='number'&&Number.isFinite(o.vraagprijs)){
       if((min!=null&&o.vraagprijs<min)||(max!=null&&o.vraagprijs>max))afwijkend.push('Vraagprijs buiten opgegeven budgetgrenzen');
       else{matcht.push('Vraagprijs binnen budget');geverifieerd++;bewijs.budget=true;}
     }else{controleer.push('Vraagprijs van object ontbreekt');controleNodig=true}
   }
+  sluitCriterium('budget',min!=null||max!=null);
   // Letterlijke wensen en uitsluitingen nooit stilzwijgend als geverifieerd
   // behandelen. Ze zijn niet gestructureerd genoeg voor een automatische
   // afwijzing, maar verhinderen wel een onterecht groen 'passend'.
@@ -383,7 +397,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   return {key:p?`zoekprofiel:${p.id}`:`relatie:${r.id}:basis`,zoekprofielId:p?.id??null,
     bron:p?'zoekprofiel':'relatie_basis',naam:p?.naam??'Algemene zoekcriteria',route:route.route,
     kwalificatie,bevestiging:routeConfirmed?'bevestigd':'te_verifieren',
-    koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend,...(voorwaarden.length ? {voorwaarden} : {})},bewijs};
+    koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend,...(voorwaarden.length ? {voorwaarden} : {})},bewijs,criteriaStatus};
 }
 
 const rang:Record<MatchKwalificatie,number>={passend:4,te_verifieren:3,onvoldoende:2,afwijkend:1};

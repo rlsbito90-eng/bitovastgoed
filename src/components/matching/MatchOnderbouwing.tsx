@@ -1,6 +1,9 @@
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import type { MatchVoorwaarde, ProfielRoute } from '@/lib/matching/rolMandaatAdapter';
 import type { RendementsOordeel } from '@/lib/matching/rendementsOordeel';
+import { bepaalMatchBewijskwaliteit, MATCH_ONDERDELEN, type MatchOnderdeel } from '@/lib/matching/matchBewijskwaliteit';
+const ONDERDEEL_LABELS:Record<MatchOnderdeel,string>={vastgoed:'Vastgoedtype en subcategorie',strategie:'Strategie',locatie:'Locatie',budget:'Budget',rendement:'Rendement / Factor'};
+const STATUS_LABELS={passend:'Passend',afwijkend:'Wijkt af',controle:'Controle nodig',niet_ingevuld:'Niet ingevuld'};
 
 const VOORWAARDE_LABELS: Record<MatchVoorwaarde['soort'], string> = {
   hard: 'Harde aankoopvoorwaarde', uitsluiting: 'Uitsluiting', profiel: 'Voorwaarde zoekprofiel',
@@ -16,6 +19,7 @@ export function MatchOnderbouwing({ route, rendement }: {
   route: ProfielRoute;
   rendement?: RendementsOordeel;
 }) {
+  const kwaliteit=bepaalMatchBewijskwaliteit(route,rendement);
   const bewijs = route.toelichting.matcht;
   const controle = route.toelichting.controleer;
   const afwijkend = route.toelichting.afwijkend;
@@ -32,6 +36,10 @@ export function MatchOnderbouwing({ route, rendement }: {
 
   return <div className="min-w-0 space-y-2" data-testid="match-onderbouwing">
     <div className="space-y-1.5 text-xs leading-5">
+      {kwaliteit && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground" aria-label="Aansluiting en onderbouwing">
+        <span className="font-medium text-foreground">{kwaliteit.aansluiting===null?'Aansluiting: onvoldoende toetsbare onderdelen':`Aansluiting: ${kwaliteit.aansluiting}%`}</span>
+        <span>{kwaliteit.beoordeeld} van {kwaliteit.totaal} onderdelen beoordeeld (indicatief)</span>
+      </div>}
       {eersteBewijs
         ? <p className="flex items-start gap-2 text-foreground">
             <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
@@ -75,6 +83,11 @@ export function MatchOnderbouwing({ route, rendement }: {
         Bekijk alle matchcriteria ({bewijs.length} passend · {controle.length + afwijkend.length + (rendementAandacht ? 1 : 0)} aandacht)
       </summary>
       <div className="space-y-2 border-t border-border/70 px-3 py-3 leading-5">
+        {kwaliteit&&<div className="space-y-1">
+          <p className="font-medium text-foreground">Onderbouwing per onderdeel</p>
+          {MATCH_ONDERDELEN.map(k=><div key={k} className="flex flex-wrap justify-between gap-x-3 text-muted-foreground"><span>{ONDERDEEL_LABELS[k]}</span><span>{STATUS_LABELS[kwaliteit.onderdelen[k]]}</span></div>)}
+          <p className="text-muted-foreground">Aansluiting = passende onderdelen / beoordeelde onderdelen. Niet-ingevulde en nog te controleren onderdelen tellen niet als passend. Het percentage is geen aankoopkans; vrije voorwaarden en risico’s blijven apart te toetsen.</p>
+        </div>}
         {bewijs.length > 0 && <div>
           <p className="font-medium text-foreground">Aanknopingspunten</p>
           {bewijs.map((x, i) => <p key={i} className="break-words text-muted-foreground">✓ {x}</p>)}

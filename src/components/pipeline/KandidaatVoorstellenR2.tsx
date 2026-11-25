@@ -9,6 +9,7 @@ import { Check, Search, UserPlus, ArrowUpRight } from 'lucide-react';
 import { MatchOnderbouwing } from '@/components/matching/MatchOnderbouwing';
 import type { ObjectBesluiten } from '@/hooks/useObjectMatchBesluiten';
 import { useMatchingRendementscriteria, type Rendementscriterium } from '@/hooks/useRelatieMatchingData';
+import { bepaalMatchBewijskwaliteit, vergelijkMatchBewijs } from '@/lib/matching/matchBewijskwaliteit';
 import { beoordeelObjectRendement } from '@/lib/matching/rendementsOordeel';
 import type { ObjectVastgoed } from '@/data/mock-data';
 import { bepaalVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
@@ -62,7 +63,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
   const alleVoorgesteld=useMemo(()=>{
     const beoordeel=(relatieId:string,route:ProfielRoute)=>{
       const rendement=beoordeelObjectRendement(props.object,perRelatie.get(relatieId)??[],route.zoekprofielId);
-      return {route,rendement,prioriteit:bepaalVoorstelPrioriteit(route,rendement,props.object)};
+      return {route,rendement,prioriteit:bepaalVoorstelPrioriteit(route,rendement,props.object),kwaliteit:bepaalMatchBewijskwaliteit(route,rendement)};
     };
     const berekend=maakKandidaatVoorstellen(props.object,props.relaties,props.zoekprofielen,
       {reedsGekoppeld:props.reedsGekoppeld,toonAfwijkende:true});
@@ -73,14 +74,14 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       .map(p=>{
         // De onderbouwde zoekroute heeft voorrang boven alleen een ruwe kwalificatie.
         const routes=p.alleRoutes.map(r=>beoordeel(p.relatieId,r)).sort((a,b)=>
-          rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit));
+          rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit)||vergelijkMatchBewijs(a.kwaliteit,b.kwaliteit));
         const beste=routes[0]??beoordeel(p.relatieId,p.besteRoute);
-        return {...p,besteRoute:beste.route,rendement:beste.rendement,prioriteit:beste.prioriteit,financieleRoutes:routes};
+        return {...p,besteRoute:beste.route,rendement:beste.rendement,prioriteit:beste.prioriteit,kwaliteit:beste.kwaliteit,financieleRoutes:routes};
       }).sort((a,b)=>{
         const voorkeur=Number(props.besluiten[b.relatieId]?.status==='interessant')-
           Number(props.besluiten[a.relatieId]?.status==='interessant');
         if(voorkeur)return voorkeur;
-        return rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit);
+        return rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit)||vergelijkMatchBewijs(a.kwaliteit,b.kwaliteit);
       });
   },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,props.besluiten,perRelatie]);
   const beoordeeld=alleVoorgesteld;

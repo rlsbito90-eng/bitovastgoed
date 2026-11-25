@@ -8,6 +8,7 @@ import { maakObjectVoorstellenVoorRelatie } from '@/lib/matching/relatieObjectVo
 import { useDataStore } from '@/hooks/useDataStore';
 import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
 import { MATCH_AFWIJSREDENEN } from '@/lib/matching/relatieObjectBesluiten';
+import { bepaalMatchBewijskwaliteit, vergelijkMatchBewijs } from '@/lib/matching/matchBewijskwaliteit';
 import { beoordeelObjectRendement } from '@/lib/matching/rendementsOordeel';
 import { bepaalVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
 import { MatchOnderbouwing } from '@/components/matching/MatchOnderbouwing';
@@ -48,15 +49,12 @@ export default function ObjectvoorstellenPanel({
     const routes=x.voorstel.alleRoutes.map(route=>{
       const rendement=beoordeelObjectRendement(x.object,criteria,route.zoekprofielId);
       const prioriteit=bepaalVoorstelPrioriteit(route,rendement,x.object);
-      const bewijs=route.bewijs;
-      const sterkte=Number(!!bewijs?.vastgoedtype)+Number(!!bewijs?.subcategorie)+
-        Number(!!bewijs?.dealtype)+Number(!!bewijs?.locatie);
-      return {route,rendement,prioriteit,sterkte};
+      return {route,rendement,prioriteit,kwaliteit:bepaalMatchBewijskwaliteit(route,rendement)};
     }).sort((a,b)=>rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit) ||
-      b.sterkte-a.sterkte);
+      vergelijkMatchBewijs(a.kwaliteit,b.kwaliteit));
     const beste=routes[0];
     return beste?{...x,...beste,besluit:byObject.get(x.object.id)}:null;
-  }).filter((x):x is NonNullable<typeof x>=>x!==null),[matches,criteria,byObject]);
+  }).filter((x):x is NonNullable<typeof x>=>x!==null).sort((a,b)=>rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit)||vergelijkMatchBewijs(a.kwaliteit,b.kwaliteit)),[matches,criteria,byObject]);
 
   const nieuw=beoordeeld.filter(x=>!x.besluit && !inPipeline.has(x.object.id));
   const kansrijk=nieuw.filter(x=>x.prioriteit==='kansrijk');
