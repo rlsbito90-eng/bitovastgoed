@@ -61,6 +61,14 @@ export function MatchOnderbouwing({ route, rendement }: {
           <span className="min-w-0 break-words line-clamp-3">{rendement.uitleg}</span>
         </p>
       )}
+      {rendement?.prijsindicatie && <div className="min-w-0 border-t border-border/70 pt-2">
+        <p className="font-medium text-foreground">Indicatieve aankoopgrens op {rendement.prijsindicatie.grondslag}</p>
+        <p className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">{rendement.prijsindicatie.maximum.toLocaleString('nl-NL',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</p>
+        {rendement.prijsindicatie.verschilVraagprijs!==null && rendement.prijsindicatie.verschilVraagprijs>0 && <p className="text-muted-foreground">
+          Vraagprijs ligt {rendement.prijsindicatie.verschilVraagprijs.toLocaleString('nl-NL',{style:'currency',currency:'EUR',maximumFractionDigits:0})} hoger.
+        </p>}
+        <p className="text-muted-foreground">Exclusief aankoopkosten; geen bod of volledige waardering.{rendement.prijsindicatie.overigeCriteriaOngetoetst?' Andere criteria zijn hierin niet doorgerekend.':''}</p>
+      </div>}
     </div>
     <details className="group rounded-md border border-border/70 bg-muted/20 text-xs">
       <summary className="cursor-pointer list-none px-3 py-2 font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
