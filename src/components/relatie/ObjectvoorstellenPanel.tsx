@@ -15,6 +15,9 @@ import { MatchOnderbouwing } from '@/components/matching/MatchOnderbouwing';
 const REDENEN = MATCH_AFWIJSREDENEN;
 
 type Props = {
+  risicovoorkeuren?: readonly import('@/lib/relaties/risicovoorkeuren').Risicovoorkeur[];
+  risicoLoading?: boolean;
+  risicoFout?: string | null;
   relatie:Relatie; objecten:readonly ObjectVastgoed[]; zoekprofielen:readonly Zoekprofiel[];
   criteria:Rendementscriterium[]; besluiten:RelatieObjectBesluit[]; loading:boolean; fout:string|null;
   onBesluit:(objectId:string,status:'interessant'|'afgewezen',reden?:string|null)=>Promise<void>;
@@ -23,6 +26,7 @@ type Props = {
 
 export default function ObjectvoorstellenPanel({
   relatie,objecten,zoekprofielen,criteria,besluiten,loading,fout,onBesluit,onWis,
+  risicovoorkeuren,risicoLoading,risicoFout,
 }:Props) {
   const {getPipelineVoorRelatie,addPipelineKandidaat} = useDataStore();
   const gekoppeldeKandidaten = getPipelineVoorRelatie(relatie.id);
@@ -35,8 +39,8 @@ export default function ObjectvoorstellenPanel({
   const [redenen,setRedenen]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState<string|null>(null);
 
-  const matches=useMemo(()=>maakObjectVoorstellenVoorRelatie(relatie,objecten,zoekprofielen),
-    [relatie,objecten,zoekprofielen]);
+  const matches=useMemo(()=>maakObjectVoorstellenVoorRelatie({...relatie,risicovoorkeuren},objecten,zoekprofielen),
+    [relatie,objecten,zoekprofielen,risicovoorkeuren]);
   const byObject=useMemo(()=>new Map(besluiten.map(b=>[b.objectId,b])),[besluiten]);
   const beoordeeld=useMemo(()=>matches.map(x=>{
     // Wanneer een apart zoekprofiel beter aansluit dan de algemene criteria,
@@ -175,6 +179,10 @@ export default function ObjectvoorstellenPanel({
     </div>;
   }
 
+  if(risicoLoading || risicoFout) return <section className="section-card px-5 py-4">
+    <h2 className="section-title mb-2">Objectvoorstellen</h2>
+    <p className={risicoFout ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'} role={risicoFout?'alert':'status'}>{risicoFout ? 'Risicovoorkeuren niet beschikbaar. Vernieuw het profiel.' : 'Risicovoorkeuren laden…'}</p>
+  </section>;
   if(fout) return <section className="section-card px-5 py-4">
     <h2 className="section-title mb-2">Objectvoorstellen</h2>
     <p className="text-sm text-destructive">Eerdere beoordelingen konden niet worden opgehaald. Voorstellen blijven verborgen, zodat afgewezen objecten niet opnieuw verschijnen.</p>
