@@ -102,10 +102,16 @@ export interface CrmObjectInput {
   /** Optioneel: alleen als gemeente geverifieerd is, niet uit plaatsnaam afleiden. */
   gemeente?: string | null;
 }
+export interface MatchVoorwaarde {
+  soort: 'hard' | 'uitsluiting' | 'profiel' | 'aanvullend' | 'rendement' | 'strategie' | 'voorkeur';
+  tekst: string;
+}
 export interface MatchToelichting {
   matcht: string[];
   controleer: string[];
   afwijkend: string[];
+  /** Letterlijke profielinformatie; nooit een automatisch geverifieerd objectfeit. */
+  voorwaarden?: MatchVoorwaarde[];
 }
 export interface MatchBewijs { vastgoedtype: boolean; subcategorie: boolean; dealtype: boolean; locatie: boolean; budget: boolean }
 export interface ProfielRoute {
@@ -341,6 +347,19 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
     controleer.push('Gewenste object-/huursituatie en investeringsstrategie verifiëren');
     controleNodig=true;
   }
+  const voorwaarden: MatchVoorwaarde[] = [];
+  const voegVoorwaardeToe = (soort: MatchVoorwaarde['soort'], tekst?: string | null) => {
+    if (tekst?.trim()) voorwaarden.push({soort, tekst: tekst.trim()});
+  };
+  voegVoorwaardeToe('hard', r.hardeAankoopvoorwaarden);
+  voegVoorwaardeToe('uitsluiting', r.uitsluitingen);
+  if (p) voegVoorwaardeToe('profiel', p.aanvullendeCriteria);
+  else {
+    voegVoorwaardeToe('aanvullend', r.aankoopcriteria);
+    voegVoorwaardeToe('rendement', r.rendementsdoelToelichting);
+    voegVoorwaardeToe('strategie', r.strategieToelichting);
+  }
+  voegVoorwaardeToe('voorkeur', r.aankoopvoorkeuren);
   let koperRelatieId:string|null=null;
   // De contactpartij kan zelf koper zijn, maar een makelaar is niet automatisch de eindkoper.
   if(beleid==='bestaand'&&has(getRoles(r),'koper')&&(r.type!=='makelaar'||p?.mandateType==='eigen_aankoop'))
@@ -356,7 +375,7 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   return {key:p?`zoekprofiel:${p.id}`:`relatie:${r.id}:basis`,zoekprofielId:p?.id??null,
     bron:p?'zoekprofiel':'relatie_basis',naam:p?.naam??'Algemene zoekcriteria',route:route.route,
     kwalificatie,bevestiging:routeConfirmed?'bevestigd':'te_verifieren',
-    koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend},bewijs};
+    koperRelatieId,redenVanRoute:route.reden,toelichting:{matcht,controleer,afwijkend,...(voorwaarden.length ? {voorwaarden} : {})},bewijs};
 }
 
 const rang:Record<MatchKwalificatie,number>={passend:4,te_verifieren:3,onvoldoende:2,afwijkend:1};
