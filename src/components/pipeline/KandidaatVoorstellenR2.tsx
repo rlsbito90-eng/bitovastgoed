@@ -214,6 +214,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
                 :'border-border bg-muted text-muted-foreground'}`}>
             {besluit?.status==='interessant'?'Jouw shortlist':VOORSTEL_LABELS[p.prioriteit]}
           </span>
+          {besluit?.status==='interessant'&&<span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">{VOORSTEL_LABELS[p.prioriteit]}</span>}
         </div>
         <MatchOnderbouwing route={route} rendement={p.rendement} />
         <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
