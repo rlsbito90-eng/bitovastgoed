@@ -58,3 +58,49 @@ describe('rendementsmatching blijft voorzichtig',()=>{
     expect(r.hardKnockout).toBe(false);
   });
 });
+
+describe('Factor en gecombineerde aankoopcriteria',()=>{
+  const factor:Rendementscriterium={...basis,methode:'factor',methodeBevestigd:true,criteriumType:'maximum',percentage:12};
+  it('toetst een maximale factor op vraagprijs gedeeld door brutojaarhuur',()=>{
+    expect(beoordeelObjectRendement({vraagprijs:1200000,huurinkomsten:100000},[factor]).status).toBe('indicatief_voldoet');
+    const r=beoordeelObjectRendement({vraagprijs:1300000,huurinkomsten:100000},[factor]);
+    expect(r.status).toBe('indicatief_lager');
+    expect(r.uitleg).toContain('13×');
+    expect(r.hardKnockout).toBe(false);
+  });
+  it('berekent geen factor zonder positieve prijs en jaarhuur',()=>{
+    expect(beoordeelObjectRendement({vraagprijs:1200000,huurinkomsten:0},[factor]).status).toBe('controle');
+    expect(beoordeelObjectRendement({brutoAanvangsrendement:9},[factor]).status).toBe('controle');
+  });
+  it('behoudt BAR, NAR en factor in hetzelfde specifieke zoekprofiel',()=>{
+    const criteria:Rendementscriterium[]=[
+      {...factor,id:'factor',zoekprofielId:'z'},
+      {...basis,id:'bar',zoekprofielId:'z',methode:'bar',methodeBevestigd:true,percentage:8},
+      {...basis,id:'nar',zoekprofielId:'z',methode:'nar',methodeBevestigd:true,percentage:8},
+    ];
+    const r=beoordeelObjectRendement({vraagprijs:1200000,huurinkomsten:100000,nettoAanvangsrendement:7},criteria,'z');
+    expect(r.status).toBe('indicatief_lager');
+    expect(r.uitleg).toContain('NAR');
+    expect(r.uitleg).toContain('Factor');
+    expect(r.uitleg).toContain('BAR');
+  });
+});
+
+describe('Indicatieve aankoopgrens',()=>{
+  const bar:Rendementscriterium={...basis,methode:'bar',methodeBevestigd:true,criteriumType:'minimum',percentage:8};
+  const factor:Rendementscriterium={...basis,id:'factor',methode:'factor',methodeBevestigd:true,criteriumType:'maximum',percentage:12};
+  it('uses the strictest confirmed price criterion, not an average',()=>{
+    expect(beoordeelObjectRendement({vraagprijs:1250000,huurinkomsten:100000},[bar,factor]).prijsindicatie).toEqual({
+      maximum:1200000,grondslag:'Factor',verschilVraagprijs:50000,overigeCriteriaOngetoetst:false,
+    });
+  });
+  it('does not convert unconfirmed or aspirational criteria into hard ceilings',()=>{
+    expect(beoordeelObjectRendement({huurinkomsten:100000},[{...bar,methodeBevestigd:false},{...factor,criteriumType:'doel'}]).prijsindicatie).toBeUndefined();
+  });
+  it('does not invent rent or convert NAR, and flags incomplete coverage',()=>{
+    expect(beoordeelObjectRendement({vraagprijs:1250000},[bar,factor]).prijsindicatie).toBeUndefined();
+    const nar:Rendementscriterium={...basis,id:'nar',methode:'nar',methodeBevestigd:true};
+    expect(beoordeelObjectRendement({huurinkomsten:100000},[nar]).prijsindicatie).toBeUndefined();
+    expect(beoordeelObjectRendement({huurinkomsten:100000},[bar,nar]).prijsindicatie).toMatchObject({maximum:1250000,verschilVraagprijs:null,overigeCriteriaOngetoetst:true});
+  });
+});

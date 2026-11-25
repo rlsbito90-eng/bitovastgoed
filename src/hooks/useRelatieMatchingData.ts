@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export type RendementStrategie = 'belegging'|'ontwikkeling'|'transformatie'|'handel'|'overig'|'onbekend';
-export type RendementMethode = 'bar'|'nar'|'gdv_marge'|'projectkosten'|'eigen_vermogen'|'irr'|'netto_onbekend'|'overig'|'onbekend';
-export type RendementType = 'minimum'|'doel'|'gemiddeld'|'historisch';
+export type RendementMethode = 'bar'|'nar'|'factor'|'gdv_marge'|'projectkosten'|'eigen_vermogen'|'irr'|'netto_onbekend'|'overig'|'onbekend';
+export type RendementType = 'minimum'|'maximum'|'doel'|'gemiddeld'|'historisch';
 
 export interface Rendementscriterium {
   id: string;
@@ -75,6 +75,9 @@ export function useRelatieMatchingData(relatieId: string) {
   const bewaarCriterium=useCallback(async (input:Rendementsinvoer,id?:string) => {
     if(!Number.isFinite(input.percentage)||input.percentage<0||input.percentage>1000)
       throw new Error('Vul een geldig percentage in');
+    if(input.methode==='factor' && (input.percentage<=0 || input.strategie!=='belegging' || !['maximum','doel'].includes(input.criteriumType)))
+      throw new Error('Factor vereist een positieve waarde, belegging en een maximum of doel');
+    if(input.methode!=='factor' && input.criteriumType==='maximum') throw new Error('Maximum is alleen van toepassing op Factor');
     const row={
       relatie_id:relatieId,zoekprofiel_id:input.zoekprofielId||null,
       strategie:input.strategie,methode:input.methode,percentage:input.percentage,
@@ -121,4 +124,35 @@ export function useRelatieMatchingData(relatieId: string) {
 
   return {criteria,besluiten,loading,fout,refresh,bewaarCriterium,verwijderCriterium,
     beoordeelObject,wisObjectBeoordeling};
+}
+
+/** Fetch all active financial criteria in pages, once per opened matching panel. */
+export function useMatchingRendementscriteria(actief:boolean) {
+  const [state,setState]=useState<{criteria:Rendementscriterium[];loading:boolean;fout:string|null}>({criteria:[],loading:true,fout:null});
+  useEffect(()=>{
+    let geldig=true;
+    setState({criteria:[],loading:actief,fout:null});
+    if(!actief)return ()=>{geldig=false;};
+    async function laad(){
+      try {
+        const criteria:Rendementscriterium[]=[];
+        const limiet=500;
+        for(let offset=0;;offset+=limiet){
+          const {data,error}=await supabase.from('relatie_rendementscriteria' as any)
+            .select('*').eq('status','actief').order('id',{ascending:true}).range(offset,offset+limiet-1);
+          if(error)throw error;
+          if(!geldig)return;
+          const page=(data??[]) as any[];
+          criteria.push(...page.map(criteriumUitDb));
+          if(page.length<limiet)break;
+        }
+        if(geldig)setState({criteria,loading:false,fout:null});
+      }catch{
+        if(geldig)setState({criteria:[],loading:false,fout:'Rendementscriteria konden niet worden geladen. Open de selectie opnieuw.'});
+      }
+    }
+    void laad();
+    return ()=>{geldig=false;};
+  },[actief]);
+  return state;
 }

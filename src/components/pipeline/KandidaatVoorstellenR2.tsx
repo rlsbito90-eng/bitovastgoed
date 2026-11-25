@@ -7,7 +7,10 @@ import { useMemo, useState } from 'react';
 import { Check, Search, UserPlus, ArrowUpRight } from 'lucide-react';
 import { MatchOnderbouwing } from '@/components/matching/MatchOnderbouwing';
 import type { ObjectBesluiten } from '@/hooks/useObjectMatchBesluiten';
-import { bepaalInhoudelijkeVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
+import { useMatchingRendementscriteria, type Rendementscriterium } from '@/hooks/useRelatieMatchingData';
+import { beoordeelObjectRendement } from '@/lib/matching/rendementsOordeel';
+import type { ObjectVastgoed } from '@/data/mock-data';
+import { bepaalVoorstelPrioriteit, rangVoorstelPrioriteit, VOORSTEL_LABELS } from '@/lib/matching/voorstelPrioriteit';
 import { MATCH_AFWIJSREDENEN, sorteerVoorstellenOpBesluit, type MatchBesluitStatus } from '@/lib/matching/relatieObjectBesluiten';
 import {
   isAanbiedbaar, maakKandidaatConcept, maakKandidaatVoorstellen,
@@ -18,7 +21,8 @@ import {
 type Concept = Extract<ReturnType<typeof maakKandidaatConcept>, { ok: true }>['concept'];
 
 export interface KandidaatVoorstellenProps {
-  object: CrmObjectInput;
+  object: CrmObjectInput & Pick<ObjectVastgoed,'brutoAanvangsrendement'|'nettoAanvangsrendement'|'huurinkomsten'>;
+  laadRendementscriteria?: boolean;
   relaties: readonly CrmRelatieInput[];
   zoekprofielen: readonly CrmMandaatInput[];
   reedsGekoppeld: ReadonlySet<string>;
@@ -43,7 +47,17 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
   const [fout,setFout]=useState<string|null>(null);
   const [bezig,setBezig]=useState<string|null>(null);
 
+  const financieel=useMatchingRendementscriteria(!!props.laadRendementscriteria);
+  const perRelatie=useMemo(()=>{
+    const map=new Map<string,Rendementscriterium[]>();
+    for(const c of financieel.criteria){const list=map.get(c.relatieId)??[];list.push(c);map.set(c.relatieId,list);}
+    return map;
+  },[financieel.criteria]);
   const alleVoorgesteld=useMemo(()=>{
+    const beoordeel=(relatieId:string,route:ProfielRoute)=>{
+      const rendement=beoordeelObjectRendement(props.object,perRelatie.get(relatieId)??[],route.zoekprofielId);
+      return {route,rendement,prioriteit:bepaalVoorstelPrioriteit(route,rendement,props.object)};
+    };
     const berekend=maakKandidaatVoorstellen(props.object,props.relaties,props.zoekprofielen,
       {reedsGekoppeld:props.reedsGekoppeld,toonAfwijkende:true});
     const handmatigeBesluiten=Object.entries(props.besluiten).map(([relatieId,b])=>({
@@ -52,21 +66,18 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
     return sorteerVoorstellenOpBesluit(berekend,handmatigeBesluiten,props.reedsGekoppeld)
       .map(p=>{
         // De onderbouwde zoekroute heeft voorrang boven alleen een ruwe kwalificatie.
-        const routes=[...p.alleRoutes].sort((a,b)=>
-          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b,props.object))-
-          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a,props.object)));
-        return {...p,besteRoute:routes[0]??p.besteRoute};
+        const routes=p.alleRoutes.map(r=>beoordeel(p.relatieId,r)).sort((a,b)=>
+          rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit));
+        const beste=routes[0]??beoordeel(p.relatieId,p.besteRoute);
+        return {...p,besteRoute:beste.route,rendement:beste.rendement,prioriteit:beste.prioriteit,financieleRoutes:routes};
       }).sort((a,b)=>{
         const voorkeur=Number(props.besluiten[b.relatieId]?.status==='interessant')-
           Number(props.besluiten[a.relatieId]?.status==='interessant');
         if(voorkeur)return voorkeur;
-        return rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(b.besteRoute,props.object))-
-          rangVoorstelPrioriteit(bepaalInhoudelijkeVoorstelPrioriteit(a.besteRoute,props.object));
+        return rangVoorstelPrioriteit(b.prioriteit)-rangVoorstelPrioriteit(a.prioriteit);
       });
-  },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,props.besluiten]);
-  const beoordeeld=alleVoorgesteld.map(p=>({
-    ...p, prioriteit:bepaalInhoudelijkeVoorstelPrioriteit(p.besteRoute,props.object),
-  }));
+  },[props.object,props.relaties,props.zoekprofielen,props.reedsGekoppeld,props.besluiten,perRelatie]);
+  const beoordeeld=alleVoorgesteld;
   const aantalKansrijk=beoordeeld.filter(p=>p.prioriteit==='kansrijk').length;
   const aantalControleren=beoordeeld.filter(p=>p.prioriteit==='controleren').length;
   const aantalOverig=beoordeeld.filter(p=>p.prioriteit==='niet_aanbevolen' &&
@@ -134,6 +145,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
     </p>
   );
 
+  if(props.laadRendementscriteria && (financieel.loading||financieel.fout))return <p className={financieel.fout?'text-sm text-destructive':'text-sm text-muted-foreground'} role={financieel.fout?'alert':'status'}>{financieel.fout??'Rendementscriteria laden…'}</p>;
   return <section className="min-w-0 space-y-4" aria-label="Kandidaatvoorstellen">
     <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -197,7 +209,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
             {besluit?.status==='interessant'?'Jouw shortlist':VOORSTEL_LABELS[p.prioriteit]}
           </span>
         </div>
-        <MatchOnderbouwing route={route} />
+        <MatchOnderbouwing route={route} rendement={p.rendement} />
         <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
           <button type="button"
             aria-pressed={geselecteerd}
@@ -248,7 +260,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           <div className="mt-2 space-y-2">
             {p.alleRoutes.filter(x=>x.key!==route.key).map(other=><div key={other.key}
               className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
-              <span className="min-w-0 break-words">{other.naam} · {VOORSTEL_LABELS[bepaalInhoudelijkeVoorstelPrioriteit(other,props.object)]}</span>
+              <span className="min-w-0 break-words">{other.naam} · {VOORSTEL_LABELS[p.financieleRoutes.find(x=>x.route.key===other.key)?.prioriteit??'niet_aanbevolen']}</span>
               <button type="button" disabled={!props.onConceptGekozen||other.kwalificatie==='afwijkend'}
                 onClick={()=>kiesKandidaat(p,other)}
                 className="min-h-8 rounded border border-border bg-background px-2.5 py-1.5 text-xs disabled:opacity-40">

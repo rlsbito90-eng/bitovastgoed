@@ -12,14 +12,15 @@ const STRATEGIEEN: Record<RendementStrategie,string> = {
   handel:'Handel / doorverkoop', overig:'Overig', onbekend:'Strategie onbekend',
 };
 const METHODEN: Record<RendementMethode,string> = {
-  bar:'BAR',nar:'NAR',gdv_marge:'Winstmarge op GDV',projectkosten:'Rendement op projectkosten',
+  bar:'BAR',nar:'NAR',factor:'Factor (vraagprijs / brutojaarhuur)',gdv_marge:'Winstmarge op GDV',projectkosten:'Rendement op projectkosten',
   eigen_vermogen:'Cash-on-cash / eigen vermogen',irr:'IRR (jaarlijks)',
   netto_onbekend:'Netto rendement — definitie onbekend',overig:'Overig',onbekend:'Methode onbekend',
 };
 const TYPES: Record<RendementType,string> = {
-  minimum:'Hard minimum',doel:'Gewenst doel',gemiddeld:'Gemiddeld rendement',
+  minimum:'Hard minimum',maximum:'Hard maximum',doel:'Gewenst doel',gemiddeld:'Gemiddeld rendement',
   historisch:'Historisch gerealiseerd',
 };
+const formatWaarde=(c:Rendementscriterium)=>c.percentage.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})+(c.methode==='factor'?'×':'%');
 type Draft = Omit<Rendementsinvoer,'percentage'> & {percentage:string};
 const nieuw:Draft={strategie:'belegging',methode:'onbekend',percentage:'',
   criteriumType:'doel',methodeBevestigd:false,zoekprofielId:null,toelichting:null,bron:null};
@@ -59,7 +60,7 @@ export default function RendementscriteriaPanel({
   }
   async function bewaar(d:Draft,id?:string) {
     const percentage=d.percentage.trim()===''?NaN:Number(d.percentage.replace(',','.'));
-    if(!Number.isFinite(percentage)||percentage<0||percentage>1000) {
+    if(!Number.isFinite(percentage)||percentage<0||percentage>1000 || (d.methode==='factor' && percentage<=0)) {
       setStatus('fout');return;
     }
     const data: Rendementsinvoer={...d,percentage};
@@ -103,10 +104,10 @@ export default function RendementscriteriaPanel({
         <p className="px-5 py-4 text-sm text-muted-foreground">Nog geen rendementscriteria vastgelegd.</p>}
       {active.map(c=><div key={c.id} className="px-5 py-3">
         <EditableValueButton
-          label={`rendementscriterium ${STRATEGIEEN[c.strategie]}, ${c.percentage.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})}%, ${TYPES[c.criteriumType]}, ${METHODEN[c.methode]}`}
+          label={`rendementscriterium ${STRATEGIEEN[c.strategie]}, ${formatWaarde(c)}, ${TYPES[c.criteriumType]}, ${METHODEN[c.methode]}`}
           onClick={()=>start(c)} disabled={busy||editing===c.id}
           multiline className="!items-start">
-          <span className="block font-medium">{STRATEGIEEN[c.strategie]} · {c.percentage.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})}%</span>
+          <span className="block font-medium">{STRATEGIEEN[c.strategie]} · {formatWaarde(c)}</span>
           <span className="block mt-1 text-xs text-muted-foreground">
             {TYPES[c.criteriumType]} · {METHODEN[c.methode]}
           </span>
@@ -137,24 +138,24 @@ function Editor({draft,wijzig,zoekprofielen,status,busy,onSave,onClose,onDelete}
   return <div className="mt-3 rounded-md border border-border bg-muted/20 p-3 space-y-3 text-xs">
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <label className="space-y-1"><span>Strategie</span>
-        <select value={draft.strategie} onChange={e=>wijzig({strategie:e.target.value as RendementStrategie})}
+        <select value={draft.strategie} disabled={draft.methode==='factor'} onChange={e=>wijzig({strategie:e.target.value as RendementStrategie})}
           className="w-full rounded border border-input bg-background p-2">
           {Object.entries(STRATEGIEEN).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select>
       </label>
-      <label className="space-y-1"><span>Percentage</span>
+      <label className="space-y-1"><span>{draft.methode==='factor'?'Factor (×)':'Percentage'}</span>
         <input inputMode="decimal" value={draft.percentage} onChange={e=>wijzig({percentage:e.target.value})}
           onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSave();}}}
-          placeholder="Bijv. 8,5" className="w-full rounded border border-input bg-background p-2"/>
+          placeholder={draft.methode==='factor'?'Bijv. 12':'Bijv. 8,5'} className="w-full rounded border border-input bg-background p-2"/>
       </label>
       <label className="space-y-1"><span>Betekenis</span>
         <select value={draft.criteriumType} onChange={e=>wijzig({criteriumType:e.target.value as RendementType})}
           className="w-full rounded border border-input bg-background p-2">
-          {Object.entries(TYPES).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+          {Object.entries(TYPES).filter(([k])=>draft.methode==='factor'?['maximum','doel'].includes(k):k!=='maximum').map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select>
       </label>
       <label className="space-y-1"><span>Berekeningsmethode</span>
-        <select value={draft.methode} onChange={e=>wijzig({methode:e.target.value as RendementMethode,methodeBevestigd:false})}
+        <select value={draft.methode} onChange={e=>{const methode=e.target.value as RendementMethode; wijzig({methode,methodeBevestigd:false,...(methode==='factor'?{strategie:'belegging',criteriumType:'maximum',percentage:''}:draft.methode==='factor'?{criteriumType:'doel',percentage:''}:{})});}}
           className="w-full rounded border border-input bg-background p-2">
           {Object.entries(METHODEN).map(([k,v])=><option key={k} value={k}>{v}</option>)}
         </select>
@@ -184,7 +185,7 @@ function Editor({draft,wijzig,zoekprofielen,status,busy,onSave,onClose,onDelete}
     </label>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <span className="text-muted-foreground">
-        {status==='opgeslagen'?'Opgeslagen':status==='fout'?'Controleer percentage of opslaan':
+        {status==='opgeslagen'?'Opgeslagen':status==='fout'?'Controleer waarde of opslaan':
           status==='bezig'?'Wijzigingen worden opgeslagen…':''}
       </span>
       <div className="flex gap-2">

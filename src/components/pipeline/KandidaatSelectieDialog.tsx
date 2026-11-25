@@ -467,6 +467,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
             {risicoData.loading || risicoData.fout ? <p className={risicoData.fout?'text-sm text-destructive':'text-sm text-muted-foreground'} role={risicoData.fout?'alert':'status'}>{risicoData.fout ?? 'Risicovoorkeuren laden…'}</p> : object ? <KandidaatVoorstellenR2
               object={object} relaties={matchingRelaties} zoekprofielen={zoekprofielen}
               reedsGekoppeld={reedsGekoppeld}
+              laadRendementscriteria
               relatieNaam={id => {
                 const r = relaties.find(item => item.id === id);
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
