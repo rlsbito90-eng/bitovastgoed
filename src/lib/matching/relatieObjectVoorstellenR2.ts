@@ -1,5 +1,5 @@
 import type { ObjectVastgoed, Relatie, Zoekprofiel } from '@/data/mock-data';
-import { maakKandidaatVoorstellen, type CrmObjectInput, type KandidaatVoorstel } from './rolMandaatAdapter';
+import { maakKandidaatVoorstellen, type CrmRelatieInput, type CrmObjectInput, type KandidaatVoorstel } from './rolMandaatAdapter';
 
 /** Eén R2-beoordeling in beide richtingen: kandidaat bij object en object bij relatie.
  * Geen klant- of objectgegevens worden opgeslagen of gemuteerd.
@@ -7,7 +7,7 @@ import { maakKandidaatVoorstellen, type CrmObjectInput, type KandidaatVoorstel }
  * kadastraleGemeente of plaats is hiervoor nadrukkelijk GEEN vervanging.
  */
 export function maakObjectVoorstellenVoorRelatie(
-  relatie: Relatie, objecten: readonly ObjectVastgoed[], zoekprofielen: readonly Zoekprofiel[],
+  relatie: Relatie & Pick<CrmRelatieInput,'risicovoorkeuren'>, objecten: readonly ObjectVastgoed[], zoekprofielen: readonly Zoekprofiel[],
 ): { object: ObjectVastgoed; voorstel: KandidaatVoorstel }[] {
   const rang = { passend: 4, te_verifieren: 3, onvoldoende: 2, afwijkend: 1 } as const;
   return objecten.flatMap(object => {
@@ -22,6 +22,8 @@ export function maakObjectVoorstellenVoorRelatie(
       propertySubtypeIds: object.propertySubtypeIds,
       dealTypeIds: object.dealTypeIds,
       vraagprijs: object.vraagprijs,
+      leegstandPct: object.leegstandPct,
+      transformatiePotentie: object.transformatiePotentie,
       eigenaarRelatieId: object.eigenaarRelatieId,
       verkoperRelatieId: object.verkoperRelatieId,
       aanbiederRelatieId: object.aanbiederRelatieId,
