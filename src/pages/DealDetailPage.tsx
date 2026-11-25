@@ -23,6 +23,7 @@ import GeenActieBadge, { isVerlopen } from '@/components/GeenActieBadge';
 
 import DealObjectenSectie from '@/components/deal/DealObjectenSectie';
 import BiedingenSection from '@/components/biedingen/BiedingenSection';
+import DealAcceptedConditions from '@/components/deal/DealAcceptedConditions';
 
 import DealMarktwaardeReadOnly from '@/components/deal/DealMarktwaardeReadOnly';
 import { toast } from 'sonner';
@@ -341,6 +342,7 @@ export default function DealDetailPage() {
             </Link>
           )}
 
+          <DealAcceptedConditions dealId={deal.id} objectId={deal.objectId} relatieId={deal.relatieId} readOnly={Boolean(deal.isArchived || isAfgerond || isAfgevallen)} />
           <DealObjectenSectie dealId={deal.id} primairObjectId={deal.objectId} />
           <BiedingenSection
             scope={{ dealId: deal.id }}

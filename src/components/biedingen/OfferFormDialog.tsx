@@ -12,11 +12,15 @@ import { useBiedingen } from '@/hooks/useBiedingen';
 import { getRelatieNamen } from '@/lib/relatieNaam';
 import { toast } from 'sonner';
 import {
+  EXTRA_VOORWAARDEN_LABELS, type ExtraVoorwaarde, type ExtraVoorwaardeType, type VoorbehoudDetails,
   BIEDING_STATUS_LABELS, BIEDING_TYPE_LABELS, BOD_KARAKTER_LABELS, VOORBEHOUD_LABELS,
   KOSTEN_LABELS, BRON_LABELS, BIEDING_RICHTING_LABELS_LONG,
   type Bieding, type BiedingStatus, type BiedingType, type BodKarakter,
   type VoorbehoudStatus, type KostenType, type BiedingBron, type BiedingRichting,
 } from '@/lib/biedingen/types';
+import { matchingOfferDeals, matchingOfferCandidates, resolveOfferLink } from '@/lib/biedingen/offerLinks';
+import { useObjectFeeForecast } from '@/hooks/useObjectFeeForecast';
+import { calculateBAR, calculateFactor, getBerekenM2Bron, calculatePricePerM2 } from '@/lib/derivations/financial';
 import { parseDutchNumber } from '@/lib/format/nl';
 import { antwoordRichtingVoorBod, counterStatusForDirection } from '@/lib/biedingen/progression';
 
@@ -59,6 +63,9 @@ interface FormState {
   waarborgsomPct: string;
   kostenType: KostenType | '';
   voorwaarden: string;
+  extraVoorwaarden: ExtraVoorwaarde[] | null;
+  origineleCommunicatie: string;
+  voorbehoudDetails: VoorbehoudDetails;
   notities: string;
   interneNotities: string;
   bron: BiedingBron | '';
@@ -83,8 +90,11 @@ const emptyForm = (): FormState => ({
   gewensteLeveringTekst: '',
   waarborgsomBedrag: '',
   waarborgsomPct: '',
-  kostenType: '',
+  kostenType: 'kk',
   voorwaarden: '',
+  extraVoorwaarden: null,
+  origineleCommunicatie: '',
+  voorbehoudDetails: {},
   notities: '',
   interneNotities: '',
   bron: '',
@@ -96,16 +106,17 @@ export default function OfferFormDialog({
   counterTo, onSaved,
 }: Props) {
 
-  const { relaties, contactpersonen, objecten, deals, getObjectById } = useDataStore();
+  const { relaties, contactpersonen, objecten, deals, pipelineKandidaten, getObjectById } = useDataStore();
   const isEdit = !!bieding;
   const [form, setForm] = useState<FormState>(emptyForm);
   const [bezig, setBezig] = useState(false);
 
   // We need a hook scope to call create/update — gebruik object/deal/relatie van form/bieding
-  const scopeObjectId = bieding?.objectId ?? defaultObjectId ?? '';
-  const { create, update } = useBiedingen(scopeObjectId ? { objectId: scopeObjectId } : { all: true });
+  const scopeObjectId = form.objectId || bieding?.objectId || counterTo?.objectId || defaultObjectId || '';
+  const { create, update, items } = useBiedingen(scopeObjectId ? { objectId: scopeObjectId } : { all: true });
 
-  const objectPipelineId = bieding?.objectPipelineId ?? counterTo?.objectPipelineId ?? defaultObjectPipelineId ?? null;
+  const candidateMatches = matchingOfferCandidates(pipelineKandidaten, form.objectId, form.relatieId);
+  const objectPipelineId = isEdit ? bieding?.objectPipelineId ?? resolveOfferLink(candidateMatches) : resolveOfferLink(candidateMatches, counterTo?.objectPipelineId ?? defaultObjectPipelineId);
   const counterOfferToId = bieding?.counterOfferToId ?? counterTo?.id ?? null;
 
   useEffect(() => {
@@ -130,6 +141,9 @@ export default function OfferFormDialog({
         waarborgsomPct: bieding.waarborgsomPct != null ? String(bieding.waarborgsomPct) : '',
         kostenType: (bieding.kostenType as KostenType) || '',
         voorwaarden: bieding.voorwaarden ?? '',
+        extraVoorwaarden: bieding.extraVoorwaarden ?? null,
+        origineleCommunicatie: bieding.origineleCommunicatie ?? '',
+        voorbehoudDetails: bieding.voorbehoudDetails ?? {},
         notities: bieding.notities ?? '',
         interneNotities: bieding.interneNotities ?? '',
         bron: (bieding.bron as BiedingBron) || '',
@@ -140,6 +154,7 @@ export default function OfferFormDialog({
         objectId: defaultObjectId ?? '',
         relatieId: defaultRelatieId ?? '',
         dealId: defaultDealId ?? '',
+        bron: defaultObjectPipelineId ? 'kandidaat' : '',
         ...(counterTo
           ? {
               objectId: counterTo.objectId,
@@ -149,13 +164,21 @@ export default function OfferFormDialog({
               status: counterStatusForDirection(antwoordRichtingVoorBod(counterTo)),
               richting: antwoordRichtingVoorBod(counterTo),
               bedrag: '',
+              financieringsvoorbehoud: counterTo.financieringsvoorbehoud,
+              ddVoorbehoud: counterTo.ddVoorbehoud,
+              kostenType: counterTo.kostenType ?? '',
+              gewensteLeveringTekst: counterTo.gewensteLeveringTekst ?? '',
+              waarborgsomBedrag: counterTo.waarborgsomBedrag != null ? String(counterTo.waarborgsomBedrag) : '',
+              waarborgsomPct: counterTo.waarborgsomPct != null ? String(counterTo.waarborgsomPct) : '',
               voorwaarden: counterTo.voorwaarden ?? '',
+              extraVoorwaarden: counterTo.extraVoorwaarden ?? null,
+              voorbehoudDetails: counterTo.voorbehoudDetails ?? {},
               gewensteLevering: counterTo.gewensteLevering ?? '',
             }
           : {}),
       });
     }
-  }, [open, bieding?.id, counterTo?.id, defaultObjectId, defaultRelatieId, defaultDealId]);
+  }, [open, bieding?.id, counterTo?.id, defaultObjectId, defaultRelatieId, defaultDealId, defaultObjectPipelineId]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(f => ({ ...f, [k]: v }));
 
@@ -176,20 +199,46 @@ export default function OfferFormDialog({
       searchHaystack: norm([o.titel, o.adres, o.plaats, o.internReferentienummer].filter(Boolean).join(' ')),
     })), [objecten]);
 
-  const dealItems = useMemo<EntityPickerItem[]>(() => deals.filter(d => !d.isArchived).map(d => {
+  const matchingDeals = useMemo(() => matchingOfferDeals(deals, form.objectId, form.relatieId), [deals, form.objectId, form.relatieId]);
+  const resolvedDealId = isEdit ? bieding?.dealId ?? null : resolveOfferLink(matchingDeals, form.dealId || counterTo?.dealId);
+  const dealItems = useMemo<EntityPickerItem[]>(() => matchingDeals.map(d => {
     const obj = getObjectById(d.objectId);
     return {
       id: d.id,
       primair: obj?.titel || obj?.adres || 'Deal',
-      secundair: 'Concrete transactie',
+      secundair: `Transactiefase: ${d.fase}`,
       searchHaystack: norm([obj?.titel, obj?.adres, 'concrete transactie'].filter(Boolean).join(' ')),
     };
-  }), [deals, getObjectById]);
+  }), [matchingDeals, getObjectById]);
+
+  const selectedObject = getObjectById(form.objectId);
+  const ask = selectedObject?.vraagprijs;
+  const annualRent = selectedObject?.huurinkomsten;
+  const enteredBid = parseDutchNumber(form.bedrag);
+  const positive = (v: number | null | undefined) => v != null && Number.isFinite(v) && v > 0 ? v : null;
+  const bidPrice = positive(enteredBid);
+  const askingPrice = positive(ask);
+  const rent = positive(annualRent);
+  const euro = (v: number | null) => v == null ? '—' : new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+  const metric = (v: number | null, suffix: string) => v == null ? '—' : v.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + suffix;
+  const area = getBerekenM2Bron(selectedObject, selectedObject?.type);
+  const marketValue = positive(selectedObject?.marktwaardeIndicatie);
+  const recent = items.filter(b => b.objectId === form.objectId && b.relatieId === form.relatieId && b.id !== bieding?.id && !['concept','afgewezen','ingetrokken','verlopen'].includes(b.status));
+  const latestBuyer = recent.find(b => b.richting === 'van_koper' && b.bedrag != null);
+  const latestSeller = recent.find(b => ['van_verkoper','namens_verkoper'].includes(b.richting) && b.bedrag != null);
+  const comparisonRows = [
+    { label: 'Koopsom', ask: euro(askingPrice), bid: euro(bidPrice) },
+    { label: 'BAR', ask: metric(rent ? calculateBAR(rent, askingPrice) : null, '%'), bid: metric(rent ? calculateBAR(rent, bidPrice) : null, '%') },
+    { label: 'Factor', ask: metric(calculateFactor(askingPrice, rent), '×'), bid: metric(calculateFactor(bidPrice, rent), '×') },
+    ...(area.m2 ? [{label: `€/m² (${area.bron.toUpperCase()})`, ask:euro(calculatePricePerM2(askingPrice,area.m2)), bid:euro(calculatePricePerM2(bidPrice,area.m2))}] : []),
+  ];
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!form.objectId) { toast.error('Object is verplicht.'); return; }
     if (!form.relatieId) { toast.error('Relatie/kandidaat is verplicht.'); return; }
+    if (!isEdit && matchingDeals.length > 1 && !resolvedDealId) { toast.error('Meerdere actieve deals gevonden. Kies de juiste deal.'); return; }
+    if (!isEdit && candidateMatches.length > 1 && !objectPipelineId) { toast.error('Meerdere kopertrajecten gevonden. Controleer de koppelingen eerst.'); return; }
     const ingevoerdBedrag = parseDutchNumber(form.bedrag);
     if (!isEdit && (counterTo ? antwoordRichtingVoorBod(counterTo) : form.richting) === 'van_koper' && !form.bodKarakter) {
       toast.error('Geef aan of het kopersbod indicatief of formeel is.');
@@ -208,7 +257,7 @@ export default function OfferFormDialog({
       const payload: Partial<Bieding> = {
         objectId: counterTo?.objectId ?? form.objectId,
         relatieId: counterTo?.relatieId ?? form.relatieId,
-        dealId: (counterTo ? counterTo.dealId : form.dealId) || null,
+        dealId: resolvedDealId,
         objectPipelineId: objectPipelineId,
         counterOfferToId: counterOfferToId,
         bedrag: ingevoerdBedrag == null ? null : Math.round(ingevoerdBedrag),
@@ -228,6 +277,9 @@ export default function OfferFormDialog({
         waarborgsomPct: parseDutchNumber(form.waarborgsomPct),
         kostenType: form.kostenType || null,
         voorwaarden: form.voorwaarden || null,
+        extraVoorwaarden: form.extraVoorwaarden,
+        origineleCommunicatie: form.origineleCommunicatie || null,
+        voorbehoudDetails: Object.fromEntries(Object.entries(form.voorbehoudDetails).filter(([key])=>key === 'financiering' ? form.financieringsvoorbehoud !== 'geen' : form.ddVoorbehoud !== 'geen')),
         notities: form.notities || null,
         interneNotities: form.interneNotities || null,
         bron: form.bron || null,
@@ -257,7 +309,7 @@ export default function OfferFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Bieding bewerken' : counterTo
             ? antwoordRichtingVoorBod(counterTo) === 'van_koper'
@@ -271,35 +323,42 @@ export default function OfferFormDialog({
           )}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="min-h-0 flex flex-col">
+          <div className="min-h-0 overflow-y-auto space-y-3 px-1 pb-3">
           {/* 1 — Koppeling */}
           <SectionTitle>Koppeling</SectionTitle>
-          <div className="grid grid-cols-1 gap-3">
-            {counterTo ? (
-              <div className="rounded-lg border border-border/60 bg-muted/25 p-3 text-sm space-y-1">
-                <p><span className="text-muted-foreground">Object:</span> {objectItems.find(o => o.id === counterTo.objectId)?.primair ?? 'Bestaand object'}</p>
-                <p><span className="text-muted-foreground">Koper:</span> {relatieItems.find(r => r.id === counterTo.relatieId)?.primair ?? 'Bestaande kandidaat'}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {counterTo || isEdit ? (
+              <div className="sm:col-span-2 rounded-lg border border-border/60 bg-muted/25 p-3 text-sm space-y-1">
+                <p><span className="text-muted-foreground">Object:</span> {objectItems.find(o => o.id === form.objectId)?.primair ?? 'Bestaand object'}</p>
+                <p><span className="text-muted-foreground">Koper:</span> {relatieItems.find(r => r.id === form.relatieId)?.primair ?? 'Bestaande kandidaat'}</p>
                 <p className="text-xs text-muted-foreground">Deze koppeling ligt vast om het onderhandelingsverloop intact te houden.</p>
               </div>
             ) : (
               <>
                 <EntityPicker
                   label="Object" pickerTitle="Kies object"
-                  value={form.objectId} onChange={v => set('objectId', v)}
+                  value={form.objectId} onChange={v => setForm(old => ({...old, objectId:v, dealId:''}))}
                   items={objectItems}
                 />
                 <EntityPicker
                   label="Kandidaat / kopertraject" pickerTitle="Kies kandidaat"
-                  value={form.relatieId} onChange={v => set('relatieId', v)}
+                  value={form.relatieId} onChange={v => setForm(old => ({...old, relatieId:v, dealId:''}))}
                   items={relatieItems}
                 />
-                <EntityPicker
-                  label="Deal (optioneel)" pickerTitle="Kies deal"
-                  value={form.dealId} onChange={v => set('dealId', v)}
-                  items={dealItems}
-                  emptyLabel="Geen gekoppelde deal"
-                />
+
               </>
+            )}
+            {!isEdit && matchingDeals.length > 1 && (
+              <EntityPicker label="Kies bestaande deal" pickerTitle="Kies deal"
+                value={resolvedDealId ?? ''} onChange={v => set('dealId', v)}
+                items={dealItems} emptyLabel="Selecteer de juiste transactie" />
+            )}
+            {form.objectId && form.relatieId && (
+              <div className="sm:col-span-2 text-xs text-muted-foreground space-y-1">
+                <p>{objectPipelineId ? 'Kopertraject gekoppeld.' : 'Een concreet bod wordt verwerkt in het kopertraject.'}</p>
+                <p>{resolvedDealId ? 'Bestaande deal gekoppeld.' : matchingDeals.length > 1 && !isEdit ? 'Meerdere deals gevonden; kies de juiste.' : 'Een deal ontstaat bij acceptatie van een kopersbod.'}</p>
+              </div>
             )}
           </div>
 
@@ -309,7 +368,8 @@ export default function OfferFormDialog({
             <div className="space-y-1.5">
               <Label htmlFor="bedrag">Biedbedrag (€)</Label>
               <Input id="bedrag" inputMode="decimal" placeholder="1.000.000"
-                value={form.bedrag} onChange={e => set('bedrag', e.target.value)} />
+                value={form.bedrag} onChange={e => set('bedrag', e.target.value)}
+                onBlur={() => { const n = parseDutchNumber(form.bedrag); if (n != null && Number.isFinite(n)) set('bedrag', n.toLocaleString('nl-NL', { maximumFractionDigits: 2 })); }} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bieddatum">Bieddatum</Label>
@@ -397,6 +457,25 @@ export default function OfferFormDialog({
             </div>
           </div>
 
+          {selectedObject && (
+            <section className="rounded-lg border bg-muted/20 p-3 space-y-2" aria-label="Biedingsanalyse">
+              <div className="flex flex-wrap items-baseline justify-between gap-1">
+                <h3 className="text-sm font-semibold">Biedingsanalyse</h3>
+                <span className="text-xs text-muted-foreground">Jaarhuur object: {euro(rent)}</span>
+              </div>
+              <table className="w-full text-sm tabular-nums">
+                <thead className="text-xs text-muted-foreground"><tr><th scope="col" className="text-left font-normal">Kengetal</th><th scope="col" className="text-right font-normal">Vraagprijs</th><th scope="col" className="text-right font-normal">Bieding</th></tr></thead>
+                <tbody>{comparisonRows.map(row => <tr key={row.label} className="border-t"><th scope="row" className="text-left font-normal py-1.5">{row.label}</th><td className="text-right">{row.ask}</td><td className="text-right font-medium">{row.bid}</td></tr>)}</tbody>
+              </table>
+              {askingPrice && bidPrice ? <p className="text-xs text-muted-foreground">Verschil vraagprijs: {euro(bidPrice - askingPrice)} ({metric((bidPrice / askingPrice - 1) * 100, '%')})</p> : null}
+              {marketValue && <p className="text-xs">Interne marktwaarde: {euro(marketValue)}{bidPrice ? ' · Bod: ' + metric(bidPrice / marketValue * 100,'%') + ' van marktwaarde' : ''}</p>}
+              {(latestBuyer || latestSeller) && <p className="text-xs">Laatste kopersbod: {euro(latestBuyer?.bedrag ?? null)} · Laatste verkopersvoorstel: {euro(latestSeller?.bedrag ?? null)}</p>}
+              {latestBuyer?.bedrag != null && latestSeller?.bedrag != null && <p className="text-xs">Verschil laatste voorstellen: {euro(latestSeller.bedrag-latestBuyer.bedrag)}</p>}
+              <OfferFeeEstimate key={form.objectId} objectId={form.objectId} bidPrice={bidPrice} dealPct={matchingDeals.find(d=>d.id===resolvedDealId)?.commissiePct} />
+              <p className="text-[11px] text-muted-foreground">{rent ? 'BAR en factor op basis van bruto jaarhuur en koopsom, exclusief bijkomende aankoopkosten.' : 'Geen positieve jaarhuur vastgelegd; BAR en factor zijn niet berekenbaar.'}</p>
+            </section>
+          )}
+
           {/* 3 — Voorwaarden */}
           <SectionTitle>Voorwaarden</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -422,6 +501,14 @@ export default function OfferFormDialog({
                 </SelectContent>
               </Select>
             </div>
+            {(['financiering','dd'] as const).filter(key => (key === 'financiering' ? form.financieringsvoorbehoud : form.ddVoorbehoud) === 'ja').map(key => {
+              const value = form.voorbehoudDetails[key] ?? {toelichting:'',deadline:null};
+              const patch = (next: Partial<typeof value>)=>setForm(old=>({...old,voorbehoudDetails:{...old.voorbehoudDetails,[key]:{...value,...next}}}));
+              return <div key={key} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-2">
+                <div><Label>{key==='financiering'?'Financiering':'DD'} · toelichting</Label><Input value={value.toelichting} onChange={e=>patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
+                <div><Label>Uiterste datum</Label><Input type="date" value={value.deadline??''} onChange={e=>patch({deadline:e.target.value||null})} /></div>
+              </div>;
+            })}
             <div className="space-y-1.5">
               <Label htmlFor="gewensteLevering">Gewenste levering (datum)</Label>
               <Input id="gewensteLevering" type="date"
@@ -456,8 +543,31 @@ export default function OfferFormDialog({
                   value={form.waarborgsomPct} onChange={e => set('waarborgsomPct', e.target.value)} />
               </div>
             </div>
+            <div className="sm:col-span-2 space-y-2 rounded-lg border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Overige gestructureerde voorwaarden</Label>
+                <Select value={form.extraVoorwaarden == null ? 'onbekend' : form.extraVoorwaarden.length ? 'aanwezig' : 'geen'}
+                  onValueChange={v => set('extraVoorwaarden', v === 'onbekend' ? null : v === 'geen' ? [] : [{type: 'bezichtiging', karakter: 'onbekend', toelichting: '', deadline: null}])}>
+                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="onbekend">Onbekend</SelectItem><SelectItem value="geen">Geen</SelectItem><SelectItem value="aanwezig">Aanwezig</SelectItem></SelectContent>
+                </Select>
+              </div>
+              {(form.extraVoorwaarden ?? []).map((condition, index) => {
+                const patch = (value: Partial<ExtraVoorwaarde>) => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).map((item, i) => i === index ? {...item, ...value} : item)}));
+                return <div key={index} className="rounded-md border bg-background p-2 space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div><Label>Type voorwaarde</Label><Select value={condition.type} onValueChange={v => patch({type: v as ExtraVoorwaardeType})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(EXTRA_VOORWAARDEN_LABELS).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+                    <div><Label>Karakter</Label><Select value={condition.karakter} onValueChange={v => patch({karakter: v as ExtraVoorwaarde['karakter']})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="onbekend">Niet vastgesteld</SelectItem><SelectItem value="voorbehoud">Voorbehoud</SelectItem><SelectItem value="transactiebepaling">Transactiebepaling</SelectItem></SelectContent></Select></div>
+                    <div><Label>Toelichting</Label><Input value={condition.toelichting} onChange={e => patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
+                    <div><Label>Uiterste datum</Label><Input type="date" value={condition.deadline ?? ''} onChange={e => patch({deadline:e.target.value || null})} /></div>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).filter((_,i) => i !== index)}))}>Voorwaarde verwijderen</Button>
+                </div>;
+              })}
+              <Button type="button" variant="outline" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: [...(old.extraVoorwaarden ?? []), {type:'overig', karakter:'onbekend', toelichting:'', deadline:null}]}))}>+ Voorwaarde toevoegen</Button>
+            </div>
             <div className="sm:col-span-2 space-y-1.5">
-              <Label htmlFor="voorwaarden">Extra voorwaarden</Label>
+              <Label htmlFor="voorwaarden">Aanvullende vrije tekst</Label>
               <Textarea id="voorwaarden" rows={2}
                 value={form.voorwaarden} onChange={e => set('voorwaarden', e.target.value)} />
             </div>
@@ -466,6 +576,10 @@ export default function OfferFormDialog({
           {/* 4 — Notities */}
           <SectionTitle>Notities</SectionTitle>
           <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="origineleCommunicatie">Originele biedingscommunicatie</Label>
+              <Textarea id="origineleCommunicatie" rows={2} placeholder="Plak het oorspronkelijke bericht of de e-mail" value={form.origineleCommunicatie} onChange={e=>set('origineleCommunicatie',e.target.value)} />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="notities">Notities</Label>
               <Textarea id="notities" rows={2}
@@ -478,7 +592,8 @@ export default function OfferFormDialog({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          </div>
+          <div className="flex shrink-0 justify-end gap-2 border-t pt-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
             <Button type="submit" disabled={bezig}>{bezig ? 'Opslaan…' : isEdit ? 'Bijwerken' : 'Toevoegen'}</Button>
           </div>
@@ -486,4 +601,12 @@ export default function OfferFormDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function OfferFeeEstimate({objectId,bidPrice,dealPct}: {objectId:string;bidPrice:number|null;dealPct?:number}) {
+  const {forecast,loading} = useObjectFeeForecast(objectId);
+  const pct = dealPct ?? forecast.percentage;
+  if (loading || bidPrice == null || pct == null || !Number.isFinite(pct) || pct < 0) return null;
+  const amount = bidPrice * pct / 100;
+  return <p className="text-xs">Indicatieve courtage ({pct.toLocaleString('nl-NL')}%): {amount.toLocaleString('nl-NL',{style:'currency',currency:'EUR',maximumFractionDigits:0})} excl. btw · {dealPct != null ? 'dealpercentage' : 'objectprognose'}</p>;
 }

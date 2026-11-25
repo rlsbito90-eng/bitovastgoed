@@ -48,6 +48,34 @@ export type BiedingBron =
   | 'kandidaat' | 'makelaar' | 'koper'
   | 'schriftelijk' | 'telefonisch' | 'email' | 'whatsapp' | 'anders';
 
+export const EXTRA_VOORWAARDEN_LABELS = {
+  bezichtiging: 'Positieve bezichtiging',
+  bouwkundige_keuring: 'Bouwkundige keuring',
+  technisch_onderzoek: 'Technisch onderzoek',
+  bodemonderzoek: 'Bodemonderzoek',
+  juridisch_onderzoek: 'Juridisch onderzoek',
+  fiscaal_onderzoek: 'Fiscaal onderzoek',
+  taxatie: 'Taxatie',
+  vergunning: 'Vergunning',
+  bestemmingswijziging: 'Bestemmingswijziging',
+  lege_oplevering: 'Leeg en vrij van huur',
+  behoud_huur: 'Behoud huursituatie',
+  interne_goedkeuring: 'Interne goedkeuring',
+  verkoop_ander_vastgoed: 'Verkoop ander vastgoed',
+  overig: 'Overige voorwaarde',
+} as const;
+
+export type ExtraVoorwaardeType = keyof typeof EXTRA_VOORWAARDEN_LABELS;
+export interface ExtraVoorwaarde {
+  type: ExtraVoorwaardeType;
+  karakter: 'onbekend' | 'voorbehoud' | 'transactiebepaling';
+  toelichting: string;
+  deadline: string | null;
+}
+export type VoorbehoudDetails = Partial<Record<'financiering' | 'dd', {toelichting: string; deadline: string | null}>>;
+export type VoorwaardeAfhandeling = 'open' | 'vervuld' | 'vervallen' | 'niet_voldaan';
+export type VoorwaardeAfhandelingMap = Record<string, VoorwaardeAfhandeling>;
+
 export interface Bieding {
   id: string;
   objectId: string;
@@ -71,6 +99,10 @@ export interface Bieding {
   waarborgsomPct?: number | null;
   kostenType?: KostenType | null;
   voorwaarden?: string | null;
+  extraVoorwaarden?: ExtraVoorwaarde[] | null;
+  origineleCommunicatie?: string | null;
+  voorbehoudDetails?: VoorbehoudDetails | null;
+  afhandelingVoorwaarden?: VoorwaardeAfhandelingMap | null;
   notities?: string | null;
   interneNotities?: string | null;
   bron?: BiedingBron | null;
