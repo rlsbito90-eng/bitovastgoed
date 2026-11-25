@@ -23,6 +23,7 @@ type Concept = Extract<ReturnType<typeof maakKandidaatConcept>, { ok: true }>['c
 export interface KandidaatVoorstellenProps {
   object: CrmObjectInput & Pick<ObjectVastgoed,'brutoAanvangsrendement'|'nettoAanvangsrendement'|'huurinkomsten'>;
   laadRendementscriteria?: boolean;
+  focusRelatieId?: string | null;
   relaties: readonly CrmRelatieInput[];
   zoekprofielen: readonly CrmMandaatInput[];
   reedsGekoppeld: ReadonlySet<string>;
@@ -38,7 +39,7 @@ export interface KandidaatVoorstellenProps {
   onHerstel:(relatieId:string)=>Promise<void>;
 }
 export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
-  const [filter,setFilter]=useState<'relevant'|'kansrijk'|'controleren'|'overig'>('relevant');
+  const [filter,setFilter]=useState<'relevant'|'shortlist'|'kansrijk'|'controleren'|'overig'|'terug'>(props.focusRelatieId?'terug':'relevant');
   const [zoek,setZoek]=useState('');
   const [limiet,setLimiet]=useState(8);
   const [toonAfgewezen,setToonAfgewezen]=useState(false);
@@ -83,13 +84,16 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
   const aantalOverig=beoordeeld.filter(p=>p.prioriteit==='niet_aanbevolen' &&
     props.besluiten[p.relatieId]?.status!=='interessant').length;
   const relevantAantal=beoordeeld.length-aantalOverig;
+  const shortlistAantal=beoordeeld.filter(p=>props.besluiten[p.relatieId]?.status==='interessant').length;
   const zoekterm=zoek.trim().toLocaleLowerCase('nl-NL');
   const gefilterd=beoordeeld.filter(p=>{
     const interessant=props.besluiten[p.relatieId]?.status==='interessant';
-    const inFilter=filter==='relevant'?(p.prioriteit!=='niet_aanbevolen'||interessant)
+    const inFilter=filter==='terug'?p.relatieId===props.focusRelatieId
+      :filter==='shortlist'?interessant
+      :filter==='relevant'?(p.prioriteit!=='niet_aanbevolen'||interessant)
       :filter==='kansrijk'?p.prioriteit==='kansrijk'
       :filter==='controleren'?p.prioriteit==='controleren'
-      :p.prioriteit==='niet_aanbevolen';
+      :p.prioriteit==='niet_aanbevolen'&&!interessant;
     return inFilter && (!zoekterm ||
       props.relatieNaam(p.relatieId).toLocaleLowerCase('nl-NL').includes(zoekterm) ||
       p.alleRoutes.some(r=>r.naam.toLocaleLowerCase('nl-NL').includes(zoekterm)));
@@ -109,7 +113,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       setFout('Deze partij is al afgewezen. Herstel eerst de beoordeling.');
       return;
     }
-    const handoff=maakKandidaatConcept(props.object,p,route.key);
+    const handoff=maakKandidaatConcept(props.object,p,route.key,{handmatigeAfwijking:route.kwalificatie==='afwijkend'});
     if(!handoff.ok){setFout(handoff.reden);return;}
     setFout(null);
     props.onConceptGekozen(handoff.concept);
@@ -160,6 +164,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="group" aria-label="Filter kandidaten">
         {([
           {value:'relevant',label:'Relevant',count:relevantAantal},
+          {value:'shortlist',label:'Shortlist',count:shortlistAantal},
           {value:'kansrijk',label:'Kansrijk',count:aantalKansrijk},
           {value:'controleren',label:'Controle nodig',count:aantalControleren},
           {value:'overig',label:'Overig',count:aantalOverig},
@@ -180,6 +185,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           className="h-10 w-full min-w-0 rounded-lg border border-input bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50" />
       </label>
     </div>
+    {filter==='terug'&&<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-xs"><span>Kopersprofiel opnieuw beoordeeld op basis van de actuele gegevens.</span><button type="button" className="text-accent font-medium" onClick={()=>kiesFilter('relevant')}>Alle relevante voorstellen</button></div>}
     {fout&&<p className="text-xs text-destructive" role="alert">{fout}</p>}
     {gefilterd.length===0&&<p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
       Geen voorstellen in deze selectie. Pas het filter aan of gebruik ‘Alle relaties’ voor een handmatige koppeling.
@@ -213,19 +219,20 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
         <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
           <button type="button"
             aria-pressed={geselecteerd}
-            disabled={!props.onConceptGekozen||!!bezig||isAfwijkend}
+            disabled={!props.onConceptGekozen||!!bezig}
             onClick={()=>kiesKandidaat(p,route)}
             className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40 ${geselecteerd
               ?'border-accent bg-accent/15 text-foreground'
               :'border-accent/70 bg-accent/10 text-foreground hover:bg-accent/20'}`}>
             {geselecteerd?<Check className="h-4 w-4" aria-hidden />:<UserPlus className="h-4 w-4" aria-hidden />}
-            {geselecteerd?'Geselecteerd':'Selecteer kandidaat'}
+            {geselecteerd?'Geselecteerd':isAfwijkend?'Handmatig selecteren':'Selecteer kandidaat'}
           </button>
           {besluit?.status!=='interessant'&&<button type="button" disabled={!!bezig}
             onClick={()=>void beoordeel(p.relatieId,'interessant')}
             className="min-h-9 rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-40">
             Interessant
           </button>}
+          {besluit?.status==='interessant'&&<button type="button" disabled={!!bezig} onClick={()=>void herstel(p.relatieId)} className="min-h-9 rounded-lg px-2.5 py-2 text-xs text-muted-foreground hover:bg-muted">Uit shortlist</button>}
           {props.onOpenRelatie&&<button type="button"
             onClick={()=>props.onOpenRelatie?.(p.relatieId)}
             className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 py-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -237,6 +244,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
             Niet passend
           </button>
         </div>
+        {isAfwijkend&&<p className="text-xs text-muted-foreground">Afwijkende criteria blijven zichtbaar; je kunt deze partij bewust handmatig selecteren of het kopersprofiel aanpassen.</p>}
         {redenVoor===p.relatieId&&<div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/20 p-3">
           <label className="min-w-0 flex-1 space-y-1 text-xs text-muted-foreground">
             <span>Reden van afwijzing</span>
@@ -261,10 +269,10 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
             {p.alleRoutes.filter(x=>x.key!==route.key).map(other=><div key={other.key}
               className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2">
               <span className="min-w-0 break-words">{other.naam} · {VOORSTEL_LABELS[p.financieleRoutes.find(x=>x.route.key===other.key)?.prioriteit??'niet_aanbevolen']}</span>
-              <button type="button" disabled={!props.onConceptGekozen||other.kwalificatie==='afwijkend'}
+              <button type="button" disabled={!props.onConceptGekozen||!!bezig}
                 onClick={()=>kiesKandidaat(p,other)}
                 className="min-h-8 rounded border border-border bg-background px-2.5 py-1.5 text-xs disabled:opacity-40">
-                Selecteer route
+                {other.kwalificatie==='afwijkend'?'Handmatig selecteren':'Selecteer route'}
               </button>
             </div>)}
           </div>
