@@ -9,6 +9,8 @@
 import { isGemeenteToken, alsGemeenteToken, gemeenteUitToken, normaliseerGemeenteNaam } from '../geo/gemeenten2026';
 import { afstandHemelsbreedKm } from '../geo/afstandHemelsbreed';
 import { isObjectAanbiederRelatie } from './objectAanbiederUitsluiting';
+import { beoordeelRisicovoorkeuren, type ObjectRisicoInput } from './risicoOordeel';
+import type { Risicovoorkeur } from '../relaties/risicovoorkeuren';
 
 import type { CommercieleRol, Partijprofiel } from '../../data/mock-data';
 /** A15 proposal may be simulated; the existing policy remains the default. */
@@ -21,6 +23,7 @@ export type ObjectAvailability = 'aanbiedbaar' | 'niet_aanbiedbaar';
 
 export interface CrmRelatieInput {
   id: string;
+  risicovoorkeuren?: readonly Risicovoorkeur[];
   type?: string;
   softDeletedAt?: string | null;
   commercialRoles?: readonly CommercieleRol[] | null; // Future nullable field; null = legacy unknown, [] = explicitly none
@@ -75,7 +78,7 @@ export interface CrmMandaatInput {
   principalRelatieId?: string | null; // Future field: do NOT assume seller/buyer identity from contact.
   principalVerified?: boolean | null; // Future field
 }
-export interface CrmObjectInput {
+export interface CrmObjectInput extends ObjectRisicoInput {
   id: string;
   status: string;
   softDeletedAt?: string | null;
@@ -346,6 +349,11 @@ function beoordelen(o: CrmObjectInput,r: CrmRelatieInput, relaties:readonly CrmR
   if(!p&&(r.gewensteSituatie?.length||r.strategieToelichting?.trim())){
     controleer.push('Gewenste object-/huursituatie en investeringsstrategie verifiëren');
     controleNodig=true;
+  }
+  const risicoControles = beoordeelRisicovoorkeuren(o,r.id,r.risicovoorkeuren ?? []);
+  if (risicoControles.length) {
+    controleer.unshift(...risicoControles);
+    controleNodig = true;
   }
   const voorwaarden: MatchVoorwaarde[] = [];
   const voegVoorwaardeToe = (soort: MatchVoorwaarde['soort'], tekst?: string | null) => {
