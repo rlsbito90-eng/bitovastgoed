@@ -53,6 +53,14 @@ export function MatchOnderbouwing({ route, rendement }: {
               <span className="min-w-0 break-words">{rendement?.uitleg}</span>
             </p>
           : null}
+      {rendement && rendement.status!=='niet_van_toepassing' && (eersteControle || !rendementAandacht) && (
+        <p className="flex items-start gap-2 text-muted-foreground">
+          {rendementAandacht
+            ? <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            : <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />}
+          <span className="min-w-0 break-words line-clamp-3">{rendement.uitleg}</span>
+        </p>
+      )}
     </div>
     <details className="group rounded-md border border-border/70 bg-muted/20 text-xs">
       <summary className="cursor-pointer list-none px-3 py-2 font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
