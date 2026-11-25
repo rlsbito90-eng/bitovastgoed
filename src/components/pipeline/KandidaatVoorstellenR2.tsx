@@ -3,7 +3,8 @@
  * "Interessant" is een selectie, geen aanbieding en geen pipelinekandidaat.
  * Alleen de expliciete actie "Kandidaat toevoegen" start het dealtraject.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { herstelKandidaatVolgorde, type KandidaatTerugkeer, type KandidaatFilter } from '@/lib/matching/kandidaatSelectieTerugkeer';
 import { Check, Search, UserPlus, ArrowUpRight } from 'lucide-react';
 import { MatchOnderbouwing } from '@/components/matching/MatchOnderbouwing';
 import type { ObjectBesluiten } from '@/hooks/useObjectMatchBesluiten';
@@ -24,13 +25,14 @@ export interface KandidaatVoorstellenProps {
   object: CrmObjectInput & Pick<ObjectVastgoed,'brutoAanvangsrendement'|'nettoAanvangsrendement'|'huurinkomsten'>;
   laadRendementscriteria?: boolean;
   focusRelatieId?: string | null;
+  terugkeer?: KandidaatTerugkeer | null;
   relaties: readonly CrmRelatieInput[];
   zoekprofielen: readonly CrmMandaatInput[];
   reedsGekoppeld: ReadonlySet<string>;
   relatieNaam: (relatieId: string) => string;
   /** Selectie is een concept; pas het bovenliggende dialoog kan koppelen. */
   onConceptGekozen?: (concept: Concept) => void;
-  onOpenRelatie?: (relatieId: string) => void;
+  onOpenRelatie?: (relatieId: string, terugkeer: KandidaatTerugkeer) => void;
   geselecteerdeRelatieId?: string | null;
   besluiten:ObjectBesluiten;
   besluitenGeladen:boolean;
@@ -39,9 +41,12 @@ export interface KandidaatVoorstellenProps {
   onHerstel:(relatieId:string)=>Promise<void>;
 }
 export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
-  const [filter,setFilter]=useState<'relevant'|'shortlist'|'kansrijk'|'controleren'|'overig'|'terug'>(props.focusRelatieId?'terug':'relevant');
-  const [zoek,setZoek]=useState('');
-  const [limiet,setLimiet]=useState(8);
+  const [terug,setTerug]=useState(props.terugkeer??null);
+  const [filter,setFilter]=useState<KandidaatFilter>(terug?.filter??(props.focusRelatieId?'terug':'relevant'));
+  const [zoek,setZoek]=useState(terug?.zoek??'');
+  const [limiet,setLimiet]=useState(terug?.limiet??8);
+  const lijstRef=useRef<HTMLElement|null>(null);
+  const scrollHersteld=useRef(false);
   const [toonAfgewezen,setToonAfgewezen]=useState(false);
   const [redenVoor,setRedenVoor]=useState<string|null>(null);
   const [redenen,setRedenen]=useState<Record<string,string>>({});
@@ -86,7 +91,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
   const relevantAantal=beoordeeld.length-aantalOverig;
   const shortlistAantal=beoordeeld.filter(p=>props.besluiten[p.relatieId]?.status==='interessant').length;
   const zoekterm=zoek.trim().toLocaleLowerCase('nl-NL');
-  const gefilterd=beoordeeld.filter(p=>{
+  const normaalGefilterd=beoordeeld.filter(p=>{
     const interessant=props.besluiten[p.relatieId]?.status==='interessant';
     const inFilter=filter==='terug'?p.relatieId===props.focusRelatieId
       :filter==='shortlist'?interessant
@@ -98,8 +103,12 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       props.relatieNaam(p.relatieId).toLocaleLowerCase('nl-NL').includes(zoekterm) ||
       p.alleRoutes.some(r=>r.naam.toLocaleLowerCase('nl-NL').includes(zoekterm)));
   });
-  const voorgesteld=gefilterd.slice(0,limiet);
+  const gefilterd=herstelKandidaatVolgorde(normaalGefilterd,beoordeeld,terug);
+  const focusIndex=terug?gefilterd.findIndex(p=>p.relatieId===terug.relatieId):-1;
+  const zichtbareLimiet=Math.max(limiet,focusIndex+1);
+  const voorgesteld=gefilterd.slice(0,zichtbareLimiet);
   function kiesFilter(nieuw:typeof filter) {
+    setTerug(null);
     setFilter(nieuw);
     setLimiet(8);
   }
@@ -140,6 +149,45 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
     } finally {setBezig(null);}
   }
 
+  function openProfiel(relatieId:string,button:HTMLElement){
+    const region=button.closest<HTMLElement>('[data-testid="kandidaat-voorstellen-scroll"]');
+    const kaart=button.closest<HTMLElement>('[data-relatie-id]');
+    const openDetails:Record<string,number[]>={};
+    for(const card of lijstRef.current?.querySelectorAll<HTMLElement>('[data-relatie-id]')??[]){
+      const id=card.dataset.relatieId;
+      if(id)openDetails[id]=Array.from(card.querySelectorAll('details')).flatMap((d,i)=>d.open?[i]:[]);
+    }
+    props.onOpenRelatie?.(relatieId,{
+      objectId:props.object.id,relatieId,filter,zoek,limiet:zichtbareLimiet,
+      volgorde:gefilterd.map(p=>p.relatieId),scrollTop:region?.scrollTop??0,
+      kaartOffset:region&&kaart?kaart.getBoundingClientRect().top-region.getBoundingClientRect().top:null,
+      openDetails,
+    });
+  }
+  const klaar=props.besluitenGeladen && (!props.laadRendementscriteria || (!financieel.loading&&!financieel.fout));
+  useEffect(()=>{
+    if(!terug || !klaar || scrollHersteld.current || !lijstRef.current)return;
+    const lijst=lijstRef.current;
+    const region=lijst.closest<HTMLElement>('[data-testid="kandidaat-voorstellen-scroll"]');
+    if(!region)return;
+    const kaarten=Array.from(lijst.querySelectorAll<HTMLElement>('[data-relatie-id]'));
+    for(const card of kaarten){
+      const indices=terug.openDetails[card.dataset.relatieId??'']??[];
+      card.querySelectorAll('details').forEach((d,i)=>{d.open=indices.includes(i);});
+    }
+    let tweede=0;
+    const eerste=requestAnimationFrame(()=>{
+      tweede=requestAnimationFrame(()=>{
+        const kaart=kaarten.find(c=>c.dataset.relatieId===terug.relatieId);
+        if(kaart && terug.kaartOffset!==null){
+          region.scrollTop+=kaart.getBoundingClientRect().top-region.getBoundingClientRect().top-terug.kaartOffset;
+        }else region.scrollTop=terug.scrollTop;
+        scrollHersteld.current=true;
+      });
+    });
+    return ()=>{cancelAnimationFrame(eerste);cancelAnimationFrame(tweede);};
+  },[terug,klaar,zichtbareLimiet]);
+
   if(!isAanbiedbaar(props.object))return (
     <p className="text-sm text-muted-foreground">Dit object is niet beschikbaar voor nieuwe kandidaatsuggesties. De bestaande kandidaathistorie blijft behouden.</p>
   );
@@ -150,7 +198,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
   );
 
   if(props.laadRendementscriteria && (financieel.loading||financieel.fout))return <p className={financieel.fout?'text-sm text-destructive':'text-sm text-muted-foreground'} role={financieel.fout?'alert':'status'}>{financieel.fout??'Rendementscriteria laden…'}</p>;
-  return <section className="min-w-0 space-y-4" aria-label="Kandidaatvoorstellen">
+  return <section ref={lijstRef} className="min-w-0 space-y-4" aria-label="Kandidaatvoorstellen">
     <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
@@ -180,12 +228,13 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       <label className="relative block min-w-0">
         <span className="sr-only">Zoek koper of zoekprofiel</span>
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <input value={zoek} onChange={e=>{setZoek(e.target.value);setLimiet(8);}}
+        <input value={zoek} onChange={e=>{setTerug(null);setZoek(e.target.value);setLimiet(8);}}
           placeholder="Zoek koper of zoekprofiel"
           className="h-10 w-full min-w-0 rounded-lg border border-input bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50" />
       </label>
     </div>
-    {filter==='terug'&&<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-xs"><span>Kopersprofiel opnieuw beoordeeld op basis van de actuele gegevens.</span><button type="button" className="text-accent font-medium" onClick={()=>kiesFilter('relevant')}>Alle relevante voorstellen</button></div>}
+    {terug&&<p className="text-xs text-muted-foreground">Je vorige filter en lijstpositie zijn hersteld. De matchbeoordeling is bijgewerkt; nieuwe voorstellen staan na de eerdere lijst.</p>}
+    {filter==='terug'&&!terug&&<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-xs"><span>Kopersprofiel opnieuw beoordeeld op basis van de actuele gegevens.</span><button type="button" className="text-accent font-medium" onClick={()=>kiesFilter('relevant')}>Alle relevante voorstellen</button></div>}
     {fout&&<p className="text-xs text-destructive" role="alert">{fout}</p>}
     {gefilterd.length===0&&<p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
       Geen voorstellen in deze selectie. Pas het filter aan of gebruik ‘Alle relaties’ voor een handmatige koppeling.
@@ -196,7 +245,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
       const geselecteerd=props.geselecteerdeRelatieId===p.relatieId;
       const isAfwijkend=route.kwalificatie==='afwijkend';
       return <article key={p.relatieId}
-        data-testid="match-kandidaat-kaart"
+        data-testid="match-kandidaat-kaart" data-relatie-id={p.relatieId}
         className={`min-w-0 rounded-xl border bg-card p-3 sm:p-4 space-y-3 ${geselecteerd?'border-accent ring-1 ring-accent/40':'border-border'}`}>
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -216,6 +265,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           </span>
           {besluit?.status==='interessant'&&<span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">{VOORSTEL_LABELS[p.prioriteit]}</span>}
         </div>
+        {terug?.relatieId===p.relatieId&&!normaalGefilterd.some(x=>x.relatieId===p.relatieId)&&<p className="text-xs text-muted-foreground">Na de profielwijziging valt deze relatie buiten het actieve filter; tijdelijk zichtbaar op je vorige plek.</p>}
         <MatchOnderbouwing route={route} rendement={p.rendement} />
         <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
           <button type="button"
@@ -235,7 +285,7 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
           </button>}
           {besluit?.status==='interessant'&&<button type="button" disabled={!!bezig} onClick={()=>void herstel(p.relatieId)} className="min-h-9 rounded-lg px-2.5 py-2 text-xs text-muted-foreground hover:bg-muted">Uit shortlist</button>}
           {props.onOpenRelatie&&<button type="button"
-            onClick={()=>props.onOpenRelatie?.(p.relatieId)}
+            onClick={e=>openProfiel(p.relatieId,e.currentTarget)}
             className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2.5 py-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
             Kopersprofiel <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
           </button>}
@@ -280,10 +330,10 @@ export function KandidaatVoorstellenR2(props: KandidaatVoorstellenProps) {
         </details>}
       </article>;
     })}
-    {gefilterd.length>limiet&&<button type="button"
-      onClick={()=>setLimiet(n=>n+8)}
+    {gefilterd.length>zichtbareLimiet&&<button type="button"
+      onClick={()=>setLimiet(zichtbareLimiet+8)}
       className="w-full min-h-11 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
-      Toon volgende {Math.min(8,gefilterd.length-limiet)} van {gefilterd.length} voorstellen
+      Toon volgende {Math.min(8,gefilterd.length-zichtbareLimiet)} van {gefilterd.length} voorstellen
     </button>}
     {afgewezen.length>0&&<div className="border-t border-border pt-3">
       <button type="button" aria-expanded={toonAfgewezen} onClick={()=>setToonAfgewezen(x=>!x)}
