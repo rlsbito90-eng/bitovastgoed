@@ -37,6 +37,7 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   objectId: string;
+  focusRelatieId?: string | null;
   /** relatieIds die al gekoppeld zijn (worden uitgesloten) */
   reedsGekoppeld: Set<string>;
   /** Wordt aangeroepen na succesvol toevoegen */
@@ -82,7 +83,7 @@ const fmtBudgetRange = (min?: number, max?: number): string => {
 };
 const fmtDatum = (d?: string) => d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
 
-export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd }: Props) {
+export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, reedsGekoppeld, onToegevoegd, focusRelatieId }: Props) {
   const navigate = useNavigate();
   const {
     relaties, contactpersonen, getObjectById,
@@ -380,15 +381,15 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       toast.error('Risicovoorkeuren zijn nog niet beschikbaar.');
       return;
     }
-    const actueel=maakKandidaatVoorstellen(object,matchingRelaties,zoekprofielen,{reedsGekoppeld});
+    const actueel=maakKandidaatVoorstellen(object,matchingRelaties,zoekprofielen,{reedsGekoppeld,toonAfwijkende: r2Concept.handmatigeAfwijking});
     const partij=actueel.find(x=>x.relatieId===relatieId);
-    const route=partij?.alleRoutes.find(x=>x.zoekprofielId===r2Concept.gekozenMandaatId && x.kwalificatie!=='afwijkend');
+    const route=partij?.alleRoutes.find(x=>x.zoekprofielId===r2Concept.gekozenMandaatId && (x.kwalificatie!=='afwijkend'||r2Concept.handmatigeAfwijking));
     if(!route || !partij) {
       toast.error('Deze suggestie is gewijzigd. Selecteer de partij opnieuw.');
       setR2Concept(null);
       return;
     }
-    const handoff=maakKandidaatConcept(object,partij,route.key);
+    const handoff=maakKandidaatConcept(object,partij,route.key,{handmatigeAfwijking:r2Concept.handmatigeAfwijking});
     if(!handoff.ok) {
       toast.error('Deze suggestie kan niet meer worden toegevoegd.');
       return;
@@ -473,7 +474,8 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
                 return r ? getRelatieDropdownLabel(r, contactpersonen) : 'Onbekende relatie';
               }}
               onConceptGekozen={setR2Concept}
-              onOpenRelatie={id => { onOpenChange(false); navigate(`/relaties/${id}`); }}
+              focusRelatieId={focusRelatieId}
+              onOpenRelatie={id => { onOpenChange(false); navigate(`/relaties/${id}?matchObject=${encodeURIComponent(objectId)}`); }}
               geselecteerdeRelatieId={r2Concept?.contactRelatieId ?? null}
               besluiten={matchingBesluiten.besluiten}
               besluitenGeladen={!matchingBesluiten.loading && !matchingBesluiten.fout}
@@ -487,7 +489,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
             {r2Concept && <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1" role="status">
               <p className="font-medium text-sm">Kandidaat geselecteerd — nog niet toegevoegd</p>
               <p className="text-xs">Contact: {relaties.find(r => r.id === r2Concept.contactRelatieId)?.bedrijfsnaam || 'Relatie'} · Direct benaderbare partij</p>
-              <p className="text-xs text-muted-foreground">Zoekcriteria zijn leidend. Een mandaat is niet verplicht; de uiteindelijke koper kan later worden vastgelegd.</p>
+              <p className="text-xs text-muted-foreground">{r2Concept.handmatigeAfwijking?'Handmatige selectie ondanks afwijkende criteria. De matchbeoordeling blijft ongewijzigd.':'Zoekcriteria zijn een indicatie. Een mandaat is niet verplicht; de uiteindelijke koper kan later worden vastgelegd.'}</p>
             </div>}
           </div>
         )}
