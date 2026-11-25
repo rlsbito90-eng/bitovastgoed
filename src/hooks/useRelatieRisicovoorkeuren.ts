@@ -78,3 +78,36 @@ export function useRelatieRisicovoorkeuren(relatieId:string){
 
   return {voorkeuren,loading,fout,refresh,bewaar,verwijder};
 }
+
+/** Eén gepagineerde leesactie per geopende kopersselectie, geen query per relatie. */
+export function useMatchingRisicovoorkeuren(open:boolean) {
+  const [state,setState] = useState<{voorkeuren:Risicovoorkeur[];loading:boolean;fout:string|null}>({
+    voorkeuren:[],loading:true,fout:null,
+  });
+  useEffect(()=>{
+    let actief=true;
+    setState({voorkeuren:[],loading:true,fout:null});
+    if (!open) return ()=>{actief=false;};
+    async function laad(){
+      try {
+        const rows:Risicovoorkeur[]=[];
+        const pageSize=500;
+        for(let offset=0;;offset+=pageSize){
+          const {data,error}=await supabase.from('relatie_risicovoorkeuren' as any)
+            .select('*').order('id',{ascending:true}).range(offset,offset+pageSize-1);
+          if(error) throw error;
+          if(!actief) return;
+          const page=(data??[]) as any[];
+          rows.push(...page.map(uitDb));
+          if(page.length<pageSize) break;
+        }
+        if(actief) setState({voorkeuren:rows,loading:false,fout:null});
+      } catch {
+        if(actief) setState({voorkeuren:[],loading:false,fout:'Risicovoorkeuren konden niet worden geladen. Open de selectie opnieuw.'});
+      }
+    }
+    void laad();
+    return ()=>{actief=false;};
+  },[open]);
+  return state;
+}
