@@ -36,6 +36,12 @@ describe('Kandidaatselectie: aanbiederuitsluiting is ook in de UI en save-route 
   it('geeft een snelle en expliciete route naar het kopersprofiel',()=>{
     expect(voorstel).toContain('onOpenRelatie?: (relatieId: string) => void');
     expect(voorstel).toContain('Kopersprofiel <ArrowUpRight');
-    expect(dialog).toContain('onOpenRelatie={id => { onOpenChange(false); navigate(`/relaties/${id}`); }}');
+    expect(dialog).toContain('navigate(`/relaties/${id}?matchObject=${encodeURIComponent(objectId)}`)');
+    const relatiePage=source('src/pages/RelatieDetailPage.tsx');
+    const objectPage=source('src/pages/ObjectDetailPage.tsx');
+    expect(relatiePage).toContain('Terug naar kandidaatselectie');
+    expect(relatiePage).toContain('matchRelatie=${encodeURIComponent(relatie.id)}');
+    expect(objectPage).toContain("params.get('matchRelatie')");
+    expect(objectPage).toContain('focusRelatieId={matchFocusRelatie}');
   });
 });
