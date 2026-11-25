@@ -1,4 +1,3 @@
-import type { ObjectVastgoed } from '@/data/mock-data';
 import type { Rendementscriterium } from '@/hooks/useRelatieMatchingData';
 
 /** Financiële toetsing is indicatief totdat de objectberekening en de
@@ -12,7 +11,7 @@ export type RendementsOordeel = {
 };
 
 export function beoordeelObjectRendement(
-  object:Pick<ObjectVastgoed,'brutoAanvangsrendement'|'nettoAanvangsrendement'|'vraagprijs'|'huurinkomsten'>,criteria:readonly Rendementscriterium[],zoekprofielId?:string|null,
+  object:{brutoAanvangsrendement?:number|null;nettoAanvangsrendement?:number|null;vraagprijs?:number|null;huurinkomsten?:number|null},criteria:readonly Rendementscriterium[],zoekprofielId?:string|null,
 ):RendementsOordeel {
   const relevant=criteria.filter(c=>c.status==='actief' &&
     (!c.zoekprofielId || c.zoekprofielId===zoekprofielId));
