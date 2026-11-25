@@ -24,6 +24,7 @@ import {
 } from '@/lib/pipeline/kandidaatFouten';
 import { maakBasisKandidaat } from '@/lib/pipeline/basisKandidaat';
 import { useObjectMatchBesluiten } from '@/hooks/useObjectMatchBesluiten';
+import { useMatchingRisicovoorkeuren } from '@/hooks/useRelatieRisicovoorkeuren';
 import { supabase } from '@/integrations/supabase/client';
 import { KandidaatVoorstellenR2 } from '@/components/pipeline/KandidaatVoorstellenR2';
 import { MATCH_R2_PREVIEW_ENABLED } from '@/lib/matching/featureFlags';
@@ -89,6 +90,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
   } = useDataStore();
 
   const object = getObjectById(objectId);
+  const risicoData = useMatchingRisicovoorkeuren(open && MATCH_R2_PREVIEW_ENABLED);
   // Neem ook de losse contactpersoonrecords mee: een aanbieder kan in het CRM
   // onder zijn makelaarskantoor staan, niet onder zijn persoonlijke naam.
   const matchingRelaties = useMemo(() => {
@@ -98,15 +100,22 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       lijst.push(contact);
       contactPerRelatie.set(contact.relatieId, lijst);
     }
+    const risicoPerRelatie = new Map<string, typeof risicoData.voorkeuren>();
+    for (const v of risicoData.voorkeuren) {
+      const lijst = risicoPerRelatie.get(v.relatieId) ?? [];
+      lijst.push(v);
+      risicoPerRelatie.set(v.relatieId,lijst);
+    }
     return relaties.map(relatie => {
       const contacten = contactPerRelatie.get(relatie.id) ?? [];
       return {
         ...relatie,
+        risicovoorkeuren: risicoPerRelatie.get(relatie.id) ?? [],
         contactpersoonNamen: contacten.map(c => c.naam).filter(Boolean),
         contactEmails: contacten.map(c => c.email).filter((e): e is string => !!e),
       };
     });
-  }, [relaties, contactpersonen]);
+  }, [relaties, contactpersonen, risicoData.voorkeuren]);
   const aanbiederRelatieIds = useMemo(() => new Set(object
     ? matchingRelaties.filter(relatie => isObjectAanbiederRelatie(object, relatie)).map(r => r.id)
     : []), [object, matchingRelaties]);
@@ -367,6 +376,10 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
       toast.error('Deze partij is al gekoppeld. Open de bestaande kandidaat in de pipeline.');
       return;
     }
+    if (risicoData.loading || risicoData.fout) {
+      toast.error('Risicovoorkeuren zijn nog niet beschikbaar.');
+      return;
+    }
     const actueel=maakKandidaatVoorstellen(object,matchingRelaties,zoekprofielen,{reedsGekoppeld});
     const partij=actueel.find(x=>x.relatieId===relatieId);
     const route=partij?.alleRoutes.find(x=>x.zoekprofielId===r2Concept.gekozenMandaatId && x.kwalificatie!=='afwijkend');
@@ -451,7 +464,7 @@ export default function KandidaatSelectieDialog({ open, onOpenChange, objectId, 
         {r2Actief && (
           <div ref={r2ScrollRef} data-testid="kandidaat-voorstellen-scroll" className="min-h-0 min-w-0 w-full max-w-full flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-3 py-3 sm:px-5 sm:py-4">
             <p className="text-xs text-muted-foreground">Beoordeel een voorstel of kies expliciet een kandidaat. Aanbieders en verkopers van dit object worden uitgesloten; er worden geen berichten automatisch verstuurd.</p>
-            {object ? <KandidaatVoorstellenR2
+            {risicoData.loading || risicoData.fout ? <p className={risicoData.fout?'text-sm text-destructive':'text-sm text-muted-foreground'} role={risicoData.fout?'alert':'status'}>{risicoData.fout ?? 'Risicovoorkeuren laden…'}</p> : object ? <KandidaatVoorstellenR2
               object={object} relaties={matchingRelaties} zoekprofielen={zoekprofielen}
               reedsGekoppeld={reedsGekoppeld}
               relatieNaam={id => {
