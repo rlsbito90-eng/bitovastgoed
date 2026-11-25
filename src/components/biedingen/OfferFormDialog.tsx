@@ -369,13 +369,33 @@ export default function OfferFormDialog({
           {/* 2 — Bod */}
           <section className="min-w-0 space-y-3 border-t border-border/60 pt-4">
           <SectionTitle>Bod en rendement</SectionTitle>
-          <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="min-w-0 space-y-1.5">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5 sm:col-span-2">
               <Label htmlFor="bedrag">Biedbedrag (€)</Label>
-              <Input id="bedrag" inputMode="decimal" placeholder="1.000.000"
+              <Input id="bedrag" className="h-12 text-xl font-semibold tabular-nums sm:text-xl" inputMode="decimal" placeholder="1.000.000"
                 value={form.bedrag} onChange={e => set('bedrag', e.target.value)}
                 onBlur={() => { const n = parseDutchNumber(form.bedrag); if (n != null && Number.isFinite(n)) set('bedrag', n.toLocaleString('nl-NL', { maximumFractionDigits: 2 })); }} />
             </div>
+          {selectedObject && (
+            <section className="min-w-0 sm:col-span-2 rounded-md bg-muted/30 p-3 space-y-2" aria-label="Biedingsanalyse">
+              <div className="flex flex-wrap items-baseline justify-between gap-1">
+                <h3 className="text-sm font-semibold">Rendement en prijsvergelijking</h3>
+                <span className="text-xs text-muted-foreground">Jaarhuur object: {euro(rent)}</span>
+              </div>
+              <table className="w-full table-fixed break-words text-xs sm:text-sm tabular-nums">
+                <thead className="text-xs text-muted-foreground"><tr><th scope="col" className="text-left font-normal">Kengetal</th><th scope="col" className="text-right font-normal">Vraagprijs</th><th scope="col" className="text-right font-normal">Bieding</th></tr></thead>
+                <tbody>{comparisonRows.map(row => <tr key={row.label} className="border-t"><th scope="row" className="text-left font-normal py-1.5">{row.label}</th><td className="text-right">{row.ask}</td><td className="text-right font-medium">{row.bid}</td></tr>)}</tbody>
+              </table>
+              {askingPrice && bidPrice ? <p className="text-xs text-muted-foreground">Verschil vraagprijs: {euro(bidPrice - askingPrice)} ({metric((bidPrice / askingPrice - 1) * 100, '%')})</p> : null}
+              <details className="min-w-0 border-t border-border/60 pt-2"><summary className="cursor-pointer text-xs font-medium text-muted-foreground">Meer financiële details</summary><div className="mt-2 space-y-1.5">
+              {marketValue && <p className="text-xs">Interne marktwaarde: {euro(marketValue)}{bidPrice ? ' · Bod: ' + metric(bidPrice / marketValue * 100,'%') + ' van marktwaarde' : ''}</p>}
+              {(latestBuyer || latestSeller) && <p className="text-xs">Laatste kopersbod: {euro(latestBuyer?.bedrag ?? null)} · Laatste verkopersvoorstel: {euro(latestSeller?.bedrag ?? null)}</p>}
+              {latestBuyer?.bedrag != null && latestSeller?.bedrag != null && <p className="text-xs">Verschil laatste voorstellen: {euro(latestSeller.bedrag-latestBuyer.bedrag)}</p>}
+              <OfferFeeEstimate key={form.objectId} objectId={form.objectId} bidPrice={bidPrice} dealPct={matchingDeals.find(d=>d.id===resolvedDealId)?.commissiePct} />
+              <p className="text-[11px] text-muted-foreground">{rent ? 'BAR en factor op basis van bruto jaarhuur en koopsom, exclusief bijkomende aankoopkosten.' : 'Geen positieve jaarhuur vastgelegd; BAR en factor zijn niet berekenbaar.'}</p>
+              </div></details>
+            </section>
+          )}
             <div className="min-w-0 space-y-1.5">
               <Label htmlFor="bieddatum">Bieddatum</Label>
               <Input id="bieddatum" className="min-w-0 max-w-full" type="date"
@@ -414,26 +434,8 @@ export default function OfferFormDialog({
                 value={form.geldigTot} onChange={e => set('geldigTot', e.target.value)} />
             </div>
           </div>
-          {selectedObject && (
-            <section className="min-w-0 rounded-md bg-muted/30 p-3 space-y-2" aria-label="Biedingsanalyse">
-              <div className="flex flex-wrap items-baseline justify-between gap-1">
-                <h3 className="text-sm font-semibold">Rendement en prijsvergelijking</h3>
-                <span className="text-xs text-muted-foreground">Jaarhuur object: {euro(rent)}</span>
-              </div>
-              <table className="w-full table-fixed break-words text-xs sm:text-sm tabular-nums">
-                <thead className="text-xs text-muted-foreground"><tr><th scope="col" className="text-left font-normal">Kengetal</th><th scope="col" className="text-right font-normal">Vraagprijs</th><th scope="col" className="text-right font-normal">Bieding</th></tr></thead>
-                <tbody>{comparisonRows.map(row => <tr key={row.label} className="border-t"><th scope="row" className="text-left font-normal py-1.5">{row.label}</th><td className="text-right">{row.ask}</td><td className="text-right font-medium">{row.bid}</td></tr>)}</tbody>
-              </table>
-              {askingPrice && bidPrice ? <p className="text-xs text-muted-foreground">Verschil vraagprijs: {euro(bidPrice - askingPrice)} ({metric((bidPrice / askingPrice - 1) * 100, '%')})</p> : null}
-              {marketValue && <p className="text-xs">Interne marktwaarde: {euro(marketValue)}{bidPrice ? ' · Bod: ' + metric(bidPrice / marketValue * 100,'%') + ' van marktwaarde' : ''}</p>}
-              {(latestBuyer || latestSeller) && <p className="text-xs">Laatste kopersbod: {euro(latestBuyer?.bedrag ?? null)} · Laatste verkopersvoorstel: {euro(latestSeller?.bedrag ?? null)}</p>}
-              {latestBuyer?.bedrag != null && latestSeller?.bedrag != null && <p className="text-xs">Verschil laatste voorstellen: {euro(latestSeller.bedrag-latestBuyer.bedrag)}</p>}
-              <OfferFeeEstimate key={form.objectId} objectId={form.objectId} bidPrice={bidPrice} dealPct={matchingDeals.find(d=>d.id===resolvedDealId)?.commissiePct} />
-              <p className="text-[11px] text-muted-foreground">{rent ? 'BAR en factor op basis van bruto jaarhuur en koopsom, exclusief bijkomende aankoopkosten.' : 'Geen positieve jaarhuur vastgelegd; BAR en factor zijn niet berekenbaar.'}</p>
-            </section>
-          )}
           <details className="min-w-0 rounded-md border border-border/60 px-3 py-2">
-            <summary className="cursor-pointer text-sm font-medium break-words">Overige boddetails <span className="text-xs font-normal text-muted-foreground">· {BIEDING_TYPE_LABELS[form.offerType]} · {BIEDING_STATUS_LABELS[form.status]}</span></summary>
+            <summary className="cursor-pointer text-sm font-medium break-words">Overige boddetails <span className="text-xs font-normal text-muted-foreground">· {BIEDING_STATUS_LABELS[form.status]} · {BIEDING_RICHTING_LABELS_LONG[form.richting]}</span></summary>
             <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="min-w-0 space-y-1.5">
               <Label>Status</Label>
@@ -488,7 +490,7 @@ export default function OfferFormDialog({
           </section>
           {/* 3 — Voorwaarden */}
           <section className="min-w-0 space-y-3 border-t border-border/60 pt-4">
-          <SectionTitle>Voorwaarden <span className="text-xs font-normal text-muted-foreground">· {conditionCount} vastgelegd</span></SectionTitle>
+          <SectionTitle>Voorwaarden <span className="text-xs font-normal text-muted-foreground">· {conditionCount} specifiek</span></SectionTitle>
           <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="min-w-0 space-y-1.5">
               <Label>Financieringsvoorbehoud</Label>
@@ -515,7 +517,7 @@ export default function OfferFormDialog({
             {(['financiering','dd'] as const).filter(key => (key === 'financiering' ? form.financieringsvoorbehoud : form.ddVoorbehoud) === 'ja').map(key => {
               const value = form.voorbehoudDetails[key] ?? {toelichting:'',deadline:null};
               const patch = (next: Partial<typeof value>)=>setForm(old=>({...old,voorbehoudDetails:{...old.voorbehoudDetails,[key]:{...value,...next}}}));
-              return <div key={key} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-2">
+              return <div key={key} className="min-w-0 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-2">
                 <div className="min-w-0"><Label>{key==='financiering'?'Financiering':'DD'} · toelichting</Label><Input value={value.toelichting} onChange={e=>patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
                 <div className="min-w-0"><Label>Uiterste datum</Label><Input className="min-w-0 max-w-full" type="date" value={value.deadline??''} onChange={e=>patch({deadline:e.target.value||null})} /></div>
               </div>;
@@ -543,14 +545,13 @@ export default function OfferFormDialog({
               })}
               <Button type="button" variant="outline" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: [...(old.extraVoorwaarden ?? []), {type:'overig', karakter:'onbekend', toelichting:'', deadline:null}]}))}>+ Voorwaarde toevoegen</Button>
             </div>
-            <div className="sm:col-span-2 space-y-1.5">
+            <div className="min-w-0 sm:col-span-2 space-y-1.5">
               <Label htmlFor="voorwaarden">Aanvullende vrije tekst</Label>
               <Textarea id="voorwaarden" rows={2}
                 value={form.voorwaarden} onChange={e => set('voorwaarden', e.target.value)} />
             </div>
           </div>
 
-          </section>
           <details className="min-w-0 rounded-md border border-border/60 px-3 py-2">
             <summary className="cursor-pointer text-sm font-medium">Levering, kosten en zekerheid <span className="text-xs font-normal text-muted-foreground">· {form.kostenType ? KOSTEN_LABELS[form.kostenType] : 'Niet vastgelegd'}</span></summary>
             <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -590,6 +591,7 @@ export default function OfferFormDialog({
             </div>
             </div>
           </details>
+          </section>
           {/* 4 — Notities */}
           <details className="min-w-0 rounded-md border border-border/60 px-3 py-2">
           <summary className="cursor-pointer text-sm font-medium">Communicatie en notities <span className="text-xs font-normal text-muted-foreground">· {notesCount ? notesCount + ' ingevuld' : 'optioneel'}</span></summary>
@@ -613,7 +615,7 @@ export default function OfferFormDialog({
 
           </div>
           <div className="z-10 flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
+            <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)}>Annuleren</Button>
             <Button type="submit" disabled={bezig}>{bezig ? 'Opslaan…' : isEdit ? 'Bijwerken' : 'Toevoegen'}</Button>
           </div>
         </form>
