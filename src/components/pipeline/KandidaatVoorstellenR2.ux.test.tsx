@@ -88,3 +88,31 @@ describe('Match-UI: professionele shortlist met controlepunten',()=>{
     expect(onHerstel).toHaveBeenCalledWith('koper-1');
   });
 });
+
+describe('Handmatige keuze en terugkeer vanuit kopersprofiel',()=>{
+  it('laat een afwijkende kandidaat expliciet selecteren zonder eerst een shortlistbesluit',()=>{
+    const {onConceptGekozen}=renderList([koper(1,{propertyTypeIds:['kantoor']})]);
+    fireEvent.click(screen.getByRole('button',{name:/Overig/}));
+    fireEvent.click(screen.getByRole('button',{name:'Handmatig selecteren'}));
+    expect(onConceptGekozen).toHaveBeenCalledTimes(1);
+    expect(onConceptGekozen.mock.calls[0][0]).toMatchObject({contactRelatieId:'koper-1',handmatigeAfwijking:true,kanAutomatischVersturen:false});
+    expect(screen.getAllByText('Vastgoedtype wijkt af').length).toBeGreaterThan(0);
+  });
+  it('toont bij terugkeer dezelfde relatie ook als deze buiten de relevante selectie valt',()=>{
+    renderList([koper(1),koper(2,{propertyTypeIds:['kantoor']})],{focusRelatieId:'koper-2'});
+    const cards=screen.getAllByTestId('match-kandidaat-kaart');
+    expect(cards).toHaveLength(1);
+    expect(within(cards[0]).getByText('Relatie koper-2')).toBeInTheDocument();
+    expect(screen.getByText(/Kopersprofiel opnieuw beoordeeld/)).toBeInTheDocument();
+  });
+  it('biedt een eigen shortlistfilter zonder afwijzing bij verwijderen',()=>{
+    const onHerstel=vi.fn().mockResolvedValue(undefined);
+    renderList([koper(1),koper(2,{propertyTypeIds:['kantoor']})],{
+      besluiten:{'koper-2':{status:'interessant',redenCode:null}},onHerstel,
+    });
+    fireEvent.click(screen.getByRole('button',{name:/^Shortlist/}));
+    expect(screen.getAllByTestId('match-kandidaat-kaart')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button',{name:'Uit shortlist'}));
+    expect(onHerstel).toHaveBeenCalledWith('koper-2');
+  });
+});
