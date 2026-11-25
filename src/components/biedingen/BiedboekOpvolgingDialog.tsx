@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { toast } from 'sonner';
 import { CalendarDays } from 'lucide-react';
 import { useDataStore } from '@/hooks/useDataStore';
@@ -33,6 +34,8 @@ export default function BiedboekOpvolgingDialog({ traject, relatieNaam, objectNa
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const createdTask = useRef<string | null>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+  useModalScrollContainment(scrollBodyRef, true);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -72,15 +75,16 @@ export default function BiedboekOpvolgingDialog({ traject, relatieNaam, objectNa
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-w-md min-w-0 max-h-[92dvh] flex-col overflow-hidden overscroll-none gap-0 p-0">
+        <DialogHeader className="shrink-0 touch-none border-b px-4 pb-3 pt-5">
           <DialogTitle>Opvolging plannen</DialogTitle>
           <DialogDescription>
             Maak een taak voor {objectNaam}. Bij kopersopvolging koppelen we ook {relatieNaam};
             bij verkopersopvolging blijft de taak op het object. Een plandatum is geen harde deadline.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div ref={scrollBodyRef} className="min-h-0 min-w-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-4 py-4">
           <div className="space-y-1.5">
             <Label htmlFor="biedopvolging-titel">Taak</Label>
             <Input id="biedopvolging-titel" value={titel} onChange={e => setTitel(e.target.value)} disabled={saved} />
@@ -92,7 +96,7 @@ export default function BiedboekOpvolgingDialog({ traject, relatieNaam, objectNa
                 disabled={saved} onClick={() => setPlanDatum(plusDagen(0))}>Vandaag</Button>
               <Button type="button" size="sm" variant={planDatum === plusDagen(1) ? 'default' : 'outline'}
                 disabled={saved} onClick={() => setPlanDatum(plusDagen(1))}>Morgen</Button>
-              <Input id="biedopvolging-plan" type="date" className="w-auto" value={planDatum}
+              <Input id="biedopvolging-plan" type="date" className="min-w-0 max-w-full w-auto" value={planDatum}
                 min={plusDagen(0)} disabled={saved} onChange={e => setPlanDatum(e.target.value)} />
             </div>
           </div>
@@ -107,7 +111,8 @@ export default function BiedboekOpvolgingDialog({ traject, relatieNaam, objectNa
               De taak is al opgeslagen. Je kunt veilig opnieuw laden zonder duplicaat.
             </p>
           )}
-          <div className="flex justify-end gap-2">
+          </div>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t px-4 py-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
             <Button type="submit" disabled={saving || !titel.trim() || !planDatum}>
               <CalendarDays className="h-4 w-4 mr-1" />

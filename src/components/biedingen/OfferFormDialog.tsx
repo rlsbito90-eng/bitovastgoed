@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { useFormDirtyGuard } from '@/hooks/useFormDirtyGuard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -110,6 +111,8 @@ export default function OfferFormDialog({
   const isEdit = !!bieding;
   const [form, setForm] = useState<FormState>(emptyForm);
   const [bezig, setBezig] = useState(false);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+  useModalScrollContainment(scrollBodyRef, open);
 
   // We need a hook scope to call create/update — gebruik object/deal/relatie van form/bieding
   const scopeObjectId = form.objectId || bieding?.objectId || counterTo?.objectId || defaultObjectId || '';
@@ -301,35 +304,35 @@ export default function OfferFormDialog({
     }
   };
 
-  const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mt-2">{children}</h3>
-  );
-
   const { guardedOnOpenChange } = useFormDirtyGuard(open, form, onOpenChange);
 
+  const conditionCount = (form.financieringsvoorbehoud === 'ja' ? 1 : 0) + (form.ddVoorbehoud === 'ja' ? 1 : 0) + (form.extraVoorwaarden?.length ?? 0);
+  const notesCount = [form.origineleCommunicatie,form.notities,form.interneNotities].filter(v=>v.trim()).length;
   return (
     <Dialog open={open} onOpenChange={guardedOnOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="flex h-[min(92svh,800px)] max-h-[92dvh] w-[calc(100vw-1rem)] min-w-0 max-w-2xl flex-col gap-0 overflow-hidden overscroll-none p-0 sm:w-full">
+        <DialogHeader className="shrink-0 touch-none border-b border-border/60 px-4 pb-3 pt-5 sm:px-6">
           <DialogTitle>{isEdit ? 'Bieding bewerken' : counterTo
             ? antwoordRichtingVoorBod(counterTo) === 'van_koper'
               ? 'Nieuw kopersbod registreren' : 'Tegenvoorstel verkoper registreren'
             : 'Bieding toevoegen'}</DialogTitle>
+          <DialogDescription className="text-xs">Bieding en transactievoorwaarden vastleggen.</DialogDescription>
           {counterTo && (
-            <DialogDescription>
+            <p className="text-xs text-muted-foreground">
               Registratie als antwoord op het bod van {new Date(counterTo.bieddatum).toLocaleDateString('nl-NL')}.
               Leg uitsluitend een voorstel vast dat daadwerkelijk door de betreffende partij is uitgebracht of gecommuniceerd.
-            </DialogDescription>
+            </p>
           )}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="min-h-0 flex flex-col">
-          <div className="min-h-0 overflow-y-auto space-y-3 px-1 pb-3">
+        <form onSubmit={handleSubmit} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div ref={scrollBodyRef} data-testid="offer-form-scroll-body" className="min-h-0 min-w-0 w-full max-w-full flex-1 space-y-5 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-4 py-4 sm:px-6">
           {/* 1 — Koppeling */}
-          <SectionTitle>Koppeling</SectionTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <section className="min-w-0 space-y-3">
+          <SectionTitle>Object en koper</SectionTitle>
+          <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-2">
             {counterTo || isEdit ? (
-              <div className="sm:col-span-2 rounded-lg border border-border/60 bg-muted/25 p-3 text-sm space-y-1">
+              <div className="min-w-0 sm:col-span-2 rounded-md bg-muted/30 p-3 text-sm space-y-1 break-words">
                 <p><span className="text-muted-foreground">Object:</span> {objectItems.find(o => o.id === form.objectId)?.primair ?? 'Bestaand object'}</p>
                 <p><span className="text-muted-foreground">Koper:</span> {relatieItems.find(r => r.id === form.relatieId)?.primair ?? 'Bestaande kandidaat'}</p>
                 <p className="text-xs text-muted-foreground">Deze koppeling ligt vast om het onderhandelingsverloop intact te houden.</p>
@@ -362,24 +365,46 @@ export default function OfferFormDialog({
             )}
           </div>
 
+          </section>
           {/* 2 — Bod */}
-          <SectionTitle>Bod</SectionTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <section className="min-w-0 space-y-3 border-t border-border/60 pt-4">
+          <SectionTitle>Bod en rendement</SectionTitle>
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5 sm:col-span-2">
               <Label htmlFor="bedrag">Biedbedrag (€)</Label>
-              <Input id="bedrag" inputMode="decimal" placeholder="1.000.000"
+              <Input id="bedrag" className="h-12 text-xl font-semibold tabular-nums sm:text-xl" inputMode="decimal" placeholder="1.000.000"
                 value={form.bedrag} onChange={e => set('bedrag', e.target.value)}
                 onBlur={() => { const n = parseDutchNumber(form.bedrag); if (n != null && Number.isFinite(n)) set('bedrag', n.toLocaleString('nl-NL', { maximumFractionDigits: 2 })); }} />
             </div>
-            <div className="space-y-1.5">
+          {selectedObject && (
+            <section className="min-w-0 sm:col-span-2 rounded-md bg-muted/30 p-3 space-y-2" aria-label="Biedingsanalyse">
+              <div className="flex flex-wrap items-baseline justify-between gap-1">
+                <h3 className="text-sm font-semibold">Rendement en prijsvergelijking</h3>
+                <span className="text-xs text-muted-foreground">Jaarhuur object: {euro(rent)}</span>
+              </div>
+              <table className="w-full table-fixed break-words text-xs sm:text-sm tabular-nums">
+                <thead className="text-xs text-muted-foreground"><tr><th scope="col" className="text-left font-normal">Kengetal</th><th scope="col" className="text-right font-normal">Vraagprijs</th><th scope="col" className="text-right font-normal">Bieding</th></tr></thead>
+                <tbody>{comparisonRows.map(row => <tr key={row.label} className="border-t"><th scope="row" className="text-left font-normal py-1.5">{row.label}</th><td className="text-right">{row.ask}</td><td className="text-right font-medium">{row.bid}</td></tr>)}</tbody>
+              </table>
+              {askingPrice && bidPrice ? <p className="text-xs text-muted-foreground">Verschil vraagprijs: {euro(bidPrice - askingPrice)} ({metric((bidPrice / askingPrice - 1) * 100, '%')})</p> : null}
+              <details className="min-w-0 border-t border-border/60 pt-2"><summary className="cursor-pointer text-xs font-medium text-muted-foreground">Meer financiële details</summary><div className="mt-2 space-y-1.5">
+              {marketValue && <p className="text-xs">Interne marktwaarde: {euro(marketValue)}{bidPrice ? ' · Bod: ' + metric(bidPrice / marketValue * 100,'%') + ' van marktwaarde' : ''}</p>}
+              {(latestBuyer || latestSeller) && <p className="text-xs">Laatste kopersbod: {euro(latestBuyer?.bedrag ?? null)} · Laatste verkopersvoorstel: {euro(latestSeller?.bedrag ?? null)}</p>}
+              {latestBuyer?.bedrag != null && latestSeller?.bedrag != null && <p className="text-xs">Verschil laatste voorstellen: {euro(latestSeller.bedrag-latestBuyer.bedrag)}</p>}
+              <OfferFeeEstimate key={form.objectId} objectId={form.objectId} bidPrice={bidPrice} dealPct={matchingDeals.find(d=>d.id===resolvedDealId)?.commissiePct} />
+              <p className="text-[11px] text-muted-foreground">{rent ? 'BAR en factor op basis van bruto jaarhuur en koopsom, exclusief bijkomende aankoopkosten.' : 'Geen positieve jaarhuur vastgelegd; BAR en factor zijn niet berekenbaar.'}</p>
+              </div></details>
+            </section>
+          )}
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="bieddatum">Bieddatum</Label>
-              <Input id="bieddatum" type="date"
+              <Input id="bieddatum" className="min-w-0 max-w-full" type="date"
                 value={form.bieddatum} onChange={e => set('bieddatum', e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Type bod</Label>
               <Select value={form.offerType} onValueChange={v => set('offerType', v as BiedingType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(BIEDING_TYPE_LABELS).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -387,11 +412,11 @@ export default function OfferFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Karakter van het bod{!isEdit && (counterTo ? antwoordRichtingVoorBod(counterTo) : form.richting) === 'van_koper' ? ' *' : ''}</Label>
               <Select value={form.bodKarakter || 'leeg'}
                 onValueChange={value => set('bodKarakter', value === 'leeg' ? '' : value as BodKarakter)}>
-                <SelectTrigger><SelectValue placeholder="Kies indicatief of formeel" /></SelectTrigger>
+                <SelectTrigger className="min-w-0 max-w-full"><SelectValue placeholder="Kies indicatief of formeel" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="leeg">Niet vastgelegd</SelectItem>
                   {Object.entries(BOD_KARAKTER_LABELS).map(([key, label]) => (
@@ -403,7 +428,16 @@ export default function OfferFormDialog({
                 Formeel betekent expliciet als zodanig uitgebracht; schriftelijk of zonder voorbehoud is niet automatisch formeel.
               </p>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
+              <Label htmlFor="geldigTot">Geldig tot</Label>
+              <Input id="geldigTot" className="min-w-0 max-w-full" type="date"
+                value={form.geldigTot} onChange={e => set('geldigTot', e.target.value)} />
+            </div>
+          </div>
+          <details className="min-w-0 rounded-md border border-border/60 px-3 py-2">
+            <summary className="cursor-pointer text-sm font-medium break-words">Overige boddetails <span className="text-xs font-normal text-muted-foreground">· {BIEDING_STATUS_LABELS[form.status]} · {BIEDING_RICHTING_LABELS_LONG[form.richting]}</span></summary>
+            <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
               <Label>Status</Label>
               {isEdit && bieding && ['geaccepteerd', 'afgewezen', 'ingetrokken', 'verlopen'].includes(bieding.status) ? (
                 <div className="rounded-md border px-3 py-2 text-sm bg-muted/30">{BIEDING_STATUS_LABELS[bieding.status]}</div>
@@ -411,7 +445,7 @@ export default function OfferFormDialog({
                 <div className="rounded-md border px-3 py-2 text-sm bg-muted/30">{BIEDING_STATUS_LABELS[form.status]}</div>
               ) : (
                 <Select value={form.status} onValueChange={v => set('status', v as BiedingStatus)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(BIEDING_STATUS_LABELS)
                       .filter(([k]) => !['geaccepteerd', 'afgewezen', 'ingetrokken', 'verlopen'].includes(k))
@@ -421,7 +455,7 @@ export default function OfferFormDialog({
               )}
               {!isEdit && !counterTo && <p className="text-[11px] text-muted-foreground">Accepteren of afwijzen kan via de beslisknoppen in het biedboek.</p>}
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Richting / afzender</Label>
               {counterTo ? (
                 <div className="rounded-md border px-3 py-2 text-sm bg-muted/30">
@@ -429,7 +463,7 @@ export default function OfferFormDialog({
                 </div>
               ) : (
                 <Select value={form.richting} onValueChange={v => set('richting', v as BiedingRichting)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(BIEDING_RICHTING_LABELS_LONG).map(([k, v]) => (
                       <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -438,15 +472,10 @@ export default function OfferFormDialog({
                 </Select>
               )}
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="geldigTot">Geldig tot</Label>
-              <Input id="geldigTot" type="date"
-                value={form.geldigTot} onChange={e => set('geldigTot', e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Bron</Label>
               <Select value={form.bron || 'leeg'} onValueChange={v => set('bron', v === 'leeg' ? '' : (v as BiedingBron))}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectTrigger className="min-w-0 max-w-full"><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="leeg">—</SelectItem>
                   {Object.entries(BRON_LABELS).map(([k, v]) => (
@@ -457,32 +486,16 @@ export default function OfferFormDialog({
             </div>
           </div>
 
-          {selectedObject && (
-            <section className="rounded-lg border bg-muted/20 p-3 space-y-2" aria-label="Biedingsanalyse">
-              <div className="flex flex-wrap items-baseline justify-between gap-1">
-                <h3 className="text-sm font-semibold">Biedingsanalyse</h3>
-                <span className="text-xs text-muted-foreground">Jaarhuur object: {euro(rent)}</span>
-              </div>
-              <table className="w-full text-sm tabular-nums">
-                <thead className="text-xs text-muted-foreground"><tr><th scope="col" className="text-left font-normal">Kengetal</th><th scope="col" className="text-right font-normal">Vraagprijs</th><th scope="col" className="text-right font-normal">Bieding</th></tr></thead>
-                <tbody>{comparisonRows.map(row => <tr key={row.label} className="border-t"><th scope="row" className="text-left font-normal py-1.5">{row.label}</th><td className="text-right">{row.ask}</td><td className="text-right font-medium">{row.bid}</td></tr>)}</tbody>
-              </table>
-              {askingPrice && bidPrice ? <p className="text-xs text-muted-foreground">Verschil vraagprijs: {euro(bidPrice - askingPrice)} ({metric((bidPrice / askingPrice - 1) * 100, '%')})</p> : null}
-              {marketValue && <p className="text-xs">Interne marktwaarde: {euro(marketValue)}{bidPrice ? ' · Bod: ' + metric(bidPrice / marketValue * 100,'%') + ' van marktwaarde' : ''}</p>}
-              {(latestBuyer || latestSeller) && <p className="text-xs">Laatste kopersbod: {euro(latestBuyer?.bedrag ?? null)} · Laatste verkopersvoorstel: {euro(latestSeller?.bedrag ?? null)}</p>}
-              {latestBuyer?.bedrag != null && latestSeller?.bedrag != null && <p className="text-xs">Verschil laatste voorstellen: {euro(latestSeller.bedrag-latestBuyer.bedrag)}</p>}
-              <OfferFeeEstimate key={form.objectId} objectId={form.objectId} bidPrice={bidPrice} dealPct={matchingDeals.find(d=>d.id===resolvedDealId)?.commissiePct} />
-              <p className="text-[11px] text-muted-foreground">{rent ? 'BAR en factor op basis van bruto jaarhuur en koopsom, exclusief bijkomende aankoopkosten.' : 'Geen positieve jaarhuur vastgelegd; BAR en factor zijn niet berekenbaar.'}</p>
-            </section>
-          )}
-
+          </details>
+          </section>
           {/* 3 — Voorwaarden */}
-          <SectionTitle>Voorwaarden</SectionTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <section className="min-w-0 space-y-3 border-t border-border/60 pt-4">
+          <SectionTitle>Voorwaarden <span className="text-xs font-normal text-muted-foreground">· {conditionCount} specifiek</span></SectionTitle>
+          <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0 space-y-1.5">
               <Label>Financieringsvoorbehoud</Label>
               <Select value={form.financieringsvoorbehoud} onValueChange={v => set('financieringsvoorbehoud', v as VoorbehoudStatus)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(VOORBEHOUD_LABELS).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -490,10 +503,10 @@ export default function OfferFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Due diligence voorbehoud</Label>
               <Select value={form.ddVoorbehoud} onValueChange={v => set('ddVoorbehoud', v as VoorbehoudStatus)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(VOORBEHOUD_LABELS).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -504,25 +517,58 @@ export default function OfferFormDialog({
             {(['financiering','dd'] as const).filter(key => (key === 'financiering' ? form.financieringsvoorbehoud : form.ddVoorbehoud) === 'ja').map(key => {
               const value = form.voorbehoudDetails[key] ?? {toelichting:'',deadline:null};
               const patch = (next: Partial<typeof value>)=>setForm(old=>({...old,voorbehoudDetails:{...old.voorbehoudDetails,[key]:{...value,...next}}}));
-              return <div key={key} className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-2">
-                <div><Label>{key==='financiering'?'Financiering':'DD'} · toelichting</Label><Input value={value.toelichting} onChange={e=>patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
-                <div><Label>Uiterste datum</Label><Input type="date" value={value.deadline??''} onChange={e=>patch({deadline:e.target.value||null})} /></div>
+              return <div key={key} className="min-w-0 sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border p-2">
+                <div className="min-w-0"><Label>{key==='financiering'?'Financiering':'DD'} · toelichting</Label><Input value={value.toelichting} onChange={e=>patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
+                <div className="min-w-0"><Label>Uiterste datum</Label><Input className="min-w-0 max-w-full" type="date" value={value.deadline??''} onChange={e=>patch({deadline:e.target.value||null})} /></div>
               </div>;
             })}
-            <div className="space-y-1.5">
+            <div className="min-w-0 sm:col-span-2 space-y-2 border-t border-border/60 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Aanvullende voorwaarden</Label>
+                <Select value={form.extraVoorwaarden == null ? 'onbekend' : form.extraVoorwaarden.length ? 'aanwezig' : 'geen'}
+                  onValueChange={v => set('extraVoorwaarden', v === 'onbekend' ? null : v === 'geen' ? [] : [{type: 'bezichtiging', karakter: 'onbekend', toelichting: '', deadline: null}])}>
+                  <SelectTrigger className="w-44 max-w-full min-w-0"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="onbekend">Onbekend</SelectItem><SelectItem value="geen">Geen</SelectItem><SelectItem value="aanwezig">Aanwezig</SelectItem></SelectContent>
+                </Select>
+              </div>
+              {(form.extraVoorwaarden ?? []).map((condition, index) => {
+                const patch = (value: Partial<ExtraVoorwaarde>) => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).map((item, i) => i === index ? {...item, ...value} : item)}));
+                return <div key={index} className="min-w-0 rounded-md border bg-muted/20 p-3 space-y-2">
+                  <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="min-w-0"><Label>Type voorwaarde</Label><Select value={condition.type} onValueChange={v => patch({type: v as ExtraVoorwaardeType})}><SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(EXTRA_VOORWAARDEN_LABELS).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="min-w-0"><Label>Karakter</Label><Select value={condition.karakter} onValueChange={v => patch({karakter: v as ExtraVoorwaarde['karakter']})}><SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="onbekend">Niet vastgesteld</SelectItem><SelectItem value="voorbehoud">Voorbehoud</SelectItem><SelectItem value="transactiebepaling">Transactiebepaling</SelectItem></SelectContent></Select></div>
+                    <div className="min-w-0"><Label>Toelichting</Label><Input value={condition.toelichting} onChange={e => patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
+                    <div className="min-w-0"><Label>Uiterste datum</Label><Input className="min-w-0 max-w-full" type="date" value={condition.deadline ?? ''} onChange={e => patch({deadline:e.target.value || null})} /></div>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).filter((_,i) => i !== index)}))}>Voorwaarde verwijderen</Button>
+                </div>;
+              })}
+              <Button type="button" variant="outline" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: [...(old.extraVoorwaarden ?? []), {type:'overig', karakter:'onbekend', toelichting:'', deadline:null}]}))}>+ Voorwaarde toevoegen</Button>
+            </div>
+            <div className="min-w-0 sm:col-span-2 space-y-1.5">
+              <Label htmlFor="voorwaarden">Aanvullende vrije tekst</Label>
+              <Textarea id="voorwaarden" rows={2}
+                value={form.voorwaarden} onChange={e => set('voorwaarden', e.target.value)} />
+            </div>
+          </div>
+
+          <details className="min-w-0 rounded-md border border-border/60 px-3 py-2">
+            <summary className="cursor-pointer text-sm font-medium">Levering, kosten en zekerheid <span className="text-xs font-normal text-muted-foreground">· {form.kostenType ? KOSTEN_LABELS[form.kostenType] : 'Niet vastgelegd'}</span></summary>
+            <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="gewensteLevering">Gewenste levering (datum)</Label>
-              <Input id="gewensteLevering" type="date"
+              <Input id="gewensteLevering" className="min-w-0 max-w-full" type="date"
                 value={form.gewensteLevering} onChange={e => set('gewensteLevering', e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="gewensteLeveringTekst">Of vrij tekstveld</Label>
               <Input id="gewensteLeveringTekst" placeholder="bv. Q3 2026"
                 value={form.gewensteLeveringTekst} onChange={e => set('gewensteLeveringTekst', e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Kosten</Label>
               <Select value={form.kostenType || 'leeg'} onValueChange={v => set('kostenType', v === 'leeg' ? '' : (v as KostenType))}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectTrigger className="min-w-0 max-w-full"><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="leeg">—</SelectItem>
                   {Object.entries(KOSTEN_LABELS).map(([k, v]) => (
@@ -531,70 +577,45 @@ export default function OfferFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
+            <div className="grid min-w-0 grid-cols-2 gap-2">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="wbBedrag">Waarborgsom €</Label>
                 <Input id="wbBedrag" inputMode="decimal"
                   value={form.waarborgsomBedrag} onChange={e => set('waarborgsomBedrag', e.target.value)} />
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="wbPct">of %</Label>
                 <Input id="wbPct" inputMode="decimal"
                   value={form.waarborgsomPct} onChange={e => set('waarborgsomPct', e.target.value)} />
               </div>
             </div>
-            <div className="sm:col-span-2 space-y-2 rounded-lg border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Overige gestructureerde voorwaarden</Label>
-                <Select value={form.extraVoorwaarden == null ? 'onbekend' : form.extraVoorwaarden.length ? 'aanwezig' : 'geen'}
-                  onValueChange={v => set('extraVoorwaarden', v === 'onbekend' ? null : v === 'geen' ? [] : [{type: 'bezichtiging', karakter: 'onbekend', toelichting: '', deadline: null}])}>
-                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="onbekend">Onbekend</SelectItem><SelectItem value="geen">Geen</SelectItem><SelectItem value="aanwezig">Aanwezig</SelectItem></SelectContent>
-                </Select>
-              </div>
-              {(form.extraVoorwaarden ?? []).map((condition, index) => {
-                const patch = (value: Partial<ExtraVoorwaarde>) => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).map((item, i) => i === index ? {...item, ...value} : item)}));
-                return <div key={index} className="rounded-md border bg-background p-2 space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div><Label>Type voorwaarde</Label><Select value={condition.type} onValueChange={v => patch({type: v as ExtraVoorwaardeType})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(EXTRA_VOORWAARDEN_LABELS).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
-                    <div><Label>Karakter</Label><Select value={condition.karakter} onValueChange={v => patch({karakter: v as ExtraVoorwaarde['karakter']})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="onbekend">Niet vastgesteld</SelectItem><SelectItem value="voorbehoud">Voorbehoud</SelectItem><SelectItem value="transactiebepaling">Transactiebepaling</SelectItem></SelectContent></Select></div>
-                    <div><Label>Toelichting</Label><Input value={condition.toelichting} onChange={e => patch({toelichting:e.target.value})} placeholder="Optioneel" /></div>
-                    <div><Label>Uiterste datum</Label><Input type="date" value={condition.deadline ?? ''} onChange={e => patch({deadline:e.target.value || null})} /></div>
-                  </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).filter((_,i) => i !== index)}))}>Voorwaarde verwijderen</Button>
-                </div>;
-              })}
-              <Button type="button" variant="outline" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: [...(old.extraVoorwaarden ?? []), {type:'overig', karakter:'onbekend', toelichting:'', deadline:null}]}))}>+ Voorwaarde toevoegen</Button>
             </div>
-            <div className="sm:col-span-2 space-y-1.5">
-              <Label htmlFor="voorwaarden">Aanvullende vrije tekst</Label>
-              <Textarea id="voorwaarden" rows={2}
-                value={form.voorwaarden} onChange={e => set('voorwaarden', e.target.value)} />
-            </div>
-          </div>
-
+          </details>
+          </section>
           {/* 4 — Notities */}
-          <SectionTitle>Notities</SectionTitle>
-          <div className="grid grid-cols-1 gap-3">
-            <div className="space-y-1.5">
+          <details className="min-w-0 rounded-md border border-border/60 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium">Communicatie en notities <span className="text-xs font-normal text-muted-foreground">· {notesCount ? notesCount + ' ingevuld' : 'optioneel'}</span></summary>
+          <div className="mt-3 grid min-w-0 grid-cols-1 gap-3">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="origineleCommunicatie">Originele biedingscommunicatie</Label>
               <Textarea id="origineleCommunicatie" rows={2} placeholder="Plak het oorspronkelijke bericht of de e-mail" value={form.origineleCommunicatie} onChange={e=>set('origineleCommunicatie',e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="notities">Notities</Label>
               <Textarea id="notities" rows={2}
                 value={form.notities} onChange={e => set('notities', e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="interneNotities">Interne notities</Label>
               <Textarea id="interneNotities" rows={2}
                 value={form.interneNotities} onChange={e => set('interneNotities', e.target.value)} />
             </div>
           </div>
+          </details>
 
           </div>
-          <div className="flex shrink-0 justify-end gap-2 border-t pt-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuleren</Button>
+          <div className="z-10 flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] sm:px-6">
+            <Button type="button" variant="outline" onClick={() => guardedOnOpenChange(false)}>Annuleren</Button>
             <Button type="submit" disabled={bezig}>{bezig ? 'Opslaan…' : isEdit ? 'Bijwerken' : 'Toevoegen'}</Button>
           </div>
         </form>
@@ -609,4 +630,8 @@ function OfferFeeEstimate({objectId,bidPrice,dealPct}: {objectId:string;bidPrice
   if (loading || bidPrice == null || pct == null || !Number.isFinite(pct) || pct < 0) return null;
   const amount = bidPrice * pct / 100;
   return <p className="text-xs">Indicatieve courtage ({pct.toLocaleString('nl-NL')}%): {amount.toLocaleString('nl-NL',{style:'currency',currency:'EUR',maximumFractionDigits:0})} excl. btw · {dealPct != null ? 'dealpercentage' : 'objectprognose'}</p>;
+}
+
+function SectionTitle({children}: {children: React.ReactNode}) {
+  return <h3 className="text-sm font-semibold leading-snug text-foreground">{children}</h3>;
 }

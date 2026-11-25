@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useModalScrollContainment } from '@/hooks/useModalScrollContainment';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Search, X, Check, Plus, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -86,6 +87,8 @@ export default function EntityPicker({
   const [query, setQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+  useModalScrollContainment(scrollBodyRef, open);
 
   useEffect(() => {
     if (open) {
@@ -128,7 +131,7 @@ export default function EntityPicker({
 
   // ---- Trigger card ----
   const trigger = (
-    <div className={cn('space-y-1.5', className)}>
+    <div className={cn('min-w-0 space-y-1.5', className)}>
       <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
         {label}
       </div>
@@ -185,7 +188,7 @@ export default function EntityPicker({
   const totalCount = relevant.length + recent.length + rest.length;
 
   const innerContent = (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 min-w-0 overflow-hidden">
       <div className="px-1 pb-3 shrink-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -211,7 +214,7 @@ export default function EntityPicker({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-1 space-y-3 pb-2">
+      <div ref={scrollBodyRef} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none touch-pan-y px-1 space-y-3 pb-2">
         {totalCount === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
             Geen resultaten{query ? ` voor "${query}"` : ''}.
@@ -267,11 +270,11 @@ export default function EntityPicker({
       {trigger}
       {isMobile ? (
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="bottom" className="h-[85vh] flex flex-col p-4 sm:max-w-full">
-            <SheetHeader className="text-left shrink-0">
+          <SheetContent side="bottom" className="h-[85svh] max-h-[92dvh] flex min-w-0 flex-col overflow-hidden overscroll-none p-4 sm:max-w-full">
+            <SheetHeader className="text-left shrink-0 touch-none">
               <SheetTitle>{pickerTitle}</SheetTitle>
             </SheetHeader>
-            <div className="flex-1 min-h-0 mt-3">{innerContent}</div>
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden mt-3">{innerContent}</div>
             <div className="shrink-0 pt-2 border-t border-border">
               <Button type="button" variant="outline" className="w-full" onClick={() => setOpen(false)}>
                 Sluiten
@@ -281,11 +284,11 @@ export default function EntityPicker({
         </Sheet>
       ) : (
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-lg p-0 gap-0">
-            <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogContent className="max-w-lg min-w-0 flex flex-col overflow-hidden overscroll-none p-0 gap-0">
+            <DialogHeader className="shrink-0 touch-none px-4 pt-4 pb-2">
               <DialogTitle>{pickerTitle}</DialogTitle>
             </DialogHeader>
-            <div className="px-3 pb-3" style={{ height: '60vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="min-h-0 min-w-0 flex flex-col overflow-hidden px-3 pb-3 h-[60svh]">
               {innerContent}
             </div>
           </DialogContent>
