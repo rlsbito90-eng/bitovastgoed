@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import TaakFormDialog from '@/components/forms/TaakFormDialog';
+import KandidaatOpvolgingPanel from './KandidaatOpvolgingPanel';
+import { kandidaatOpvolging } from '@/lib/pipeline/kandidaatOpvolging';
+import type { PipelineKandidaat } from '@/data/mock-data';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import AanbiedingRegistrerenDialog from '@/components/forms/AanbiedingRegistrerenDialog';
 import AanbiedingsReactieDialog from '@/components/forms/AanbiedingsReactieDialog';
-import { laatsteReactie, laatsteGestructureerdeAfwijzing, formatteerAfwijsredenen, koopsignaalVoorRelatie, REACTIE_STATUS_LABELS } from '@/lib/relaties/aanbiedingsReacties';
+import { laatsteGestructureerdeAfwijzing, koopsignaalVoorRelatie } from '@/lib/relaties/aanbiedingsReacties';
 import { useDataStore } from '@/hooks/useDataStore';
 import { PipelineFaseBadge, InteresseNiveauBadge } from './PipelineBadges';
 import { VOLGENDE_ACTIE_LABELS } from '@/data/mock-data';
@@ -16,7 +20,9 @@ const fmtDatum = (d?: string) =>
   d ? format(new Date(d), 'd MMM yyyy', { locale: nl }) : '—';
 
 export default function RelatiePipelineSectie({ relatieId }: { relatieId: string }) {
-  const { getPipelineVoorRelatie, getObjectById, contactMoments } = useDataStore();
+  const { getPipelineVoorRelatie, getObjectById, contactMoments, taken, deals } = useDataStore();
+  const [taakKandidaat,setTaakKandidaat]=useState<PipelineKandidaat|null>(null);
+  const taakInfo=taakKandidaat?kandidaatOpvolging(taakKandidaat,contactMoments??[],taken??[],deals??[]):null;
   const items = getPipelineVoorRelatie(relatieId);
   const rijen = aanbodHistorieVoorRelatie(items,contactMoments ?? []);
   const aangeboden = rijen.filter(isAlsAangebodenGeregistreerd);
@@ -37,7 +43,6 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
   const toonRij = (rij: AanbiedingHistorieRij) => {
     const k=rij.kandidaat;
     const obj=getObjectById(k.objectId);
-    const laatste=laatsteReactie(relatieId,k.objectId,contactMoments??[]);
     const laatsteAfwijzing=laatsteGestructureerdeAfwijzing(relatieId,k.objectId,contactMoments??[]);
     return <li key={k.id} className="px-2 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -54,14 +59,6 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
         </div>
       </div>
       <div className="mt-1.5 ml-6 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-        {isAlsAangebodenGeregistreerd(rij) && <span>
-          <strong className="text-foreground/80">Aangeboden:</strong>{' '}
-          {rij.eersteAanbieddatum
-            ? fmtDatum(rij.eersteAanbieddatum)
-            : rij.bewijs === 'fase_zonder_datum'
-              ? 'Volgens pipelinefase; datum niet geregistreerd'
-              : 'Datum niet geregistreerd'}
-        </span>}
         {k.volgendeActie && <span>
           <strong className="text-foreground/80">Volgende:</strong> {VOLGENDE_ACTIE_LABELS[k.volgendeActie]}
           {k.volgendeActieDatum && ' · '+fmtDatum(k.volgendeActieDatum)}
@@ -75,19 +72,12 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
           (m.soort === 'teaser' ? 'Teaser ' : 'Informatie ')+fmtDatum(m.datum)
         )).join(' · ')}
       </p>}
-      {laatste?.aanbiedingReactie&&
-        <p className="mt-1 ml-6 text-xs text-muted-foreground">
-          <strong className="text-foreground/80">Laatste reactie: </strong>
-          {REACTIE_STATUS_LABELS[laatste.aanbiedingReactie.status]}
-          {laatste.aanbiedingReactie.redenen.length>0
-            ?' · '+formatteerAfwijsredenen(laatste.aanbiedingReactie)
-            :''}
-        </p>}
       {!laatsteAfwijzing && k.redenAfgevallen&&
         <p className="mt-1 ml-6 text-xs text-muted-foreground">
           <strong className="text-foreground/80">Historische afwijsnotitie: </strong>
           {k.redenAfgevallen}
         </p>}
+      <div className="mt-2 ml-6"><KandidaatOpvolgingPanel info={kandidaatOpvolging(k,contactMoments??[],taken??[],deals??[])} onTaak={()=>setTaakKandidaat(k)}/></div>
       <div className="mt-2 ml-6 flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={()=>openReactie(k.objectId)}>
           <MessageSquareText className="h-3.5 w-3.5 mr-1.5"/> Reactie registreren
@@ -156,6 +146,10 @@ export default function RelatiePipelineSectie({ relatieId }: { relatieId: string
         </p>
         <ul className="divide-y divide-border/70 -mx-2">{nogNietAangeboden.map(toonRij)}</ul>
       </div>}
+      {taakKandidaat&&taakInfo&&<TaakFormDialog open={true} onOpenChange={open=>{if(!open)setTaakKandidaat(null);}}
+        taak={taakInfo.taak??null} defaultObjectId={taakKandidaat.objectId} defaultRelatieId={relatieId}
+        defaultTitel={taakInfo.voorstel+' · '+(getObjectById(taakKandidaat.objectId)?.titel??'Object')}
+        defaultType="Follow-up"/>}
       <AanbiedingRegistrerenDialog open={aanbiedOpen}
         onOpenChange={setAanbiedOpen}
         defaultRelatieId={relatieId}
