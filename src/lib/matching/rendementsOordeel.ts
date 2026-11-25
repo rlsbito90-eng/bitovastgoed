@@ -8,6 +8,7 @@ export type RendementsOordeel = {
   status:'niet_van_toepassing'|'controle'|'indicatief_voldoet'|'indicatief_lager';
   uitleg:string;
   hardKnockout:false;
+  prijsindicatie?: { maximum:number; grondslag:'BAR'|'Factor'; verschilVraagprijs:number|null; overigeCriteriaOngetoetst:boolean };
 };
 
 export function beoordeelObjectRendement(
@@ -32,6 +33,20 @@ export function beoordeelObjectRendement(
     hardKnockout:false,
   };
 
+  const prijsgrenzen: {maximum:number;grondslag:'BAR'|'Factor'}[]=[];
+  const jaarhuur=object.huurinkomsten;
+  if(typeof jaarhuur==='number' && Number.isFinite(jaarhuur) && jaarhuur>0) {
+    for(const c of toetsbaar) {
+      if(!c.methodeBevestigd || c.strategie!=='belegging' || !Number.isFinite(c.percentage) || c.percentage<=0) continue;
+      const maximum=c.methode==='bar' && c.criteriumType==='minimum' ? jaarhuur*100/c.percentage : c.methode==='factor' && c.criteriumType==='maximum' ? jaarhuur*c.percentage : null;
+      if(maximum!==null && Number.isFinite(maximum)) prijsgrenzen.push({maximum,grondslag:c.methode==='bar'?'BAR':'Factor'});
+    }
+  }
+  prijsgrenzen.sort((a,b)=>a.maximum-b.maximum);
+  const grens=prijsgrenzen[0];
+  const prijs=object.vraagprijs;
+  const prijsindicatie=grens ? { ...grens, maximum:Math.floor(grens.maximum), verschilVraagprijs:typeof prijs==='number' && Number.isFinite(prijs) && prijs>0 ? prijs-Math.floor(grens.maximum) : null,
+    overigeCriteriaOngetoetst:toetsbaar.some(c=>!c.methodeBevestigd || c.strategie!=='belegging' || !(c.methode==='bar' && c.criteriumType==='minimum' || c.methode==='factor' && c.criteriumType==='maximum') || !Number.isFinite(c.percentage) || c.percentage<=0) } : undefined;
   const lager:string[]=[];
   const passend:string[]=[];
   let onzeker=false;
@@ -57,20 +72,20 @@ export function beoordeelObjectRendement(
   if(lager.length)return {
     status:'indicatief_lager',
     uitleg:[...lager,...passend].join(' ')+(onzeker?' Overige criteria nog niet vergelijkbaar.':'')+' Geen automatische uitsluiting zonder verificatie van de berekening.',
-    hardKnockout:false,
+    hardKnockout:false,prijsindicatie,
   };
   if(onzeker)return {
     status:'controle',
     uitleg:[...passend,'Eén of meer rendementscriteria zijn niet vergelijkbaar of nog niet bevestigd.'].join(' '),
-    hardKnockout:false,
+    hardKnockout:false,prijsindicatie,
   };
   if(passend.length)return {
     status:'indicatief_voldoet',
     uitleg:passend.join(' ')+' Onderliggende objectberekening nog controleren.',
-    hardKnockout:false,
+    hardKnockout:false,prijsindicatie,
   };
   return {
     status:'controle',uitleg:'Nog geen rechtstreeks vergelijkbare rendementsgegevens.',
-    hardKnockout:false,
+    hardKnockout:false,prijsindicatie,
   };
 }
