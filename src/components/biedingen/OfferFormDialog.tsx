@@ -111,6 +111,8 @@ export default function OfferFormDialog({
   const isEdit = !!bieding;
   const [form, setForm] = useState<FormState>(emptyForm);
   const [bezig, setBezig] = useState(false);
+  const [newConditionCharacter, setNewConditionCharacter] = useState<ExtraVoorwaarde['karakter']>('voorbehoud');
+  const [showAllConditions, setShowAllConditions] = useState(false);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
   useModalScrollContainment(scrollBodyRef, open);
 
@@ -523,17 +525,25 @@ export default function OfferFormDialog({
               </div>;
             })}
             <div className="min-w-0 sm:col-span-2 space-y-2 border-t border-border/60 pt-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Aanvullende voorwaarden</Label>
-                <Select value={form.extraVoorwaarden == null ? 'onbekend' : form.extraVoorwaarden.length ? 'aanwezig' : 'geen'}
-                  onValueChange={v => set('extraVoorwaarden', v === 'onbekend' ? null : v === 'geen' ? [] : [{type: 'bezichtiging', karakter: 'onbekend', toelichting: '', deadline: null}])}>
-                  <SelectTrigger className="w-44 max-w-full min-w-0"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="onbekend">Onbekend</SelectItem><SelectItem value="geen">Geen</SelectItem><SelectItem value="aanwezig">Aanwezig</SelectItem></SelectContent>
-                </Select>
+              <Label>Aanvullende voorwaarden</Label>
+              <p className="text-xs text-muted-foreground">Selecteer meerdere voorwaarden. Nieuwe selecties gelden als:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(['voorbehoud','transactiebepaling','onbekend'] as const).map(k=><Button key={k} type="button" size="sm" variant={newConditionCharacter===k?'default':'outline'} aria-pressed={newConditionCharacter===k} onClick={()=>setNewConditionCharacter(k)}>{k==='voorbehoud'?'Voorbehoud':k==='transactiebepaling'?'Transactiebepaling':'Niet vastgesteld'}</Button>)}
+              </div>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Kies meerdere voorwaarden">
+                {(Object.keys(EXTRA_VOORWAARDEN_LABELS) as ExtraVoorwaardeType[]).filter((k,i)=>showAllConditions||i<6||form.extraVoorwaarden?.some(v=>v.type===k)).map(k=>{
+                  const count=(form.extraVoorwaarden??[]).filter(v=>v.type===k).length;
+                  return <Button key={k} type="button" size="sm" variant={count?'secondary':'outline'} aria-pressed={count>0} disabled={count>1} className="h-auto min-h-9 max-w-full whitespace-normal text-left" onClick={()=>setForm(old=>({...old,extraVoorwaarden:count?(old.extraVoorwaarden??[]).filter(v=>v.type!==k):[...(old.extraVoorwaarden??[]),{type:k,karakter:newConditionCharacter,toelichting:'',deadline:null}]}))}>{count?'✓ ':'+ '}{EXTRA_VOORWAARDEN_LABELS[k]}</Button>;
+                })}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" className="text-xs underline text-muted-foreground" onClick={()=>setShowAllConditions(v=>!v)}>{showAllConditions?'Minder voorwaarden':'Alle voorwaarden tonen'}</button>
+                {!form.extraVoorwaarden?.length&&<button type="button" className="text-xs underline text-muted-foreground" onClick={()=>set('extraVoorwaarden',form.extraVoorwaarden===null?[]:null)}>{form.extraVoorwaarden===null?'Expliciet geen voorwaarden':'Nog niet vastgesteld'}</button>}
               </div>
               {(form.extraVoorwaarden ?? []).map((condition, index) => {
                 const patch = (value: Partial<ExtraVoorwaarde>) => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).map((item, i) => i === index ? {...item, ...value} : item)}));
-                return <div key={index} className="min-w-0 rounded-md border bg-muted/20 p-3 space-y-2">
+                return <details key={index+condition.type} className="min-w-0 rounded-md border bg-muted/20 p-3 space-y-2">
+                  <summary className="cursor-pointer text-sm font-medium">{EXTRA_VOORWAARDEN_LABELS[condition.type]} <span className="text-xs text-muted-foreground">· Details</span></summary>
                   <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="min-w-0"><Label>Type voorwaarde</Label><Select value={condition.type} onValueChange={v => patch({type: v as ExtraVoorwaardeType})}><SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(EXTRA_VOORWAARDEN_LABELS).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
                     <div className="min-w-0"><Label>Karakter</Label><Select value={condition.karakter} onValueChange={v => patch({karakter: v as ExtraVoorwaarde['karakter']})}><SelectTrigger className="min-w-0 max-w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="onbekend">Niet vastgesteld</SelectItem><SelectItem value="voorbehoud">Voorbehoud</SelectItem><SelectItem value="transactiebepaling">Transactiebepaling</SelectItem></SelectContent></Select></div>
@@ -541,9 +551,8 @@ export default function OfferFormDialog({
                     <div className="min-w-0"><Label>Uiterste datum</Label><Input className="min-w-0 max-w-full" type="date" value={condition.deadline ?? ''} onChange={e => patch({deadline:e.target.value || null})} /></div>
                   </div>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: (old.extraVoorwaarden ?? []).filter((_,i) => i !== index)}))}>Voorwaarde verwijderen</Button>
-                </div>;
+                </details>;
               })}
-              <Button type="button" variant="outline" size="sm" onClick={() => setForm(old => ({...old, extraVoorwaarden: [...(old.extraVoorwaarden ?? []), {type:'overig', karakter:'onbekend', toelichting:'', deadline:null}]}))}>+ Voorwaarde toevoegen</Button>
             </div>
             <div className="min-w-0 sm:col-span-2 space-y-1.5">
               <Label htmlFor="voorwaarden">Aanvullende vrije tekst</Label>
