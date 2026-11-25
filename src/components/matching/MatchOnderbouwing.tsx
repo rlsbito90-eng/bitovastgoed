@@ -1,6 +1,12 @@
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import type { ProfielRoute } from '@/lib/matching/rolMandaatAdapter';
+import type { MatchVoorwaarde, ProfielRoute } from '@/lib/matching/rolMandaatAdapter';
 import type { RendementsOordeel } from '@/lib/matching/rendementsOordeel';
+
+const VOORWAARDE_LABELS: Record<MatchVoorwaarde['soort'], string> = {
+  hard: 'Harde aankoopvoorwaarde', uitsluiting: 'Uitsluiting', profiel: 'Voorwaarde zoekprofiel',
+  aanvullend: 'Aanvullend aankoopcriterium', rendement: 'Rendementsdoel',
+  strategie: 'Investeringsstrategie', voorkeur: 'Voorkeur',
+};
 
 /**
  * Zelfde onderbouwing voor kopers bij een object en objecten bij een relatie.
@@ -18,7 +24,9 @@ export function MatchOnderbouwing({ route, rendement }: {
   const eersteBewijs = bewijs.find(x =>
     !x.startsWith('Landelijk zoekgebied') && !x.startsWith('Vraagprijs binnen budget'))
     ?? bewijs[0];
-  const eersteControle = belangrijkeControle[0] ?? afwijkend[0];
+  const voorwaarden = route.toelichting.voorwaarden ?? [];
+  const hoofdvoorwaarde = voorwaarden.find(v => v.soort !== 'voorkeur');
+  const eersteControle = afwijkend[0] ?? belangrijkeControle[0];
   const rendementAandacht = rendement && rendement.status !== 'niet_van_toepassing' &&
     rendement.status !== 'indicatief_voldoet';
 
@@ -30,6 +38,10 @@ export function MatchOnderbouwing({ route, rendement }: {
             <span className="min-w-0 break-words">{eersteBewijs}</span>
           </p>
         : <p className="text-muted-foreground">Nog onvoldoende bevestigde aanknopingspunten.</p>}
+      {hoofdvoorwaarde && <div className="min-w-0 rounded-md border border-border/70 px-2.5 py-2">
+        <p className="font-medium text-foreground">{VOORWAARDE_LABELS[hoofdvoorwaarde.soort]} · te controleren</p>
+        <p className="mt-0.5 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-muted-foreground line-clamp-2">{hoofdvoorwaarde.tekst}</p>
+      </div>}
       {eersteControle
         ? <p className="flex items-start gap-2 text-muted-foreground">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -57,6 +69,13 @@ export function MatchOnderbouwing({ route, rendement }: {
           {afwijkend.map((x, i) => <p key={i} className="break-words text-destructive">{x}</p>)}
           {rendement && rendement.status !== 'niet_van_toepassing' &&
             <p className="break-words text-muted-foreground">Rendement: {rendement.uitleg}</p>}
+        </div>}
+        {voorwaarden.length > 0 && <div className="space-y-2">
+          <p className="font-medium text-foreground">Vastgelegde aankoopvoorwaarden en voorkeuren</p>
+          {voorwaarden.map((v, i) => <div key={i} className="min-w-0">
+            <p className="font-medium text-foreground">{VOORWAARDE_LABELS[v.soort]}{v.soort === 'voorkeur' ? ' · niet-bindend' : ' · te controleren'}</p>
+            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-muted-foreground">{v.tekst}</p>
+          </div>)}
         </div>}
         <p className="border-t border-border/60 pt-2 text-muted-foreground">
           Een matchvoorstel is geen bevestigde aankoopbereidheid. Specifieke koopvoorwaarden
